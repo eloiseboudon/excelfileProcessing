@@ -1,6 +1,15 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from models import db, Product, TempImport, Reference
+from models import (
+    db,
+    Product,
+    TempImport,
+    Reference,
+    BrandParameter,
+    ColorReference,
+    MemoryReference,
+    TypeReference,
+)
 import pandas as pd
 import os
 
@@ -77,10 +86,11 @@ def create_app():
             {
                 'id': p.id,
                 'name': p.name,
-                'brand': p.brand,
+                'brand': p.brand.brand if p.brand else None,
                 'price': p.price,
-                'memory': p.memory,
-                'color': p.color,
+                'memory': p.memory_reference.memory if p.memory_reference else None,
+                'color': p.color_reference.color if p.color_reference else None,
+                'type': p.type_reference.type_name if p.type_reference else None,
                 'reference': {
                     'id': p.reference.id if p.reference else None,
                     'name': p.reference.name if p.reference else None
@@ -93,19 +103,58 @@ def create_app():
     @app.route('/populate_products', methods=['POST'])
     def populate_products_from_reference():
         references = Reference.query.all()
+        brands = BrandParameter.query.all()
+        colors = ColorReference.query.all()
+        memories = MemoryReference.query.all()
+        types = TypeReference.query.all()
+
         created = 0
         updated = 0
         for ref in references:
+            name_lower = ref.name.lower() if ref.name else ""
+
+            brand_id = None
+            for b in brands:
+                if b.brand.lower() in name_lower:
+                    brand_id = b.id
+                    break
+
+            color_id = None
+            for c in colors:
+                if c.color.lower() in name_lower:
+                    color_id = c.id
+                    break
+
+            memory_id = None
+            for m in memories:
+                if m.memory.lower() in name_lower:
+                    memory_id = m.id
+                    break
+
+            type_id = None
+            for t in types:
+                if t.type_name.lower() in name_lower:
+                    type_id = t.id
+                    break
+
             existing = Product.query.filter_by(id_reference=ref.id).first()
             if existing:
                 existing.name = ref.name
                 existing.price = ref.selling_price
+                existing.id_brand = brand_id
+                existing.id_color = color_id
+                existing.id_memory = memory_id
+                existing.id_type = type_id
                 updated += 1
             else:
                 product = Product(
                     id_reference=ref.id,
                     name=ref.name,
-                    price=ref.selling_price
+                    price=ref.selling_price,
+                    id_brand=brand_id,
+                    id_color=color_id,
+                    id_memory=memory_id,
+                    id_type=type_id,
                 )
                 db.session.add(product)
                 created += 1
