@@ -14,6 +14,7 @@ cur.execute("""DROP TABLE IF EXISTS product_calculates;""")
 cur.execute("""DROP TABLE IF EXISTS products;""") 
 cur.execute("""DROP TABLE IF EXISTS size_references;""")
 cur.execute("""DROP TABLE IF EXISTS type_references;""")
+cur.execute("""DROP TABLE IF EXISTS color_transco;""")
 cur.execute("""DROP TABLE IF EXISTS color_references;""")
 cur.execute("""DROP TABLE IF EXISTS memory_references;""")
 cur.execute("""DROP TABLE IF EXISTS brand_parameters;""")
@@ -63,7 +64,16 @@ CREATE TABLE IF NOT EXISTS color_references (
     id SERIAL PRIMARY KEY,
     color VARCHAR(50) NOT NULL
 );
-""")    
+""")
+
+cur.execute("""
+CREATE TABLE IF NOT EXISTS color_transco (
+    id SERIAL PRIMARY KEY,
+    color_source VARCHAR(50) NOT NULL,
+    color_target VARCHAR(50) NOT NULL,
+    id_color_target INTEGER REFERENCES color_references(id) ON DELETE CASCADE
+);
+""")
 
 cur.execute("""
 CREATE TABLE IF NOT EXISTS type_references (
@@ -102,6 +112,20 @@ conn.commit()
 cur.execute("INSERT INTO brand_parameters (brand) VALUES ('Samsung'), ('Apple'), ('Huawei'), ('Xiaomi'), ('Oppo');")
 cur.execute("INSERT INTO memory_references (memory) VALUES ('64GB'), ('128GB'), ('256GB'), ('512GB');")
 cur.execute("INSERT INTO color_references (color) VALUES ('Blanc'), ('Noir'), ('Bleu'), ('Rouge'), ('Vert'),('Orange');")
+cur.execute(
+    "INSERT INTO color_transco (color_source, color_target, id_color_target) VALUES "
+    "('black', 'Noir', 2),"
+    "('dark grey', 'Noir', 2),"
+    "('dark gray', 'Noir', 2),"
+    "('white', 'Blanc', 1),"
+    "('starlight', 'Blanc', 1),"
+    "('blue', 'Bleu', 3),"
+    "('blau', 'Bleu', 3),"
+    "('red', 'Rouge', 4),"
+    "('pink', 'Rouge', 4),"
+    "('green', 'Vert', 5),"
+    "('orange', 'Orange', 6);"
+)
 cur.execute("INSERT INTO type_references (type) VALUES ('Téléphone'), ('Tablette'), ('Montre'), ('Ordinateur');")
 
 conn.commit()
