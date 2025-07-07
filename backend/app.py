@@ -97,7 +97,7 @@ def create_app():
             price=data.get('price'),
             memory=data.get('memory', None),
             color=data.get('color', None),  # Optional field   
-            reference_id=data.get('reference_id', None)  # Optional field
+            id_reference=data.get('reference_id', None)  # Optional field
         )
         db.session.add(product)
         db.session.commit()
@@ -116,7 +116,7 @@ def create_app():
                 price=row.get('price'),
                 memory=row.get('memory', None),  # Optional field
                 color=row.get('color', None),  # Optional field
-                reference_id=row.get('reference_id', None)  # Optional field    
+                id_reference=row.get('reference_id', None)  # Optional field
             )
             db.session.add(product)
         db.session.commit()
