@@ -1,17 +1,13 @@
 export const API_BASE = 'http://localhost:5001';
 
 
-export async function createImport(file: { 
-    description : string;
-    articlelno: string;
-    quantity: number;
-    selling_prince: number;
-    ean: number;
- }) {
+export async function createImport(file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+
   const res = await fetch(`${API_BASE}/import`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(file)
+    body: formData
   });
   if (!res.ok) {
     throw new Error("Erreur lors de l'ajout du produit");

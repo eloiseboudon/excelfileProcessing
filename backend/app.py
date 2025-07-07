@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from models import db, Product, TempImport
+from models import db, Product, TempImport, Reference
 import pandas as pd
 
 def create_app():
@@ -20,17 +20,42 @@ def create_app():
 
     @app.route('/import', methods=['POST'])
     def create_import():
-        data = request.get_json()
-        importfile = TempImport(
-            description=data.get('description'),
-            articlelno=data.get('articlelno', None),
-            quantity=data.get('quantity', None),
-            selling_prince=data.get('selling_prince', None),
-            ean=data.get('ean')
-        )
-        db.session.add(importfile)
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+
+        file = request.files['file']
+
+        # Clean previous temporary data
+        TempImport.query.delete()
         db.session.commit()
-        return jsonify({'id': importfile.id}), 201
+
+        df = pd.read_excel(file)
+        count = 0
+        for _, row in df.iterrows():
+            temp = TempImport(
+                description=row.get('description'),
+                articlelno=row.get('articlelno', None),
+                quantity=row.get('quantity', None),
+                selling_prince=row.get('selling_prince', None),
+                ean=row.get('ean')
+            )
+            db.session.add(temp)
+
+            # Create reference if it does not already exist
+            ref = Reference.query.filter_by(ean=row.get('ean')).first()
+            if not ref:
+                ref = Reference(
+                    name=row.get('description'),
+                    articlelno=row.get('articlelno', None),
+                    quantity=row.get('quantity', None),
+                    selling_prince=row.get('selling_prince', None),
+                    ean=row.get('ean')
+                )
+                db.session.add(ref)
+            count += 1
+
+        db.session.commit()
+        return jsonify({'status': 'success', 'count': count})
 
     @app.route('/products', methods=['GET'])
     def list_products():

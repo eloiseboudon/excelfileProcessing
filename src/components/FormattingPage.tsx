@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx';
 import HotwavAdmin from './HotwavAdmin';
 import AccessoriesAdmin from './AccessoriesAdmin';
 import SearchControls from './SearchControls';
+import { createImport } from '../api';
 
 interface FormattingPageProps {
   onBack: () => void;
@@ -13,14 +14,6 @@ interface Product {
   name: string;
   price: number;
   brand: string;
-}
-
-interface ImportFile {
-  description: string;
-  articlelno: string;
-  quantity: number;
-  selling_price: number;
-  ean: number;
 }
 
 // interface HotwavProduct {
@@ -126,8 +119,9 @@ function FormattingPage({ onBack }: FormattingPageProps) {
 
     setIsProcessing(true);
     setError(null);
-    
+
     try {
+      await createImport(file);
       // Lire le fichier Excel
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
