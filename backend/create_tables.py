@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS temp_imports (
 """)
 
 cur.execute("""
-CREATE TABLE IF NOT EXISTS references (
+CREATE TABLE IF NOT EXISTS reference (
     id SERIAL PRIMARY KEY,
     name VARCHAR(200) NOT NULL,
     articlelno VARCHAR(50),
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS references (
 cur.execute("""
 CREATE TABLE IF NOT EXISTS products (
     id SERIAL PRIMARY KEY,
-    id_reference INTEGER REFERENCES references(id) ON DELETE SET NULL,
+    id_reference INTEGER REFERENCES reference(id) ON DELETE SET NULL,
     name VARCHAR(120) NOT NULL,
     brand VARCHAR(50),
     price FLOAT,
