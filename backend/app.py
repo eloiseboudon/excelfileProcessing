@@ -1,10 +1,17 @@
 from flask import Flask, request, jsonify
 from models import db, Product
 import pandas as pd
-
+from flask_cors import CORS
 
 def create_app():
     app = Flask(__name__)
+
+    # Enable Cross-Origin Resource Sharing
+    CORS(app)
+
+    @app.route('/')
+    def index():
+        return {'message': 'Hello World'}
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///data.db'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     db.init_app(app)

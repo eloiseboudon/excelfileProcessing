@@ -47,13 +47,23 @@ Pour activer l'envoi d'emails, configurez EmailJS :
    - `{{brands_summary}}`
 
 4. Remplacez les valeurs dans `src/services/emailService.ts` :
-   ```typescript
    const EMAIL_CONFIG = {
-     serviceId: 'VOTRE_SERVICE_ID',
-     templateId: 'VOTRE_TEMPLATE_ID',
-     publicKey: 'VOTRE_PUBLIC_KEY'
-   };
-   ```
+    serviceId: 'VOTRE_SERVICE_ID',
+    templateId: 'VOTRE_TEMPLATE_ID',
+    publicKey: 'VOTRE_PUBLIC_KEY'
+  };
+  ```
+
+## Fichier `.env`
+
+Créez un fichier `.env` à la racine du projet avec vos identifiants Supabase&nbsp;:
+
+```bash
+VITE_SUPABASE_URL=<votre_url_supabase>
+VITE_SUPABASE_ANON_KEY=<votre_cle_anon>
+```
+
+Ce fichier est ignoré par Git afin de protéger vos informations sensibles.
 
 ## Technologies utilisées
 
