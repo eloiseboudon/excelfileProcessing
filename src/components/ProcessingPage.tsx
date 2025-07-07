@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { FileUp, FileDown, ArrowRight, Loader2, Download, ChevronRight } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { uploadExcel, fetchProducts, createImport } from '../api';
+import { createProduct, fetchProducts, createImport } from '../api';
 
 interface ProcessingPageProps {
   onNext: () => void;
@@ -246,7 +246,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
 
       // Importer les références puis envoyer le fichier original au backend
       await createImport(file);
-      // await uploadExcel(file);
+      await createProduct();
       const list = await fetchProducts();
       setProductsCount(list.length);
     } catch (error) {

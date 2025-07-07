@@ -10,10 +10,17 @@ conn = psycopg2.connect(
 )
 cur = conn.cursor()
 
-# cur.execute("""DROP TABLE IF EXISTS product_calculates;""")   
-# cur.execute("""DROP TABLE IF EXISTS products;""") 
-# cur.execute("""DROP TABLE IF EXISTS reference;""")    
-# cur.execute("""DROP TABLE IF EXISTS temp_imports;""")
+cur.execute("""DROP TABLE IF EXISTS product_calculates;""")   
+cur.execute("""DROP TABLE IF EXISTS products;""") 
+cur.execute("""DROP TABLE IF EXISTS size_references;""")
+cur.execute("""DROP TABLE IF EXISTS type_references;""")
+cur.execute("""DROP TABLE IF EXISTS color_references;""")
+cur.execute("""DROP TABLE IF EXISTS memory_references;""")
+cur.execute("""DROP TABLE IF EXISTS brand_parameters;""")
+cur.execute("""DROP TABLE IF EXISTS reference;""")    
+cur.execute("""DROP TABLE IF EXISTS temp_imports;""")
+
+conn.commit()
 
 cur.execute("""
 CREATE TABLE IF NOT EXISTS temp_imports (
@@ -38,14 +45,43 @@ CREATE TABLE IF NOT EXISTS reference (
 """)
 
 cur.execute("""
+CREATE TABLE IF NOT EXISTS brand_parameters (
+    id SERIAL PRIMARY KEY,
+    brand VARCHAR(50) NOT NULL
+);
+""")
+
+cur.execute("""
+CREATE TABLE IF NOT EXISTS memory_references (
+    id SERIAL PRIMARY KEY,
+    memory VARCHAR(50) NOT NULL
+);
+""")
+
+cur.execute("""
+CREATE TABLE IF NOT EXISTS color_references (
+    id SERIAL PRIMARY KEY,
+    color VARCHAR(50) NOT NULL
+);
+""")    
+
+cur.execute("""
+CREATE TABLE IF NOT EXISTS type_references (
+    id SERIAL PRIMARY KEY,
+    type VARCHAR(50) NOT NULL
+);
+""")
+
+cur.execute("""
 CREATE TABLE IF NOT EXISTS products (
     id SERIAL PRIMARY KEY,
     id_reference INTEGER REFERENCES reference(id) ON DELETE SET NULL,
     name VARCHAR(120) NOT NULL,
-    brand VARCHAR(50),
+    id_brand INTEGER REFERENCES brand_parameters(id) ON DELETE SET NULL,
     price FLOAT,
-    memory VARCHAR(50),
-    color VARCHAR(50)
+    id_memory INTEGER REFERENCES memory_references(id) ON DELETE SET NULL,
+    id_color INTEGER REFERENCES color_references(id) ON DELETE SET NULL,
+    id_type INTEGER REFERENCES type_references(id) ON DELETE SET NULL
 );
 """)
 
@@ -60,6 +96,13 @@ CREATE TABLE IF NOT EXISTS product_calculates (
     prixHT_max FLOAT NOT NULL
 );
 """)
+
+conn.commit()
+
+cur.execute("INSERT INTO brand_parameters (brand) VALUES ('Samsung'), ('Apple'), ('Huawei'), ('Xiaomi'), ('Oppo');")
+cur.execute("INSERT INTO memory_references (memory) VALUES ('64GB'), ('128GB'), ('256GB'), ('512GB');")
+cur.execute("INSERT INTO color_references (color) VALUES ('Blanc'), ('Noir'), ('Bleu'), ('Rouge'), ('Vert');")
+cur.execute("INSERT INTO type_references (type) VALUES ('Téléphone'), ('Tablette'), ('Montre'), ('Ordinateur');")
 
 conn.commit()
 cur.close()
