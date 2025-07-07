@@ -1,4 +1,4 @@
-export const API_BASE = 'http://localhost:5000';
+export const API_BASE = 'http://localhost:5001';
 
 export async function fetchProducts() {
   const res = await fetch(`${API_BASE}/products`);

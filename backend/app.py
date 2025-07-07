@@ -1,13 +1,13 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from models import db, Product
 import pandas as pd
-from flask_cors import CORS
 
 def create_app():
     app = Flask(__name__)
 
     # Enable Cross-Origin Resource Sharing
-    CORS(app)
+    CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
 
     @app.route('/')
     def index():
@@ -27,7 +27,8 @@ def create_app():
                 'id': p.id,
                 'name': p.name,
                 'brand': p.brand,
-                'price': p.price
+                'price': p.price,
+                'memory': p.memory
             }
             for p in products
         ]
@@ -38,8 +39,9 @@ def create_app():
         data = request.get_json()
         product = Product(
             name=data.get('name'),
-            brand=data.get('brand'),
-            price=data.get('price')
+            brand=data.get('brand',None),
+            price=data.get('price'),
+            memory=data.get('memory', None)  # Optional field
         )
         db.session.add(product)
         db.session.commit()
@@ -54,8 +56,9 @@ def create_app():
         for _, row in df.iterrows():
             product = Product(
                 name=row.get('name'),
-                brand=row.get('brand'),
-                price=row.get('price')
+                brand=row.get('brand', None),  # Optional field
+                price=row.get('price'),
+                memory=row.get('memory', None)  # Optional field
             )
             db.session.add(product)
         db.session.commit()
@@ -66,4 +69,5 @@ def create_app():
 
 if __name__ == '__main__':
     app = create_app()
-    app.run(debug=True)
+    app.run(debug=True, port=5001)
+
