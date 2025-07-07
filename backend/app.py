@@ -13,7 +13,7 @@ def create_app():
         return {'message': 'Hello World'}
     database_url = os.environ.get(
         "DATABASE_URL",
-        "postgresql://postgres:postgres@localhost:5432/ajtpro"
+        "postgresql://eloise@localhost:5432/ajtpro"
     )
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
