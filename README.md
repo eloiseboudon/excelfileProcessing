@@ -127,7 +127,6 @@ Un backend minimal en **Python** est fourni dans le dossier `backend`. Il utilis
 # Créer la base de données (PostgreSQL local)
 make db-create    # crée la base `ajtpro` si besoin
 
-cd backend
 make venv         # crée l'environnement virtuel et installe les dépendances
 export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ajtpro
 make run          # démarre l'API Flask
