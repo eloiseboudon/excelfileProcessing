@@ -125,7 +125,7 @@ Un backend minimal en **Python** est fourni dans le dossier `backend`. Il utilis
 
 ```bash
 # Démarrer la base de données
-make db-up        # lance PostgreSQL dans Docker
+make db-up        # lance PostgreSQL (container "ajtpro") dans Docker
 make db-create    # crée la base `ajtpro` si besoin
 
 cd backend

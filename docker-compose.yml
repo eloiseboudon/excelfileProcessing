@@ -1,8 +1,9 @@
 version: '3'
 services:
-  db:
+  ajtpro:
     image: postgres:15
     restart: always
+    container_name: ajtpro
     environment:
       POSTGRES_DB: ajtpro
       POSTGRES_USER: postgres
