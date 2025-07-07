@@ -9,6 +9,7 @@ from models import (
     ColorReference,
     MemoryReference,
     TypeReference,
+    ColorTransco,
 )
 import pandas as pd
 import os
@@ -90,7 +91,7 @@ def create_app():
                 'price': p.price,
                 'memory': p.memory_reference.memory if p.memory_reference else None,
                 'color': p.color_reference.color if p.color_reference else None,
-                'type': p.type_reference.type_name if p.type_reference else None,
+                'type': p.type_reference.type if p.type_reference else None,
                 'reference': {
                     'id': p.reference.id if p.reference else None,
                     'name': p.reference.name if p.reference else None
@@ -107,6 +108,7 @@ def create_app():
         colors = ColorReference.query.all()
         memories = MemoryReference.query.all()
         types = TypeReference.query.all()
+        color_transcos = ColorTransco.query.all()
 
         created = 0
         updated = 0
@@ -124,6 +126,11 @@ def create_app():
                 if c.color.lower() in name_lower:
                     color_id = c.id
                     break
+            if not color_id:
+                for ct in color_transcos:
+                    if ct.color_source.lower() in name_lower:
+                        color_id = ct.id_color_target
+                        break
 
             memory_id = None
             for m in memories:
@@ -133,7 +140,7 @@ def create_app():
 
             type_id = None
             for t in types:
-                if t.type_name.lower() in name_lower:
+                if t.type.lower() in name_lower:
                     type_id = t.id
                     break
 

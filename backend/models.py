@@ -42,7 +42,18 @@ class TypeReference(db.Model):
     __tablename__ = 'type_references'
 
     id = db.Column(db.Integer, primary_key=True)
-    type_name = db.Column(db.String(50), nullable=False) 
+    type = db.Column(db.String(50), nullable=False)
+
+class ColorTransco(db.Model):
+    __tablename__ = 'color_transco'
+
+    id = db.Column(db.Integer, primary_key=True)
+    color_source = db.Column(db.String(50), nullable=False)
+    color_target = db.Column(db.String(50), nullable=False)
+    id_color_target = db.Column(
+        db.Integer, db.ForeignKey('color_references.id'), nullable=False
+    )
+    color_reference = db.relationship('ColorReference')
 
 class Product(db.Model):
     __tablename__ = 'products'
