@@ -115,10 +115,8 @@ Un backend minimal en **Python** est fourni dans le dossier `backend`. Il utilis
 
 ```bash
 cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python app.py
+make venv   # crée l'environnement virtuel et installe les dépendances
+make run    # démarre l'API Flask
 ```
 
 L'application expose notamment les routes :
