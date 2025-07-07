@@ -10,7 +10,10 @@ class TempImport(db.Model):
     articlelno = db.Column(db.String(50))
     quantity = db.Column(db.Integer)
     selling_prince = db.Column(db.Float)
-    ean = db.Column(db.Float, unique=True, nullable=False)
+    # EAN codes can exceed the range of a 32 bit integer and may contain
+    # leading zeros. Store them as strings to avoid numeric overflow and
+    # preserve the exact value.
+    ean = db.Column(db.String(20), unique=True, nullable=False)
 
 class Reference(db.Model):
     __tablename__ = 'references'
@@ -20,7 +23,9 @@ class Reference(db.Model):
     articlelno = db.Column(db.String(50))
     quantity = db.Column(db.Float)
     selling_prince = db.Column(db.Float)
-    ean = db.Column(db.Integer, unique=True, nullable=False)
+    # Same reasoning as in ``TempImport``: keep the original code without
+    # risking integer overflows.
+    ean = db.Column(db.String(20), unique=True, nullable=False)
 
 class Product(db.Model):
     __tablename__ = 'products'

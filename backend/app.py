@@ -37,24 +37,30 @@ def create_app():
         df = pd.read_excel(file)
         count = 0
         for _, row in df.iterrows():
+            # Cast EAN to string to keep the exact value regardless of
+            # how pandas interpreted the column (float, int, etc.).
+            ean_value = None
+            if pd.notnull(row.get('ean')):
+                # remove any decimal part introduced by Excel or pandas
+                ean_value = str(int(row.get('ean')))
             temp = TempImport(
                 description=row.get('description'),
                 articlelno=row.get('articlelno', None),
                 quantity=row.get('quantity', None),
                 selling_prince=row.get('selling_prince', None),
-                ean=row.get('ean')
+                ean=ean_value
             )
             db.session.add(temp)
 
             # Create reference if it does not already exist
-            ref = Reference.query.filter_by(ean=row.get('ean')).first()
+            ref = Reference.query.filter_by(ean=ean_value).first()
             if not ref:
                 ref = Reference(
                     name=row.get('description'),
                     articlelno=row.get('articlelno', None),
                     quantity=row.get('quantity', None),
                     selling_prince=row.get('selling_prince', None),
-                    ean=row.get('ean')
+                    ean=ean_value
                 )
                 db.session.add(ref)
             count += 1

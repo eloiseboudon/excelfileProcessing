@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS temp_imports (
     articlelno VARCHAR(50),
     quantity INTEGER,
     selling_prince FLOAT,
-    ean FLOAT UNIQUE NOT NULL
+    -- store EAN codes as text to avoid integer overflow
+    ean VARCHAR(20) UNIQUE NOT NULL
 );
 """)
 
@@ -28,7 +29,8 @@ CREATE TABLE IF NOT EXISTS reference (
     articlelno VARCHAR(50),
     quantity INTEGER,
     selling_prince FLOAT,
-    ean FLOAT UNIQUE NOT NULL
+    -- same here, use text for EAN codes
+    ean VARCHAR(20) UNIQUE NOT NULL
 );
 """)
 
