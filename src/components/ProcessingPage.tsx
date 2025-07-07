@@ -1,6 +1,7 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { FileUp, FileDown, ArrowRight, Loader2, Download, ChevronRight } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { uploadExcel, fetchProducts } from '../api';
 
 interface ProcessingPageProps {
   onNext: () => void;
@@ -12,6 +13,13 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedFile, setProcessedFile] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [productsCount, setProductsCount] = useState(0);
+
+  useEffect(() => {
+    fetchProducts()
+      .then((list) => setProductsCount(list.length))
+      .catch(() => {});
+  }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -235,6 +243,11 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
       });
       const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       setProcessedFile(URL.createObjectURL(blob));
+
+      // Envoi du fichier original au backend
+      await uploadExcel(file);
+      const list = await fetchProducts();
+      setProductsCount(list.length);
     } catch (error) {
       console.error('Error processing file:', error);
       setError(error instanceof Error ? error.message : 'Une erreur est survenue lors du traitement du fichier');
@@ -278,6 +291,9 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
       </p>
       <p className="text-center text-zinc-400 mb-12">
         Semaine {getCurrentWeekAndYear()}
+      </p>
+      <p className="text-center text-sm text-zinc-500 mb-8">
+        Produits en base : {productsCount}
       </p>
       
       <div className="bg-zinc-900 rounded-2xl shadow-2xl p-8 border border-[#B8860B]/20">

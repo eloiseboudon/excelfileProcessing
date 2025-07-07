@@ -106,3 +106,26 @@ src/
 - **Gestion d'erreurs** complète
 - **Validation des formulaires**
 - **Confirmation de commande** automatique
+
+## Backend Python
+
+Un backend minimal en **Python** est fourni dans le dossier `backend`. Il utilise **Flask** et **SQLite** pour stocker les produits traités.
+
+### Installation et lancement
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python app.py
+```
+
+L'application expose notamment les routes :
+
+- `GET /products` : liste l'ensemble des produits en base.
+- `POST /products` : ajout d'un produit au format JSON.
+- `POST /upload` : envoi d'un fichier Excel pour importer plusieurs produits.
+
+Dans l'application React, le fichier traité est automatiquement transmis au backend via l'endpoint `/upload`.
+
