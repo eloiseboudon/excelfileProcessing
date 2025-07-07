@@ -5,8 +5,6 @@ import pandas as pd
 
 def create_app():
     app = Flask(__name__)
-
-    # Enable Cross-Origin Resource Sharing
     CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
 
     @app.route('/')
@@ -19,6 +17,7 @@ def create_app():
     with app.app_context():
         db.create_all()
 
+
     @app.route('/products', methods=['GET'])
     def list_products():
         products = Product.query.all()
@@ -28,7 +27,12 @@ def create_app():
                 'name': p.name,
                 'brand': p.brand,
                 'price': p.price,
-                'memory': p.memory
+                'memory': p.memory,
+                'color': p.color,
+                'reference': {
+                    'id': p.reference.id if p.reference else None,
+                    'name': p.reference.name if p.reference else None
+                } if p.reference else None
             }
             for p in products
         ]
@@ -41,7 +45,9 @@ def create_app():
             name=data.get('name'),
             brand=data.get('brand',None),
             price=data.get('price'),
-            memory=data.get('memory', None)  # Optional field
+            memory=data.get('memory', None),
+            color=data.get('color', None),  # Optional field   
+            reference_id=data.get('reference_id', None)  # Optional field
         )
         db.session.add(product)
         db.session.commit()
@@ -58,7 +64,9 @@ def create_app():
                 name=row.get('name'),
                 brand=row.get('brand', None),  # Optional field
                 price=row.get('price'),
-                memory=row.get('memory', None)  # Optional field
+                memory=row.get('memory', None),  # Optional field
+                color=row.get('color', None),  # Optional field
+                reference_id=row.get('reference_id', None)  # Optional field    
             )
             db.session.add(product)
         db.session.commit()
