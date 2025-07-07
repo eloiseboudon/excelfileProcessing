@@ -1,13 +1,7 @@
-.PHONY: db-up db-down db-create run-backend
-
-db-up:
-	docker compose up -d ajtpro
-
-db-down:
-	docker compose down
+.PHONY: db-create run-backend
 
 db-create:
-	docker compose exec ajtpro psql -U postgres -c "CREATE DATABASE ajtpro;" || true
+	psql -U postgres -d postgres -tc "SELECT 1 FROM pg_database WHERE datname='ajtpro'" | grep -q 1 || psql -U postgres -d postgres -c "CREATE DATABASE ajtpro"
 
 run-backend:
 	$(MAKE) -C backend run

@@ -119,13 +119,12 @@ src/
 
 ## Backend Python
 
-Un backend minimal en **Python** est fourni dans le dossier `backend`. Il utilise **Flask** et une base **PostgreSQL** (via Docker) pour stocker les produits traités.
+Un backend minimal en **Python** est fourni dans le dossier `backend`. Il utilise **Flask** et une base **PostgreSQL** pour stocker les produits traités.
 
 ### Installation et lancement
 
 ```bash
-# Démarrer la base de données
-make db-up        # lance PostgreSQL (container "ajtpro") dans Docker
+# Créer la base de données (PostgreSQL local)
 make db-create    # crée la base `ajtpro` si besoin
 
 cd backend
