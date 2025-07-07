@@ -101,7 +101,7 @@ conn.commit()
 
 cur.execute("INSERT INTO brand_parameters (brand) VALUES ('Samsung'), ('Apple'), ('Huawei'), ('Xiaomi'), ('Oppo');")
 cur.execute("INSERT INTO memory_references (memory) VALUES ('64GB'), ('128GB'), ('256GB'), ('512GB');")
-cur.execute("INSERT INTO color_references (color) VALUES ('Blanc'), ('Noir'), ('Bleu'), ('Rouge'), ('Vert');")
+cur.execute("INSERT INTO color_references (color) VALUES ('Blanc'), ('Noir'), ('Bleu'), ('Rouge'), ('Vert'),('Orange');")
 cur.execute("INSERT INTO type_references (type) VALUES ('Téléphone'), ('Tablette'), ('Montre'), ('Ordinateur');")
 
 conn.commit()
