@@ -119,14 +119,19 @@ src/
 
 ## Backend Python
 
-Un backend minimal en **Python** est fourni dans le dossier `backend`. Il utilise **Flask** et **SQLite** pour stocker les produits traités.
+Un backend minimal en **Python** est fourni dans le dossier `backend`. Il utilise **Flask** et une base **PostgreSQL** (via Docker) pour stocker les produits traités.
 
 ### Installation et lancement
 
 ```bash
+# Démarrer la base de données
+make db-up        # lance PostgreSQL dans Docker
+make db-create    # crée la base `ajtpro` si besoin
+
 cd backend
-make venv   # crée l'environnement virtuel et installe les dépendances
-make run    # démarre l'API Flask
+make venv         # crée l'environnement virtuel et installe les dépendances
+export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ajtpro
+make run          # démarre l'API Flask
 ```
 
 L'application expose notamment les routes :

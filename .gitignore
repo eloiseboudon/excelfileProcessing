@@ -24,6 +24,6 @@ dist-ssr
 *.sw?
 .venv
 
-
 backend/__pycache__/
 backend/instance/
+pgdata/

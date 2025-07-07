@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from models import db, Product, TempImport, Reference
 import pandas as pd
+import os
 
 def create_app():
     app = Flask(__name__)
@@ -10,7 +11,8 @@ def create_app():
     @app.route('/')
     def index():
         return {'message': 'Hello World'}
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///data.db'
+    database_url = os.environ.get("DATABASE_URL", "sqlite:///data.db")
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     db.init_app(app)
 
