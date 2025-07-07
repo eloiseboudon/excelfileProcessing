@@ -15,9 +15,9 @@ CREATE TABLE IF NOT EXISTS temp_imports (
     id SERIAL PRIMARY KEY,
     description VARCHAR(200) NOT NULL,
     articlelno VARCHAR(50),
-    quantity FLOAT,
+    quantity INTEGER,
     selling_prince FLOAT,
-    ean INTEGER UNIQUE NOT NULL
+    ean FLOAT UNIQUE NOT NULL
 );
 """)
 
@@ -26,9 +26,9 @@ CREATE TABLE IF NOT EXISTS reference (
     id SERIAL PRIMARY KEY,
     name VARCHAR(200) NOT NULL,
     articlelno VARCHAR(50),
-    quantity FLOAT,
+    quantity INTEGER,
     selling_prince FLOAT,
-    ean INTEGER UNIQUE NOT NULL
+    ean FLOAT UNIQUE NOT NULL
 );
 """)
 

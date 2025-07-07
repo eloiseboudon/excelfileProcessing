@@ -8,9 +8,9 @@ class TempImport(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     description = db.Column(db.String(200), nullable=False)
     articlelno = db.Column(db.String(50))
-    quantity = db.Column(db.Float)
+    quantity = db.Column(db.Integer)
     selling_prince = db.Column(db.Float)
-    ean = db.Column(db.Integer, unique=True, nullable=False)
+    ean = db.Column(db.Float, unique=True, nullable=False)
 
 class Reference(db.Model):
     __tablename__ = 'references'
