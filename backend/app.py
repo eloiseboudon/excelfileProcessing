@@ -53,7 +53,11 @@ def create_app():
 
             # Create reference if it does not already exist
             ref = Reference.query.filter_by(ean=ean_value).first()
-            if not ref:
+            if ref:
+                ref.name = row.get('description')
+                ref.quantity = row.get('quantity', None)
+                ref.selling_price = row.get('sellingprice', None)
+            else:
                 ref = Reference(
                     name=row.get('description'),
                     quantity=row.get('quantity', None),
@@ -85,6 +89,28 @@ def create_app():
             for p in products
         ]
         return jsonify(result)
+
+    @app.route('/populate_products', methods=['POST'])
+    def populate_products_from_reference():
+        references = Reference.query.all()
+        created = 0
+        updated = 0
+        for ref in references:
+            existing = Product.query.filter_by(id_reference=ref.id).first()
+            if existing:
+                existing.name = ref.name
+                existing.price = ref.selling_price
+                updated += 1
+            else:
+                product = Product(
+                    id_reference=ref.id,
+                    name=ref.name,
+                    price=ref.selling_price
+                )
+                db.session.add(product)
+                created += 1
+        db.session.commit()
+        return jsonify({'status': 'success', 'created': created, 'updated': updated})
 
     # @app.route('/products', methods=['POST'])
     # def create_product():
