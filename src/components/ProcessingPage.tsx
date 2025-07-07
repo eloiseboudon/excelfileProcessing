@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { FileUp, FileDown, ArrowRight, Loader2, Download, ChevronRight } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { uploadExcel, fetchProducts } from '../api';
+import { uploadExcel, fetchProducts, createImport } from '../api';
 
 interface ProcessingPageProps {
   onNext: () => void;
@@ -244,8 +244,9 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
       const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       setProcessedFile(URL.createObjectURL(blob));
 
-      // Envoi du fichier original au backend
-      await uploadExcel(file);
+      // Importer les références puis envoyer le fichier original au backend
+      await createImport(file);
+      // await uploadExcel(file);
       const list = await fetchProducts();
       setProductsCount(list.length);
     } catch (error) {

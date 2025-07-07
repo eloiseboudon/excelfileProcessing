@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx';
 import HotwavAdmin from './HotwavAdmin';
 import AccessoriesAdmin from './AccessoriesAdmin';
 import SearchControls from './SearchControls';
-import { useLocalStorage } from '../hooks/useLocalStorage';
+import { createImport } from '../api';
 
 interface FormattingPageProps {
   onBack: () => void;
@@ -16,16 +16,16 @@ interface Product {
   brand: string;
 }
 
-interface HotwavProduct {
-  nom: string;
-  prix: number;
-}
+// interface HotwavProduct {
+//   nom: string;
+//   prix: number;
+// }
 
-interface Accessory {
-  nom: string;
-  prix: number;
-  marque: string;
-}
+// interface Accessory {
+//   nom: string;
+//   prix: number;
+//   marque: string;
+// }
 
 function FormattingPage({ onBack }: FormattingPageProps) {
   const [file, setFile] = useState<File | null>(null);
@@ -47,25 +47,25 @@ function FormattingPage({ onBack }: FormattingPageProps) {
   const [priceRange, setPriceRange] = useState({ min: 0, max: 2000 });
 
   // Stockage local pour les produits Hotwav et accessoires
-  const [hotwavProducts, setHotwavProducts] = useLocalStorage<HotwavProduct[]>('hotwav_products', [
-    { nom: 'Hotwav Note 20 4G DS 8/128Gb Black', prix: 125 },
-    { nom: 'Hotwav Note 20 4G DS 8/128Gb Blue', prix: 125 },
-    { nom: 'Hotwav Note 20 4G DS 8/128Gb Green', prix: 125 },
-    { nom: 'Hotwav Cyber 15 4G DS 8/256Gb Black', prix: 145 },
-    { nom: 'Hotwav Cyber 15 4G DS 8/256Gb Blue', prix: 145 },
-    { nom: 'Hotwav Cyber 15 4G DS 8/256Gb Green', prix: 145 }
-  ]);
+  // const [hotwavProducts, setHotwavProducts] = useLocalStorage<HotwavProduct[]>('hotwav_products', [
+  //   { nom: 'Hotwav Note 20 4G DS 8/128Gb Black', prix: 125 },
+  //   { nom: 'Hotwav Note 20 4G DS 8/128Gb Blue', prix: 125 },
+  //   { nom: 'Hotwav Note 20 4G DS 8/128Gb Green', prix: 125 },
+  //   { nom: 'Hotwav Cyber 15 4G DS 8/256Gb Black', prix: 145 },
+  //   { nom: 'Hotwav Cyber 15 4G DS 8/256Gb Blue', prix: 145 },
+  //   { nom: 'Hotwav Cyber 15 4G DS 8/256Gb Green', prix: 145 }
+  // ]);
 
-  const [accessories, setAccessories] = useLocalStorage<Accessory[]>('accessories', [
-    { nom: 'Coque iPhone 15 Pro Max Transparente', prix: 15, marque: 'Apple' },
-    { nom: 'Protecteur d\'écran iPhone 15 Pro Max', prix: 12, marque: 'Apple' },
-    { nom: 'Chargeur USB-C 20W', prix: 25, marque: 'Apple' },
-    { nom: 'Coque Galaxy S24 Ultra Silicone', prix: 18, marque: 'Samsung' },
-    { nom: 'Écouteurs Galaxy Buds3', prix: 89, marque: 'Samsung' },
-    { nom: 'Coque Xiaomi 14 Pro Transparente', prix: 14, marque: 'Xiaomi' },
-    { nom: 'Enceinte JBL Clip 4', prix: 45, marque: 'JBL' },
-    { nom: 'Casque JBL Tune 770NC', prix: 89, marque: 'JBL' }
-  ]);
+  // const [accessories, setAccessories] = useLocalStorage<Accessory[]>('accessories', [
+  //   { nom: 'Coque iPhone 15 Pro Max Transparente', prix: 15, marque: 'Apple' },
+  //   { nom: 'Protecteur d\'écran iPhone 15 Pro Max', prix: 12, marque: 'Apple' },
+  //   { nom: 'Chargeur USB-C 20W', prix: 25, marque: 'Apple' },
+  //   { nom: 'Coque Galaxy S24 Ultra Silicone', prix: 18, marque: 'Samsung' },
+  //   { nom: 'Écouteurs Galaxy Buds3', prix: 89, marque: 'Samsung' },
+  //   { nom: 'Coque Xiaomi 14 Pro Transparente', prix: 14, marque: 'Xiaomi' },
+  //   { nom: 'Enceinte JBL Clip 4', prix: 45, marque: 'JBL' },
+  //   { nom: 'Casque JBL Tune 770NC', prix: 89, marque: 'JBL' }
+  // ]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -119,8 +119,9 @@ function FormattingPage({ onBack }: FormattingPageProps) {
 
     setIsProcessing(true);
     setError(null);
-    
+
     try {
+      await createImport(file);
       // Lire le fichier Excel
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
@@ -144,19 +145,19 @@ function FormattingPage({ onBack }: FormattingPageProps) {
         })
         .filter(product => product !== null);
 
-      // Ajouter les produits Hotwav et accessoires avec leurs prix
-      const hotwavProductsWithPrices = hotwavProducts.map(product => ({
-        name: product.nom,
-        price: product.prix
-      }));
+      // // Ajouter les produits Hotwav et accessoires avec leurs prix
+      // const hotwavProductsWithPrices = hotwavProducts.map(product => ({
+      //   name: product.nom,
+      //   price: product.prix
+      // }));
 
-      const accessoriesWithPrices = accessories.map(accessory => ({
-        name: accessory.nom,
-        price: accessory.prix
-      }));
+      // const accessoriesWithPrices = accessories.map(accessory => ({
+      //   name: accessory.nom,
+      //   price: accessory.prix
+      // }));
 
       // Combiner tous les produits avec leurs prix
-      const allProductsWithPrices = [...productsFromFile, ...hotwavProductsWithPrices, ...accessoriesWithPrices];
+      const allProductsWithPrices = [...productsFromFile];
 
       // Fonction pour déterminer la marque
       const getBrandFromName = (name: string): string => {
@@ -172,6 +173,8 @@ function FormattingPage({ onBack }: FormattingPageProps) {
       };
 
       // Créer les données pour la prévisualisation avec les vrais prix
+
+      //insérer danstable produits et afficher table produits
       const previewProducts: Product[] = allProductsWithPrices.map(product => ({
         name: product.name,
         price: product.price,
@@ -181,6 +184,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
       setPreviewData(previewProducts);
 
       // Calculer la plage de prix réelle
+      // à voir si création table ProductCalculate ou si calcul côté front, stockage ? 
       const prices = previewProducts.map(p => p.price);
       const minPriceValue = Math.min(...prices);
       const maxPriceValue = Math.max(...prices);

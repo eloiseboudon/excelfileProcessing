@@ -119,14 +119,17 @@ src/
 
 ## Backend Python
 
-Un backend minimal en **Python** est fourni dans le dossier `backend`. Il utilise **Flask** et **SQLite** pour stocker les produits traités.
+Un backend minimal en **Python** est fourni dans le dossier `backend`. Il utilise **Flask** et une base **PostgreSQL** pour stocker les produits traités.
 
 ### Installation et lancement
 
 ```bash
-cd backend
-make venv   # crée l'environnement virtuel et installe les dépendances
-make run    # démarre l'API Flask
+# Créer la base de données (PostgreSQL local)
+make db-create    # crée la base `ajtpro` si besoin
+
+make venv         # crée l'environnement virtuel et installe les dépendances
+export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ajtpro
+make run          # démarre l'API Flask
 ```
 
 L'application expose notamment les routes :
@@ -134,6 +137,8 @@ L'application expose notamment les routes :
 - `GET /products` : liste l'ensemble des produits en base.
 - `POST /products` : ajout d'un produit au format JSON.
 - `POST /upload` : envoi d'un fichier Excel pour importer plusieurs produits.
+- `POST /import` : importe un fichier Excel dans `temp_imports` et crée les références
+  correspondantes.
 
-Dans l'application React, le fichier traité est automatiquement transmis au backend via l'endpoint `/upload`.
+Dans l'application React, le fichier traité est automatiquement transmis au backend via l'endpoint `/upload`. L'import du référentiel utilise quant à lui l'endpoint `/import`.
 
