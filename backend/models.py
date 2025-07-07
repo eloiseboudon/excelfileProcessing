@@ -7,31 +7,24 @@ class TempImport(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     description = db.Column(db.String(200), nullable=False)
-    articlelno = db.Column(db.String(50))
     quantity = db.Column(db.Integer)
-    selling_prince = db.Column(db.Float)
-    # EAN codes can exceed the range of a 32 bit integer and may contain
-    # leading zeros. Store them as strings to avoid numeric overflow and
-    # preserve the exact value.
+    selling_price = db.Column(db.Float)
     ean = db.Column(db.String(20), unique=True, nullable=False)
 
 class Reference(db.Model):
-    __tablename__ = 'references'
+    __tablename__ = 'reference'
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False) 
-    articlelno = db.Column(db.String(50))
     quantity = db.Column(db.Float)
-    selling_prince = db.Column(db.Float)
-    # Same reasoning as in ``TempImport``: keep the original code without
-    # risking integer overflows.
+    selling_price = db.Column(db.Float)
     ean = db.Column(db.String(20), unique=True, nullable=False)
 
 class Product(db.Model):
     __tablename__ = 'products'
 
     id = db.Column(db.Integer, primary_key=True)
-    id_reference = db.Column(db.Integer, db.ForeignKey('references.id'), nullable=True)
+    id_reference = db.Column(db.Integer, db.ForeignKey('reference.id'), nullable=True)
     reference = db.relationship('Reference', backref=db.backref('products', lazy=True)) 
     name = db.Column(db.String(120), nullable=False)
     brand = db.Column(db.String(50), nullable=True)

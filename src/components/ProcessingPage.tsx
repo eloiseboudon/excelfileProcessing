@@ -246,7 +246,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
 
       // Importer les références puis envoyer le fichier original au backend
       await createImport(file);
-      await uploadExcel(file);
+      // await uploadExcel(file);
       const list = await fetchProducts();
       setProductsCount(list.length);
     } catch (error) {

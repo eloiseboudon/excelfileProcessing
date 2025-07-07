@@ -43,13 +43,12 @@ def create_app():
             if pd.notnull(row.get('ean')):
                 # remove any decimal part introduced by Excel or pandas
                 ean_value = str(int(row.get('ean')))
-            temp = TempImport(
-                description=row.get('description'),
-                articlelno=row.get('articlelno', None),
-                quantity=row.get('quantity', None),
-                selling_prince=row.get('selling_prince', None),
-                ean=ean_value
-            )
+                temp = TempImport(
+                    description=row.get('description'),
+                    quantity=row.get('quantity', None),
+                    selling_price=row.get('sellingprice', None),
+                    ean=ean_value
+                )
             db.session.add(temp)
 
             # Create reference if it does not already exist
@@ -57,9 +56,8 @@ def create_app():
             if not ref:
                 ref = Reference(
                     name=row.get('description'),
-                    articlelno=row.get('articlelno', None),
                     quantity=row.get('quantity', None),
-                    selling_prince=row.get('selling_prince', None),
+                    selling_price=row.get('sellingprice', None),
                     ean=ean_value
                 )
                 db.session.add(ref)
@@ -88,39 +86,39 @@ def create_app():
         ]
         return jsonify(result)
 
-    @app.route('/products', methods=['POST'])
-    def create_product():
-        data = request.get_json()
-        product = Product(
-            name=data.get('name'),
-            brand=data.get('brand',None),
-            price=data.get('price'),
-            memory=data.get('memory', None),
-            color=data.get('color', None),  # Optional field   
-            id_reference=data.get('reference_id', None)  # Optional field
-        )
-        db.session.add(product)
-        db.session.commit()
-        return jsonify({'id': product.id}), 201
+    # @app.route('/products', methods=['POST'])
+    # def create_product():
+    #     data = request.get_json()
+    #     product = Product(
+    #         name=data.get('name'),
+    #         brand=data.get('brand',None),
+    #         price=data.get('price'),
+    #         memory=data.get('memory', None),
+    #         color=data.get('color', None),  # Optional field   
+    #         id_reference=data.get('reference_id', None)  # Optional field
+    #     )
+    #     db.session.add(product)
+    #     db.session.commit()
+    #     return jsonify({'id': product.id}), 201
 
-    @app.route('/upload', methods=['POST'])
-    def upload_excel():
-        if 'file' not in request.files:
-            return jsonify({'error': 'No file provided'}), 400
-        file = request.files['file']
-        df = pd.read_excel(file)
-        for _, row in df.iterrows():
-            product = Product(
-                name=row.get('name'),
-                brand=row.get('brand', None),  # Optional field
-                price=row.get('price'),
-                memory=row.get('memory', None),  # Optional field
-                color=row.get('color', None),  # Optional field
-                id_reference=row.get('reference_id', None)  # Optional field
-            )
-            db.session.add(product)
-        db.session.commit()
-        return jsonify({'status': 'success', 'count': len(df)})
+    # @app.route('/upload', methods=['POST'])
+    # def upload_excel():
+    #     if 'file' not in request.files:
+    #         return jsonify({'error': 'No file provided'}), 400
+    #     file = request.files['file']
+    #     df = pd.read_excel(file)
+    #     for _, row in df.iterrows():
+    #         product = Product(
+    #             name=row.get('name'),
+    #             brand=row.get('brand', None),  # Optional field
+    #             price=row.get('price'),
+    #             memory=row.get('memory', None),  # Optional field
+    #             color=row.get('color', None),  # Optional field
+    #             id_reference=row.get('reference_id', None)  # Optional field
+    #         )
+    #         db.session.add(product)
+    #     db.session.commit()
+    #     return jsonify({'status': 'success', 'count': len(df)})
 
     return app
 

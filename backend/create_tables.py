@@ -10,14 +10,18 @@ conn = psycopg2.connect(
 )
 cur = conn.cursor()
 
+# cur.execute("""DROP TABLE IF EXISTS product_calculates;""")   
+# cur.execute("""DROP TABLE IF EXISTS products;""") 
+# cur.execute("""DROP TABLE IF EXISTS reference;""")    
+# cur.execute("""DROP TABLE IF EXISTS temp_imports;""")
+
 cur.execute("""
 CREATE TABLE IF NOT EXISTS temp_imports (
     id SERIAL PRIMARY KEY,
     description VARCHAR(200) NOT NULL,
-    articlelno VARCHAR(50),
+    articelno VARCHAR(50),
     quantity INTEGER,
-    selling_prince FLOAT,
-    -- store EAN codes as text to avoid integer overflow
+    selling_price FLOAT,
     ean VARCHAR(20) UNIQUE NOT NULL
 );
 """)
@@ -26,10 +30,9 @@ cur.execute("""
 CREATE TABLE IF NOT EXISTS reference (
     id SERIAL PRIMARY KEY,
     name VARCHAR(200) NOT NULL,
-    articlelno VARCHAR(50),
+    articelno VARCHAR(50),
     quantity INTEGER,
-    selling_prince FLOAT,
-    -- same here, use text for EAN codes
+    selling_price FLOAT,
     ean VARCHAR(20) UNIQUE NOT NULL
 );
 """)
