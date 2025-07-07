@@ -12,7 +12,6 @@ class TempImport(db.Model):
     selling_prince = db.Column(db.Float)
     ean = db.Column(db.Integer, unique=True, nullable=False)
 
-
 class Reference(db.Model):
     __tablename__ = 'references'
 

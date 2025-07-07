@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from models import db, Product
+from models import db, Product, TempImport
 import pandas as pd
 
 def create_app():
@@ -17,6 +17,20 @@ def create_app():
     with app.app_context():
         db.create_all()
 
+
+    @app.route('/import', methods=['POST'])
+    def create_import():
+        data = request.get_json()
+        importfile = TempImport(
+            description=data.get('description'),
+            articlelno=data.get('articlelno', None),
+            quantity=data.get('quantity', None),
+            selling_prince=data.get('selling_prince', None),
+            ean=data.get('ean')
+        )
+        db.session.add(importfile)
+        db.session.commit()
+        return jsonify({'id': importfile.id}), 201
 
     @app.route('/products', methods=['GET'])
     def list_products():
