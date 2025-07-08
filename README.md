@@ -47,13 +47,23 @@ Pour activer l'envoi d'emails, configurez EmailJS :
    - `{{brands_summary}}`
 
 4. Remplacez les valeurs dans `src/services/emailService.ts` :
-   ```typescript
    const EMAIL_CONFIG = {
-     serviceId: 'VOTRE_SERVICE_ID',
-     templateId: 'VOTRE_TEMPLATE_ID',
-     publicKey: 'VOTRE_PUBLIC_KEY'
-   };
-   ```
+    serviceId: 'VOTRE_SERVICE_ID',
+    templateId: 'VOTRE_TEMPLATE_ID',
+    publicKey: 'VOTRE_PUBLIC_KEY'
+  };
+  ```
+
+## Fichier `.env`
+
+Créez un fichier `.env` à la racine du projet avec vos identifiants Supabase&nbsp;:
+
+```bash
+VITE_SUPABASE_URL=<votre_url_supabase>
+VITE_SUPABASE_ANON_KEY=<votre_cle_anon>
+```
+
+Ce fichier est ignoré par Git afin de protéger vos informations sensibles.
 
 ## Technologies utilisées
 
@@ -106,3 +116,29 @@ src/
 - **Gestion d'erreurs** complète
 - **Validation des formulaires**
 - **Confirmation de commande** automatique
+
+## Backend Python
+
+Un backend minimal en **Python** est fourni dans le dossier `backend`. Il utilise **Flask** et une base **PostgreSQL** pour stocker les produits traités.
+
+### Installation et lancement
+
+```bash
+# Créer la base de données (PostgreSQL local)
+make db-create    # crée la base `ajtpro` si besoin
+
+make venv         # crée l'environnement virtuel et installe les dépendances
+export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ajtpro
+make run          # démarre l'API Flask
+```
+
+L'application expose notamment les routes :
+
+- `GET /products` : liste l'ensemble des produits en base.
+- `POST /products` : ajout d'un produit au format JSON.
+- `POST /upload` : envoi d'un fichier Excel pour importer plusieurs produits.
+- `POST /import` : importe un fichier Excel dans `temp_imports` et crée les références
+  correspondantes.
+
+Dans l'application React, le fichier traité est automatiquement transmis au backend via l'endpoint `/upload`. L'import du référentiel utilise quant à lui l'endpoint `/import`.
+

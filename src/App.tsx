@@ -1,13 +1,25 @@
 import React, { useState } from 'react';
 import { Calculator, Palette } from 'lucide-react';
+import { fetchProducts } from './api';
 import ProcessingPage from './components/ProcessingPage';
 import FormattingPage from './components/FormattingPage';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<'processing' | 'formatting'>('processing');
+  const [apiTestMessage, setApiTestMessage] = useState<string | null>(null);
+
+  const handleApiTest = async () => {
+    setApiTestMessage(null);
+    try {
+      await fetchProducts();
+      setApiTestMessage('Connexion réussie !');
+    } catch {
+      setApiTestMessage("Erreur lors de la connexion à l'API");
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-white flex flex-col">
       {/* Navigation Header */}
       <div className="bg-black border-b border-[#B8860B]/20">
         <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
@@ -44,6 +56,17 @@ function App() {
       ) : (
         <FormattingPage onBack={() => setCurrentPage('processing')} />
       )}
+      <div className="text-center mt-12 mb-8">
+        <button
+          onClick={handleApiTest}
+          className="px-4 py-2 bg-[#B8860B] text-black rounded-lg hover:bg-[#B8860B]/90 font-semibold"
+        >
+          Tester la connexion API
+        </button>
+        {apiTestMessage && (
+          <p className="mt-2 text-sm text-zinc-400">{apiTestMessage}</p>
+        )}
+      </div>
     </div>
   );
 }

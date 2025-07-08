@@ -1,10 +1,10 @@
 import React, { useState, useCallback } from 'react';
-import { FileUp, FileDown, ArrowLeft, Loader2, Download, Globe, Settings, ShoppingCart, Eye } from 'lucide-react';
+import { FileUp, FileDown, ArrowLeft, Loader2, Download, Globe, Eye } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import HotwavAdmin from './HotwavAdmin';
-import AccessoriesAdmin from './AccessoriesAdmin';
 import SearchControls from './SearchControls';
-import { useLocalStorage } from '../hooks/useLocalStorage';
+import { createImport } from '../api';
+import { determineBrand, generatePricingHtml } from '../utils/html';
+import { getCurrentWeekYear } from '../utils/date';
 
 interface FormattingPageProps {
   onBack: () => void;
@@ -16,16 +16,16 @@ interface Product {
   brand: string;
 }
 
-interface HotwavProduct {
-  nom: string;
-  prix: number;
-}
+// interface HotwavProduct {
+//   nom: string;
+//   prix: number;
+// }
 
-interface Accessory {
-  nom: string;
-  prix: number;
-  marque: string;
-}
+// interface Accessory {
+//   nom: string;
+//   prix: number;
+//   marque: string;
+// }
 
 function FormattingPage({ onBack }: FormattingPageProps) {
   const [file, setFile] = useState<File | null>(null);
@@ -34,8 +34,6 @@ function FormattingPage({ onBack }: FormattingPageProps) {
   const [formattedFile, setFormattedFile] = useState<string | null>(null);
   const [htmlFile, setHtmlFile] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showHotwavAdmin, setShowHotwavAdmin] = useState(false);
-  const [showAccessoriesAdmin, setShowAccessoriesAdmin] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [previewData, setPreviewData] = useState<Product[]>([]);
 
@@ -46,26 +44,6 @@ function FormattingPage({ onBack }: FormattingPageProps) {
   const [maxPrice, setMaxPrice] = useState(2000);
   const [priceRange, setPriceRange] = useState({ min: 0, max: 2000 });
 
-  // Stockage local pour les produits Hotwav et accessoires
-  const [hotwavProducts, setHotwavProducts] = useLocalStorage<HotwavProduct[]>('hotwav_products', [
-    { nom: 'Hotwav Note 20 4G DS 8/128Gb Black', prix: 125 },
-    { nom: 'Hotwav Note 20 4G DS 8/128Gb Blue', prix: 125 },
-    { nom: 'Hotwav Note 20 4G DS 8/128Gb Green', prix: 125 },
-    { nom: 'Hotwav Cyber 15 4G DS 8/256Gb Black', prix: 145 },
-    { nom: 'Hotwav Cyber 15 4G DS 8/256Gb Blue', prix: 145 },
-    { nom: 'Hotwav Cyber 15 4G DS 8/256Gb Green', prix: 145 }
-  ]);
-
-  const [accessories, setAccessories] = useLocalStorage<Accessory[]>('accessories', [
-    { nom: 'Coque iPhone 15 Pro Max Transparente', prix: 15, marque: 'Apple' },
-    { nom: 'Protecteur d\'écran iPhone 15 Pro Max', prix: 12, marque: 'Apple' },
-    { nom: 'Chargeur USB-C 20W', prix: 25, marque: 'Apple' },
-    { nom: 'Coque Galaxy S24 Ultra Silicone', prix: 18, marque: 'Samsung' },
-    { nom: 'Écouteurs Galaxy Buds3', prix: 89, marque: 'Samsung' },
-    { nom: 'Coque Xiaomi 14 Pro Transparente', prix: 14, marque: 'Xiaomi' },
-    { nom: 'Enceinte JBL Clip 4', prix: 45, marque: 'JBL' },
-    { nom: 'Casque JBL Tune 770NC', prix: 89, marque: 'JBL' }
-  ]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -101,26 +79,16 @@ function FormattingPage({ onBack }: FormattingPageProps) {
     }
   }, []);
 
-  // Fonction pour obtenir la semaine et l'année actuelles
-  const getCurrentWeekAndYear = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    
-    // Calculer le numéro de semaine ISO
-    const startOfYear = new Date(year, 0, 1);
-    const pastDaysOfYear = (now.getTime() - startOfYear.getTime()) / 86400000;
-    const weekNumber = Math.ceil((pastDaysOfYear + startOfYear.getDay() + 1) / 7);
-    
-    return `S${weekNumber}-${year}`;
-  };
+  // Utilitaire semaine/année
 
   const handleFormat = useCallback(async () => {
     if (!file) return;
 
     setIsProcessing(true);
     setError(null);
-    
+
     try {
+      await createImport(file);
       // Lire le fichier Excel
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
@@ -144,43 +112,19 @@ function FormattingPage({ onBack }: FormattingPageProps) {
         })
         .filter(product => product !== null);
 
-      // Ajouter les produits Hotwav et accessoires avec leurs prix
-      const hotwavProductsWithPrices = hotwavProducts.map(product => ({
-        name: product.nom,
-        price: product.prix
-      }));
+      const allProductsWithPrices = [...productsFromFile];
 
-      const accessoriesWithPrices = accessories.map(accessory => ({
-        name: accessory.nom,
-        price: accessory.prix
-      }));
-
-      // Combiner tous les produits avec leurs prix
-      const allProductsWithPrices = [...productsFromFile, ...hotwavProductsWithPrices, ...accessoriesWithPrices];
-
-      // Fonction pour déterminer la marque
-      const getBrandFromName = (name: string): string => {
-        const brands = ['Apple', 'Samsung', 'Xiaomi', 'Hotwav', 'JBL', 'Google', 'Honor', 'Nothing', 'TCL', 'XO'];
-        const nameLower = name.toLowerCase();
-        
-        for (const brand of brands) {
-          if (nameLower.includes(brand.toLowerCase())) {
-            return brand;
-          }
-        }
-        return 'Autre';
-      };
-
-      // Créer les données pour la prévisualisation avec les vrais prix
+      // Créer les données pour la prévisualisation
       const previewProducts: Product[] = allProductsWithPrices.map(product => ({
         name: product.name,
         price: product.price,
-        brand: getBrandFromName(product.name)
+        brand: determineBrand(product.name)
       }));
 
       setPreviewData(previewProducts);
 
       // Calculer la plage de prix réelle
+      // à voir si création table ProductCalculate ou si calcul côté front, stockage ? 
       const prices = previewProducts.map(p => p.price);
       const minPriceValue = Math.min(...prices);
       const maxPriceValue = Math.max(...prices);
@@ -191,7 +135,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
       // Grouper par marque pour l'Excel et le HTML (avec noms ET prix)
       const productsByBrand: Record<string, Array<{name: string, price: number}>> = {};
       allProductsWithPrices.forEach(product => {
-        const brand = getBrandFromName(product.name);
+        const brand = determineBrand(product.name);
         if (!productsByBrand[brand]) {
           productsByBrand[brand] = [];
         }
@@ -209,7 +153,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
 
       // Créer le fichier Excel avec mise en forme ET PRIX
       const newWorkbook = XLSX.utils.book_new();
-      const currentWeekYear = getCurrentWeekAndYear();
+      const currentWeekYear = getCurrentWeekYear();
       
       // Préparer les données pour Excel avec 2 colonnes : Nom et Prix
       const excelData: (string | number)[][] = [];
@@ -360,7 +304,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
       setFormattedFile(URL.createObjectURL(excelBlob));
 
       // Créer le fichier HTML avec les vrais prix
-      const htmlContent = generateHtmlContent(productsByBrand, sortedBrands, previewProducts);
+      const htmlContent = generatePricingHtml(productsByBrand, sortedBrands, previewProducts, getCurrentWeekYear());
       const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
       setHtmlFile(URL.createObjectURL(htmlBlob));
 
@@ -372,414 +316,14 @@ function FormattingPage({ onBack }: FormattingPageProps) {
     } finally {
       setIsProcessing(false);
     }
-  }, [file, hotwavProducts, accessories]);
-
-  const getBrandFromName = (name: string): string => {
-    const brands = ['Apple', 'Samsung', 'Xiaomi', 'Hotwav', 'JBL', 'Google', 'Honor', 'Nothing', 'TCL', 'XO'];
-    const nameLower = name.toLowerCase();
-    
-    for (const brand of brands) {
-      if (nameLower.includes(brand.toLowerCase())) {
-        return brand;
-      }
-    }
-    return 'Autre';
-  };
-
-  const generateHtmlContent = (productsByBrand: Record<string, Array<{name: string, price: number}>>, sortedBrands: string[], productsWithPrices: Product[]): string => {
-    const currentWeekYear = getCurrentWeekAndYear();
-    const totalProducts = Object.values(productsByBrand).reduce((sum, products) => sum + products.length, 0);
-    
-    return `
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AJT PRO - Grille Tarifaire ${currentWeekYear}</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
-            color: white;
-            min-height: 100vh;
-            padding: 20px;
-        }
-        
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        
-        .header {
-            text-align: center;
-            margin-bottom: 40px;
-            padding: 30px;
-            background: linear-gradient(135deg, #B8860B 0%, #DAA520 100%);
-            border-radius: 20px;
-            color: black;
-        }
-        
-        .header h1 {
-            font-size: 2.5rem;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-        
-        .header p {
-            font-size: 1.2rem;
-            opacity: 0.8;
-        }
-        
-        .shop-link {
-            background: rgba(184, 134, 11, 0.1);
-            border: 1px solid rgba(184, 134, 11, 0.3);
-            border-radius: 15px;
-            padding: 15px;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        
-        .shop-link a {
-            color: #B8860B;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 1.1rem;
-        }
-        
-        .shop-link a:hover {
-            text-decoration: underline;
-        }
-        
-        .search-section {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 15px;
-            padding: 30px;
-            margin-bottom: 30px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(184, 134, 11, 0.3);
-        }
-        
-        .search-input {
-            width: 100%;
-            padding: 15px 20px;
-            font-size: 1.1rem;
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            background: rgba(0, 0, 0, 0.3);
-            color: white;
-            transition: all 0.3s ease;
-            margin-bottom: 20px;
-        }
-        
-        .search-input:focus {
-            outline: none;
-            border-color: #B8860B;
-            box-shadow: 0 0 20px rgba(184, 134, 11, 0.3);
-        }
-        
-        .search-input::placeholder {
-            color: rgba(255, 255, 255, 0.5);
-        }
-        
-        .brand-filters {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        
-        .brand-btn {
-            padding: 10px 20px;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            border-radius: 25px;
-            background: rgba(0, 0, 0, 0.3);
-            color: white;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: 500;
-        }
-        
-        .brand-btn:hover, .brand-btn.active {
-            background: #B8860B;
-            border-color: #B8860B;
-            color: black;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(184, 134, 11, 0.4);
-        }
-        
-        .brands-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 30px;
-        }
-        
-        .brand-section {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 15px;
-            padding: 25px;
-            border: 1px solid rgba(184, 134, 11, 0.3);
-            backdrop-filter: blur(10px);
-        }
-        
-        .brand-header {
-            background: linear-gradient(135deg, #B8860B 0%, #DAA520 100%);
-            color: black;
-            padding: 15px 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            text-align: center;
-            font-weight: bold;
-            font-size: 1.2rem;
-        }
-        
-        .products-list {
-            space-y: 10px;
-        }
-        
-        .product-item {
-            padding: 12px 15px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            border-left: 3px solid #B8860B;
-            margin-bottom: 8px;
-            transition: all 0.3s ease;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .product-item:hover {
-            background: rgba(184, 134, 11, 0.1);
-            transform: translateX(5px);
-        }
-        
-        .product-name {
-            flex: 1;
-        }
-        
-        .product-price {
-            color: #B8860B;
-            font-weight: bold;
-            font-size: 1.1rem;
-            margin-left: 15px;
-        }
-        
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .stat-card {
-            background: rgba(184, 134, 11, 0.1);
-            border: 1px solid rgba(184, 134, 11, 0.3);
-            border-radius: 15px;
-            padding: 20px;
-            text-align: center;
-        }
-        
-        .stat-number {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #B8860B;
-            margin-bottom: 5px;
-        }
-        
-        .stat-label {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 0.9rem;
-        }
-        
-        .footer-note {
-            background: rgba(184, 134, 11, 0.1);
-            border: 1px solid rgba(184, 134, 11, 0.3);
-            border-radius: 15px;
-            padding: 20px;
-            text-align: center;
-            margin-top: 40px;
-            color: #B8860B;
-            font-weight: 500;
-        }
-        
-        .hidden {
-            display: none;
-        }
-        
-        @media (max-width: 768px) {
-            .header h1 {
-                font-size: 2rem;
-            }
-            
-            .brands-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .stats {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            
-            .product-item {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-            
-            .product-price {
-                margin-left: 0;
-                margin-top: 5px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="shop-link">
-            <a href="https://shop.ajtpro.com/shop" target="_blank">🛒 Visitez notre boutique en ligne</a>
-        </div>
-        
-        <div class="header">
-            <h1>🏆 AJT PRO - Grille Tarifaire</h1>
-            <p>Semaine ${currentWeekYear} • ${totalProducts} produits disponibles</p>
-        </div>
-        
-        <div class="search-section">
-            <input 
-                type="text" 
-                id="searchInput" 
-                class="search-input" 
-                placeholder="🔍 Rechercher un produit..."
-            >
-            
-            <div class="brand-filters">
-                <button class="brand-btn active" onclick="filterByBrand('all')">Toutes les marques</button>
-                ${sortedBrands.map(brand => 
-                    `<button class="brand-btn" onclick="filterByBrand('${brand}')">${brand} (${productsByBrand[brand].length})</button>`
-                ).join('')}
-            </div>
-        </div>
-        
-        <div class="stats">
-            <div class="stat-card">
-                <div class="stat-number">${totalProducts}</div>
-                <div class="stat-label">Produits total</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number" id="visibleProducts">${totalProducts}</div>
-                <div class="stat-label">Produits affichés</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number">${sortedBrands.length}</div>
-                <div class="stat-label">Marques</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number">${Math.round(productsWithPrices.reduce((sum, p) => sum + p.price, 0) / productsWithPrices.length)}€</div>
-                <div class="stat-label">Prix moyen</div>
-            </div>
-        </div>
-        
-        <div class="brands-grid" id="brandsGrid">
-            ${sortedBrands.map(brand => `
-                <div class="brand-section" data-brand="${brand.toLowerCase()}">
-                    <div class="brand-header">${brand} (${productsByBrand[brand].length} produits)</div>
-                    <div class="products-list">
-                        ${productsByBrand[brand].map(product => `
-                            <div class="product-item" data-name="${product.name.toLowerCase()}">
-                                <span class="product-name">${product.name}</span>
-                                <span class="product-price">${product.price}€</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `).join('')}
-        </div>
-        
-        <div class="footer-note">
-            📋 Tarif HT TCP incluse / hors DEEE de 2,56€ HT par pièce / FRANCO 1000€ HT ou 20€ de frais de port
-        </div>
-        
-        <div class="shop-link">
-            <a href="https://shop.ajtpro.com/shop" target="_blank">🛒 Visitez notre boutique en ligne</a>
-        </div>
-    </div>
-    
-    <script>
-        let currentBrandFilter = 'all';
-        let currentSearchTerm = '';
-        
-        const searchInput = document.getElementById('searchInput');
-        const brandsGrid = document.getElementById('brandsGrid');
-        const visibleProductsCount = document.getElementById('visibleProducts');
-        
-        searchInput.addEventListener('input', function() {
-            currentSearchTerm = this.value.toLowerCase();
-            filterProducts();
-        });
-        
-        function filterByBrand(brand) {
-            currentBrandFilter = brand;
-            
-            // Mettre à jour les boutons actifs
-            document.querySelectorAll('.brand-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            event.target.classList.add('active');
-            
-            filterProducts();
-        }
-        
-        function filterProducts() {
-            const brandSections = document.querySelectorAll('.brand-section');
-            let visibleCount = 0;
-            
-            brandSections.forEach(section => {
-                const brand = section.dataset.brand;
-                const products = section.querySelectorAll('.product-item');
-                
-                let sectionHasVisibleProducts = false;
-                
-                products.forEach(product => {
-                    const name = product.dataset.name;
-                    
-                    const matchesSearch = name.includes(currentSearchTerm);
-                    const matchesBrand = currentBrandFilter === 'all' || brand === currentBrandFilter.toLowerCase();
-                    
-                    if (matchesSearch && matchesBrand) {
-                        product.style.display = 'flex';
-                        sectionHasVisibleProducts = true;
-                        visibleCount++;
-                    } else {
-                        product.style.display = 'none';
-                    }
-                });
-                
-                // Afficher/masquer la section entière
-                if (sectionHasVisibleProducts && (currentBrandFilter === 'all' || brand === currentBrandFilter.toLowerCase())) {
-                    section.style.display = 'block';
-                } else {
-                    section.style.display = 'none';
-                }
-            });
-            
-            visibleProductsCount.textContent = visibleCount;
-        }
-    </script>
-</body>
-</html>`;
-  };
+  }, [file]);
 
   const handleDownloadExcel = useCallback(() => {
     if (!formattedFile || !file) return;
 
     const link = document.createElement('a');
     link.href = formattedFile;
-    link.download = `grille_tarifaire_${getCurrentWeekAndYear()}_${file.name}`;
+    link.download = `grille_tarifaire_${getCurrentWeekYear()}_${file.name}`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -790,7 +334,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
 
     const link = document.createElement('a');
     link.href = htmlFile;
-    link.download = `grille_tarifaire_${getCurrentWeekAndYear()}.html`;
+    link.download = `grille_tarifaire_${getCurrentWeekYear()}.html`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -819,23 +363,6 @@ function FormattingPage({ onBack }: FormattingPageProps) {
           <span>Retour à l'étape 1</span>
         </button>
         
-        <div className="flex space-x-4">
-          <button
-            onClick={() => setShowHotwavAdmin(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-[#B8860B] text-black rounded-lg hover:bg-[#B8860B]/90 transition-colors font-semibold"
-          >
-            <Settings className="w-5 h-5" />
-            <span>Admin Hotwav</span>
-          </button>
-          
-          <button
-            onClick={() => setShowAccessoriesAdmin(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold"
-          >
-            <ShoppingCart className="w-5 h-5" />
-            <span>Admin Accessoires</span>
-          </button>
-        </div>
       </div>
 
       <h1 className="text-4xl font-bold text-center mb-2">
@@ -845,7 +372,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
         Générez vos fichiers Excel formatés et pages web
       </p>
       <p className="text-center text-zinc-400 mb-12">
-        Semaine {getCurrentWeekAndYear()}
+        Semaine {getCurrentWeekYear()}
       </p>
       
       <div className="bg-zinc-900 rounded-2xl shadow-2xl p-8 border border-[#B8860B]/20">
@@ -1062,25 +589,10 @@ function FormattingPage({ onBack }: FormattingPageProps) {
 
         <div className="mt-8 text-center text-sm text-zinc-500">
           <p>Formats supportés: .xlsx, .xls</p>
-          <p className="mt-2">Produits Hotwav: {hotwavProducts.length} • Accessoires: {accessories.length}</p>
           <p className="mt-2 text-[#B8860B]">✅ Organisation par marque avec mise en forme professionnelle</p>
         </div>
       </div>
 
-      {/* Modals */}
-      <HotwavAdmin
-        isVisible={showHotwavAdmin}
-        onClose={() => setShowHotwavAdmin(false)}
-        onSave={setHotwavProducts}
-        initialProducts={hotwavProducts}
-      />
-
-      <AccessoriesAdmin
-        isVisible={showAccessoriesAdmin}
-        onClose={() => setShowAccessoriesAdmin(false)}
-        onSave={setAccessories}
-        initialAccessories={accessories}
-      />
     </div>
   );
 }
