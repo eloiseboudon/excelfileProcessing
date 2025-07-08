@@ -10,9 +10,11 @@ from models import (
     MemoryReference,
     TypeReference,
     ColorTransco,
+    ProductCalculate,
 )
 import pandas as pd
 import os
+import math
 
 def create_app():
     app = Flask(__name__)
@@ -168,39 +170,46 @@ def create_app():
         db.session.commit()
         return jsonify({'status': 'success', 'created': created, 'updated': updated})
 
-    # @app.route('/products', methods=['POST'])
-    # def create_product():
-    #     data = request.get_json()
-    #     product = Product(
-    #         name=data.get('name'),
-    #         brand=data.get('brand',None),
-    #         price=data.get('price'),
-    #         memory=data.get('memory', None),
-    #         color=data.get('color', None),  # Optional field   
-    #         id_reference=data.get('reference_id', None)  # Optional field
-    #     )
-    #     db.session.add(product)
-    #     db.session.commit()
-    #     return jsonify({'id': product.id}), 201
-
-    # @app.route('/upload', methods=['POST'])
-    # def upload_excel():
-    #     if 'file' not in request.files:
-    #         return jsonify({'error': 'No file provided'}), 400
-    #     file = request.files['file']
-    #     df = pd.read_excel(file)
-    #     for _, row in df.iterrows():
-    #         product = Product(
-    #             name=row.get('name'),
-    #             brand=row.get('brand', None),  # Optional field
-    #             price=row.get('price'),
-    #             memory=row.get('memory', None),  # Optional field
-    #             color=row.get('color', None),  # Optional field
-    #             id_reference=row.get('reference_id', None)  # Optional field
-    #         )
-    #         db.session.add(product)
-    #     db.session.commit()
-    #     return jsonify({'status': 'success', 'count': len(df)})
+    @app.route('/calculate_products', methods=['POST'])
+    def calculate_products():
+        ProductCalculate.query.delete()
+        db.session.commit()
+        products = Product.query.all()
+        created = 0
+        for p in products:
+            price = p.price or 0
+            name_upper = (p.name or '').upper()
+            tcp = 0
+            if '32GB' in name_upper:
+                tcp = 10
+            elif '64GB' in name_upper:
+                tcp = 12
+            elif any(size in name_upper for size in ['128GB', '256GB', '512GB', '1TB']):
+                tcp = 14
+            margin45 = price * 0.045
+            price_with_tcp = price + tcp + margin45
+            thresholds = [15, 29, 49, 79, 99, 129, 149, 179, 209, 299, 499, 799, 999]
+            margins = [1.25, 1.22, 1.20, 1.18, 1.15, 1.11, 1.10, 1.09, 1.09, 1.08, 1.08, 1.07, 1.07, 1.06]
+            price_with_margin = price
+            for i, t in enumerate(thresholds):
+                if price <= t:
+                    price_with_margin = price * margins[i]
+                    break
+            if price > thresholds[-1]:
+                price_with_margin = price * 1.06
+            max_price = math.ceil(max(price_with_tcp, price_with_margin))
+            calc = ProductCalculate(
+                id_product=p.id,
+                TCP=round(tcp, 2),
+                marge4_5=round(margin45, 2),
+                prixHT_TCP_marge4_5=round(price_with_tcp, 2),
+                prixHT_marge4_5=round(price_with_margin, 2),
+                prixHT_max=max_price,
+            )
+            db.session.add(calc)
+            created += 1
+        db.session.commit()
+        return jsonify({'status': 'success', 'created': created})
 
     return app
 
