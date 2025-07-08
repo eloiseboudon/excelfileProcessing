@@ -139,6 +139,9 @@ make venv         # crée l'environnement virtuel et installe les dépendances
 make run          # démarre l'API Flask
 ```
 
+La variable `FRONTEND_URL` doit correspondre exactement à l'origine (schéma et
+domaine) de votre site frontend afin que la politique CORS fonctionne.
+
 L'application expose notamment les routes :
 
 - `GET /products` : liste l'ensemble des produits en base.

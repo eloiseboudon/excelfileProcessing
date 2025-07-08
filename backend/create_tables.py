@@ -1,13 +1,16 @@
 
 
+import os
+from dotenv import load_dotenv
 import psycopg2
 
-conn = psycopg2.connect(
-    dbname="ajtpro",
-    user="eloise",
-    host="localhost",
-    port="5432"
-)
+env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+load_dotenv(env_path)
+db_url = os.getenv("DATABASE_URL")
+if not db_url:
+    raise RuntimeError("DATABASE_URL environment variable is not set")
+
+conn = psycopg2.connect(db_url)
 cur = conn.cursor()
 
 cur.execute("""DROP TABLE IF EXISTS temporary_imports CASCADE;""")

@@ -28,7 +28,9 @@ def create_app():
 
     app = Flask(__name__)
 
-    frontend_origin = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    frontend_origin = os.getenv("FRONTEND_URL")
+    if not frontend_origin:
+        raise RuntimeError("FRONTEND_URL environment variable is not set")
     CORS(app, resources={r"/*": {"origins": frontend_origin}})
 
     @app.route('/')
