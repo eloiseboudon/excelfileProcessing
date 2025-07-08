@@ -200,11 +200,11 @@ def create_app():
             max_price = math.ceil(max(price_with_tcp, price_with_margin))
             calc = ProductCalculate(
                 id_product=p.id,
-                TCP=round(tcp, 2),
+                tcp=round(tcp, 2),
                 marge4_5=round(margin45, 2),
-                prixHT_TCP_marge4_5=round(price_with_tcp, 2),
-                prixHT_marge4_5=round(price_with_margin, 2),
-                prixHT_max=max_price,
+                prixht_tcp_marge4_5=round(price_with_tcp, 2),
+                prixht_marge4_5=round(price_with_margin, 2),
+                prixht_max=max_price,
             )
             db.session.add(calc)
             created += 1
