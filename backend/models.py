@@ -81,11 +81,11 @@ class ProductCalculate(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     id_product = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
     product = db.relationship('Product', backref=db.backref('calculates', lazy=True))
-    TCP = db.Column(db.Float, nullable=False)
+    tcp = db.Column(db.Float, nullable=False)
     marge4_5 = db.Column(db.Float, nullable=False)
-    prixHT_TCP_marge4_5 = db.Column(db.Float, nullable=False)
-    prixHT_marge4_5 = db.Column(db.Float, nullable=False)
-    prixHT_max = db.Column(db.Float, nullable=False)
+    prixht_tcp_marge4_5 = db.Column(db.Float, nullable=False)
+    prixht_marge4_5 = db.Column(db.Float, nullable=False)
+    prixht_max = db.Column(db.Float, nullable=False)
 
 
 

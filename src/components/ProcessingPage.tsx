@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { FileUp, FileDown, ArrowRight, Loader2, Download, ChevronRight } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { createProduct, fetchProducts, createImport } from '../api';
+import { createProduct, fetchProducts, createImport, calculateProducts } from '../api';
 import {
   sanitizeName,
   isExcludedProduct,
@@ -165,6 +165,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
       // Importer les références puis envoyer le fichier original au backend
       await createImport(file);
       await createProduct();
+      await calculateProducts();
       const list = await fetchProducts();
       setProductsCount(list.length);
     } catch (error) {
