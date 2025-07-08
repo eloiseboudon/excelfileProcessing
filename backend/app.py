@@ -12,6 +12,7 @@ from models import (
     TypeReference,
     ColorTransco,
     ProductCalculate,
+    ImportHistory,
 )
 import pandas as pd
 import os
@@ -48,6 +49,21 @@ def create_app():
                 'address': f.address,
             }
             for f in fournisseurs
+        ]
+        return jsonify(result)
+
+    @app.route('/import_history', methods=['GET'])
+    def list_import_history():
+        histories = ImportHistory.query.order_by(ImportHistory.import_date.desc()).all()
+        result = [
+            {
+                'id': h.id,
+                'filename': h.filename,
+                'id_fournisseur': h.id_fournisseur,
+                'product_count': h.product_count,
+                'import_date': h.import_date.isoformat(),
+            }
+            for h in histories
         ]
         return jsonify(result)
 
@@ -106,6 +122,13 @@ def create_app():
                 )
                 count_new += 1
                 db.session.add(ref)
+
+        history = ImportHistory(
+            filename=file.filename,
+            id_fournisseur=fournisseur_id,
+            product_count=len(df)
+        )
+        db.session.add(history)
 
         db.session.commit()
         return jsonify({'status': 'success', 'new': count_new, 'updated': count_update})

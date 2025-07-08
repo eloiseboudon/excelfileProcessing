@@ -1,4 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime
 
 db = SQLAlchemy()
 
@@ -112,6 +113,17 @@ class ProductCalculate(db.Model):
     prixht_tcp_marge4_5 = db.Column(db.Float, nullable=False)
     prixht_marge4_5 = db.Column(db.Float, nullable=False)
     prixht_max = db.Column(db.Float, nullable=False)
+
+
+class ImportHistory(db.Model):
+    __tablename__ = 'import_history'
+
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(200), nullable=False)
+    id_fournisseur = db.Column(db.Integer, db.ForeignKey('fournisseurs.id'), nullable=True)
+    fournisseur = db.relationship('Fournisseur', backref=db.backref('imports', lazy=True))
+    product_count = db.Column(db.Integer, nullable=False)
+    import_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
 
 

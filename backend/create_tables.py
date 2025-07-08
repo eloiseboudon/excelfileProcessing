@@ -10,7 +10,8 @@ conn = psycopg2.connect(
 )
 cur = conn.cursor()
 
-cur.execute("""DROP TABLE IF EXISTS product_calculates;""")   
+cur.execute("""DROP TABLE IF EXISTS import_history;""")
+cur.execute("""DROP TABLE IF EXISTS product_calculates;""")
 cur.execute("""DROP TABLE IF EXISTS products;""") 
 cur.execute("""DROP TABLE IF EXISTS size_references;""")
 cur.execute("""DROP TABLE IF EXISTS type_references;""")
@@ -123,6 +124,16 @@ CREATE TABLE IF NOT EXISTS product_calculates (
     prixHT_TCP_marge4_5 FLOAT NOT NULL,
     prixHT_marge4_5 FLOAT NOT NULL,
     prixHT_max FLOAT NOT NULL
+);
+""")
+
+cur.execute("""
+CREATE TABLE IF NOT EXISTS import_history (
+    id SERIAL PRIMARY KEY,
+    filename VARCHAR(200) NOT NULL,
+    id_fournisseur INTEGER REFERENCES fournisseurs(id) ON DELETE SET NULL,
+    product_count INTEGER NOT NULL,
+    import_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 """)
 
