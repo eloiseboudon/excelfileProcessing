@@ -2,6 +2,16 @@ from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
 
+
+class Fournisseur(db.Model):
+    __tablename__ = 'fournisseurs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=True)
+    phone = db.Column(db.String(20), nullable=True)
+    address = db.Column(db.String(200), nullable=True)
+
 class TempImport(db.Model):
     __tablename__ = 'temp_imports'
     
@@ -11,6 +21,9 @@ class TempImport(db.Model):
     selling_price = db.Column(db.Float)
     ean = db.Column(db.String(20), unique=True, nullable=False)
 
+    id_fournisseur = db.Column(db.Integer, db.ForeignKey('fournisseurs.id'), nullable=True)
+    fournisseur = db.relationship('Fournisseur', backref=db.backref('temp_imports', lazy=True))
+
 class Reference(db.Model):
     __tablename__ = 'reference'
 
@@ -19,6 +32,9 @@ class Reference(db.Model):
     quantity = db.Column(db.Float)
     selling_price = db.Column(db.Float)
     ean = db.Column(db.String(20), unique=True, nullable=False)
+
+    id_fournisseur = db.Column(db.Integer, db.ForeignKey('fournisseurs.id'), nullable=True)
+    fournisseur = db.relationship('Fournisseur', backref=db.backref('references', lazy=True))
 
 class BrandParameter(db.Model):
     __tablename__ = 'brand_parameters'
@@ -63,6 +79,9 @@ class Product(db.Model):
     reference = db.relationship('Reference', backref=db.backref('products', lazy=True)) 
     name = db.Column(db.String(120), nullable=False)
     description = db.Column(db.String(120), nullable=False)
+
+    id_fournisseur = db.Column(db.Integer, db.ForeignKey('fournisseurs.id'), nullable=True)
+    fournisseur = db.relationship('Fournisseur', backref=db.backref('products', lazy=True))
     
     id_brand = db.Column(db.Integer, db.ForeignKey('brand_parameters.id'), nullable=True)
     brand = db.relationship('BrandParameter', backref=db.backref('products', lazy=True))
