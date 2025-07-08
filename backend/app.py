@@ -184,6 +184,7 @@ def create_app():
                 existing.id_color = color_id
                 existing.id_memory = memory_id
                 existing.id_type = type_id
+                existing.id_fournisseur = ref.id_fournisseur
                 updated += 1
             else:
                 product = Product(
@@ -195,6 +196,7 @@ def create_app():
                     id_color=color_id,
                     id_memory=memory_id,
                     id_type=type_id,
+                    id_fournisseur=ref.id_fournisseur,
                 )
                 db.session.add(product)
                 created += 1
