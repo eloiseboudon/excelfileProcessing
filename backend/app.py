@@ -5,7 +5,7 @@ from models import (
     Product,
     TempImport,
     Reference,
-    Fournisseur,
+    Supplier,
     BrandParameter,
     ColorReference,
     MemoryReference,
@@ -38,18 +38,18 @@ def create_app():
     with app.app_context():
         db.create_all()
 
-    @app.route('/fournisseurs', methods=['GET'])
-    def list_fournisseurs():
-        fournisseurs = Fournisseur.query.all()
+    @app.route('/suppliers', methods=['GET'])
+    def list_suppliers():
+        suppliers = Supplier.query.all()
         result = [
             {
-                'id': f.id,
-                'name': f.name,
-                'email': f.email,
-                'phone': f.phone,
-                'address': f.address,
+                'id': s.id,
+                'name': s.name,
+                'email': s.email,
+                'phone': s.phone,
+                'address': s.address,
             }
-            for f in fournisseurs
+            for s in suppliers
         ]
         return jsonify(result)
 
