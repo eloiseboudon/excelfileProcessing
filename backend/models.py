@@ -14,7 +14,7 @@ class Fournisseur(db.Model):
 
 class TempImport(db.Model):
     __tablename__ = 'temp_imports'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     description = db.Column(db.String(200), nullable=False)
     quantity = db.Column(db.Integer)
@@ -26,12 +26,15 @@ class TempImport(db.Model):
 
 class Reference(db.Model):
     __tablename__ = 'reference'
+    __table_args__ = (
+        db.UniqueConstraint('ean', 'id_fournisseur', name='uix_reference_ean_fournisseur'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
-    description = db.Column(db.String(200), nullable=False) 
+    description = db.Column(db.String(200), nullable=False)
     quantity = db.Column(db.Float)
     selling_price = db.Column(db.Float)
-    ean = db.Column(db.String(20), unique=True, nullable=False)
+    ean = db.Column(db.String(20), nullable=False)
 
     id_fournisseur = db.Column(db.Integer, db.ForeignKey('fournisseurs.id'), nullable=True)
     fournisseur = db.relationship('Fournisseur', backref=db.backref('references', lazy=True))
@@ -73,6 +76,9 @@ class ColorTransco(db.Model):
 
 class Product(db.Model):
     __tablename__ = 'products'
+    __table_args__ = (
+        db.UniqueConstraint('id_reference', 'id_fournisseur', name='uix_product_reference_fournisseur'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     id_reference = db.Column(db.Integer, db.ForeignKey('reference.id'), nullable=True)

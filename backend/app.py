@@ -88,8 +88,8 @@ def create_app():
                 )
             db.session.add(temp)
 
-            # Create reference if it does not already exist
-            ref = Reference.query.filter_by(ean=ean_value).first()
+            # Create reference if it does not already exist for this fournisseur
+            ref = Reference.query.filter_by(ean=ean_value, id_fournisseur=fournisseur_id).first()
             if ref:
                 ref.description = row.get('description')
                 ref.quantity = row.get('quantity', None)
@@ -175,7 +175,10 @@ def create_app():
                     type_id = t.id
                     break
 
-            existing = Product.query.filter_by(id_reference=ref.id).first()
+            existing = Product.query.filter_by(
+                id_reference=ref.id,
+                id_fournisseur=ref.id_fournisseur,
+            ).first()
             if existing:
                 existing.description = ref.description
                 existing.name = ref.description
