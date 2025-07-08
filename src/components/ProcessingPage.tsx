@@ -1,14 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { FileUp, FileDown, ArrowRight, Loader2, Download, ChevronRight } from 'lucide-react';
-import * as XLSX from 'xlsx';
-import { createProduct, fetchProducts, createImport, calculateProducts } from '../api';
-import {
-  sanitizeName,
-  isExcludedProduct,
-  dedupeByLowestPrice,
-  calculateRow,
-  ProductRow
-} from '../utils/processing';
+import { createProduct, fetchProducts, createImport, calculateProducts, exportCalculations } from '../api';
 import { getCurrentWeekYear } from '../utils/date';
 
 interface ProcessingPageProps {
@@ -67,107 +59,16 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
 
     setIsProcessing(true);
     setError(null);
-    
+
     try {
-      // Lire le fichier Excel
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
-
-      // Créer un nouveau tableau avec les colonnes 2 et 4
-      const processedData = jsonData.slice(1)
-        .map((row: any[]) => {
-          const nomProduit = sanitizeName(String(row[1] || ''));
-          const prixAchat = Number(row[3] || 0);
-          
-          // Ignorer les lignes vides ou avec des noms vides après nettoyage
-          if (!nomProduit || prixAchat <= 0) return null;
-          
-          // Exclure les produits indésirables
-          if (isExcludedProduct(nomProduit)) return null;
-          
-          return {
-            'Nom produit': nomProduit,
-            'Prix HT d\'achat': prixAchat
-          };
-        })
-        .filter(row => row !== null); // Supprimer les lignes nulles
-
-      // Filtrer les marques (ajout de "TCL" et "XO")
-      const marques = ['Apple', 'Xiaomi', 'Samsung', 'JBL', 'Google', 'Honor', 'Nothing', 'TCL', 'XO'];
-      const filteredRows = processedData.filter(row => 
-        marques.some(marque => 
-          row['Nom produit'].toLowerCase().includes(marque.toLowerCase())
-        )
-      );
-
-      // Supprimer les doublons (garder le prix le plus bas)
-      const uniqueRows = dedupeByLowestPrice(filteredRows as ProductRow[]);
-
-      // Calculer TCP et marges
-      const finalData = uniqueRows.map(row => {
-        const result = calculateRow({
-          name: row['Nom produit'],
-          purchasePrice: row['Prix HT d\'achat']
-        });
-        return {
-          'Nom produit': result.name,
-          'Prix HT d\'achat': result.purchasePrice,
-          'TCP': result.tcp,
-          'Marge de 4,5%': result.margin45,
-          'Prix HT avec TCP et marge': result.priceWithTcp,
-          'Prix HT avec Marge': result.priceWithMargin,
-          'Prix HT Maximum': result.maxPrice
-        };
-      });
-
-      // Créer un nouveau workbook
-      const newWorkbook = XLSX.utils.book_new();
-      const newWorksheet = XLSX.utils.json_to_sheet(finalData);
-
-      // Définir les largeurs de colonnes
-      newWorksheet['!cols'] = [
-        { wch: 50 }, // Nom produit
-        { wch: 15 }, // Prix HT d'achat
-        { wch: 8 },  // TCP
-        { wch: 15 }, // Marge de 4,5%
-        { wch: 25 }, // Prix HT avec TCP et marge
-        { wch: 18 }, // Prix HT avec Marge
-        { wch: 15 }  // Prix HT Maximum
-      ];
-
-      // Ajouter la note en bas du fichier
-      const lastRow = finalData.length + 2; // +2 pour laisser une ligne vide
-      const noteText = "Tarif HT TCP incluse / hors DEEE de 2,56€ HT par pièce / FRANCO 1000€ HT ou 20€ de frais de port";
-      
-      // Ajouter la note dans la première colonne
-      const cellAddress = XLSX.utils.encode_cell({ r: lastRow, c: 0 });
-      newWorksheet[cellAddress] = { t: 's', v: noteText };
-      
-      // Étendre la plage pour inclure la note
-      const range = XLSX.utils.decode_range(newWorksheet['!ref'] || 'A1');
-      range.e.r = Math.max(range.e.r, lastRow);
-      newWorksheet['!ref'] = XLSX.utils.encode_range(range);
-
-      XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, 'Processed');
-
-      // Convertir en blob
-      const excelBuffer = XLSX.write(newWorkbook, { 
-        bookType: 'xlsx', 
-        type: 'array',
-        cellStyles: true,
-        sheetStubs: false
-      });
-      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      setProcessedFile(URL.createObjectURL(blob));
-
-      // Importer les références puis envoyer le fichier original au backend
       await createImport(file);
       await createProduct();
       await calculateProducts();
       const list = await fetchProducts();
       setProductsCount(list.length);
+
+      const blob = await exportCalculations();
+      setProcessedFile(URL.createObjectURL(blob));
     } catch (error) {
       console.error('Error processing file:', error);
       setError(error instanceof Error ? error.message : 'Une erreur est survenue lors du traitement du fichier');
@@ -178,15 +79,15 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
   }, [file]);
 
   const handleDownload = useCallback(() => {
-    if (!processedFile || !file) return;
+    if (!processedFile) return;
 
     const link = document.createElement('a');
     link.href = processedFile;
-    link.download = `processed_${file.name}`;
+    link.download = 'product_calculates.xlsx';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  }, [processedFile, file]);
+  }, [processedFile]);
 
   // Utilitaire semaine/année
 

@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from models import (
     db,
@@ -15,6 +15,7 @@ from models import (
 import pandas as pd
 import os
 import math
+from io import BytesIO
 
 def create_app():
     app = Flask(__name__)
@@ -215,6 +216,31 @@ def create_app():
             created += 1
         db.session.commit()
         return jsonify({'status': 'success', 'created': created})
+
+    @app.route('/export_calculates', methods=['GET'])
+    def export_calculates():
+        calcs = ProductCalculate.query.join(Product).all()
+        rows = []
+        for c in calcs:
+            rows.append({
+                'Nom produit': c.product.name if c.product else '',
+                "Prix HT d'achat": c.product.price if c.product else 0,
+                'TCP': c.tcp,
+                'Marge de 4,5%': c.marge4_5,
+                'Prix HT avec TCP et marge': c.prixht_tcp_marge4_5,
+                'Prix HT avec Marge': c.prixht_marge4_5,
+                'Prix HT Maximum': c.prixht_max,
+            })
+        df = pd.DataFrame(rows)
+        output = BytesIO()
+        df.to_excel(output, index=False)
+        output.seek(0)
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name='product_calculates.xlsx',
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
 
     return app
 
