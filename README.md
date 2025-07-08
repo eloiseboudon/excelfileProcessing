@@ -10,11 +10,8 @@ Application complète de gestion de tarifs avec système de panier et commande p
 - Filtrage par marques
 - Export des données traitées
 
-### 🎨 Étape 2 - Mise en forme
-- Génération de fichiers Excel formatés
-- Création de pages web de consultation client
-- Interface moderne avec design professionnel
-- Publication en ligne
+### 🎨 Étape 2 - Téléchargement
+- Récupération du fichier XLSX depuis `export_calculates`
 
 ### 🛒 Système de panier
 - Sélection de produits avec quantités
@@ -87,7 +84,7 @@ npm run dev
 src/
 ├── components/
 │   ├── ProcessingPage.tsx      # Étape 1 - Traitement
-│   ├── FormattingPage.tsx      # Étape 2 - Mise en forme
+│   ├── FormattingPage.tsx      # Étape 2 - Téléchargement
 │   ├── HotwavAdmin.tsx         # Administration Hotwav
 │   ├── QuantityModal.tsx       # Modal de sélection quantité
 │   └── CartModal.tsx           # Modal du panier
