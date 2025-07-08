@@ -5,17 +5,20 @@ from models import (
     Product,
     TempImport,
     Reference,
+    Fournisseur,
     BrandParameter,
     ColorReference,
     MemoryReference,
     TypeReference,
     ColorTransco,
     ProductCalculate,
+    ImportHistory,
 )
 import pandas as pd
 import os
 import math
 from io import BytesIO
+from datetime import datetime
 
 def create_app():
     app = Flask(__name__)
@@ -35,6 +38,36 @@ def create_app():
     with app.app_context():
         db.create_all()
 
+    @app.route('/fournisseurs', methods=['GET'])
+    def list_fournisseurs():
+        fournisseurs = Fournisseur.query.all()
+        result = [
+            {
+                'id': f.id,
+                'name': f.name,
+                'email': f.email,
+                'phone': f.phone,
+                'address': f.address,
+            }
+            for f in fournisseurs
+        ]
+        return jsonify(result)
+
+    @app.route('/import_history', methods=['GET'])
+    def list_import_history():
+        histories = ImportHistory.query.order_by(ImportHistory.import_date.desc()).all()
+        result = [
+            {
+                'id': h.id,
+                'filename': h.filename,
+                'id_fournisseur': h.id_fournisseur,
+                'product_count': h.product_count,
+                'import_date': h.import_date.isoformat(),
+            }
+            for h in histories
+        ]
+        return jsonify(result)
+
 
     @app.route('/import', methods=['POST'])
     def create_import():
@@ -42,6 +75,12 @@ def create_app():
             return jsonify({'error': 'No file provided'}), 400
 
         file = request.files['file']
+        fournisseur_id = request.form.get('id_fournisseur')
+        if fournisseur_id is not None:
+            try:
+                fournisseur_id = int(fournisseur_id)
+            except ValueError:
+                fournisseur_id = None
 
         # Clean previous temporary data
         TempImport.query.delete()
@@ -61,26 +100,36 @@ def create_app():
                     description=row.get('description'),
                     quantity=row.get('quantity', None),
                     selling_price=row.get('sellingprice', None),
-                    ean=ean_value
+                    ean=ean_value,
+                    id_fournisseur=fournisseur_id
                 )
             db.session.add(temp)
 
-            # Create reference if it does not already exist
-            ref = Reference.query.filter_by(ean=ean_value).first()
+            # Create reference if it does not already exist for this fournisseur
+            ref = Reference.query.filter_by(ean=ean_value, id_fournisseur=fournisseur_id).first()
             if ref:
                 ref.description = row.get('description')
                 ref.quantity = row.get('quantity', None)
                 ref.selling_price = row.get('sellingprice', None)
+                ref.id_fournisseur = fournisseur_id
                 count_update += 1
             else:
                 ref = Reference(
                     description=row.get('description'),
                     quantity=row.get('quantity', None),
                     selling_price=row.get('sellingprice', None),
-                    ean=ean_value
+                    ean=ean_value,
+                    id_fournisseur=fournisseur_id
                 )
                 count_new += 1
                 db.session.add(ref)
+
+        history = ImportHistory(
+            filename=file.filename,
+            id_fournisseur=fournisseur_id,
+            product_count=len(df)
+        )
+        db.session.add(history)
 
         db.session.commit()
         return jsonify({'status': 'success', 'new': count_new, 'updated': count_update})
@@ -150,7 +199,10 @@ def create_app():
                     type_id = t.id
                     break
 
-            existing = Product.query.filter_by(id_reference=ref.id).first()
+            existing = Product.query.filter_by(
+                id_reference=ref.id,
+                id_fournisseur=ref.id_fournisseur,
+            ).first()
             if existing:
                 existing.description = ref.description
                 existing.name = ref.description
@@ -159,6 +211,7 @@ def create_app():
                 existing.id_color = color_id
                 existing.id_memory = memory_id
                 existing.id_type = type_id
+                existing.id_fournisseur = ref.id_fournisseur
                 updated += 1
             else:
                 product = Product(
@@ -170,6 +223,7 @@ def create_app():
                     id_color=color_id,
                     id_memory=memory_id,
                     id_type=type_id,
+                    id_fournisseur=ref.id_fournisseur,
                 )
                 db.session.add(product)
                 created += 1
@@ -222,23 +276,34 @@ def create_app():
         calcs = ProductCalculate.query.join(Product).all()
         rows = []
         for c in calcs:
+            p = c.product
             rows.append({
-                'Nom produit': c.product.name if c.product else '',
-                "Prix HT d'achat": c.product.price if c.product else 0,
+                'id': p.id if p else None,
+                'id_reference': p.id_reference if p else None,
+                'name': p.name if p else None,
+                'description': p.description if p else None,
+                'brand': p.brand.brand if p.brand else None,
+                'price': p.price if p else None,
+                'memory': p.memory_reference.memory if p.memory_reference else None,
+                'color': p.color_reference.color if p.color_reference else None,
+                'type': p.type_reference.type if p.type_reference else None,
+                'fournisseur': p.fournisseur.name if p.fournisseur else None,
                 'TCP': c.tcp,
                 'Marge de 4,5%': c.marge4_5,
                 'Prix HT avec TCP et marge': c.prixht_tcp_marge4_5,
                 'Prix HT avec Marge': c.prixht_marge4_5,
                 'Prix HT Maximum': c.prixht_max,
             })
+
         df = pd.DataFrame(rows)
         output = BytesIO()
         df.to_excel(output, index=False)
         output.seek(0)
+        filename = f"product_calculates_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.xlsx"
         return send_file(
             output,
             as_attachment=True,
-            download_name='product_calculates.xlsx',
+            download_name=filename,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
 

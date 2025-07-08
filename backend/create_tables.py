@@ -10,7 +10,8 @@ conn = psycopg2.connect(
 )
 cur = conn.cursor()
 
-cur.execute("""DROP TABLE IF EXISTS product_calculates;""")   
+cur.execute("""DROP TABLE IF EXISTS import_history;""")
+cur.execute("""DROP TABLE IF EXISTS product_calculates;""")
 cur.execute("""DROP TABLE IF EXISTS products;""") 
 cur.execute("""DROP TABLE IF EXISTS size_references;""")
 cur.execute("""DROP TABLE IF EXISTS type_references;""")
@@ -20,8 +21,20 @@ cur.execute("""DROP TABLE IF EXISTS memory_references;""")
 cur.execute("""DROP TABLE IF EXISTS brand_parameters;""")
 cur.execute("""DROP TABLE IF EXISTS reference;""")    
 cur.execute("""DROP TABLE IF EXISTS temp_imports;""")
-
+cur.execute("""DROP TABLE IF EXISTS fournisseurs;""")
 conn.commit()
+
+
+cur.execute("""
+CREATE TABLE IF NOT EXISTS fournisseurs (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(120) UNIQUE,
+    phone VARCHAR(20),
+    address VARCHAR(200)
+);
+""")
+
 
 cur.execute("""
 CREATE TABLE IF NOT EXISTS temp_imports (
@@ -30,7 +43,9 @@ CREATE TABLE IF NOT EXISTS temp_imports (
     articelno VARCHAR(50),
     quantity INTEGER,
     selling_price FLOAT,
-    ean VARCHAR(20) UNIQUE NOT NULL
+    ean VARCHAR(20) NOT NULL,
+    id_fournisseur INTEGER REFERENCES fournisseurs(id) ON DELETE SET NULL,
+    UNIQUE (ean, id_fournisseur)
 );
 """)
 
@@ -41,7 +56,9 @@ CREATE TABLE IF NOT EXISTS reference (
     articelno VARCHAR(50),
     quantity INTEGER,
     selling_price FLOAT,
-    ean VARCHAR(20) UNIQUE NOT NULL
+    ean VARCHAR(20) NOT NULL,
+    id_fournisseur INTEGER REFERENCES fournisseurs(id) ON DELETE SET NULL,
+    UNIQUE (ean, id_fournisseur)
 );
 """)
 
@@ -92,7 +109,9 @@ CREATE TABLE IF NOT EXISTS products (
     price FLOAT,
     id_memory INTEGER REFERENCES memory_references(id) ON DELETE SET NULL,
     id_color INTEGER REFERENCES color_references(id) ON DELETE SET NULL,
-    id_type INTEGER REFERENCES type_references(id) ON DELETE SET NULL
+    id_type INTEGER REFERENCES type_references(id) ON DELETE SET NULL,
+    id_fournisseur INTEGER REFERENCES fournisseurs(id) ON DELETE SET NULL,
+    UNIQUE (id_reference, id_fournisseur)
 );
 """)
 
@@ -108,7 +127,23 @@ CREATE TABLE IF NOT EXISTS product_calculates (
 );
 """)
 
+cur.execute("""
+CREATE TABLE IF NOT EXISTS import_history (
+    id SERIAL PRIMARY KEY,
+    filename VARCHAR(200) NOT NULL,
+    id_fournisseur INTEGER REFERENCES fournisseurs(id) ON DELETE SET NULL,
+    product_count INTEGER NOT NULL,
+    import_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+""")
+
 conn.commit()
+
+cur.execute("""
+    INSERT INTO fournisseurs (name) VALUES
+    ('Yuka'),('Fournisseur2')
+    ;
+""")
 
 cur.execute("""
     INSERT INTO brand_parameters (brand) VALUES ('Samsung'), ('Apple'), ('Huawei'), ('Xiaomi'), ('Oppo'),
