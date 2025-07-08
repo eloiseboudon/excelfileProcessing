@@ -1,9 +1,12 @@
 export const API_BASE = 'http://localhost:5001';
 
 
-export async function createImport(file: File) {
+export async function createImport(file: File, fournisseurId?: number) {
   const formData = new FormData();
   formData.append('file', file);
+  if (fournisseurId !== undefined) {
+    formData.append('id_fournisseur', String(fournisseurId));
+  }
 
   const res = await fetch(`${API_BASE}/import`, {
     method: 'POST',
@@ -50,5 +53,22 @@ export async function exportCalculations() {
   if (!res.ok) {
     throw new Error('Erreur lors de la génération du fichier');
   }
-  return res.blob();
+  const blob = await res.blob();
+  let filename = 'export.xlsx';
+  const disposition = res.headers.get('Content-Disposition');
+  if (disposition) {
+    const match = disposition.match(/filename="?([^";]+)"?/);
+    if (match) {
+      filename = match[1];
+    }
+  }
+  return { blob, filename };
+}
+
+export async function fetchFournisseurs() {
+  const res = await fetch(`${API_BASE}/fournisseurs`);
+  if (!res.ok) {
+    throw new Error("Erreur lors du chargement des fournisseurs");
+  }
+  return res.json();
 }
