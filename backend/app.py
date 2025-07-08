@@ -19,7 +19,7 @@ import pandas as pd
 import os
 import math
 from io import BytesIO
-from datetime import datetime
+from datetime import datetime, timezone
 
 def create_app():
     # Load environment variables from a local .env file if present
@@ -188,7 +188,7 @@ def create_app():
             if not color_id:
                 for ct in color_transcos:
                     if ct.color_source.lower() in description_lower:
-                        color_id = ct.id_color_target
+                        color_id = ct.color_target_id
                         break
 
             memory_id = None
@@ -303,7 +303,7 @@ def create_app():
         output = BytesIO()
         df.to_excel(output, index=False)
         output.seek(0)
-        filename = f"product_calculates_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        filename = f"product_calculates_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.xlsx"
         return send_file(
             output,
             as_attachment=True,
