@@ -178,13 +178,13 @@ def create_app():
         created = 0
         for p in products:
             price = p.price or 0
-            name_upper = (p.name or '').upper()
+            memory = p.memory_reference.memory.upper() if p.memory_reference else ''
             tcp = 0
-            if '32GB' in name_upper:
+            if memory == '32GB':
                 tcp = 10
-            elif '64GB' in name_upper:
+            elif memory == '64GB':
                 tcp = 12
-            elif any(size in name_upper for size in ['128GB', '256GB', '512GB', '1TB']):
+            elif memory in ['128GB', '256GB', '512GB', '1TB']:
                 tcp = 14
             margin45 = price * 0.045
             price_with_tcp = price + tcp + margin45
