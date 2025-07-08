@@ -13,7 +13,7 @@ import {
   createImport,
   calculateProducts,
   exportCalculations,
-  fetchFournisseurs,
+  fetchSuppliers,
 } from '../api';
 import { getCurrentWeekYear } from '../utils/date';
 
@@ -21,7 +21,7 @@ interface ProcessingPageProps {
   onNext: () => void;
 }
 
-interface Fournisseur {
+interface Supplier {
   id: number;
   name: string;
   email?: string;
@@ -30,12 +30,12 @@ interface Fournisseur {
 }
 
 interface ImportZoneProps {
-  fournisseur: Fournisseur;
+  supplier: Supplier;
   file: File | null;
   onFileChange: (id: number, file: File | null) => void;
 }
 
-function ImportZone({ fournisseur, file, onFileChange }: ImportZoneProps) {
+function ImportZone({ supplier, file, onFileChange }: ImportZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -58,25 +58,25 @@ function ImportZone({ fournisseur, file, onFileChange }: ImportZoneProps) {
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
         droppedFile?.type === 'application/vnd.ms-excel'
       ) {
-        onFileChange(fournisseur.id, droppedFile);
+        onFileChange(supplier.id, droppedFile);
       }
     },
-    [fournisseur.id, onFileChange]
+    [supplier.id, onFileChange]
   );
 
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const selectedFile = e.target.files?.[0];
       if (selectedFile) {
-        onFileChange(fournisseur.id, selectedFile);
+        onFileChange(supplier.id, selectedFile);
       }
     },
-    [fournisseur.id, onFileChange]
+    [supplier.id, onFileChange]
   );
 
   return (
     <div className="bg-zinc-900 rounded-2xl shadow-2xl p-8 border border-[#B8860B]/20">
-      <h2 className="text-xl font-semibold mb-6">Import de {fournisseur.name}</h2>
+      <h2 className="text-xl font-semibold mb-6">Import de {supplier.name}</h2>
       <div
         className={`border-2 border-dashed rounded-xl p-8 transition-all duration-200 ${
           isDragging ? 'border-[#B8860B] bg-black/50' : 'border-zinc-700 hover:border-[#B8860B]/50'
@@ -106,7 +106,7 @@ function ImportZone({ fournisseur, file, onFileChange }: ImportZoneProps) {
 
 function ProcessingPage({ onNext }: ProcessingPageProps) {
   const [productsCount, setProductsCount] = useState(0);
-  const [fournisseurs, setFournisseurs] = useState<Fournisseur[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [files, setFiles] = useState<Record<number, File | null>>({});
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedFile, setProcessedFile] = useState<string | null>(null);
@@ -132,7 +132,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
     setError(null);
 
     try {
-      for (const f of fournisseurs) {
+      for (const f of suppliers) {
         const file = files[f.id];
         if (file) {
           await createImport(file, f.id);
@@ -157,12 +157,12 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
     } finally {
       setIsProcessing(false);
     }
-  }, [files, fournisseurs, refreshCount]);
+  }, [files, suppliers, refreshCount]);
 
   useEffect(() => {
     refreshCount();
-    fetchFournisseurs()
-      .then(setFournisseurs)
+    fetchSuppliers()
+      .then(setSuppliers)
       .catch(() => {});
   }, [refreshCount]);
 
@@ -174,10 +174,10 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
       <p className="text-center text-sm text-zinc-500 mb-8">Produits en base : {productsCount}</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {fournisseurs.map((f) => (
+        {suppliers.map((f) => (
           <ImportZone
             key={f.id}
-            fournisseur={f}
+            supplier={f}
             file={files[f.id] || null}
             onFileChange={handleFileChange}
           />
