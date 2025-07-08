@@ -53,7 +53,16 @@ export async function exportCalculations() {
   if (!res.ok) {
     throw new Error('Erreur lors de la génération du fichier');
   }
-  return res.blob();
+  const blob = await res.blob();
+  let filename = 'export.xlsx';
+  const disposition = res.headers.get('Content-Disposition');
+  if (disposition) {
+    const match = disposition.match(/filename="?([^";]+)"?/);
+    if (match) {
+      filename = match[1];
+    }
+  }
+  return { blob, filename };
 }
 
 export async function fetchFournisseurs() {

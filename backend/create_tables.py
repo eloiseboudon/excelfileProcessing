@@ -141,7 +141,7 @@ conn.commit()
 
 cur.execute("""
     INSERT INTO fournisseurs (name) VALUES
-    ('Yuka')
+    ('Yuka'),('Fournisseur2')
     ;
 """)
 

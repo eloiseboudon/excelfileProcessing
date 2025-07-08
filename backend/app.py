@@ -18,6 +18,7 @@ import pandas as pd
 import os
 import math
 from io import BytesIO
+from datetime import datetime
 
 def create_app():
     app = Flask(__name__)
@@ -275,23 +276,34 @@ def create_app():
         calcs = ProductCalculate.query.join(Product).all()
         rows = []
         for c in calcs:
+            p = c.product
             rows.append({
-                'Nom produit': c.product.name if c.product else '',
-                "Prix HT d'achat": c.product.price if c.product else 0,
+                'id': p.id if p else None,
+                'id_reference': p.id_reference if p else None,
+                'name': p.name if p else None,
+                'description': p.description if p else None,
+                'id_brand': p.id_brand if p else None,
+                'price': p.price if p else None,
+                'id_memory': p.id_memory if p else None,
+                'id_color': p.id_color if p else None,
+                'id_type': p.id_type if p else None,
+                'id_fournisseur': p.id_fournisseur if p else None,
                 'TCP': c.tcp,
                 'Marge de 4,5%': c.marge4_5,
                 'Prix HT avec TCP et marge': c.prixht_tcp_marge4_5,
                 'Prix HT avec Marge': c.prixht_marge4_5,
                 'Prix HT Maximum': c.prixht_max,
             })
+
         df = pd.DataFrame(rows)
         output = BytesIO()
         df.to_excel(output, index=False)
         output.seek(0)
+        filename = f"product_calculates_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.xlsx"
         return send_file(
             output,
             as_attachment=True,
-            download_name='product_calculates.xlsx',
+            download_name=filename,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
 

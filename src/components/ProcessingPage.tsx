@@ -110,6 +110,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
   const [files, setFiles] = useState<Record<number, File | null>>({});
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedFile, setProcessedFile] = useState<string | null>(null);
+  const [processedFileName, setProcessedFileName] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
   const refreshCount = useCallback(async () => {
@@ -142,8 +143,9 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
       await calculateProducts();
       await refreshCount();
 
-      const blob = await exportCalculations();
+      const { blob, filename } = await exportCalculations();
       setProcessedFile(URL.createObjectURL(blob));
+      setProcessedFileName(filename);
     } catch (err) {
       console.error('Error processing files:', err);
       setError(
@@ -213,7 +215,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
               onClick={() => {
                 const link = document.createElement('a');
                 link.href = processedFile;
-                link.download = 'product_calculates.xlsx';
+                link.download = processedFileName || 'product_calculates.xlsx';
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
