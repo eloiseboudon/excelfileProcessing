@@ -64,11 +64,13 @@ def create_app():
             # Create reference if it does not already exist
             ref = Reference.query.filter_by(ean=ean_value).first()
             if ref:
+                ref.description = row.get('description')
                 ref.name = row.get('description')
                 ref.quantity = row.get('quantity', None)
                 ref.selling_price = row.get('sellingprice', None)
             else:
                 ref = Reference(
+                    description=row.get('description'),
                     name=row.get('description'),
                     quantity=row.get('quantity', None),
                     selling_price=row.get('sellingprice', None),
@@ -86,6 +88,7 @@ def create_app():
         result = [
             {
                 'id': p.id,
+                'description': p.description,
                 'name': p.name,
                 'brand': p.brand.brand if p.brand else None,
                 'price': p.price,
@@ -113,39 +116,40 @@ def create_app():
         created = 0
         updated = 0
         for ref in references:
-            name_lower = ref.name.lower() if ref.name else ""
+            description_lower = ref.description.lower() if ref.description else ""
 
             brand_id = None
             for b in brands:
-                if b.brand.lower() in name_lower:
+                if b.brand.lower() in description_lower:
                     brand_id = b.id
                     break
 
             color_id = None
             for c in colors:
-                if c.color.lower() in name_lower:
+                if c.color.lower() in description_lower:
                     color_id = c.id
                     break
             if not color_id:
                 for ct in color_transcos:
-                    if ct.color_source.lower() in name_lower:
+                    if ct.color_source.lower() in description_lower:
                         color_id = ct.id_color_target
                         break
 
             memory_id = None
             for m in memories:
-                if m.memory.lower() in name_lower:
+                if m.memory.lower() in description_lower:
                     memory_id = m.id
                     break
 
             type_id = None
             for t in types:
-                if t.type.lower() in name_lower:
+                if t.type.lower() in description_lower:
                     type_id = t.id
                     break
 
             existing = Product.query.filter_by(id_reference=ref.id).first()
             if existing:
+                existing.description = ref.description
                 existing.name = ref.name
                 existing.price = ref.selling_price
                 existing.id_brand = brand_id
@@ -156,6 +160,7 @@ def create_app():
             else:
                 product = Product(
                     id_reference=ref.id,
+                    description=ref.description,
                     name=ref.name,
                     price=ref.selling_price,
                     id_brand=brand_id,
