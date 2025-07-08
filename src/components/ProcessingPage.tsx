@@ -2,6 +2,14 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { FileUp, FileDown, ArrowRight, Loader2, Download, ChevronRight } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { createProduct, fetchProducts, createImport } from '../api';
+import {
+  sanitizeName,
+  isExcludedProduct,
+  dedupeByLowestPrice,
+  calculateRow,
+  ProductRow
+} from '../utils/processing';
+import { getCurrentWeekYear } from '../utils/date';
 
 interface ProcessingPageProps {
   onNext: () => void;
@@ -53,71 +61,6 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
     }
   }, []);
 
-  // Fonction pour nettoyer les noms de produits
-  const cleanProductName = (name: string): string => {
-    if (!name || typeof name !== 'string') return '';
-    
-    let cleanedName = name;
-    
-    // Supprimer "Region East" et "Region West"
-    cleanedName = cleanedName.replace(/Region\s+(East|West)/gi, '');
-    
-    // Appliquer les remplacements existants
-    const replacements: Record<string, string> = {
-      'Dual Sim': 'DS',
-      'GB RAM ': '/',
-      ' - ': ' ',
-      'Tablet Apple': 'Apple',
-      'Tablet Honor': 'Honor',
-      'Tablet Samsung': 'Samsung',
-      'Tablet Xiaomi': 'Xiaomi',
-      'Watch Apple': 'Apple',
-      'Watch Samsung': 'Samsung',
-      'Watch Xiaomi': 'Xiaomi',
-      'Watch Google': 'Google' // Nouveau nettoyage ajouté
-    };
-    
-    Object.entries(replacements).forEach(([key, value]) => {
-      cleanedName = cleanedName.replace(new RegExp(key, 'g'), value);
-    });
-    
-    // Nettoyer les espaces multiples et les espaces en début/fin
-    cleanedName = cleanedName
-      .replace(/\s+/g, ' ')  // Remplacer les espaces multiples par un seul espace
-      .trim();               // Supprimer les espaces en début et fin
-    
-    return cleanedName;
-  };
-
-  // Fonction pour vérifier si un produit doit être exclu
-  const shouldExcludeProduct = (name: string): boolean => {
-    const excludeTerms = ['Mac', 'Backbone', 'Bulk', 'OH25B', 'Soundbar'];
-    const nameLower = name.toLowerCase();
-    return excludeTerms.some(term => nameLower.includes(term.toLowerCase()));
-  };
-
-  // Fonction pour gérer les doublons (garder le prix le plus bas)
-  const removeDuplicates = (products: any[]): any[] => {
-    const productMap = new Map<string, any>();
-    
-    products.forEach(product => {
-      const cleanName = product['Nom produit'];
-      const currentPrice = product['Prix HT d\'achat'];
-      
-      if (productMap.has(cleanName)) {
-        // Si le produit existe déjà, garder celui avec le prix le plus bas
-        const existingProduct = productMap.get(cleanName);
-        if (currentPrice < existingProduct['Prix HT d\'achat']) {
-          productMap.set(cleanName, product);
-        }
-      } else {
-        // Nouveau produit, l'ajouter
-        productMap.set(cleanName, product);
-      }
-    });
-    
-    return Array.from(productMap.values());
-  };
 
   const handleProcess = useCallback(async () => {
     if (!file) return;
@@ -135,14 +78,14 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
       // Créer un nouveau tableau avec les colonnes 2 et 4
       const processedData = jsonData.slice(1)
         .map((row: any[]) => {
-          const nomProduit = cleanProductName(String(row[1] || ''));
+          const nomProduit = sanitizeName(String(row[1] || ''));
           const prixAchat = Number(row[3] || 0);
           
           // Ignorer les lignes vides ou avec des noms vides après nettoyage
           if (!nomProduit || prixAchat <= 0) return null;
           
           // Exclure les produits indésirables
-          if (shouldExcludeProduct(nomProduit)) return null;
+          if (isExcludedProduct(nomProduit)) return null;
           
           return {
             'Nom produit': nomProduit,
@@ -160,47 +103,22 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
       );
 
       // Supprimer les doublons (garder le prix le plus bas)
-      const uniqueRows = removeDuplicates(filteredRows);
+      const uniqueRows = dedupeByLowestPrice(filteredRows as ProductRow[]);
 
       // Calculer TCP et marges
       const finalData = uniqueRows.map(row => {
-        const prixAchat = row['Prix HT d\'achat'];
-        let tcp = 0;
-        const nomProduit = row['Nom produit'].toUpperCase();
-
-        if (nomProduit.includes('32GB')) tcp = 10;
-        else if (nomProduit.includes('64GB')) tcp = 12;
-        else if (['128GB', '256GB', '512GB', '1TB'].some(size => nomProduit.includes(size))) tcp = 14;
-
-        const marge45 = prixAchat * 0.045;
-        const prixAvecTCPEtMarge = prixAchat + tcp + marge45;
-
-        // Calculer le prix avec marge
-        let prixAvecMarge = prixAchat;
-        const seuils = [15, 29, 49, 79, 99, 129, 149, 179, 209, 299, 499, 799, 999];
-        const marges = [1.25, 1.22, 1.20, 1.18, 1.15, 1.11, 1.10, 1.09, 1.09, 1.08, 1.08, 1.07, 1.07, 1.06];
-
-        for (let i = 0; i < seuils.length; i++) {
-          if (prixAchat <= seuils[i]) {
-            prixAvecMarge = prixAchat * marges[i];
-            break;
-          }
-        }
-        if (prixAchat > seuils[seuils.length - 1]) {
-          prixAvecMarge = prixAchat * 1.06;
-        }
-
-        // Calculer le prix maximum arrondi au supérieur (VALEUR, pas formule)
-        const prixMax = Math.ceil(Math.max(prixAvecTCPEtMarge, prixAvecMarge));
-
+        const result = calculateRow({
+          name: row['Nom produit'],
+          purchasePrice: row['Prix HT d\'achat']
+        });
         return {
-          'Nom produit': row['Nom produit'],
-          'Prix HT d\'achat': Number(prixAchat.toFixed(2)),
-          'TCP': Number(tcp.toFixed(2)),
-          'Marge de 4,5%': Number(marge45.toFixed(2)),
-          'Prix HT avec TCP et marge': Number(prixAvecTCPEtMarge.toFixed(2)),
-          'Prix HT avec Marge': Number(prixAvecMarge.toFixed(2)),
-          'Prix HT Maximum': prixMax // VALEUR CALCULÉE, pas formule
+          'Nom produit': result.name,
+          'Prix HT d\'achat': result.purchasePrice,
+          'TCP': result.tcp,
+          'Marge de 4,5%': result.margin45,
+          'Prix HT avec TCP et marge': result.priceWithTcp,
+          'Prix HT avec Marge': result.priceWithMargin,
+          'Prix HT Maximum': result.maxPrice
         };
       });
 
@@ -269,18 +187,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
     document.body.removeChild(link);
   }, [processedFile, file]);
 
-  // Fonction pour obtenir la semaine et l'année actuelles
-  const getCurrentWeekAndYear = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    
-    // Calculer le numéro de semaine ISO
-    const startOfYear = new Date(year, 0, 1);
-    const pastDaysOfYear = (now.getTime() - startOfYear.getTime()) / 86400000;
-    const weekNumber = Math.ceil((pastDaysOfYear + startOfYear.getDay() + 1) / 7);
-    
-    return `S${weekNumber}-${year}`;
-  };
+  // Utilitaire semaine/année
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
@@ -291,7 +198,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
         Traitez vos fichiers Excel avec calculs TCP et marges
       </p>
       <p className="text-center text-zinc-400 mb-12">
-        Semaine {getCurrentWeekAndYear()}
+        Semaine {getCurrentWeekYear()}
       </p>
       <p className="text-center text-sm text-zinc-500 mb-8">
         Produits en base : {productsCount}
