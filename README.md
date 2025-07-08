@@ -56,7 +56,7 @@ Pour activer l'envoi d'emails, configurez EmailJS :
 
 ## Fichier `.env`
 
-Créez un fichier `.env` à la racine du projet avec vos identifiants Supabase&nbsp;:
+Créez un fichier `.env` à la racine du projet avec vos identifiants Supabase :
 
 ```bash
 VITE_SUPABASE_URL=<votre_url_supabase>
@@ -128,7 +128,9 @@ Un backend minimal en **Python** est fourni dans le dossier `backend`. Il utilis
 make db-create    # crée la base `ajtpro` si besoin
 
 make venv         # crée l'environnement virtuel et installe les dépendances
-export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ajtpro
+# Créez un fichier `.env` contenant l'URL de connexion :
+# DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ajtpro
+# Un fichier `.env.example` est fourni à titre d'exemple.
 make run          # démarre l'API Flask
 ```
 
