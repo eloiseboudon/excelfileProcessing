@@ -23,18 +23,20 @@ from datetime import datetime, timezone
 
 def create_app():
     # Load environment variables from a local .env file if present
-    load_dotenv()
+    env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+    load_dotenv(env_path)
 
     app = Flask(__name__)
-    CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
+
+    frontend_origin = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    CORS(app, resources={r"/*": {"origins": frontend_origin}})
 
     @app.route('/')
     def index():
         return {'message': 'Hello World'}
-    database_url = os.environ.get(
-        "DATABASE_URL",
-        "postgresql://eloise@localhost:5432/ajtpro"
-    )
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        raise RuntimeError("DATABASE_URL environment variable is not set")
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     db.init_app(app)
@@ -316,5 +318,7 @@ def create_app():
 
 if __name__ == '__main__':
     app = create_app()
-    app.run(debug=True, port=5001)
+    host = os.getenv("FLASK_HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "5001"))
+    app.run(host=host, port=port)
 

@@ -61,6 +61,7 @@ Créez un fichier `.env` à la racine du projet avec vos identifiants Supabase :
 ```bash
 VITE_SUPABASE_URL=<votre_url_supabase>
 VITE_SUPABASE_ANON_KEY=<votre_cle_anon>
+VITE_API_BASE=http://localhost:5001
 ```
 
 Ce fichier est ignoré par Git afin de protéger vos informations sensibles.
@@ -128,8 +129,12 @@ Un backend minimal en **Python** est fourni dans le dossier `backend`. Il utilis
 make db-create    # crée la base `ajtpro` si besoin
 
 make venv         # crée l'environnement virtuel et installe les dépendances
-# Créez un fichier `.env` contenant l'URL de connexion :
-# DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ajtpro
+# Créez un fichier `.env` contenant vos variables :
+# DATABASE_URL=postgresql://user:password@host:5432/ajtpro
+# FRONTEND_URL=http://votre-site.com
+# VITE_API_BASE=http://votre-backend:5001
+# FLASK_HOST=0.0.0.0
+# PORT=5001
 # Un fichier `.env.example` est fourni à titre d'exemple.
 make run          # démarre l'API Flask
 ```
