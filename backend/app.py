@@ -5,6 +5,7 @@ from models import (
     Product,
     TempImport,
     Reference,
+    Fournisseur,
     BrandParameter,
     ColorReference,
     MemoryReference,
@@ -35,6 +36,21 @@ def create_app():
     with app.app_context():
         db.create_all()
 
+    @app.route('/fournisseurs', methods=['GET'])
+    def list_fournisseurs():
+        fournisseurs = Fournisseur.query.all()
+        result = [
+            {
+                'id': f.id,
+                'name': f.name,
+                'email': f.email,
+                'phone': f.phone,
+                'address': f.address,
+            }
+            for f in fournisseurs
+        ]
+        return jsonify(result)
+
 
     @app.route('/import', methods=['POST'])
     def create_import():
@@ -42,6 +58,12 @@ def create_app():
             return jsonify({'error': 'No file provided'}), 400
 
         file = request.files['file']
+        fournisseur_id = request.form.get('id_fournisseur')
+        if fournisseur_id is not None:
+            try:
+                fournisseur_id = int(fournisseur_id)
+            except ValueError:
+                fournisseur_id = None
 
         # Clean previous temporary data
         TempImport.query.delete()
@@ -61,7 +83,8 @@ def create_app():
                     description=row.get('description'),
                     quantity=row.get('quantity', None),
                     selling_price=row.get('sellingprice', None),
-                    ean=ean_value
+                    ean=ean_value,
+                    id_fournisseur=fournisseur_id
                 )
             db.session.add(temp)
 
@@ -71,13 +94,15 @@ def create_app():
                 ref.description = row.get('description')
                 ref.quantity = row.get('quantity', None)
                 ref.selling_price = row.get('sellingprice', None)
+                ref.id_fournisseur = fournisseur_id
                 count_update += 1
             else:
                 ref = Reference(
                     description=row.get('description'),
                     quantity=row.get('quantity', None),
                     selling_price=row.get('sellingprice', None),
-                    ean=ean_value
+                    ean=ean_value,
+                    id_fournisseur=fournisseur_id
                 )
                 count_new += 1
                 db.session.add(ref)
