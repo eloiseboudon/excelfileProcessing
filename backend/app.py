@@ -64,7 +64,7 @@ def create_app():
             {
                 'id': h.id,
                 'filename': h.filename,
-                'id_fournisseur': h.id_fournisseur,
+                'supplier_id': h.supplier_id,
                 'product_count': h.product_count,
                 'import_date': h.import_date.isoformat(),
             }
@@ -79,12 +79,12 @@ def create_app():
             return jsonify({'error': 'No file provided'}), 400
 
         file = request.files['file']
-        fournisseur_id = request.form.get('id_fournisseur')
-        if fournisseur_id is not None:
+        supplier_id = request.form.get('supplier_id')
+        if supplier_id is not None:
             try:
-                fournisseur_id = int(fournisseur_id)
+                supplier_id = int(supplier_id)
             except ValueError:
-                fournisseur_id = None
+                supplier_id = None
 
         # Clean previous temporary data
         TempImport.query.delete()
@@ -105,17 +105,17 @@ def create_app():
                     quantity=row.get('quantity', None),
                     selling_price=row.get('sellingprice', None),
                     ean=ean_value,
-                    id_fournisseur=fournisseur_id
+                    supplier_id=supplier_id
                 )
             db.session.add(temp)
 
-            # Create reference if it does not already exist for this fournisseur
-            ref = Reference.query.filter_by(ean=ean_value, id_fournisseur=fournisseur_id).first()
+            # Create reference if it does not already exist for this supplier
+            ref = Reference.query.filter_by(ean=ean_value, supplier_id=supplier_id).first()
             if ref:
                 ref.description = row.get('description')
                 ref.quantity = row.get('quantity', None)
                 ref.selling_price = row.get('sellingprice', None)
-                ref.id_fournisseur = fournisseur_id
+                ref.supplier_id = supplier_id
                 count_update += 1
             else:
                 ref = Reference(
@@ -123,14 +123,14 @@ def create_app():
                     quantity=row.get('quantity', None),
                     selling_price=row.get('sellingprice', None),
                     ean=ean_value,
-                    id_fournisseur=fournisseur_id
+                    supplier_id=supplier_id
                 )
                 count_new += 1
                 db.session.add(ref)
 
         history = ImportHistory(
             filename=file.filename,
-            id_fournisseur=fournisseur_id,
+            supplier_id=supplier_id,
             product_count=len(df)
         )
         db.session.add(history)
@@ -204,8 +204,8 @@ def create_app():
                     break
 
             existing = Product.query.filter_by(
-                id_reference=ref.id,
-                id_fournisseur=ref.id_fournisseur,
+                reference_id=ref.id,
+                supplier_id=ref.supplier_id,
             ).first()
             if existing:
                 existing.description = ref.description
@@ -215,11 +215,11 @@ def create_app():
                 existing.id_color = color_id
                 existing.id_memory = memory_id
                 existing.id_type = type_id
-                existing.id_fournisseur = ref.id_fournisseur
+                existing.supplier_id = ref.supplier_id
                 updated += 1
             else:
                 product = Product(
-                    id_reference=ref.id,
+                    reference_id=ref.id,
                     description=ref.description,
                     name=ref.description,
                     price=ref.selling_price,
@@ -227,7 +227,7 @@ def create_app():
                     id_color=color_id,
                     id_memory=memory_id,
                     id_type=type_id,
-                    id_fournisseur=ref.id_fournisseur,
+                    supplier_id=ref.supplier_id,
                 )
                 db.session.add(product)
                 created += 1
@@ -283,7 +283,7 @@ def create_app():
             p = c.product
             rows.append({
                 'id': p.id if p else None,
-                'id_reference': p.id_reference if p else None,
+                'reference_id': p.reference_id if p else None,
                 'name': p.name if p else None,
                 'description': p.description if p else None,
                 'brand': p.brand.brand if p.brand else None,
@@ -291,7 +291,7 @@ def create_app():
                 'memory': p.memory_reference.memory if p.memory_reference else None,
                 'color': p.color_reference.color if p.color_reference else None,
                 'type': p.type_reference.type if p.type_reference else None,
-                'fournisseur': p.fournisseur.name if p.fournisseur else None,
+                'supplier': p.supplier.name if p.supplier else None,
                 'TCP': c.tcp,
                 'Marge de 4,5%': c.marge4_5,
                 'Prix HT avec TCP et marge': c.prixht_tcp_marge4_5,
