@@ -15,12 +15,15 @@ class Fournisseur(db.Model):
 
 class TempImport(db.Model):
     __tablename__ = 'temp_imports'
+    __table_args__ = (
+        db.UniqueConstraint('ean', 'id_fournisseur', name='uix_temp_ean_fournisseur'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     description = db.Column(db.String(200), nullable=False)
     quantity = db.Column(db.Integer)
     selling_price = db.Column(db.Float)
-    ean = db.Column(db.String(20), unique=True, nullable=False)
+    ean = db.Column(db.String(20), nullable=False)
 
     id_fournisseur = db.Column(db.Integer, db.ForeignKey('fournisseurs.id'), nullable=True)
     fournisseur = db.relationship('Fournisseur', backref=db.backref('temp_imports', lazy=True))

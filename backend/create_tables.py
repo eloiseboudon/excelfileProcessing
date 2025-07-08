@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS temp_imports (
     quantity INTEGER,
     selling_price FLOAT,
     ean VARCHAR(20) NOT NULL,
-    id_fournisseur INTEGER REFERENCES fournisseurs(id) ON DELETE SET NULL
+    id_fournisseur INTEGER REFERENCES fournisseurs(id) ON DELETE SET NULL,
     UNIQUE (ean, id_fournisseur)
 );
 """)
@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS reference (
     quantity INTEGER,
     selling_price FLOAT,
     ean VARCHAR(20) NOT NULL,
-    id_fournisseur INTEGER REFERENCES fournisseurs(id) ON DELETE SET NULL
+    id_fournisseur INTEGER REFERENCES fournisseurs(id) ON DELETE SET NULL,
     UNIQUE (ean, id_fournisseur)
 );
 """)
@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS products (
     id_memory INTEGER REFERENCES memory_references(id) ON DELETE SET NULL,
     id_color INTEGER REFERENCES color_references(id) ON DELETE SET NULL,
     id_type INTEGER REFERENCES type_references(id) ON DELETE SET NULL,
-    id_fournisseur INTEGER REFERENCES fournisseurs(id) ON DELETE SET NULL
+    id_fournisseur INTEGER REFERENCES fournisseurs(id) ON DELETE SET NULL,
     UNIQUE (id_reference, id_fournisseur)
 );
 """)
