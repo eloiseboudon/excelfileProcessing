@@ -109,7 +109,7 @@ class ProductCalculation(db.Model):
     __tablename__ = 'product_calculations'
 
     id = db.Column(db.Integer, primary_key=True)
-    id_product = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
     product = db.relationship('Product', backref=db.backref('calculates', lazy=True))
     tcp = db.Column(db.Float, nullable=False)
     marge4_5 = db.Column(db.Float, nullable=False)

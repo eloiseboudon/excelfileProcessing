@@ -118,7 +118,7 @@ CREATE TABLE IF NOT EXISTS products (
 cur.execute("""
 CREATE TABLE IF NOT EXISTS product_calculations (
     id SERIAL PRIMARY KEY,
-    id_product INTEGER REFERENCES products(id) ON DELETE CASCADE,
+    product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
     TCP FLOAT NOT NULL,
     marge4_5 FLOAT NOT NULL,
     prixHT_TCP_marge4_5 FLOAT NOT NULL,

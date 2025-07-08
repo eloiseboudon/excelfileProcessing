@@ -19,7 +19,7 @@ import pandas as pd
 import os
 import math
 from io import BytesIO
-from datetime import datetime
+from datetime import datetime, timezone
 
 def create_app():
     # Load environment variables from a local .env file if present
@@ -263,7 +263,7 @@ def create_app():
                 price_with_margin = price * 1.06
             max_price = math.ceil(max(price_with_tcp, price_with_margin))
             calc = ProductCalculation(
-                id_product=p.id,
+                product_id=p.id,
                 tcp=round(tcp, 2),
                 marge4_5=round(margin45, 2),
                 prixht_tcp_marge4_5=round(price_with_tcp, 2),
@@ -303,7 +303,7 @@ def create_app():
         output = BytesIO()
         df.to_excel(output, index=False)
         output.seek(0)
-        filename = f"product_calculates_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        filename = f"product_calculates_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.xlsx"
         return send_file(
             output,
             as_attachment=True,
