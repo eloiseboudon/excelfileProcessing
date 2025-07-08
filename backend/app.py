@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
+from dotenv import load_dotenv
 from models import (
     db,
     Product,
@@ -21,6 +22,9 @@ from io import BytesIO
 from datetime import datetime
 
 def create_app():
+    # Load environment variables from a local .env file if present
+    load_dotenv()
+
     app = Flask(__name__)
     CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
 
