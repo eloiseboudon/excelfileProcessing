@@ -15,7 +15,7 @@ class Reference(db.Model):
     __tablename__ = 'reference'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(200), nullable=False) 
+    description = db.Column(db.String(200), nullable=False) 
     quantity = db.Column(db.Float)
     selling_price = db.Column(db.Float)
     ean = db.Column(db.String(20), unique=True, nullable=False)
@@ -62,6 +62,7 @@ class Product(db.Model):
     id_reference = db.Column(db.Integer, db.ForeignKey('reference.id'), nullable=True)
     reference = db.relationship('Reference', backref=db.backref('products', lazy=True)) 
     name = db.Column(db.String(120), nullable=False)
+    description = db.Column(db.String(120), nullable=False)
     
     id_brand = db.Column(db.Integer, db.ForeignKey('brand_parameters.id'), nullable=True)
     brand = db.relationship('BrandParameter', backref=db.backref('products', lazy=True))

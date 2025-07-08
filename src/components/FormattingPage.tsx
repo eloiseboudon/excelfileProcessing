@@ -1,8 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { FileUp, FileDown, ArrowLeft, Loader2, Download, Globe, Settings, ShoppingCart, Eye } from 'lucide-react';
+import { FileUp, FileDown, ArrowLeft, Loader2, Download, Globe, Eye } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import HotwavAdmin from './HotwavAdmin';
-import AccessoriesAdmin from './AccessoriesAdmin';
 import SearchControls from './SearchControls';
 import { createImport } from '../api';
 import { determineBrand, generatePricingHtml } from '../utils/html';
@@ -36,8 +34,6 @@ function FormattingPage({ onBack }: FormattingPageProps) {
   const [formattedFile, setFormattedFile] = useState<string | null>(null);
   const [htmlFile, setHtmlFile] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showHotwavAdmin, setShowHotwavAdmin] = useState(false);
-  const [showAccessoriesAdmin, setShowAccessoriesAdmin] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [previewData, setPreviewData] = useState<Product[]>([]);
 
@@ -48,26 +44,6 @@ function FormattingPage({ onBack }: FormattingPageProps) {
   const [maxPrice, setMaxPrice] = useState(2000);
   const [priceRange, setPriceRange] = useState({ min: 0, max: 2000 });
 
-  // Stockage local pour les produits Hotwav et accessoires
-  // const [hotwavProducts, setHotwavProducts] = useLocalStorage<HotwavProduct[]>('hotwav_products', [
-  //   { nom: 'Hotwav Note 20 4G DS 8/128Gb Black', prix: 125 },
-  //   { nom: 'Hotwav Note 20 4G DS 8/128Gb Blue', prix: 125 },
-  //   { nom: 'Hotwav Note 20 4G DS 8/128Gb Green', prix: 125 },
-  //   { nom: 'Hotwav Cyber 15 4G DS 8/256Gb Black', prix: 145 },
-  //   { nom: 'Hotwav Cyber 15 4G DS 8/256Gb Blue', prix: 145 },
-  //   { nom: 'Hotwav Cyber 15 4G DS 8/256Gb Green', prix: 145 }
-  // ]);
-
-  // const [accessories, setAccessories] = useLocalStorage<Accessory[]>('accessories', [
-  //   { nom: 'Coque iPhone 15 Pro Max Transparente', prix: 15, marque: 'Apple' },
-  //   { nom: 'Protecteur d\'écran iPhone 15 Pro Max', prix: 12, marque: 'Apple' },
-  //   { nom: 'Chargeur USB-C 20W', prix: 25, marque: 'Apple' },
-  //   { nom: 'Coque Galaxy S24 Ultra Silicone', prix: 18, marque: 'Samsung' },
-  //   { nom: 'Écouteurs Galaxy Buds3', prix: 89, marque: 'Samsung' },
-  //   { nom: 'Coque Xiaomi 14 Pro Transparente', prix: 14, marque: 'Xiaomi' },
-  //   { nom: 'Enceinte JBL Clip 4', prix: 45, marque: 'JBL' },
-  //   { nom: 'Casque JBL Tune 770NC', prix: 89, marque: 'JBL' }
-  // ]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -136,18 +112,6 @@ function FormattingPage({ onBack }: FormattingPageProps) {
         })
         .filter(product => product !== null);
 
-      // // Ajouter les produits Hotwav et accessoires avec leurs prix
-      // const hotwavProductsWithPrices = hotwavProducts.map(product => ({
-      //   name: product.nom,
-      //   price: product.prix
-      // }));
-
-      // const accessoriesWithPrices = accessories.map(accessory => ({
-      //   name: accessory.nom,
-      //   price: accessory.prix
-      // }));
-
-      // Combiner tous les produits avec leurs prix
       const allProductsWithPrices = [...productsFromFile];
 
       // Créer les données pour la prévisualisation
@@ -352,7 +316,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
     } finally {
       setIsProcessing(false);
     }
-  }, [file, hotwavProducts, accessories]);
+  }, [file]);
 
   const handleDownloadExcel = useCallback(() => {
     if (!formattedFile || !file) return;
@@ -399,23 +363,6 @@ function FormattingPage({ onBack }: FormattingPageProps) {
           <span>Retour à l'étape 1</span>
         </button>
         
-        <div className="flex space-x-4">
-          <button
-            onClick={() => setShowHotwavAdmin(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-[#B8860B] text-black rounded-lg hover:bg-[#B8860B]/90 transition-colors font-semibold"
-          >
-            <Settings className="w-5 h-5" />
-            <span>Admin Hotwav</span>
-          </button>
-          
-          <button
-            onClick={() => setShowAccessoriesAdmin(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold"
-          >
-            <ShoppingCart className="w-5 h-5" />
-            <span>Admin Accessoires</span>
-          </button>
-        </div>
       </div>
 
       <h1 className="text-4xl font-bold text-center mb-2">
@@ -642,25 +589,10 @@ function FormattingPage({ onBack }: FormattingPageProps) {
 
         <div className="mt-8 text-center text-sm text-zinc-500">
           <p>Formats supportés: .xlsx, .xls</p>
-          <p className="mt-2">Produits Hotwav: {hotwavProducts.length} • Accessoires: {accessories.length}</p>
           <p className="mt-2 text-[#B8860B]">✅ Organisation par marque avec mise en forme professionnelle</p>
         </div>
       </div>
 
-      {/* Modals */}
-      <HotwavAdmin
-        isVisible={showHotwavAdmin}
-        onClose={() => setShowHotwavAdmin(false)}
-        onSave={setHotwavProducts}
-        initialProducts={hotwavProducts}
-      />
-
-      <AccessoriesAdmin
-        isVisible={showAccessoriesAdmin}
-        onClose={() => setShowAccessoriesAdmin(false)}
-        onSave={setAccessories}
-        initialAccessories={accessories}
-      />
     </div>
   );
 }

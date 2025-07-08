@@ -44,3 +44,11 @@ export async function calculateProducts() {
   }
   return res.json();
 }
+
+export async function exportCalculations() {
+  const res = await fetch(`${API_BASE}/export_calculates`);
+  if (!res.ok) {
+    throw new Error('Erreur lors de la génération du fichier');
+  }
+  return res.blob();
+}
