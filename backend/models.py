@@ -26,7 +26,7 @@ class TemporaryImport(db.Model):
     ean = db.Column(db.String(20), nullable=False)
 
     supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'), nullable=True)
-    supplier = db.relationship('supplier', backref=db.backref('temporary_imports', lazy=True))
+    supplier = db.relationship('Supplier', backref=db.backref('temporary_imports', lazy=True))
 
 class ProductReference(db.Model):
     __tablename__ = 'product_references'
@@ -41,7 +41,7 @@ class ProductReference(db.Model):
     ean = db.Column(db.String(20), nullable=False)
 
     supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'), nullable=True)
-    supplier = db.relationship('supplier', backref=db.backref('product_references', lazy=True))
+    supplier = db.relationship('Supplier', backref=db.backref('product_references', lazy=True))
 
 class Brand(db.Model):
     __tablename__ = 'brands'
@@ -74,7 +74,7 @@ class ColorTranslation(db.Model):
     color_source = db.Column(db.String(50), nullable=False)
     color_target = db.Column(db.String(50), nullable=False)
     color_target_id = db.Column(
-        db.Integer, db.ForeignKey('color.id'), nullable=False
+        db.Integer, db.ForeignKey('colors.id'), nullable=False
     )
     color_reference = db.relationship('Color', backref=db.backref('translations', lazy=True))
 
@@ -91,21 +91,21 @@ class Product(db.Model):
     description = db.Column(db.String(120), nullable=False)
 
     supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'), nullable=True)
-    supplier = db.relationship('supplier', backref=db.backref('products', lazy=True))
+    supplier = db.relationship('Supplier', backref=db.backref('products', lazy=True))
     
-    brand_id = db.Column(db.Integer, db.ForeignKey('brand.id'), nullable=True)
+    brand_id = db.Column(db.Integer, db.ForeignKey('brands.id'), nullable=True)
     brand = db.relationship('Brand', backref=db.backref('products', lazy=True))
 
     memory_id = db.Column(db.Integer, db.ForeignKey('memory_options.id'), nullable=True)
     memory = db.relationship('MemoryOption', backref=db.backref('products', lazy=True))
-    color_id = db.Column(db.Integer, db.ForeignKey('color.id'), nullable=True)
+    color_id = db.Column(db.Integer, db.ForeignKey('colors.id'), nullable=True)
     color = db.relationship('Color', backref=db.backref('products', lazy=True))
     type_id = db.Column(db.Integer, db.ForeignKey('device_types.id'), nullable=True)
     type = db.relationship('DeviceType', backref=db.backref('products', lazy=True))
                                                                  
     price = db.Column(db.Float)
     
-class ProductCalculatation(db.Model):
+class ProductCalculation(db.Model):
     __tablename__ = 'product_calculations'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -124,7 +124,7 @@ class ImportHistory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     filename = db.Column(db.String(200), nullable=False)
     supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'), nullable=True)
-    supplier = db.relationship('supplier', backref=db.backref('imports', lazy=True))
+    supplier = db.relationship('Supplier', backref=db.backref('imports', lazy=True))
     product_count = db.Column(db.Integer, nullable=False)
     import_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 

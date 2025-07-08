@@ -42,7 +42,6 @@ cur.execute("""
 CREATE TABLE IF NOT EXISTS temporary_imports (
     id SERIAL PRIMARY KEY,
     description VARCHAR(200) NOT NULL,
-    articelno VARCHAR(50),
     quantity INTEGER,
     selling_price FLOAT,
     ean VARCHAR(20) NOT NULL,
@@ -55,7 +54,6 @@ cur.execute("""
 CREATE TABLE IF NOT EXISTS product_references (
     id SERIAL PRIMARY KEY,
     description VARCHAR(200) NOT NULL,
-    articelno VARCHAR(50),
     quantity INTEGER,
     selling_price FLOAT,
     ean VARCHAR(20) NOT NULL,
@@ -90,7 +88,7 @@ CREATE TABLE IF NOT EXISTS color_translations (
     id SERIAL PRIMARY KEY,
     color_source VARCHAR(50) NOT NULL,
     color_target VARCHAR(50) NOT NULL,
-    id_color_target INTEGER REFERENCES colors(id) ON DELETE CASCADE
+    color_target_id INTEGER REFERENCES colors(id) ON DELETE CASCADE
 );
 """)
 
@@ -158,7 +156,7 @@ cur.execute("""
 cur.execute("INSERT INTO memory_options (memory) VALUES ('32GB'),('64GB'), ('128GB'), ('256GB'), ('512GB');")
 cur.execute("INSERT INTO colors (color) VALUES ('Blanc'), ('Noir'), ('Bleu'), ('Rouge'), ('Vert'),('Orange'),('Violet');")
 cur.execute("""
-    INSERT INTO color_translations (color_source, color_target, id_color_target) VALUES 
+    INSERT INTO color_translations (color_source, color_target, color_target_id) VALUES
     ('black', 'Noir', 2),
     ('dark grey', 'Noir', 2),
     ('dark gray', 'Noir', 2),
