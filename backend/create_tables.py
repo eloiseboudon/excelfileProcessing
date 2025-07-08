@@ -120,7 +120,7 @@ cur.execute("""
 """)
 cur.execute("INSERT INTO memory_references (memory) VALUES ('32GB'),('64GB'), ('128GB'), ('256GB'), ('512GB');")
 cur.execute("INSERT INTO color_references (color) VALUES ('Blanc'), ('Noir'), ('Bleu'), ('Rouge'), ('Vert'),('Orange'),('Violet');")
-cur.execute(""""
+cur.execute("""
     INSERT INTO color_transco (color_source, color_target, id_color_target) VALUES 
     ('black', 'Noir', 2),
     ('dark grey', 'Noir', 2),
@@ -140,9 +140,9 @@ cur.execute(""""
     ('silver', 'Blanc', 1),
     ('grey', 'Noir', 2),
     ('gray', 'Noir', 2),
-    ('champagne', 'Blanc', 1),
-    ('rose gold', 'Blanc', 1);
+    ('champagne', 'Blanc', 1);
 """)
+
 cur.execute("INSERT INTO type_references (type) VALUES ('Téléphone'), ('Tablette'), ('Montre'), ('Ordinateur');")
 
 conn.commit()

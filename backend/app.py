@@ -48,7 +48,8 @@ def create_app():
         db.session.commit()
 
         df = pd.read_excel(file)
-        count = 0
+        count_new = 0
+        count_update = 0
         for _, row in df.iterrows():
             # Cast EAN to string to keep the exact value regardless of
             # how pandas interpreted the column (float, int, etc.).
@@ -68,22 +69,21 @@ def create_app():
             ref = Reference.query.filter_by(ean=ean_value).first()
             if ref:
                 ref.description = row.get('description')
-                ref.name = row.get('description')
                 ref.quantity = row.get('quantity', None)
                 ref.selling_price = row.get('sellingprice', None)
+                count_update += 1
             else:
                 ref = Reference(
                     description=row.get('description'),
-                    name=row.get('description'),
                     quantity=row.get('quantity', None),
                     selling_price=row.get('sellingprice', None),
                     ean=ean_value
                 )
+                count_new += 1
                 db.session.add(ref)
-            count += 1
 
         db.session.commit()
-        return jsonify({'status': 'success', 'count': count})
+        return jsonify({'status': 'success', 'new': count_new, 'updated': count_update})
 
     @app.route('/products', methods=['GET'])
     def list_products():
@@ -100,7 +100,7 @@ def create_app():
                 'type': p.type_reference.type if p.type_reference else None,
                 'reference': {
                     'id': p.reference.id if p.reference else None,
-                    'name': p.reference.name if p.reference else None
+                    'description': p.reference.description if p.reference else None
                 } if p.reference else None
             }
             for p in products
@@ -153,7 +153,7 @@ def create_app():
             existing = Product.query.filter_by(id_reference=ref.id).first()
             if existing:
                 existing.description = ref.description
-                existing.name = ref.name
+                existing.name = ref.description
                 existing.price = ref.selling_price
                 existing.id_brand = brand_id
                 existing.id_color = color_id
@@ -164,7 +164,7 @@ def create_app():
                 product = Product(
                     id_reference=ref.id,
                     description=ref.description,
-                    name=ref.name,
+                    name=ref.description,
                     price=ref.selling_price,
                     id_brand=brand_id,
                     id_color=color_id,
