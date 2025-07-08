@@ -1,11 +1,11 @@
 export const API_BASE = 'http://localhost:5001';
 
 
-export async function createImport(file: File, fournisseurId?: number) {
+export async function createImport(file: File, supplierId?: number) {
   const formData = new FormData();
   formData.append('file', file);
-  if (fournisseurId !== undefined) {
-    formData.append('id_fournisseur', String(fournisseurId));
+  if (supplierId !== undefined) {
+    formData.append('supplier_id', String(supplierId));
   }
 
   const res = await fetch(`${API_BASE}/import`, {
@@ -65,8 +65,8 @@ export async function exportCalculations() {
   return { blob, filename };
 }
 
-export async function fetchFournisseurs() {
-  const res = await fetch(`${API_BASE}/fournisseurs`);
+export async function fetchSuppliers() {
+  const res = await fetch(`${API_BASE}/suppliers`);
   if (!res.ok) {
     throw new Error("Erreur lors du chargement des fournisseurs");
   }
