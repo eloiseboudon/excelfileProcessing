@@ -82,7 +82,7 @@ shell-postgres:
 	$(DC) exec postgres psql -U postgres -d ajtpro
 
 shell-implement-tables:
-	$(DC) exec backend python -m backend.implement_tables
+	$(DC) exec backend python -m implement_tables
 
 # Git utilities
 clean-branches:
