@@ -81,6 +81,9 @@ shell-backend:
 shell-postgres:
 	$(DC) exec postgres psql -U postgres -d ajtpro
 
+shell-implement-tables:
+	$(DC) exec backend python -m backend.implement_tables
+
 # Git utilities
 clean-branches:
 	git branch | grep -v -E "(main|dev|\*)" | xargs git branch -d
