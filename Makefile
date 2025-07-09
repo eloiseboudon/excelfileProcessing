@@ -1,11 +1,12 @@
 PYTHON := python3
 VENV := backend/.venv
 PIP := $(VENV)/bin/pip
+USER := postgres
 
 .PHONY: db-create db-create_tables venv install run clean 
 
 db-create:
-	psql -U postgres -d postgres -tc "SELECT 1 FROM pg_database WHERE datname='ajtpro'" | grep -q 1 || psql -U eloise -d postgres -c "CREATE DATABASE ajtpro"
+	psql -U $(USER) -d postgres -tc "SELECT 1 FROM pg_database WHERE datname='ajtpro'" | grep -q 1 || psql -U $(USER) -d postgres -c "CREATE DATABASE ajtpro"
 
 db-create_tables:
 	$(VENV)/bin/python backend/create_tables.py

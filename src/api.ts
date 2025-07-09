@@ -66,7 +66,7 @@ export async function exportCalculations() {
 }
 
 
-export async function fectSuppliers() {
+export async function fetchSuppliers() {
   const res = await fetch(`${API_BASE}/suppliers`);
   if (!res.ok) {
     throw new Error("Erreur lors du chargement des suppliers");
