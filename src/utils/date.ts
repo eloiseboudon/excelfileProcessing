@@ -18,3 +18,12 @@ export function getCurrentTimestamp(): string {
   const seconds = pad(now.getSeconds());
   return `${year}${month}${day}_${hours}${minutes}${seconds}`;
 }
+
+export function getWeekYear(today: Date): string {
+  const date = new Date(today);
+  const year = date.getFullYear();
+  const startOfYear = new Date(year, 0, 1);
+  const pastDays = (date.getTime() - startOfYear.getTime()) / 86400000;
+  const weekNumber = Math.ceil((pastDays + startOfYear.getDay() + 1) / 7);
+  return `S${weekNumber}-${year}`;
+}

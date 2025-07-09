@@ -16,7 +16,7 @@ import {
   fetchSuppliers,
   fetchLastImport,
 } from '../api';
-import { getCurrentWeekYear, getCurrentTimestamp } from '../utils/date';
+import { getCurrentWeekYear, getCurrentTimestamp,getWeekYear } from '../utils/date';
 
 interface ProcessingPageProps {
   onNext: () => void;
@@ -28,11 +28,6 @@ interface Supplier {
   email?: string;
   phone?: string;
   address?: string;
-}
-
-interface Import {
-  import_date: string;
-  supplier_id: number;
 }
 
 interface ImportZoneProps {
@@ -85,7 +80,15 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZone
     <div className="bg-zinc-900 rounded-2xl shadow-2xl p-8 border border-[#B8860B]/20">
       <h2 className="text-xl font-semibold mb-6">Import de {supplier.name}</h2>
       {lastImportDate && (
-        <p className="text-sm text-zinc-400 mb-2">Dernier import : {new Date(lastImportDate).toLocaleString()}</p>
+        <p className="text-sm text-zinc-400 mb-2">
+          Dernier import : {getWeekYear(new Date (lastImportDate))} -{' '}
+          {new Date(lastImportDate).toLocaleDateString('fr-FR', 
+          {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          }
+        )} </p>
       )}
       <div
         className={`border-2 border-dashed rounded-xl p-8 transition-all duration-200 ${
@@ -204,7 +207,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
     <div className="max-w-4xl mx-auto px-4 py-12">
       <h1 className="text-4xl font-bold text-center mb-2">Étape 1 - Calculs et Traitement</h1>
       <p className="text-center text-[#B8860B] mb-4">Traitez vos fichiers Excel avec calculs TCP et marges</p>
-      <p className="text-center text-zinc-400 mb-4">Semaine en cours {getCurrentWeekYear()}</p>
+      <p className="text-center text-zinc-400 mb-4">Semaine en cours : {getCurrentWeekYear()}</p>
       <div className="flex justify-center mb-8">
         <button
           onClick={() => {
