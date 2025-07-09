@@ -14,9 +14,9 @@ import {
   calculateProducts,
   exportCalculations,
   fetchSuppliers,
-  fetchImport,
+  fetchLastImport,
 } from '../api';
-import { getCurrentWeekYear, getCurrentTimestamp } from '../utils/date';
+import { getCurrentWeekYear, getCurrentTimestamp,getWeekYear } from '../utils/date';
 
 interface ProcessingPageProps {
   onNext: () => void;
@@ -30,18 +30,14 @@ interface Supplier {
   address?: string;
 }
 
-interface Import {
-  import_date: string;
-  supplier_id: number;
-}
-
 interface ImportZoneProps {
   supplier: Supplier;
   file: File | null;
+  lastImportDate?: string | null;
   onFileChange: (id: number, file: File | null) => void;
 }
 
-function ImportZone({ supplier, file, onFileChange }: ImportZoneProps) {
+function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -83,7 +79,17 @@ function ImportZone({ supplier, file, onFileChange }: ImportZoneProps) {
   return (
     <div className="bg-zinc-900 rounded-2xl shadow-2xl p-8 border border-[#B8860B]/20">
       <h2 className="text-xl font-semibold mb-6">Import de {supplier.name}</h2>
-      <p>Dernier import : {last_import.import_date}</p>
+      {lastImportDate && (
+        <p className="text-sm text-zinc-400 mb-2">
+          Dernier import : {getWeekYear(new Date (lastImportDate))} -{' '}
+          {new Date(lastImportDate).toLocaleDateString('fr-FR', 
+          {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          }
+        )} </p>
+      )}
       <div
         className={`border-2 border-dashed rounded-xl p-8 transition-all duration-200 ${
           isDragging ? 'border-[#B8860B] bg-black/50' : 'border-zinc-700 hover:border-[#B8860B]/50'
@@ -118,6 +124,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedFile, setProcessedFile] = useState<string | null>(null);
   const [processedFileName, setProcessedFileName] = useState<string>('');
+  const [lastImports, setLastImports] = useState<Record<number, string | null>>({});
   const [error, setError] = useState<string | null>(null);
 
   const refreshCount = useCallback(async () => {
@@ -125,9 +132,21 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
     setProductsCount(list.length);
   }, []);
 
-  const refreshImport = useCallback(async () => {
-    const last_import = await fetchImport(suppliers.id);
-  }, [suppliers.id]);
+  const refreshLastImports = useCallback(async () => {
+    const entries = await Promise.all(
+      suppliers.map(async (s) => {
+        try {
+          const data = await fetchLastImport(s.id);
+          const date = (data as any).import_date || null;
+          return [s.id, date] as [number, string | null];
+        } catch {
+          return [s.id, null] as [number, string | null];
+        }
+      })
+    );
+    setLastImports(Object.fromEntries(entries));
+  }, [suppliers]);
+
 
   const handleFileChange = useCallback(
     (id: number, file: File | null) => {
@@ -153,6 +172,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
       await createProduct();
       await calculateProducts();
       await refreshCount();
+      await refreshLastImports();
 
       const { blob, filename } = await exportCalculations();
       setProcessedFile(URL.createObjectURL(blob));
@@ -168,7 +188,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
     } finally {
       setIsProcessing(false);
     }
-  }, [files, suppliers, refreshCount]);
+  }, [files, suppliers, refreshCount, refreshLastImports]);
 
   useEffect(() => {
     refreshCount();
@@ -177,11 +197,17 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
       .catch(() => {});
   }, [refreshCount]);
 
+  useEffect(() => {
+    if (suppliers.length > 0) {
+      refreshLastImports();
+    }
+  }, [suppliers, refreshLastImports]);
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
       <h1 className="text-4xl font-bold text-center mb-2">Étape 1 - Calculs et Traitement</h1>
       <p className="text-center text-[#B8860B] mb-4">Traitez vos fichiers Excel avec calculs TCP et marges</p>
-      <p className="text-center text-zinc-400 mb-4">Semaine en cours {getCurrentWeekYear()}</p>
+      <p className="text-center text-zinc-400 mb-4">Semaine en cours : {getCurrentWeekYear()}</p>
       <div className="flex justify-center mb-8">
         <button
           onClick={() => {
@@ -208,6 +234,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
             key={f.id}
             supplier={f}
             file={files[f.id] || null}
+            lastImportDate={lastImports[f.id]}
             onFileChange={handleFileChange}
           />
         ))}
