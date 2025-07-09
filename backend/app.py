@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from dotenv import load_dotenv
+from flask_migrate import Migrate
 from models import (
     db,
     Product,
@@ -42,6 +43,7 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     db.init_app(app)
+    Migrate(app, db, directory=os.path.join(os.path.dirname(__file__), 'migrations'))
 
     with app.app_context():
         db.create_all()

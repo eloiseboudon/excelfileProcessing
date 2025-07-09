@@ -5,3 +5,5 @@ openpyxl>=3.1
 flask-cors
 psycopg2-binary>=2.9
 python-dotenv>=1.0
+alembic>=1.13
+Flask-Migrate>=4.0

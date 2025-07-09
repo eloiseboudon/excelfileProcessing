@@ -2,7 +2,7 @@ PYTHON := python3
 VENV := backend/.venv
 PIP := $(VENV)/bin/pip
 
-.PHONY: db-create db-create_tables venv install run clean 
+.PHONY: db-create db-create_tables venv install run clean migrate migrate-upgrade
 
 db-create:
 	psql -U postgres -d postgres -tc "SELECT 1 FROM pg_database WHERE datname='ajtpro'" | grep -q 1 || psql -U eloise -d postgres -c "CREATE DATABASE ajtpro"
@@ -19,6 +19,12 @@ install: venv
 
 run: venv
 	$(VENV)/bin/python backend/app.py
+
+migrate:
+	$(VENV)/bin/alembic -c backend/alembic.ini revision --autogenerate -m "$(msg)"
+
+migrate-upgrade:
+	$(VENV)/bin/alembic -c backend/alembic.ini upgrade head
 
 clean:
 	rm -rf $(VENV)
