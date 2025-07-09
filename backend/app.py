@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from dotenv import load_dotenv
 from flask_migrate import Migrate
-from models import (
+from .models import (
     db,
     Product,
     TemporaryImport,
