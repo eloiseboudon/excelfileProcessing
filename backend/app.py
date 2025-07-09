@@ -45,9 +45,6 @@ def create_app():
     db.init_app(app)
     Migrate(app, db, directory=os.path.join(os.path.dirname(__file__), 'migrations'))
 
-    # with app.app_context():
-        # db.create_all()
-
     @app.route('/suppliers', methods=['GET'])
     def list_suppliers():
         suppliers = Supplier.query.all()

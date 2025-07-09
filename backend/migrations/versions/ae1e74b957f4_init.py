@@ -1,6 +1,6 @@
-"""Initial"""
+"""init"""
 
-revision = '07b456fb7456'
+revision = 'ae1e74b957f4'
 down_revision = None
 branch_labels = None
 depends_on = None
