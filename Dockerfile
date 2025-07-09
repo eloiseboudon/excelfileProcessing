@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copier le code de l'application
 COPY backend/ /app/
 # Exposer le port
-EXPOSE 5000
+EXPOSE 5001
 
 # Commande par défaut
 CMD ["python", "app.py"]

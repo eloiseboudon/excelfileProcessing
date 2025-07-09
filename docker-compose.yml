@@ -18,7 +18,7 @@ services:
 
   backend:
     build: 
-      context: ./backend
+      context: ./
       dockerfile: Dockerfile
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ajtpro
@@ -26,7 +26,7 @@ services:
     volumes:
       - ./backend:/app
     ports:
-      - "5000:5000"
+      - "5001:5000"
     depends_on:
       postgres:
         condition: service_healthy

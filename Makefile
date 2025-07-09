@@ -27,7 +27,7 @@ docker-build:
 
 docker-up:
 	$(DC) up -d
-	@echo "Services démarrés. PostgreSQL: localhost:5432, Backend: localhost:5000"
+	@echo "Services démarrés. PostgreSQL: localhost:5432, Backend: localhost:5001"
 
 docker-down:
 	$(DC) down
