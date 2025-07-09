@@ -86,7 +86,8 @@ class Product(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     reference_id = db.Column(db.Integer, db.ForeignKey('product_references.id'), nullable=True)
-    reference = db.relationship('ProductReference', backref=db.backref('products', lazy=True))
+
+    reference = db.relationship('ProductReference', backref=db.backref('products', lazy=True)) 
     name = db.Column(db.String(120), nullable=False)
     description = db.Column(db.String(120), nullable=False)
 
@@ -110,7 +111,7 @@ class ProductCalculation(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
-    product = db.relationship('Product', backref=db.backref('calculations', lazy=True))
+    product = db.relationship('Product', backref=db.backref('calculates', lazy=True))
     tcp = db.Column(db.Float, nullable=False)
     marge4_5 = db.Column(db.Float, nullable=False)
     prixht_tcp_marge4_5 = db.Column(db.Float, nullable=False)

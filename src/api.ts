@@ -1,4 +1,4 @@
-export const API_BASE = 'http://localhost:5001';
+export const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 
 export async function createImport(file: File, supplierId?: number) {
@@ -65,10 +65,11 @@ export async function exportCalculations() {
   return { blob, filename };
 }
 
-export async function fetchSuppliers() {
+
+export async function fectSuppliers() {
   const res = await fetch(`${API_BASE}/suppliers`);
   if (!res.ok) {
-    throw new Error("Erreur lors du chargement des fournisseurs");
+    throw new Error("Erreur lors du chargement des suppliers");
   }
   return res.json();
 }

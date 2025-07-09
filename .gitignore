@@ -27,4 +27,3 @@ dist-ssr
 
 backend/__pycache__/
 backend/instance/
-.env

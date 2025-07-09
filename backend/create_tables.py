@@ -1,26 +1,34 @@
 
 
+import os
+from dotenv import load_dotenv
 import psycopg2
 
-conn = psycopg2.connect(
-    dbname="ajtpro",
-    user="eloise",
-    host="localhost",
-    port="5432"
-)
+env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+load_dotenv(env_path)
+db_url = os.getenv("DATABASE_URL")
+if not db_url:
+    raise RuntimeError("DATABASE_URL environment variable is not set")
+
+conn = psycopg2.connect(db_url)
 cur = conn.cursor()
 
-cur.execute("""DROP TABLE IF EXISTS import_histories;""")
-cur.execute("""DROP TABLE IF EXISTS product_calculations;""")
-cur.execute("""DROP TABLE IF EXISTS products;""")
-cur.execute("""DROP TABLE IF EXISTS device_types;""")
-cur.execute("""DROP TABLE IF EXISTS color_translations;""")
-cur.execute("""DROP TABLE IF EXISTS colors;""")
-cur.execute("""DROP TABLE IF EXISTS memory_options;""")
-cur.execute("""DROP TABLE IF EXISTS brands;""")
-cur.execute("""DROP TABLE IF EXISTS product_references;""")
-cur.execute("""DROP TABLE IF EXISTS temporary_imports;""")
-cur.execute("""DROP TABLE IF EXISTS suppliers;""")
+
+cur.execute("""DROP TABLE IF EXISTS temporary_imports CASCADE;""")
+cur.execute("""DROP TABLE IF EXISTS import_histories CASCADE;""")
+
+cur.execute("""DROP TABLE IF EXISTS device_types CASCADE;""")
+cur.execute("""DROP TABLE IF EXISTS color_translations CASCADE;""")
+cur.execute("""DROP TABLE IF EXISTS colors CASCADE;""")
+cur.execute("""DROP TABLE IF EXISTS memory_options CASCADE;""")
+cur.execute("""DROP TABLE IF EXISTS brands CASCADE;""")
+cur.execute("""DROP TABLE IF EXISTS suppliers CASCADE;""")
+
+cur.execute("""DROP TABLE IF EXISTS product_references CASCADE;""")  
+cur.execute("""DROP TABLE IF EXISTS products CASCADE;""")
+cur.execute("""DROP TABLE IF EXISTS product_calculations CASCADE;""")
+
+
 conn.commit()
 
 
@@ -138,12 +146,13 @@ conn.commit()
 
 cur.execute("""
     INSERT INTO suppliers (name) VALUES
-    ('Yuka'),('Fournisseur2')
+    ('Yuka'),('supplier2')
     ;
 """)
 
 cur.execute("""
-    INSERT INTO brands (brand) VALUES ('Samsung'), ('Apple'), ('Huawei'), ('Xiaomi'), ('Oppo'),
+ feature/build
+    INSERT INTO brands(brand) VALUES ('Samsung'), ('Apple'), ('Huawei'), ('Xiaomi'), ('Oppo'),
     ('Dyson'), ('Sony'), ('LG'), ('Google'), ('Microsoft'), ('Lenovo'), ('Asus'),
     ('Dell'), ('HP'), ('Acer'), ('OnePlus'), ('Realme'),('Fairphone'),('JBL'), ('Bose'),
     ('Motorola'), ('Nokia'), ('Vivo'), ('ZTE'), ('Honor'),('GoPro'), ('Canon'), ('Nikon'),
@@ -153,7 +162,8 @@ cur.execute("""
 cur.execute("INSERT INTO memory_options (memory) VALUES ('32GB'),('64GB'), ('128GB'), ('256GB'), ('512GB');")
 cur.execute("INSERT INTO colors (color) VALUES ('Blanc'), ('Noir'), ('Bleu'), ('Rouge'), ('Vert'),('Orange'),('Violet');")
 cur.execute("""
-    INSERT INTO color_translations (color_source, color_target, color_target_id) VALUES 
+
+    INSERT INTO color_translations (color_source, color_target, color_target_id) VALUES
     ('black', 'Noir', 2),
     ('dark grey', 'Noir', 2),
     ('dark gray', 'Noir', 2),

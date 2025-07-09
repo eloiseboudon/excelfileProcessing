@@ -13,7 +13,7 @@ import {
   createImport,
   calculateProducts,
   exportCalculations,
-  fetchSuppliers,
+  fectSuppliers,
 } from '../api';
 import { getCurrentWeekYear } from '../utils/date';
 
