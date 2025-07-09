@@ -18,7 +18,7 @@ venv:
 install: venv
 
 run: venv
-	$(VENV)/bin/python backend/app.py
+	$(VENV)/bin/python -m backend.app
 
 migrate:
 	$(VENV)/bin/alembic -c backend/alembic.ini revision --autogenerate -m "$(msg)"

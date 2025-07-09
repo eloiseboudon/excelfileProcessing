@@ -136,7 +136,7 @@ make venv         # crée l'environnement virtuel et installe les dépendances
 # FLASK_HOST=0.0.0.0
 # PORT=5001
 # Un fichier `.env.example` est fourni à titre d'exemple.
-make run          # démarre l'API Flask
+make run          # démarre l'API Flask (python -m backend.app)
 make migrate msg="Message"   # génère une migration Alembic
 make migrate-upgrade         # applique les migrations
 ```
