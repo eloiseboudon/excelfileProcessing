@@ -6,6 +6,9 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context
 from dotenv import load_dotenv
 
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
 from backend import models
 
 # this is the Alembic Config object, which provides
@@ -16,7 +19,8 @@ config = context.config
 fileConfig(config.config_file_name)
 
 # Load environment variables
-env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+env_path = os.path.join(root_path, '.env')
 load_dotenv(env_path)
 db_url = os.getenv('DATABASE_URL')
 if db_url:
