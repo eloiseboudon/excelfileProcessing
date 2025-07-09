@@ -15,7 +15,7 @@ import {
   exportCalculations,
   fetchSuppliers,
 } from '../api';
-import { getCurrentWeekYear } from '../utils/date';
+import { getCurrentWeekYear, getCurrentTimestamp } from '../utils/date';
 
 interface ProcessingPageProps {
   onNext: () => void;
@@ -170,7 +170,25 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
     <div className="max-w-4xl mx-auto px-4 py-12">
       <h1 className="text-4xl font-bold text-center mb-2">Étape 1 - Calculs et Traitement</h1>
       <p className="text-center text-[#B8860B] mb-4">Traitez vos fichiers Excel avec calculs TCP et marges</p>
-      <p className="text-center text-zinc-400 mb-12">Semaine {getCurrentWeekYear()}</p>
+      <p className="text-center text-zinc-400 mb-4">Semaine {getCurrentWeekYear()}</p>
+      <div className="flex justify-center mb-8">
+        <button
+          onClick={() => {
+            if (!processedFile) return;
+            const link = document.createElement('a');
+            link.href = processedFile;
+            link.download =
+              processedFileName || `product_calculates_${getCurrentTimestamp()}.xlsx`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }}
+          className="px-6 py-3 bg-[#B8860B] text-black rounded-lg flex items-center space-x-2 hover:bg-[#B8860B]/90 transition-colors font-semibold"
+        >
+          <Download className="w-5 h-5" />
+          <span>Télécharger</span>
+        </button>
+      </div>
       <p className="text-center text-sm text-zinc-500 mb-8">Produits en base : {productsCount}</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -209,23 +227,8 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
           </div>
         )}
 
-        {processedFile && (
-          <div className="space-y-4 flex flex-col items-center">
-            <button
-              onClick={() => {
-                const link = document.createElement('a');
-                link.href = processedFile;
-                link.download = processedFileName || 'product_calculates.xlsx';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-              }}
-              className="px-6 py-3 bg-[#B8860B] text-black rounded-lg flex items-center space-x-2 hover:bg-[#B8860B]/90 transition-colors font-semibold"
-            >
-              <Download className="w-5 h-5" />
-              <span>Télécharger</span>
-            </button>
-
+        <div className="space-y-4 flex flex-col items-center">
+          {processedFile && (
             <button
               onClick={onNext}
               className="px-8 py-4 bg-green-600 text-white rounded-lg flex items-center space-x-2 hover:bg-green-700 transition-colors font-semibold text-lg"
@@ -233,8 +236,8 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
               <span>Passer à l'étape 2 - Mise en forme</span>
               <ChevronRight className="w-6 h-6" />
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <div className="mt-8 text-center text-sm text-zinc-500">
