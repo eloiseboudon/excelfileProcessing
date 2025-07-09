@@ -152,7 +152,7 @@ def create_app():
                 'description': p.description,
                 'name': p.name,
                 'brand': p.brand.brand if p.brand else None,
-                'price': p.price,
+                'price': p.reference.selling_price if p.reference and p.reference.selling_price else None,
                 'memory': p.memory.memory if p.memory else None,
                 'color': p.color.color if p.color else None,
                 'type': p.type.type if p.type else None,
@@ -242,7 +242,6 @@ def create_app():
             if existing:
                 existing.description = ref.description
                 existing.name = ref.description
-                existing.price = ref.selling_price
                 existing.brand_id = brand_id
                 existing.color_id = color_id
                 existing.memory_id = memory_id
@@ -254,7 +253,6 @@ def create_app():
                     reference_id=ref.id,
                     description=ref.description,
                     name=ref.description,
-                    price=ref.selling_price,
                     brand_id=brand_id,
                     color_id=color_id,
                     memory_id=memory_id,
@@ -273,7 +271,7 @@ def create_app():
         products = Product.query.all()
         created = 0
         for p in products:
-            price = p.price or 0
+            price = p.reference.selling_price if p.reference and p.reference.selling_price else 0
             memory = p.memory.memory.upper() if p.memory else ''
             tcp = 0
             if memory == '32GB':
@@ -296,6 +294,7 @@ def create_app():
             max_price = math.ceil(max(price_with_tcp, price_with_margin))
             calc = ProductCalculation(
                 product_id=p.id,
+                price=round(price, 2),
                 tcp=round(tcp, 2),
                 marge4_5=round(margin45, 2),
                 prixht_tcp_marge4_5=round(price_with_tcp, 2),
@@ -319,7 +318,7 @@ def create_app():
                 'name': p.name if p else None,
                 'description': p.description if p else None,
                 'brand': p.brand.brand if p.brand else None,
-                'price': p.price if p else None,
+                'price': c.price if c else None,
                 'memory': p.memory.memory if p.memory else None,
                 'color': p.color.color if p.color else None,
                 'type': p.type.type if p.type else None,

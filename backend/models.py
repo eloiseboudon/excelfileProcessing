@@ -110,7 +110,6 @@ class Product(db.Model):
     type_id = db.Column(db.Integer, db.ForeignKey('device_types.id'), nullable=True)
     type = db.relationship('DeviceType', backref=db.backref('products', lazy=True))
                                                                  
-    price = db.Column(db.Float)
     
 class ProductCalculation(db.Model):
     __tablename__ = 'product_calculations'
@@ -118,11 +117,14 @@ class ProductCalculation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
     product = db.relationship('Product', backref=db.backref('calculates', lazy=True))
+    price = db.Column(db.Float, nullable=False)
     tcp = db.Column(db.Float, nullable=False)
     marge4_5 = db.Column(db.Float, nullable=False)
     prixht_tcp_marge4_5 = db.Column(db.Float, nullable=False)
     prixht_marge4_5 = db.Column(db.Float, nullable=False)
     prixht_max = db.Column(db.Float, nullable=False)
+    date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
 
 
 class ImportHistory(db.Model):
