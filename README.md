@@ -8,6 +8,8 @@ Application complète de gestion de tarifs avec système de panier et commande p
 - Import de fichiers Excel
 - Calculs automatiques (TCP, marges)
 - Filtrage par marques
+- Exclusion configurable de certains produits
+- Nettoyage automatique et suppression des doublons
 - Export des données traitées
 
 ### 🎨 Étape 2 - Mise en forme
@@ -56,11 +58,12 @@ Pour activer l'envoi d'emails, configurez EmailJS :
 
 ## Fichier `.env`
 
-Créez un fichier `.env` à la racine du projet avec vos identifiants Supabase&nbsp;:
+Créez un fichier `.env` à la racine du projet avec vos identifiants Supabase :
 
 ```bash
 VITE_SUPABASE_URL=<votre_url_supabase>
 VITE_SUPABASE_ANON_KEY=<votre_cle_anon>
+VITE_API_BASE=http://localhost:5001
 ```
 
 Ce fichier est ignoré par Git afin de protéger vos informations sensibles.
@@ -128,9 +131,18 @@ Un backend minimal en **Python** est fourni dans le dossier `backend`. Il utilis
 make db-create    # crée la base `ajtpro` si besoin
 
 make venv         # crée l'environnement virtuel et installe les dépendances
-export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ajtpro
+# Créez un fichier `.env` contenant vos variables :
+# DATABASE_URL=postgresql://user:password@host:5432/ajtpro
+# FRONTEND_URL=http://votre-site.com
+# VITE_API_BASE=http://votre-backend:5001
+# FLASK_HOST=0.0.0.0
+# PORT=5001
+# Un fichier `.env.example` est fourni à titre d'exemple.
 make run          # démarre l'API Flask
 ```
+
+La variable `FRONTEND_URL` doit correspondre exactement à l'origine (schéma et
+domaine) de votre site frontend afin que la politique CORS fonctionne.
 
 L'application expose notamment les routes :
 
@@ -139,6 +151,19 @@ L'application expose notamment les routes :
 - `POST /upload` : envoi d'un fichier Excel pour importer plusieurs produits.
 - `POST /import` : importe un fichier Excel dans `temp_imports` et crée les références
   correspondantes.
+- `GET /product_calculations/count` : renvoie le nombre de résultats de calcul disponibles.
 
 Dans l'application React, le fichier traité est automatiquement transmis au backend via l'endpoint `/upload`. L'import du référentiel utilise quant à lui l'endpoint `/import`.
+
+## Vérifications locales
+
+Le projet fournit quelques commandes pour garder une base de code cohérente.
+
+### Lint
+
+Exécutez `npm run lint` après avoir installé les dépendances de développement (`npm install`). Sans ces packages, la commande peut échouer.
+
+### Tests Python
+
+Il n'existe pas encore de tests automatisés mais `pytest` est configuré pour unifier la procédure. Lancez simplement `pytest` pour vérifier qu'aucune erreur n'est remontée.
 

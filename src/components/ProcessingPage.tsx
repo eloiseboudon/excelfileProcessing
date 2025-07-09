@@ -13,15 +13,16 @@ import {
   createImport,
   calculateProducts,
   exportCalculations,
-  fetchFournisseurs,
+  fetchSuppliers,
+  fetchLastImport,
 } from '../api';
-import { getCurrentWeekYear } from '../utils/date';
+import { getCurrentWeekYear, getCurrentTimestamp,getWeekYear } from '../utils/date';
 
 interface ProcessingPageProps {
   onNext: () => void;
 }
 
-interface Fournisseur {
+interface Supplier {
   id: number;
   name: string;
   email?: string;
@@ -30,12 +31,13 @@ interface Fournisseur {
 }
 
 interface ImportZoneProps {
-  fournisseur: Fournisseur;
+  supplier: Supplier;
   file: File | null;
+  lastImportDate?: string | null;
   onFileChange: (id: number, file: File | null) => void;
 }
 
-function ImportZone({ fournisseur, file, onFileChange }: ImportZoneProps) {
+function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -58,25 +60,36 @@ function ImportZone({ fournisseur, file, onFileChange }: ImportZoneProps) {
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
         droppedFile?.type === 'application/vnd.ms-excel'
       ) {
-        onFileChange(fournisseur.id, droppedFile);
+        onFileChange(supplier.id, droppedFile);
       }
     },
-    [fournisseur.id, onFileChange]
+    [supplier.id, onFileChange]
   );
 
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const selectedFile = e.target.files?.[0];
       if (selectedFile) {
-        onFileChange(fournisseur.id, selectedFile);
+        onFileChange(supplier.id, selectedFile);
       }
     },
-    [fournisseur.id, onFileChange]
+    [supplier.id, onFileChange]
   );
 
   return (
     <div className="bg-zinc-900 rounded-2xl shadow-2xl p-8 border border-[#B8860B]/20">
-      <h2 className="text-xl font-semibold mb-6">Import de {fournisseur.name}</h2>
+      <h2 className="text-xl font-semibold mb-6">Import de {supplier.name}</h2>
+      {lastImportDate && (
+        <p className="text-sm text-zinc-400 mb-2">
+          Dernier import : {getWeekYear(new Date (lastImportDate))} -{' '}
+          {new Date(lastImportDate).toLocaleDateString('fr-FR', 
+          {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          }
+        )} </p>
+      )}
       <div
         className={`border-2 border-dashed rounded-xl p-8 transition-all duration-200 ${
           isDragging ? 'border-[#B8860B] bg-black/50' : 'border-zinc-700 hover:border-[#B8860B]/50'
@@ -106,17 +119,34 @@ function ImportZone({ fournisseur, file, onFileChange }: ImportZoneProps) {
 
 function ProcessingPage({ onNext }: ProcessingPageProps) {
   const [productsCount, setProductsCount] = useState(0);
-  const [fournisseurs, setFournisseurs] = useState<Fournisseur[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [files, setFiles] = useState<Record<number, File | null>>({});
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedFile, setProcessedFile] = useState<string | null>(null);
   const [processedFileName, setProcessedFileName] = useState<string>('');
+  const [lastImports, setLastImports] = useState<Record<number, string | null>>({});
   const [error, setError] = useState<string | null>(null);
 
   const refreshCount = useCallback(async () => {
     const list = await fetchProducts();
     setProductsCount(list.length);
   }, []);
+
+  const refreshLastImports = useCallback(async () => {
+    const entries = await Promise.all(
+      suppliers.map(async (s) => {
+        try {
+          const data = await fetchLastImport(s.id);
+          const date = (data as any).import_date || null;
+          return [s.id, date] as [number, string | null];
+        } catch {
+          return [s.id, null] as [number, string | null];
+        }
+      })
+    );
+    setLastImports(Object.fromEntries(entries));
+  }, [suppliers]);
+
 
   const handleFileChange = useCallback(
     (id: number, file: File | null) => {
@@ -132,7 +162,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
     setError(null);
 
     try {
-      for (const f of fournisseurs) {
+      for (const f of suppliers) {
         const file = files[f.id];
         if (file) {
           await createImport(file, f.id);
@@ -142,6 +172,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
       await createProduct();
       await calculateProducts();
       await refreshCount();
+      await refreshLastImports();
 
       const { blob, filename } = await exportCalculations();
       setProcessedFile(URL.createObjectURL(blob));
@@ -157,28 +188,53 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
     } finally {
       setIsProcessing(false);
     }
-  }, [files, fournisseurs, refreshCount]);
+  }, [files, suppliers, refreshCount, refreshLastImports]);
 
   useEffect(() => {
     refreshCount();
-    fetchFournisseurs()
-      .then(setFournisseurs)
+    fetchSuppliers()
+      .then(setSuppliers)
       .catch(() => {});
   }, [refreshCount]);
+
+  useEffect(() => {
+    if (suppliers.length > 0) {
+      refreshLastImports();
+    }
+  }, [suppliers, refreshLastImports]);
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
       <h1 className="text-4xl font-bold text-center mb-2">Étape 1 - Calculs et Traitement</h1>
       <p className="text-center text-[#B8860B] mb-4">Traitez vos fichiers Excel avec calculs TCP et marges</p>
-      <p className="text-center text-zinc-400 mb-12">Semaine {getCurrentWeekYear()}</p>
+      <p className="text-center text-zinc-400 mb-4">Semaine en cours : {getCurrentWeekYear()}</p>
+      <div className="flex justify-center mb-8">
+        <button
+          onClick={() => {
+            if (!processedFile) return;
+            const link = document.createElement('a');
+            link.href = processedFile;
+            link.download =
+              processedFileName || `product_calculates_${getCurrentTimestamp()}.xlsx`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }}
+          className="px-6 py-3 bg-[#B8860B] text-black rounded-lg flex items-center space-x-2 hover:bg-[#B8860B]/90 transition-colors font-semibold"
+        >
+          <Download className="w-5 h-5" />
+          <span>Télécharger</span>
+        </button>
+      </div>
       <p className="text-center text-sm text-zinc-500 mb-8">Produits en base : {productsCount}</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {fournisseurs.map((f) => (
+        {suppliers.map((f) => (
           <ImportZone
             key={f.id}
-            fournisseur={f}
+            supplier={f}
             file={files[f.id] || null}
+            lastImportDate={lastImports[f.id]}
             onFileChange={handleFileChange}
           />
         ))}
@@ -209,23 +265,8 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
           </div>
         )}
 
-        {processedFile && (
-          <div className="space-y-4 flex flex-col items-center">
-            <button
-              onClick={() => {
-                const link = document.createElement('a');
-                link.href = processedFile;
-                link.download = processedFileName || 'product_calculates.xlsx';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-              }}
-              className="px-6 py-3 bg-[#B8860B] text-black rounded-lg flex items-center space-x-2 hover:bg-[#B8860B]/90 transition-colors font-semibold"
-            >
-              <Download className="w-5 h-5" />
-              <span>Télécharger</span>
-            </button>
-
+        <div className="space-y-4 flex flex-col items-center">
+          {processedFile && (
             <button
               onClick={onNext}
               className="px-8 py-4 bg-green-600 text-white rounded-lg flex items-center space-x-2 hover:bg-green-700 transition-colors font-semibold text-lg"
@@ -233,8 +274,8 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
               <span>Passer à l'étape 2 - Mise en forme</span>
               <ChevronRight className="w-6 h-6" />
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <div className="mt-8 text-center text-sm text-zinc-500">
