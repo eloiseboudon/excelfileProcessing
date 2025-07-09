@@ -11,6 +11,10 @@ if not db_url:
 conn = psycopg2.connect(db_url)
 cur = conn.cursor()
 
+cur.execute("""
+    TRUNCATE TABLE suppliers, brands, colors, memory_options, device_types, exclusions, color_translations RESTART IDENTITY CASCADE;
+""")
+conn.commit()
 
 cur.execute("""
     INSERT INTO suppliers (name) VALUES

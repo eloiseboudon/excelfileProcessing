@@ -21,17 +21,18 @@ db-implement_tables:
 alembic-init: venv
 	cd backend && $(CURDIR)/$(PYTHON_VENV) -m alembic init alembic
 
-alembic-migrate: venv
-	cd backend && $(CURDIR)/$(PYTHON_VENV) -m alembic revision --autogenerate -m "$(MSG)"
+alembic-migrate:
+	$(DC) run --rm backend alembic revision --autogenerate -m "$(MSG)"
+	@echo "Migration created with message: $(MSG)"
 
-alembic-upgrade: venv
-	cd backend && $(CURDIR)/$(PYTHON_VENV) -m alembic upgrade head
+alembic-upgrade:
+	$(DC) run --rm backend alembic upgrade head
 
-alembic-current: venv
-	cd backend && $(CURDIR)/$(PYTHON_VENV) -m alembic current
+alembic-current: 
+	$(DC) run --rm backend alembic current
 
-alembic-history: venv
-	cd backend && $(CURDIR)/$(PYTHON_VENV) -m alembic history
+alembic-history:
+	$(DC) run --rm backend alembic history --verbose
 
 debug-env:
 	@echo "Checking environment..."
