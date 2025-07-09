@@ -67,6 +67,12 @@ class DeviceType(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     type = db.Column(db.String(50), nullable=False)
 
+class Exclusion(db.Model):
+    __tablename__ = 'exclusions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    term = db.Column(db.String(100), nullable=False, unique=True)
+
 class ColorTranslation(db.Model):
     __tablename__ = 'color_translations'
 

@@ -11,6 +11,7 @@ from models import (
     Color,
     MemoryOption,
     DeviceType,
+    Exclusion,
     ColorTranslation,
     ProductCalculation,
     ImportHistory,
@@ -95,22 +96,22 @@ def create_app():
         db.session.commit()
 
         df = pd.read_excel(file)
+        df.columns = [c.lower().strip() for c in df.columns]
+        if 'description' in df.columns:
+            df['description'] = df['description'].astype(str).str.strip()
+        df.drop_duplicates(subset=['ean'], inplace=True)
+        df = df[df['ean'].notna()]
         count_new = 0
         count_update = 0
         for _, row in df.iterrows():
-            # Cast EAN to string to keep the exact value regardless of
-            # how pandas interpreted the column (float, int, etc.).
-            ean_value = None
-            if pd.notnull(row.get('ean')):
-                # remove any decimal part introduced by Excel or pandas
-                ean_value = str(int(row.get('ean')))
-                temp = TemporaryImport(
-                    description=row.get('description'),
-                    quantity=row.get('quantity', None),
-                    selling_price=row.get('sellingprice', None),
-                    ean=ean_value,
-                    supplier_id=supplier_id
-                )
+            ean_value = str(int(row['ean']))
+            temp = TemporaryImport(
+                description=row.get('description'),
+                quantity=row.get('quantity', None),
+                selling_price=row.get('sellingprice', None),
+                ean=ean_value,
+                supplier_id=supplier_id
+            )
             db.session.add(temp)
 
             # Create reference if it does not already exist for this supplier
@@ -196,11 +197,14 @@ def create_app():
         memories = MemoryOption.query.all()
         types = DeviceType.query.all()
         color_transcos = ColorTranslation.query.all()
+        exclusions = [e.term.lower() for e in Exclusion.query.all()]
 
         created = 0
         updated = 0
         for ref in references:
             description_lower = ref.description.lower() if ref.description else ""
+            if any(exc in description_lower for exc in exclusions):
+                continue
 
             brand_id = None
             for b in brands:

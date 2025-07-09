@@ -55,6 +55,7 @@ cur.execute("""
 """)
 
 cur.execute("INSERT INTO device_types (type) VALUES ('Téléphone'), ('Tablette'), ('Montre'), ('Ordinateur');")
+cur.execute("INSERT INTO exclusions (term) VALUES ('Mac'), ('Backbone'), ('Bulk'), ('OH25B'), ('Soundbar');")
 
 conn.commit()
 cur.close()

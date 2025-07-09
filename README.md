@@ -8,6 +8,8 @@ Application complète de gestion de tarifs avec système de panier et commande p
 - Import de fichiers Excel
 - Calculs automatiques (TCP, marges)
 - Filtrage par marques
+- Exclusion configurable de certains produits
+- Nettoyage automatique et suppression des doublons
 - Export des données traitées
 
 ### 🎨 Étape 2 - Mise en forme
