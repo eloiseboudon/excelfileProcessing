@@ -1,0 +1,28 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ajtpro
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  backend:
+    build: .
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/ajtpro
+      FRONTEND_URL: http://localhost:5173
+      FLASK_HOST: 0.0.0.0
+      PORT: 5001
+    ports:
+      - "5001:5001"
+
+volumes:
+  db_data:
