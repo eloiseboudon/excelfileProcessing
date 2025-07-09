@@ -9,8 +9,8 @@ PYTHON_VENV := $(VENV)/bin/python
 db-create:
 	psql -U $(USER) -d postgres -tc "SELECT 1 FROM pg_database WHERE datname='ajtpro'" | grep -q 1 || psql -U $(USER) -d postgres -c "CREATE DATABASE ajtpro"
 
-db-create_tables:
-	$(PYTHON_VENV) backend/create_tables.py
+db-implement_tables:
+	$(PYTHON_VENV) backend/implement_tables.py
 
 venv:
 	$(PYTHON) -m venv $(VENV)
