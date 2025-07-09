@@ -127,6 +127,8 @@ Un backend minimal en **Python** est fourni dans le dossier `backend`. Il utilis
 ```bash
 # Créer la base de données (PostgreSQL local)
 make db-create    # crée la base `ajtpro` si besoin
+# Utilisez la variable DB_USER pour spécifier l'utilisateur PostgreSQL, par
+# exemple : `DB_USER=eloise make db-create`
 
 make venv         # crée l'environnement virtuel et installe les dépendances
 # Créez un fichier `.env` contenant vos variables :

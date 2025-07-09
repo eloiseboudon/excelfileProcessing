@@ -113,7 +113,7 @@ def create_app():
                     ean=ean_value,
                     supplier_id=supplier_id
                 )
-            db.session.add(temp)
+                db.session.add(temp)
 
             # Create reference if it does not already exist for this supplier
             ref = ProductReference.query.filter_by(ean=ean_value, supplier_id=supplier_id).first()
