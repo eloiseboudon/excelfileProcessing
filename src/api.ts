@@ -67,6 +67,15 @@ export async function exportCalculations() {
   return { blob, filename };
 }
 
+export async function fetchCalculationCount(): Promise<number> {
+  const res = await fetch(`${API_BASE}/product_calculations/count`);
+  if (!res.ok) {
+    throw new Error('Erreur lors du chargement des calculs');
+  }
+  const data = await res.json();
+  return data.count as number;
+}
+
 
 export async function fetchSuppliers() {
   const res = await fetch(`${API_BASE}/suppliers`);

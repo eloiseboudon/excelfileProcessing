@@ -164,6 +164,11 @@ def create_app():
         ]
         return jsonify(result)
 
+    @app.route('/product_calculations/count', methods=['GET'])
+    def count_product_calculations():
+        count = ProductCalculation.query.count()
+        return jsonify({'count': count})
+
     @app.route('/populate_products', methods=['POST'])
     def populate_products_from_reference():
         references = ProductReference.query.all()

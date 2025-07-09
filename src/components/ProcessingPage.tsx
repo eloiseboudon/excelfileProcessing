@@ -14,6 +14,7 @@ import {
   calculateProducts,
   exportCalculations,
   fetchSuppliers,
+  fetchCalculationCount,
 } from '../api';
 import { getCurrentWeekYear, getCurrentTimestamp } from '../utils/date';
 
@@ -112,6 +113,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
   const [processedFile, setProcessedFile] = useState<string | null>(null);
   const [processedFileName, setProcessedFileName] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const [hasCalculations, setHasCalculations] = useState(false);
 
   const refreshCount = useCallback(async () => {
     const list = await fetchProducts();
@@ -146,6 +148,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
       const { blob, filename } = await exportCalculations();
       setProcessedFile(URL.createObjectURL(blob));
       setProcessedFileName(filename);
+      setHasCalculations(true);
     } catch (err) {
       console.error('Error processing files:', err);
       setError(
@@ -164,6 +167,9 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
     fetchSuppliers()
       .then(setSuppliers)
       .catch(() => {});
+    fetchCalculationCount()
+      .then((c) => setHasCalculations(c > 0))
+      .catch(() => setHasCalculations(false));
   }, [refreshCount]);
 
   return (
@@ -210,24 +216,26 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
         )}
 
         <div className="space-y-4 flex flex-col items-center">
-          <button
-            onClick={() => {
-              if (!processedFile) return;
-              const link = document.createElement('a');
-              link.href = processedFile;
-              link.download =
-                processedFileName ||
-                `product_calculates_${getCurrentTimestamp()}.xlsx`;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-            }}
-            disabled={!processedFile}
-            className="px-6 py-3 bg-[#B8860B] text-black rounded-lg flex items-center space-x-2 hover:bg-[#B8860B]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
-          >
-            <Download className="w-5 h-5" />
-            <span>Télécharger</span>
-          </button>
+          {hasCalculations && (
+            <button
+              onClick={() => {
+                if (!processedFile) return;
+                const link = document.createElement('a');
+                link.href = processedFile;
+                link.download =
+                  processedFileName ||
+                  `product_calculates_${getCurrentTimestamp()}.xlsx`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+              }}
+              disabled={!processedFile}
+              className="px-6 py-3 bg-[#B8860B] text-black rounded-lg flex items-center space-x-2 hover:bg-[#B8860B]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+            >
+              <Download className="w-5 h-5" />
+              <span>Télécharger</span>
+            </button>
+          )}
 
           {processedFile && (
             <button
