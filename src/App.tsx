@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Calculator, Palette } from 'lucide-react';
-import { fetchProducts } from './api';
+import { fetchProducts, refreshProduction } from './api';
 import ProcessingPage from './components/ProcessingPage';
 import FormattingPage from './components/FormattingPage';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<'processing' | 'formatting'>('processing');
   const [apiTestMessage, setApiTestMessage] = useState<string | null>(null);
+  const [refreshMessage, setRefreshMessage] = useState<string | null>(null);
 
   const handleApiTest = async () => {
     setApiTestMessage(null);
@@ -15,6 +16,16 @@ function App() {
       setApiTestMessage('Connexion réussie !');
     } catch {
       setApiTestMessage("Erreur lors de la connexion à l'API");
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshMessage(null);
+    try {
+      await refreshProduction();
+      setRefreshMessage('Données de prod mises à jour');
+    } catch {
+      setRefreshMessage("Erreur lors du rafraîchissement des données de prod");
     }
   };
 
@@ -66,9 +77,19 @@ function App() {
         {apiTestMessage && (
           <p className="mt-2 text-sm text-zinc-400">{apiTestMessage}</p>
         )}
+        <div className="mt-6">
+          <button
+            onClick={handleRefresh}
+            className="px-4 py-2 bg-[#B8860B] text-black rounded-lg hover:bg-[#B8860B]/90 font-semibold"
+          >
+            Rafraîchir la prod
+          </button>
+          {refreshMessage && (
+            <p className="mt-2 text-sm text-zinc-400">{refreshMessage}</p>
+          )}
+        </div>
       </div>
     </div>
   );
 }
-
 export default App;

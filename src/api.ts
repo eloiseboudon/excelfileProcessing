@@ -93,3 +93,14 @@ export async function fetchSuppliers() {
   }
   return res.json();
 }
+
+export async function refreshProduction() {
+  const res = await fetch(`${API_BASE}/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) {
+    throw new Error('Erreur lors du rafraîchissement des données de prod');
+  }
+  return res.json();
+}
