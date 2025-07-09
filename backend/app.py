@@ -164,6 +164,21 @@ def create_app():
         ]
         return jsonify(result)
 
+    @app.route('/supplier_last_import/{id}', methods=['GET'])
+    def supplier_last_import(id):
+        histories = ImportHistory.query.filter_by(supplier_id=id).order_by(ImportHistory.import_date.desc()).first()
+        result = [
+            {
+                'id': h.id,
+                'filename': h.filename,
+                'supplier_id': h.supplier_id,
+                'product_count': h.product_count,
+                'import_date': h.import_date.isoformat(),
+            }
+            for h in histories
+        ]
+        return jsonify(result)
+
     @app.route('/product_calculations/count', methods=['GET'])
     def count_product_calculations():
         count = ProductCalculation.query.count()

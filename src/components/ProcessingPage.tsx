@@ -14,6 +14,7 @@ import {
   calculateProducts,
   exportCalculations,
   fetchSuppliers,
+  fetchImport,
 } from '../api';
 import { getCurrentWeekYear, getCurrentTimestamp } from '../utils/date';
 
@@ -27,6 +28,11 @@ interface Supplier {
   email?: string;
   phone?: string;
   address?: string;
+}
+
+interface Import {
+  import_date: string;
+  supplier_id: number;
 }
 
 interface ImportZoneProps {
@@ -77,6 +83,7 @@ function ImportZone({ supplier, file, onFileChange }: ImportZoneProps) {
   return (
     <div className="bg-zinc-900 rounded-2xl shadow-2xl p-8 border border-[#B8860B]/20">
       <h2 className="text-xl font-semibold mb-6">Import de {supplier.name}</h2>
+      <p>Dernier import : {last_import.import_date}</p>
       <div
         className={`border-2 border-dashed rounded-xl p-8 transition-all duration-200 ${
           isDragging ? 'border-[#B8860B] bg-black/50' : 'border-zinc-700 hover:border-[#B8860B]/50'
@@ -117,6 +124,10 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
     const list = await fetchProducts();
     setProductsCount(list.length);
   }, []);
+
+  const refreshImport = useCallback(async () => {
+    const last_import = await fetchImport(suppliers.id);
+  }, [suppliers.id]);
 
   const handleFileChange = useCallback(
     (id: number, file: File | null) => {

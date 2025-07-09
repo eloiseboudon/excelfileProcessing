@@ -28,6 +28,15 @@ export async function fetchProducts() {
   return res.json();
 }
 
+
+export async function fetchImport(id: number = 0) {
+  const res = await fetch(`${API_BASE}/supplier_last_import/${id} `);
+  if (!res.ok) {
+    throw new Error('Erreur lors du chargement des produits');
+  }
+  return res.json();
+}
+
 export async function createProduct() {
   const res = await fetch(`${API_BASE}/populate_products`, {
     method: 'POST',
