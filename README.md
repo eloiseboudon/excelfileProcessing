@@ -167,3 +167,23 @@ Exécutez `npm run lint` après avoir installé les dépendances de développeme
 
 Il n'existe pas encore de tests automatisés mais `pytest` est configuré pour unifier la procédure. Lancez simplement `pytest` pour vérifier qu'aucune erreur n'est remontée.
 
+### Docker
+
+Une configuration Docker est fournie pour lancer rapidement l'API Flask et la base PostgreSQL.
+
+```bash
+# Construire les images
+make docker-build
+
+# Démarrer l'environnement en arrière-plan
+make docker-up
+
+# Consulter les logs
+make docker-logs
+
+# Arrêter les conteneurs
+make docker-down
+```
+
+Par défaut l'image utilise **Python 3.12** et **PostgreSQL 16**. La base de données est accessible sur `localhost:5432` et l'API Flask sur `localhost:5001`.
+

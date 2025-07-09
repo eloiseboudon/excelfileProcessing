@@ -4,10 +4,11 @@ PIP := $(VENV)/bin/pip
 USER := postgres
 PYTHON_VENV := $(VENV)/bin/python
 MSG := "Auto migration"
+DC := docker compose
 
 # git branch | grep -v -E "(main|dev|\*)" | xargs git branch -d
 
-.PHONY: db-create db-create_tables venv install run clean alembic-init alembic-migrate alembic-upgrade alembic-current
+.PHONY: db-create db-implement_tables alembic-init alembic-migrate alembic-upgrade alembic-current docker-build docker-up docker-down docker-logs
 
 # Commandes de base de données
 db-create:
@@ -15,20 +16,6 @@ db-create:
 
 db-implement_tables:
 	$(PYTHON_VENV) backend/implement_tables.py
-
-# Commandes de gestion de l'environnement virtuel
-venv:
-	$(PYTHON) -m venv $(VENV)
-	$(PIP) install --upgrade pip
-	$(PIP) install -r backend/requirements.txt
-
-install: venv
-
-run: venv
-	$(PYTHON_VENV) backend/app.py
-
-clean:
-	rm -rf $(VENV)
 
 # Commandes Alembic - VERSION ABSOLUE (RECOMMANDÉE)
 alembic-init: venv
@@ -50,3 +37,16 @@ debug-env:
 	@echo "Checking environment..."
 	@ls -la backend/.venv/bin/ | grep python || echo "Python not found"
 	@$(PYTHON_VENV) -m pip list | grep alembic || echo "Alembic not installed"
+
+# Docker commands
+docker-build:
+	$(DC) build
+
+docker-up:
+	$(DC) up -d
+
+docker-down:
+	$(DC) down
+
+docker-logs:
+	$(DC) logs -f
