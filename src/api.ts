@@ -29,10 +29,10 @@ export async function fetchProducts() {
 }
 
 
-export async function fetchImport(id: number = 0) {
-  const res = await fetch(`${API_BASE}/supplier_last_import/${id} `);
+export async function fetchLastImport(id: number): Promise<{ import_date: string | null } | {}> {
+  const res = await fetch(`${API_BASE}/last_import/${id}`);
   if (!res.ok) {
-    throw new Error('Erreur lors du chargement des produits');
+    throw new Error('Erreur lors du chargement de la date d\'import');
   }
   return res.json();
 }

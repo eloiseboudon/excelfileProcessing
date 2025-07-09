@@ -164,20 +164,24 @@ def create_app():
         ]
         return jsonify(result)
 
-    @app.route('/supplier_last_import/{id}', methods=['GET'])
-    def supplier_last_import(id):
-        histories = ImportHistory.query.filter_by(supplier_id=id).order_by(ImportHistory.import_date.desc()).first()
-        result = [
-            {
-                'id': h.id,
-                'filename': h.filename,
-                'supplier_id': h.supplier_id,
-                'product_count': h.product_count,
-                'import_date': h.import_date.isoformat(),
-            }
-            for h in histories
-        ]
-        return jsonify(result)
+    @app.route('/last_import/<int:supplier_id>', methods=['GET'])
+    def last_import(supplier_id):
+        history = (
+            ImportHistory.query
+            .filter_by(supplier_id=supplier_id)
+            .order_by(ImportHistory.import_date.desc())
+            .first()
+        )
+        if not history:
+            return jsonify({}), 200
+
+        return jsonify({
+            'id': history.id,
+            'filename': history.filename,
+            'supplier_id': history.supplier_id,
+            'product_count': history.product_count,
+            'import_date': history.import_date.isoformat(),
+        })
 
     @app.route('/product_calculations/count', methods=['GET'])
     def count_product_calculations():
