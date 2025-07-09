@@ -13,6 +13,7 @@ if not db_url:
 conn = psycopg2.connect(db_url)
 cur = conn.cursor()
 
+
 cur.execute("""DROP TABLE IF EXISTS temporary_imports CASCADE;""")
 cur.execute("""DROP TABLE IF EXISTS import_histories CASCADE;""")
 
@@ -26,6 +27,7 @@ cur.execute("""DROP TABLE IF EXISTS suppliers CASCADE;""")
 cur.execute("""DROP TABLE IF EXISTS product_references CASCADE;""")  
 cur.execute("""DROP TABLE IF EXISTS products CASCADE;""")
 cur.execute("""DROP TABLE IF EXISTS product_calculations CASCADE;""")
+
 
 conn.commit()
 
@@ -122,7 +124,7 @@ cur.execute("""
 CREATE TABLE IF NOT EXISTS product_calculations (
     id SERIAL PRIMARY KEY,
     product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
-    TCP FLOAT NOT NULL,
+    tcp FLOAT NOT NULL,
     marge4_5 FLOAT NOT NULL,
     prixHT_TCP_marge4_5 FLOAT NOT NULL,
     prixHT_marge4_5 FLOAT NOT NULL,
@@ -149,6 +151,7 @@ cur.execute("""
 """)
 
 cur.execute("""
+ feature/build
     INSERT INTO brands(brand) VALUES ('Samsung'), ('Apple'), ('Huawei'), ('Xiaomi'), ('Oppo'),
     ('Dyson'), ('Sony'), ('LG'), ('Google'), ('Microsoft'), ('Lenovo'), ('Asus'),
     ('Dell'), ('HP'), ('Acer'), ('OnePlus'), ('Realme'),('Fairphone'),('JBL'), ('Bose'),
@@ -159,6 +162,7 @@ cur.execute("""
 cur.execute("INSERT INTO memory_options (memory) VALUES ('32GB'),('64GB'), ('128GB'), ('256GB'), ('512GB');")
 cur.execute("INSERT INTO colors (color) VALUES ('Blanc'), ('Noir'), ('Bleu'), ('Rouge'), ('Vert'),('Orange'),('Violet');")
 cur.execute("""
+
     INSERT INTO color_translations (color_source, color_target, color_target_id) VALUES
     ('black', 'Noir', 2),
     ('dark grey', 'Noir', 2),

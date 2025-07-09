@@ -86,6 +86,7 @@ class Product(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     reference_id = db.Column(db.Integer, db.ForeignKey('product_references.id'), nullable=True)
+
     reference = db.relationship('ProductReference', backref=db.backref('products', lazy=True)) 
     name = db.Column(db.String(120), nullable=False)
     description = db.Column(db.String(120), nullable=False)
@@ -124,7 +125,7 @@ class ImportHistory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     filename = db.Column(db.String(200), nullable=False)
     supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'), nullable=True)
-    supplier = db.relationship('Supplier', backref=db.backref('imports', lazy=True))
+    supplier = db.relationship('Supplier', backref=db.backref('import_histories', lazy=True))
     product_count = db.Column(db.Integer, nullable=False)
     import_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 

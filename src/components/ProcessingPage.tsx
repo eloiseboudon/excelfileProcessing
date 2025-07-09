@@ -21,7 +21,7 @@ interface ProcessingPageProps {
   onNext: () => void;
 }
 
-interface supplier {
+interface Supplier {
   id: number;
   name: string;
   email?: string;
@@ -30,7 +30,7 @@ interface supplier {
 }
 
 interface ImportZoneProps {
-  supplier: supplier;
+  supplier: Supplier;
   file: File | null;
   onFileChange: (id: number, file: File | null) => void;
 }
@@ -106,7 +106,7 @@ function ImportZone({ supplier, file, onFileChange }: ImportZoneProps) {
 
 function ProcessingPage({ onNext }: ProcessingPageProps) {
   const [productsCount, setProductsCount] = useState(0);
-  const [suppliers, setsuppliers] = useState<supplier[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [files, setFiles] = useState<Record<number, File | null>>({});
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedFile, setProcessedFile] = useState<string | null>(null);
@@ -161,8 +161,8 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
 
   useEffect(() => {
     refreshCount();
-    fectSuppliers()
-      .then(setsuppliers)
+    fetchSuppliers()
+      .then(setSuppliers)
       .catch(() => {});
   }, [refreshCount]);
 
