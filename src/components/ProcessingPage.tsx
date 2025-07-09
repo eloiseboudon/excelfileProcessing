@@ -15,7 +15,7 @@ import {
   exportCalculations,
   fetchSuppliers,
 } from '../api';
-import { getCurrentWeekYear } from '../utils/date';
+import { getCurrentWeekYear, getCurrentTimestamp } from '../utils/date';
 
 interface ProcessingPageProps {
   onNext: () => void;
@@ -215,7 +215,9 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
               onClick={() => {
                 const link = document.createElement('a');
                 link.href = processedFile;
-                link.download = processedFileName || 'product_calculates.xlsx';
+                link.download =
+                  processedFileName ||
+                  `product_calculates_${getCurrentTimestamp()}.xlsx`;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);

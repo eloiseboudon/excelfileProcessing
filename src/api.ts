@@ -1,3 +1,5 @@
+import { getCurrentTimestamp } from './utils/date';
+
 export const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 
@@ -54,7 +56,7 @@ export async function exportCalculations() {
     throw new Error('Erreur lors de la génération du fichier');
   }
   const blob = await res.blob();
-  let filename = 'export.xlsx';
+  let filename = `product_calculates_${getCurrentTimestamp()}.xlsx`;
   const disposition = res.headers.get('Content-Disposition');
   if (disposition) {
     const match = disposition.match(/filename="?([^";]+)"?/);

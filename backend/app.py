@@ -31,7 +31,7 @@ def create_app():
     frontend_origin = os.getenv("FRONTEND_URL")
     if not frontend_origin:
         raise RuntimeError("FRONTEND_URL environment variable is not set")
-    CORS(app, resources={r"/*": {"origins": frontend_origin}})
+    CORS(app, resources={r"/*": {"origins": frontend_origin}}, expose_headers=["Content-Disposition"])
 
     @app.route('/')
     def index():

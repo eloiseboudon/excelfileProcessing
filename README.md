@@ -152,3 +152,15 @@ L'application expose notamment les routes :
 
 Dans l'application React, le fichier traité est automatiquement transmis au backend via l'endpoint `/upload`. L'import du référentiel utilise quant à lui l'endpoint `/import`.
 
+## Vérifications locales
+
+Le projet fournit quelques commandes pour garder une base de code cohérente.
+
+### Lint
+
+Exécutez `npm run lint` après avoir installé les dépendances de développement (`npm install`). Sans ces packages, la commande peut échouer.
+
+### Tests Python
+
+Il n'existe pas encore de tests automatisés mais `pytest` est configuré pour unifier la procédure. Lancez simplement `pytest` pour vérifier qu'aucune erreur n'est remontée.
+
