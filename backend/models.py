@@ -3,12 +3,6 @@ from datetime import datetime
 
 db = SQLAlchemy()
 
-class Test(db.Model):
-    __tablename__ = 'tests'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-
 class Supplier(db.Model):
     __tablename__ = 'suppliers'
     
@@ -29,8 +23,6 @@ class TemporaryImport(db.Model):
     quantity = db.Column(db.Integer)
     selling_price = db.Column(db.Float)
     ean = db.Column(db.String(20), nullable=False)
-    test = db.Column(db.Float)
-    test2 = db.Column(db.Float)
     supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'), nullable=True)
     supplier = db.relationship('Supplier', backref=db.backref('temporary_imports', lazy=True))
 
