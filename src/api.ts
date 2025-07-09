@@ -1,3 +1,5 @@
+import { getCurrentTimestamp } from './utils/date';
+
 export const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 
@@ -63,7 +65,7 @@ export async function exportCalculations() {
     throw new Error('Erreur lors de la génération du fichier');
   }
   const blob = await res.blob();
-  let filename = 'export.xlsx';
+  let filename = `product_calculates_${getCurrentTimestamp()}.xlsx`;
   const disposition = res.headers.get('Content-Disposition');
   if (disposition) {
     const match = disposition.match(/filename="?([^";]+)"?/);
@@ -72,6 +74,15 @@ export async function exportCalculations() {
     }
   }
   return { blob, filename };
+}
+
+export async function fetchCalculationCount(): Promise<number> {
+  const res = await fetch(`${API_BASE}/product_calculations/count`);
+  if (!res.ok) {
+    throw new Error('Erreur lors du chargement des calculs');
+  }
+  const data = await res.json();
+  return data.count as number;
 }
 
 

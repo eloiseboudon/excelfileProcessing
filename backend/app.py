@@ -31,7 +31,7 @@ def create_app():
     frontend_origin = os.getenv("FRONTEND_URL")
     if not frontend_origin:
         raise RuntimeError("FRONTEND_URL environment variable is not set")
-    CORS(app, resources={r"/*": {"origins": frontend_origin}})
+    CORS(app, resources={r"/*": {"origins": frontend_origin}}, expose_headers=["Content-Disposition"])
 
     @app.route('/')
     def index():
@@ -164,7 +164,6 @@ def create_app():
         ]
         return jsonify(result)
 
-
     @app.route('/supplier_last_import/{id}', methods=['GET'])
     def supplier_last_import(id):
         histories = ImportHistory.query.filter_by(supplier_id=id).order_by(ImportHistory.import_date.desc()).first()
@@ -179,6 +178,11 @@ def create_app():
             for h in histories
         ]
         return jsonify(result)
+
+    @app.route('/product_calculations/count', methods=['GET'])
+    def count_product_calculations():
+        count = ProductCalculation.query.count()
+        return jsonify({'count': count})
 
     @app.route('/populate_products', methods=['POST'])
     def populate_products_from_reference():
