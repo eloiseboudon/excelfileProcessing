@@ -4,10 +4,9 @@ from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
 from alembic import context
-from dotenv import load_dotenv
 
 import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.dirname(__file__))
 
 # Importez vos modèles
 from models import db
@@ -19,8 +18,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Chargez les variables d'environnement
-load_dotenv()
+# Pour Docker : récupérez DATABASE_URL depuis les variables d'environnement
 db_url = os.getenv('DATABASE_URL')
 if db_url:
     config.set_main_option('sqlalchemy.url', db_url)
