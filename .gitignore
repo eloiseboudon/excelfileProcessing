@@ -30,7 +30,7 @@ backend/__pycache__/
 backend/instance/
 backend/migrations/__pycache__/
 backend/migrations/versions/__pycache__/
-backend/migrations/versions/*
+# backend/migrations/versions/*
 
 
 
