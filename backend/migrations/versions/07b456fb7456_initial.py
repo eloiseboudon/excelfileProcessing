@@ -1,7 +1,7 @@
-"""test"""
+"""Initial"""
 
-revision = 'aca618850616'
-down_revision = '0001'
+revision = '07b456fb7456'
+down_revision = None
 branch_labels = None
 depends_on = None
 

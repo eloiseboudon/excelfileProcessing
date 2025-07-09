@@ -1,7 +1,8 @@
 PYTHON := python3
 VENV := backend/.venv
 PIP := $(VENV)/bin/pip
-DB_USER ?= postgres
+DB_USER ?= eloise
+
 
 .PHONY: db-create db-create_tables venv install run clean migrate migrate-upgrade
 

@@ -24,7 +24,7 @@ dist-ssr
 *.sw?
 .venv
 .env
-.env.example
+# .env.example
 
 backend/__pycache__/
 backend/instance/
