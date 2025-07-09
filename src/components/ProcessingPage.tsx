@@ -209,25 +209,27 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
           </div>
         )}
 
-        {processedFile && (
-          <div className="space-y-4 flex flex-col items-center">
-            <button
-              onClick={() => {
-                const link = document.createElement('a');
-                link.href = processedFile;
-                link.download =
-                  processedFileName ||
-                  `product_calculates_${getCurrentTimestamp()}.xlsx`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-              }}
-              className="px-6 py-3 bg-[#B8860B] text-black rounded-lg flex items-center space-x-2 hover:bg-[#B8860B]/90 transition-colors font-semibold"
-            >
-              <Download className="w-5 h-5" />
-              <span>Télécharger</span>
-            </button>
+        <div className="space-y-4 flex flex-col items-center">
+          <button
+            onClick={() => {
+              if (!processedFile) return;
+              const link = document.createElement('a');
+              link.href = processedFile;
+              link.download =
+                processedFileName ||
+                `product_calculates_${getCurrentTimestamp()}.xlsx`;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }}
+            disabled={!processedFile}
+            className="px-6 py-3 bg-[#B8860B] text-black rounded-lg flex items-center space-x-2 hover:bg-[#B8860B]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+          >
+            <Download className="w-5 h-5" />
+            <span>Télécharger</span>
+          </button>
 
+          {processedFile && (
             <button
               onClick={onNext}
               className="px-8 py-4 bg-green-600 text-white rounded-lg flex items-center space-x-2 hover:bg-green-700 transition-colors font-semibold text-lg"
@@ -235,8 +237,8 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
               <span>Passer à l'étape 2 - Mise en forme</span>
               <ChevronRight className="w-6 h-6" />
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <div className="mt-8 text-center text-sm text-zinc-500">
