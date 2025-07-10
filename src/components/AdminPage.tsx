@@ -38,13 +38,13 @@ function AdminPage({ onBack }: AdminPageProps) {
       <HotwavAdmin
         isVisible={showHotwav}
         onClose={() => setShowHotwav(false)}
-        onSave={() => {}}
+        onSave={() => { }}
         initialProducts={[]}
       />
       <AccessoriesAdmin
         isVisible={showAccessories}
         onClose={() => setShowAccessories(false)}
-        onSave={() => {}}
+        onSave={() => { }}
         initialAccessories={[]}
       />
     </div>

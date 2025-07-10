@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { Calculator, Palette, Settings } from 'lucide-react';
+import { Calculator, Palette, Settings,LibraryBig } from 'lucide-react';
 import { fetchProducts, refreshProduction, refreshProductionByWeek } from './api';
 import ProcessingPage from './components/ProcessingPage';
 import FormattingPage from './components/FormattingPage';
 import AdminPage from './components/AdminPage';
 
 function App() {
-  const [currentPage, setCurrentPage] = useState<'processing' | 'formatting' | 'admin'>('processing');
+  const [currentPage, setCurrentPage] = useState<'processing' | 'formatting' | 'admin' | 'products'>('processing');
   const [apiTestMessage, setApiTestMessage] = useState<string | null>(null);
 
   const handleApiTest = async () => {
@@ -51,6 +51,13 @@ function App() {
               </button>
             </div>
             <button
+              onClick={() => setCurrentPage('products')}
+              className="flex items-center space-x-2 px-4 py-2 rounded-lg font-semibold bg-zinc-800 text-white hover:bg-zinc-700 transition-all"
+            >
+              <LibraryBig className="w-5 h-5" />
+              <span>Products</span>
+            </button>
+            <button
               onClick={() => setCurrentPage('admin')}
               className="flex items-center space-x-2 px-4 py-2 rounded-lg font-semibold bg-zinc-800 text-white hover:bg-zinc-700 transition-all"
             >
@@ -72,17 +79,17 @@ function App() {
         <AdminPage onBack={() => setCurrentPage('processing')} />
       )}
       {currentPage !== 'admin' && (
-      <div className="text-center mt-8 mb-6">
-        <button
-          onClick={handleApiTest}
-          className="px-4 py-2 bg-[#B8860B] text-black rounded-lg hover:bg-[#B8860B]/90 font-semibold"
-        >
-          Tester la connexion API
-        </button>
-        {apiTestMessage && (
-          <p className="mt-2 text-sm text-zinc-400">{apiTestMessage}</p>
-        )}
-      </div>
+        <div className="text-center mt-8 mb-6">
+          <button
+            onClick={handleApiTest}
+            className="px-4 py-2 bg-[#B8860B] text-black rounded-lg hover:bg-[#B8860B]/90 font-semibold"
+          >
+            Tester la connexion API
+          </button>
+          {apiTestMessage && (
+            <p className="mt-2 text-sm text-zinc-400">{apiTestMessage}</p>
+          )}
+        </div>
       )}
     </div>
   );
