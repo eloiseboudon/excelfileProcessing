@@ -16,7 +16,7 @@ interface AccessoriesAdminProps {
 
 const AVAILABLE_BRANDS = [
   'Apple',
-  'Samsung', 
+  'Samsung',
   'Xiaomi',
   'Hotwav',
   'JBL',
@@ -56,10 +56,10 @@ function AccessoriesAdmin({ isVisible, onClose, onSave, initialAccessories }: Ac
   const handleAddAccessory = () => {
     const prix = parseFloat(newAccessory.prix) || 0;
     if (newAccessory.nom.trim() && prix > 0 && newAccessory.marque) {
-      setAccessories([...accessories, { 
-        nom: newAccessory.nom, 
-        prix, 
-        marque: newAccessory.marque 
+      setAccessories([...accessories, {
+        nom: newAccessory.nom,
+        prix,
+        marque: newAccessory.marque
       }]);
       setNewAccessory({ nom: '', prix: '', marque: 'Apple' });
       setShowAddForm(false);
@@ -72,8 +72,8 @@ function AccessoriesAdmin({ isVisible, onClose, onSave, initialAccessories }: Ac
   };
 
   // Filtrer les accessoires par marque
-  const filteredAccessories = selectedBrandFilter === 'all' 
-    ? accessories 
+  const filteredAccessories = selectedBrandFilter === 'all'
+    ? accessories
     : accessories.filter(acc => acc.marque === selectedBrandFilter);
 
   // Grouper les accessoires par marque pour l'affichage
@@ -214,8 +214,8 @@ function AccessoriesAdmin({ isVisible, onClose, onSave, initialAccessories }: Ac
               <div className="text-center py-12">
                 <div className="text-6xl mb-4">🔧</div>
                 <p className="text-zinc-400 text-lg">
-                  {selectedBrandFilter === 'all' 
-                    ? 'Aucun accessoire configuré' 
+                  {selectedBrandFilter === 'all'
+                    ? 'Aucun accessoire configuré'
                     : `Aucun accessoire pour ${selectedBrandFilter}`
                   }
                 </p>
@@ -229,7 +229,7 @@ function AccessoriesAdmin({ isVisible, onClose, onSave, initialAccessories }: Ac
                 {selectedBrandFilter !== 'all' ? (
                   <div className="space-y-2">
                     {filteredAccessories.map((accessory, index) => {
-                      const originalIndex = accessories.findIndex(acc => 
+                      const originalIndex = accessories.findIndex(acc =>
                         acc.nom === accessory.nom && acc.prix === accessory.prix && acc.marque === accessory.marque
                       );
                       return (
@@ -266,7 +266,7 @@ function AccessoriesAdmin({ isVisible, onClose, onSave, initialAccessories }: Ac
                           </div>
                           <div className="p-4 space-y-2">
                             {brandAccessories.map((accessory, brandIndex) => {
-                              const originalIndex = accessories.findIndex(acc => 
+                              const originalIndex = accessories.findIndex(acc =>
                                 acc.nom === accessory.nom && acc.prix === accessory.prix && acc.marque === accessory.marque
                               );
                               return (
@@ -328,26 +328,26 @@ interface AccessoryRowProps {
 }
 
 function AccessoryRow({ accessory, index, isEditing, onEdit, onSave, onCancel, onDelete }: AccessoryRowProps) {
-  const [editedAccessory, setEditedAccessory] = useState({ 
-    nom: accessory.nom, 
+  const [editedAccessory, setEditedAccessory] = useState({
+    nom: accessory.nom,
     prix: accessory.prix.toString(),
-    marque: accessory.marque 
+    marque: accessory.marque
   });
 
   React.useEffect(() => {
-    setEditedAccessory({ 
-      nom: accessory.nom, 
+    setEditedAccessory({
+      nom: accessory.nom,
       prix: accessory.prix.toString(),
-      marque: accessory.marque 
+      marque: accessory.marque
     });
   }, [accessory]);
 
   const handleSaveClick = () => {
     const prix = parseFloat(editedAccessory.prix) || 0;
-    onSave({ 
-      nom: editedAccessory.nom, 
+    onSave({
+      nom: editedAccessory.nom,
       prix,
-      marque: editedAccessory.marque 
+      marque: editedAccessory.marque
     });
   };
 

@@ -59,8 +59,12 @@ function App() {
             </button>
             <button
               onClick={() => setCurrentPage('admin')}
-              className="flex items-center space-x-2 px-4 py-2 rounded-lg font-semibold bg-zinc-800 text-white hover:bg-zinc-700 transition-all"
-            >
+              className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-semibold transition-all duration-200
+                  ${currentPage === 'admin'
+                    ? 'bg-[#B8860B] text-black'
+                    : 'bg-zinc-800 text-white hover:bg-zinc-700'
+                  }`}
+              >
               <Settings className="w-5 h-5" />
               <span>Admin</span>
             </button>
