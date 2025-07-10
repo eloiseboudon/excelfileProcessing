@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Calculator, Palette, Settings,LibraryBig } from 'lucide-react';
+import { Calculator, Palette, Settings, LibraryBig } from 'lucide-react';
 import { fetchProducts, refreshProduction, refreshProductionByWeek } from './api';
 import ProcessingPage from './components/ProcessingPage';
 import FormattingPage from './components/FormattingPage';
