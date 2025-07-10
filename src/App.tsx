@@ -4,6 +4,7 @@ import { fetchProducts, refreshProduction, refreshProductionByWeek } from './api
 import ProcessingPage from './components/ProcessingPage';
 import FormattingPage from './components/FormattingPage';
 import AdminPage from './components/AdminPage';
+import ProductsPage from './components/ProductsPage';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<'processing' | 'formatting' | 'admin' | 'products'>('processing');
@@ -52,7 +53,11 @@ function App() {
             </div>
             <button
               onClick={() => setCurrentPage('products')}
-              className="flex items-center space-x-2 px-4 py-2 rounded-lg font-semibold bg-zinc-800 text-white hover:bg-zinc-700 transition-all"
+              className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-semibold transition-all duration-200
+                ${currentPage === 'products'
+                  ? 'bg-[#B8860B] text-black'
+                  : 'bg-zinc-800 text-white hover:bg-zinc-700'
+                }`}
             >
               <LibraryBig className="w-5 h-5" />
               <span>Products</span>
@@ -81,6 +86,9 @@ function App() {
       )}
       {currentPage === 'admin' && (
         <AdminPage onBack={() => setCurrentPage('processing')} />
+      )}
+      {currentPage === 'products' && (
+        <ProductsPage onBack={() => setCurrentPage('processing')} />
       )}
       {currentPage !== 'admin' && (
         <div className="text-center mt-8 mb-6">

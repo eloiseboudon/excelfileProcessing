@@ -117,3 +117,11 @@ export async function refreshProductionByWeek(array_date: Array<Date>) {
   }
   return res.json();
 }
+
+export async function fetchProductCalculations() {
+  const res = await fetch(`${API_BASE}/product_calculation`);
+  if (!res.ok) {
+    throw new Error('Erreur lors du chargement des calculs produits');
+  }
+  return res.json();
+}
