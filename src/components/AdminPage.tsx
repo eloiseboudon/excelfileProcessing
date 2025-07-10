@@ -25,18 +25,6 @@ function AdminPage({ onBack }: AdminPageProps) {
       <h1 className="text-4xl font-bold text-center mb-6">Administration</h1>
       <div className="flex justify-center space-x-4">
         <button
-          onClick={() => setShowHotwav(true)}
-          className="px-6 py-3 bg-[#B8860B] text-black rounded-lg font-semibold hover:bg-[#B8860B]/90"
-        >
-          Produits Hotwav
-        </button>
-        <button
-          onClick={() => setShowAccessories(true)}
-          className="px-6 py-3 bg-[#B8860B] text-black rounded-lg font-semibold hover:bg-[#B8860B]/90"
-        >
-          Accessoires
-        </button>
-        <button
           onClick={() => setShowReferences(true)}
           className="px-6 py-3 bg-[#B8860B] text-black rounded-lg font-semibold hover:bg-[#B8860B]/90"
         >
