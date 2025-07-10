@@ -20,7 +20,7 @@ import pandas as pd
 import os
 import math
 from io import BytesIO
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 def create_app():
     # Load environment variables from a local .env file if present
@@ -349,13 +349,31 @@ def create_app():
 
     @app.route('/refresh_week', methods=['DELETE'])
     def refresh_week():
-        if 'array_date' not in request.files:
+        data = request.get_json(silent=True)
+        if not data or 'dates' not in data:
             return jsonify({'error': 'No date provided'}), 400
 
-        array_date = request.files['array_date'];
-        
-        ProductCalculation.query.filter_by(ProductCalculation.date in array_date).delete();
-        return jsonify({'status': 'success','message': 'Product calculations empty'})
+        try:
+            date_objs = [datetime.fromisoformat(d) for d in data['dates']]
+        except Exception:
+            return jsonify({'error': 'Invalid date format'}), 400
+
+        # Use monday as start of week and delete records for those weeks
+        week_ranges = {}
+        for d in date_objs:
+            start = d - timedelta(days=d.weekday())
+            start = start.replace(hour=0, minute=0, second=0, microsecond=0)
+            end = start + timedelta(days=7)
+            week_ranges[start] = end
+
+        for start, end in week_ranges.items():
+            ProductCalculation.query.filter(
+                ProductCalculation.date >= start,
+                ProductCalculation.date < end,
+            ).delete(synchronize_session=False)
+
+        db.session.commit()
+        return jsonify({'status': 'success', 'message': 'Product calculations empty for selected weeks'})
 
     @app.route('/exclusions', methods=['GET'])
     def list_exclusions():

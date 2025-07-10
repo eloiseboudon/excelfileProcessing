@@ -106,14 +106,11 @@ export async function refreshProduction() {
 }
 
 
-export async function refreshProductionByWeek(array_date:Array<Date>) {
-  const formData = new FormData();
-  formData.append('array_date', JSON.stringify(array_date.map(date => date.toISOString())));
-    
+export async function refreshProductionByWeek(array_date: Array<Date>) {
   const res = await fetch(`${API_BASE}/refresh_week`, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
-    body: formData
+    body: JSON.stringify({ dates: array_date.map(date => date.toISOString()) })
   });
   if (!res.ok) {
     throw new Error('Erreur lors du rafraîchissement des données de prod');
