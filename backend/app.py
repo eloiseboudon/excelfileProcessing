@@ -5,6 +5,7 @@ from io import BytesIO
 
 import pandas as pd
 from dotenv import load_dotenv
+from flasgger import Swagger
 from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 from models import (
@@ -30,13 +31,15 @@ def create_app():
     load_dotenv(env_path)
 
     app = Flask(__name__)
+    Swagger(app, template_file="swagger_template.yml")
 
-    frontend_origin = os.getenv("FRONTEND_URL")
-    if not frontend_origin:
-        raise RuntimeError("FRONTEND_URL environment variable is not set")
+    frontend_origin = os.getenv("FRONTEND_URL", "*")
+    origins = (
+        [o.strip() for o in frontend_origin.split(",")] if frontend_origin else "*"
+    )
     CORS(
         app,
-        resources={r"/*": {"origins": frontend_origin}},
+        resources={r"/*": {"origins": origins}},
         expose_headers=["Content-Disposition"],
     )
 
@@ -53,6 +56,38 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+
+    @app.route("/product_calculation", methods=["GET"])
+    def list_product_calculations():
+        calculations = ProductCalculation.query.join(Product).all()
+        result = [
+            {
+                "id": c.id,
+                "product_id": c.product_id,
+                "name": c.product.name if c.product else None,
+                "description": c.product.description if c.product else None,
+                "brand": (
+                    c.product.brand.brand if c.product and c.product.brand else None
+                ),
+                "price": c.price,
+                "memory": (
+                    c.product.memory.memory if c.product and c.product.memory else None
+                ),
+                "color": (
+                    c.product.color.color if c.product and c.product.color else None
+                ),
+                "type": c.product.type.type if c.product and c.product.type else None,
+                "tcp": c.tcp,
+                "marge4_5": c.marge4_5,
+                "prixht_tcp_marge4_5": c.prixht_tcp_marge4_5,
+                "prixht_marge4_5": c.prixht_marge4_5,
+                "prixht_max": c.prixht_max,
+                "date": c.date.isoformat() if c.date else None,
+                "week": c.date.strftime("%Y-%W") if c.date else None,
+            }
+            for c in calculations
+        ]
+        return jsonify(result)
 
     @app.route("/suppliers", methods=["GET"])
     def list_suppliers():
