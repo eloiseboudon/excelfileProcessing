@@ -31,12 +31,11 @@ def create_app():
 
     app = Flask(__name__)
 
-    frontend_origin = os.getenv("FRONTEND_URL")
-    if not frontend_origin:
-        raise RuntimeError("FRONTEND_URL environment variable is not set")
+    frontend_origin = os.getenv("FRONTEND_URL", "*")
+    origins = [o.strip() for o in frontend_origin.split(",")] if frontend_origin else "*"
     CORS(
         app,
-        resources={r"/*": {"origins": frontend_origin}},
+        resources={r"/*": {"origins": origins}},
         expose_headers=["Content-Disposition"],
     )
 
