@@ -77,6 +77,46 @@ function ProductsPage({ onBack }: ProductsPageProps) {
     );
   };
 
+  const paginationControls = (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center space-x-2">
+        <button
+          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+          disabled={currentPage === 1}
+          className="px-3 py-1 bg-zinc-800 rounded disabled:opacity-50"
+        >
+          Précédent
+        </button>
+        <span>
+          Page {currentPage} / {totalPages}
+        </span>
+        <button
+          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+          disabled={currentPage === totalPages}
+          className="px-3 py-1 bg-zinc-800 rounded disabled:opacity-50"
+        >
+          Suivant
+        </button>
+      </div>
+      <div className="flex items-center space-x-2">
+        <label htmlFor="rowsPerPage" className="text-sm">
+          Lignes par page:
+        </label>
+        <select
+          id="rowsPerPage"
+          value={rowsPerPage}
+          onChange={(e) => setRowsPerPage(Number(e.target.value))}
+          className="bg-zinc-900 border border-zinc-600 rounded px-2 py-1"
+        >
+          <option value={10}>10</option>
+          <option value={20}>20</option>
+          <option value={50}>50</option>
+          <option value={100}>100</option>
+        </select>
+      </div>
+    </div>
+  );
+
   return (
     <div className="max-w-6xl mx-auto px-2 sm:px-4 py-6 sm:py-8">
       <button
@@ -86,6 +126,9 @@ function ProductsPage({ onBack }: ProductsPageProps) {
         <ArrowLeft className="w-5 h-5" />
         <span>Retour</span>
       </button>
+      <h1 className="text-2xl font-bold text-center mb-4">
+        Calculs TCP et Marges par produits
+      </h1>
       <div className="relative mb-4">
         <button
           onClick={() => setShowColumnMenu((s) => !s)}
@@ -109,7 +152,8 @@ function ProductsPage({ onBack }: ProductsPageProps) {
           </div>
         )}
       </div>
-      <div className="overflow-auto">
+      {paginationControls}
+      <div className="overflow-auto mt-4">
         <table className="min-w-full text-sm text-left border border-zinc-700">
           <thead>
             <tr className="bg-zinc-800">
@@ -156,43 +200,7 @@ function ProductsPage({ onBack }: ProductsPageProps) {
           </tbody>
         </table>
       </div>
-      <div className="flex items-center justify-between mt-4">
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="px-3 py-1 bg-zinc-800 rounded disabled:opacity-50"
-          >
-            Précédent
-          </button>
-          <span>
-            Page {currentPage} / {totalPages}
-          </span>
-          <button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="px-3 py-1 bg-zinc-800 rounded disabled:opacity-50"
-          >
-            Suivant
-          </button>
-        </div>
-        <div className="flex items-center space-x-2">
-          <label htmlFor="rowsPerPage" className="text-sm">
-            Lignes par page:
-          </label>
-          <select
-            id="rowsPerPage"
-            value={rowsPerPage}
-            onChange={(e) => setRowsPerPage(Number(e.target.value))}
-            className="bg-zinc-900 border border-zinc-600 rounded px-2 py-1"
-          >
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
-          </select>
-        </div>
-      </div>
+      <div className="mt-4">{paginationControls}</div>
     </div>
   );
 }
