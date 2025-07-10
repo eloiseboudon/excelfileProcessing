@@ -1,22 +1,24 @@
-from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+
+from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
 
 
 class Supplier(db.Model):
-    __tablename__ = 'suppliers'
-    
+    __tablename__ = "suppliers"
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=True)
     phone = db.Column(db.String(20), nullable=True)
     address = db.Column(db.String(200), nullable=True)
 
+
 class TemporaryImport(db.Model):
-    __tablename__ = 'temporary_imports'
+    __tablename__ = "temporary_imports"
     __table_args__ = (
-        db.UniqueConstraint('ean', 'supplier_id', name='uix_temp_ean_supplier'),
+        db.UniqueConstraint("ean", "supplier_id", name="uix_temp_ean_supplier"),
     )
 
     id = db.Column(db.Integer, primary_key=True)
@@ -25,13 +27,16 @@ class TemporaryImport(db.Model):
     selling_price = db.Column(db.Float)
     ean = db.Column(db.String(20), nullable=False)
 
-    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'), nullable=True)
-    supplier = db.relationship('Supplier', backref=db.backref('temporary_imports', lazy=True))
+    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=True)
+    supplier = db.relationship(
+        "Supplier", backref=db.backref("temporary_imports", lazy=True)
+    )
+
 
 class ProductReference(db.Model):
-    __tablename__ = 'product_references'
+    __tablename__ = "product_references"
     __table_args__ = (
-        db.UniqueConstraint('ean', 'supplier_id', name='uix_reference_ean_supplier'),
+        db.UniqueConstraint("ean", "supplier_id", name="uix_reference_ean_supplier"),
     )
 
     id = db.Column(db.Integer, primary_key=True)
@@ -40,83 +45,98 @@ class ProductReference(db.Model):
     selling_price = db.Column(db.Float)
     ean = db.Column(db.String(20), nullable=False)
 
-    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'), nullable=True)
-    supplier = db.relationship('Supplier', backref=db.backref('product_references', lazy=True))
+    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=True)
+    supplier = db.relationship(
+        "Supplier", backref=db.backref("product_references", lazy=True)
+    )
+
 
 class Brand(db.Model):
-    __tablename__ = 'brands'
+    __tablename__ = "brands"
 
     id = db.Column(db.Integer, primary_key=True)
     brand = db.Column(db.String(50), nullable=False)
 
+
 class Color(db.Model):
-    __tablename__ = 'colors'
+    __tablename__ = "colors"
 
     id = db.Column(db.Integer, primary_key=True)
     color = db.Column(db.String(50), nullable=False)
 
+
 class MemoryOption(db.Model):
-    __tablename__ = 'memory_options'
+    __tablename__ = "memory_options"
 
     id = db.Column(db.Integer, primary_key=True)
     memory = db.Column(db.String(50), nullable=False)
 
+
 class DeviceType(db.Model):
-    __tablename__ = 'device_types'
+    __tablename__ = "device_types"
 
     id = db.Column(db.Integer, primary_key=True)
     type = db.Column(db.String(50), nullable=False)
 
+
 class Exclusion(db.Model):
-    __tablename__ = 'exclusions'
+    __tablename__ = "exclusions"
 
     id = db.Column(db.Integer, primary_key=True)
     term = db.Column(db.String(100), nullable=False, unique=True)
 
+
 class ColorTranslation(db.Model):
-    __tablename__ = 'color_translations'
+    __tablename__ = "color_translations"
 
     id = db.Column(db.Integer, primary_key=True)
     color_source = db.Column(db.String(50), nullable=False)
     color_target = db.Column(db.String(50), nullable=False)
-    color_target_id = db.Column(
-        db.Integer, db.ForeignKey('colors.id'), nullable=False
+    color_target_id = db.Column(db.Integer, db.ForeignKey("colors.id"), nullable=False)
+    color_reference = db.relationship(
+        "Color", backref=db.backref("translations", lazy=True)
     )
-    color_reference = db.relationship('Color', backref=db.backref('translations', lazy=True))
+
 
 class Product(db.Model):
-    __tablename__ = 'products'
+    __tablename__ = "products"
     __table_args__ = (
-        db.UniqueConstraint('reference_id', 'supplier_id', name='uix_product_reference_supplier'),
+        db.UniqueConstraint(
+            "reference_id", "supplier_id", name="uix_product_reference_supplier"
+        ),
     )
 
     id = db.Column(db.Integer, primary_key=True)
-    reference_id = db.Column(db.Integer, db.ForeignKey('product_references.id'), nullable=True)
+    reference_id = db.Column(
+        db.Integer, db.ForeignKey("product_references.id"), nullable=True
+    )
 
-    reference = db.relationship('ProductReference', backref=db.backref('products', lazy=True)) 
+    reference = db.relationship(
+        "ProductReference", backref=db.backref("products", lazy=True)
+    )
     name = db.Column(db.String(120), nullable=False)
     description = db.Column(db.String(120), nullable=False)
 
-    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'), nullable=True)
-    supplier = db.relationship('Supplier', backref=db.backref('products', lazy=True))
-    
-    brand_id = db.Column(db.Integer, db.ForeignKey('brands.id'), nullable=True)
-    brand = db.relationship('Brand', backref=db.backref('products', lazy=True))
+    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=True)
+    supplier = db.relationship("Supplier", backref=db.backref("products", lazy=True))
 
-    memory_id = db.Column(db.Integer, db.ForeignKey('memory_options.id'), nullable=True)
-    memory = db.relationship('MemoryOption', backref=db.backref('products', lazy=True))
-    color_id = db.Column(db.Integer, db.ForeignKey('colors.id'), nullable=True)
-    color = db.relationship('Color', backref=db.backref('products', lazy=True))
-    type_id = db.Column(db.Integer, db.ForeignKey('device_types.id'), nullable=True)
-    type = db.relationship('DeviceType', backref=db.backref('products', lazy=True))
-                                                                 
-    
+    brand_id = db.Column(db.Integer, db.ForeignKey("brands.id"), nullable=True)
+    brand = db.relationship("Brand", backref=db.backref("products", lazy=True))
+
+    memory_id = db.Column(db.Integer, db.ForeignKey("memory_options.id"), nullable=True)
+    memory = db.relationship("MemoryOption", backref=db.backref("products", lazy=True))
+    color_id = db.Column(db.Integer, db.ForeignKey("colors.id"), nullable=True)
+    color = db.relationship("Color", backref=db.backref("products", lazy=True))
+    type_id = db.Column(db.Integer, db.ForeignKey("device_types.id"), nullable=True)
+    type = db.relationship("DeviceType", backref=db.backref("products", lazy=True))
+
+
 class ProductCalculation(db.Model):
-    __tablename__ = 'product_calculations'
+    __tablename__ = "product_calculations"
 
     id = db.Column(db.Integer, primary_key=True)
-    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
-    product = db.relationship('Product', backref=db.backref('calculates', lazy=True))
+    product_id = db.Column(db.Integer, db.ForeignKey("products.id"), nullable=False)
+    product = db.relationship("Product", backref=db.backref("calculates", lazy=True))
     price = db.Column(db.Float, nullable=False)
     tcp = db.Column(db.Float, nullable=False)
     marge4_5 = db.Column(db.Float, nullable=False)
@@ -126,16 +146,14 @@ class ProductCalculation(db.Model):
     date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
 
-
 class ImportHistory(db.Model):
-    __tablename__ = 'import_histories'
+    __tablename__ = "import_histories"
 
     id = db.Column(db.Integer, primary_key=True)
     filename = db.Column(db.String(200), nullable=False)
-    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'), nullable=True)
-    supplier = db.relationship('Supplier', backref=db.backref('import_histories', lazy=True))
+    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=True)
+    supplier = db.relationship(
+        "Supplier", backref=db.backref("import_histories", lazy=True)
+    )
     product_count = db.Column(db.Integer, nullable=False)
     import_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-
-
-
