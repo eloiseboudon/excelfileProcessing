@@ -76,14 +76,7 @@ function App() {
       {/* Navigation Header */}
       <div className="bg-black border-b border-[#B8860B]/20">
         <div className="max-w-7xl mx-auto py-4 px-2 sm:px-4 lg:px-6">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => setCurrentPage('admin')}
-              className="flex items-center space-x-2 px-4 py-2 rounded-lg font-semibold bg-zinc-800 text-white hover:bg-zinc-700 transition-all"
-            >
-              <Settings className="w-5 h-5" />
-              <span>Admin</span>
-            </button>
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap justify-center gap-2 sm:gap-4">
               <button
                 onClick={() => setCurrentPage('processing')}
@@ -108,6 +101,13 @@ function App() {
                 <span>Étape 2 - Mise en Forme</span>
               </button>
             </div>
+            <button
+              onClick={() => setCurrentPage('admin')}
+              className="flex items-center space-x-2 px-4 py-2 rounded-lg font-semibold bg-zinc-800 text-white hover:bg-zinc-700 transition-all"
+            >
+              <Settings className="w-5 h-5" />
+              <span>Admin</span>
+            </button>
           </div>
         </div>
       </div>
