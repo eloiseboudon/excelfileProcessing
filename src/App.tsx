@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Calculator, Palette } from 'lucide-react';
-import { fetchProducts, refreshProduction } from './api';
+import { fetchProducts, refreshProduction,refreshProductionByWeek } from './api';
 import ProcessingPage from './components/ProcessingPage';
 import FormattingPage from './components/FormattingPage';
 
@@ -16,6 +16,16 @@ function App() {
       setApiTestMessage('Connexion réussie !');
     } catch {
       setApiTestMessage("Erreur lors de la connexion à l'API");
+    }
+  };
+
+   const handleRefreshbyWeek = async () => {
+    setRefreshMessage(null);
+    try {
+      await refreshProductionByWeek(array_date);
+      setRefreshMessage('Données de prod mises à jour');
+    } catch {
+      setRefreshMessage("Erreur lors du rafraîchissement des données de prod");
     }
   };
 
@@ -77,12 +87,23 @@ function App() {
         {apiTestMessage && (
           <p className="mt-2 text-sm text-zinc-400">{apiTestMessage}</p>
         )}
-        <div className="mt-6">
+        <div className="mt-3">
           <button
             onClick={handleRefresh}
             className="px-4 py-2 bg-[#B8860B] text-black rounded-lg hover:bg-[#B8860B]/90 font-semibold"
           >
             Rafraîchir la prod
+          </button>
+          {refreshMessage && (
+            <p className="mt-2 text-sm text-zinc-400">{refreshMessage}</p>
+          )}
+        </div>
+         <div className="mt-3">
+          <button
+            onClick={handleRefreshbyWeek}
+            className="px-4 py-2 bg-[#B8860B] text-black rounded-lg hover:bg-[#B8860B]/90 font-semibold"
+          >
+            Rafraîchir la semaine selectionnée
           </button>
           {refreshMessage && (
             <p className="mt-2 text-sm text-zinc-400">{refreshMessage}</p>
