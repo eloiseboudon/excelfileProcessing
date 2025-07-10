@@ -125,3 +125,35 @@ export async function fetchProductCalculations() {
   }
   return res.json();
 }
+
+export async function fetchBrands() {
+  const res = await fetch(`${API_BASE}/brands`);
+  if (!res.ok) {
+    throw new Error('Erreur lors du chargement des marques');
+  }
+  return res.json();
+}
+
+export async function fetchColors() {
+  const res = await fetch(`${API_BASE}/colors`);
+  if (!res.ok) {
+    throw new Error('Erreur lors du chargement des couleurs');
+  }
+  return res.json();
+}
+
+export async function fetchMemoryOptions() {
+  const res = await fetch(`${API_BASE}/memory_options`);
+  if (!res.ok) {
+    throw new Error('Erreur lors du chargement des mémoires');
+  }
+  return res.json();
+}
+
+export async function fetchDeviceTypes() {
+  const res = await fetch(`${API_BASE}/device_types`);
+  if (!res.ok) {
+    throw new Error('Erreur lors du chargement des types');
+  }
+  return res.json();
+}
