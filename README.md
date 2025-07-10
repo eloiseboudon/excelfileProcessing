@@ -141,6 +141,11 @@ make venv         # crée l'environnement virtuel et installe les dépendances
 make run          # démarre l'API Flask
 ```
 
+Une documentation interactive est générée grâce à **Flasgger**. Une fois
+l'application lancée, ouvrez `http://localhost:5001/apidocs` pour consulter les
+endpoints disponibles. Le fichier `backend/swagger_template.yml` contient le
+gabarit OpenAPI utilisé pour initialiser Swagger UI.
+
 La variable `FRONTEND_URL` doit correspondre exactement à l'origine (schéma et
 domaine) de votre site frontend afin que la politique CORS fonctionne.
 

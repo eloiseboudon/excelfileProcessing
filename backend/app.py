@@ -31,7 +31,7 @@ def create_app():
     load_dotenv(env_path)
 
     app = Flask(__name__)
-    swagger = Swagger(app, template_file="swagger_template.yml")
+    Swagger(app, template_file="swagger_template.yml")
 
     frontend_origin = os.getenv("FRONTEND_URL", "*")
     origins = (

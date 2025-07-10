@@ -1,0 +1,9 @@
+swagger: '2.0'
+info:
+  title: AJT PRO API
+  description: Documentation de l'API
+  version: '1.0'
+host: localhost:5001
+basePath: /
+schemes:
+  - http
