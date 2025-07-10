@@ -15,6 +15,8 @@ function ProductsPage({ onBack }: ProductsPageProps) {
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
   const [showColumnMenu, setShowColumnMenu] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
 
   const columns: { key: string; label: string }[] = [
     { key: 'id', label: 'ID' },
@@ -43,6 +45,10 @@ function ProductsPage({ onBack }: ProductsPageProps) {
       .catch(() => setData([]));
   }, []);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters, rowsPerPage]);
+
   const filteredData = data.filter((row) =>
     columns.every((col) => {
       if (!filters[col.key]) return true;
@@ -52,6 +58,18 @@ function ProductsPage({ onBack }: ProductsPageProps) {
         .includes(filters[col.key].toLowerCase());
     })
   );
+
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / rowsPerPage));
+  const paginatedData = filteredData.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
+  );
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
 
   const toggleColumn = (key: string) => {
     setVisibleColumns((prev) =>
@@ -123,7 +141,7 @@ function ProductsPage({ onBack }: ProductsPageProps) {
             </tr>
           </thead>
           <tbody>
-            {filteredData.map((row) => (
+            {paginatedData.map((row) => (
               <tr key={String(row.id)} className="odd:bg-zinc-900 even:bg-zinc-800">
                 {columns.map(
                   (col) =>
@@ -137,6 +155,43 @@ function ProductsPage({ onBack }: ProductsPageProps) {
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="flex items-center justify-between mt-4">
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="px-3 py-1 bg-zinc-800 rounded disabled:opacity-50"
+          >
+            Précédent
+          </button>
+          <span>
+            Page {currentPage} / {totalPages}
+          </span>
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="px-3 py-1 bg-zinc-800 rounded disabled:opacity-50"
+          >
+            Suivant
+          </button>
+        </div>
+        <div className="flex items-center space-x-2">
+          <label htmlFor="rowsPerPage" className="text-sm">
+            Lignes par page:
+          </label>
+          <select
+            id="rowsPerPage"
+            value={rowsPerPage}
+            onChange={(e) => setRowsPerPage(Number(e.target.value))}
+            className="bg-zinc-900 border border-zinc-600 rounded px-2 py-1"
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+        </div>
       </div>
     </div>
   );
