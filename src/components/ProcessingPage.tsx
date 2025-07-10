@@ -204,7 +204,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
   }, [suppliers, refreshLastImports]);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12">
+    <div className="max-w-4xl mx-auto px-2 sm:px-4 py-6 sm:py-8">
       <h1 className="text-4xl font-bold text-center mb-2">Étape 1 - Calculs et Traitement</h1>
       <p className="text-center text-[#B8860B] mb-4">Traitez vos fichiers Excel avec calculs TCP et marges</p>
       <p className="text-center text-zinc-400 mb-4">Semaine en cours : {getCurrentWeekYear()}</p>

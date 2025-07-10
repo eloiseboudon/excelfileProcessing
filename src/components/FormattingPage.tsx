@@ -353,7 +353,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
   const uniqueBrands = Array.from(new Set(previewData.map(p => p.brand))).sort();
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-12">
+    <div className="max-w-6xl mx-auto px-2 sm:px-4 py-6 sm:py-8">
       <div className="flex items-center justify-between mb-8">
         <button
           onClick={onBack}
