@@ -522,6 +522,43 @@ def create_app():
         db.session.commit()
         return jsonify({"status": "success"})
 
+    @app.route("/references/<table>", methods=["POST"])
+    def create_reference_item(table):
+        mapping = {
+            "suppliers": Supplier,
+            "brands": Brand,
+            "colors": Color,
+            "memory_options": MemoryOption,
+            "device_types": DeviceType,
+            "exclusions": Exclusion,
+        }
+        model = mapping.get(table)
+        if not model:
+            return jsonify({"error": "Unknown table"}), 400
+        data = request.json or {}
+        item = model(**data)
+        db.session.add(item)
+        db.session.commit()
+        return jsonify({"id": item.id})
+
+    @app.route("/references/<table>/<int:item_id>", methods=["DELETE"])
+    def delete_reference_item(table, item_id):
+        mapping = {
+            "suppliers": Supplier,
+            "brands": Brand,
+            "colors": Color,
+            "memory_options": MemoryOption,
+            "device_types": DeviceType,
+            "exclusions": Exclusion,
+        }
+        model = mapping.get(table)
+        if not model:
+            return jsonify({"error": "Unknown table"}), 400
+        item = model.query.get_or_404(item_id)
+        db.session.delete(item)
+        db.session.commit()
+        return jsonify({"status": "deleted"})
+
     return app
 
 

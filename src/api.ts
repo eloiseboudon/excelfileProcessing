@@ -145,3 +145,25 @@ export async function updateReferenceItem(table: string, id: number, data: any) 
   }
   return res.json();
 }
+
+export async function createReferenceItem(table: string, data: any) {
+  const res = await fetch(`${API_BASE}/references/${table}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    throw new Error('Erreur lors de la création');
+  }
+  return res.json();
+}
+
+export async function deleteReferenceItem(table: string, id: number) {
+  const res = await fetch(`${API_BASE}/references/${table}/${id}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) {
+    throw new Error('Erreur lors de la suppression');
+  }
+  return res.json();
+}

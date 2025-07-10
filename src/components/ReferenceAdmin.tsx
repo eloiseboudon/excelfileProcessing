@@ -1,10 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { X, Save } from 'lucide-react';
-import { fetchReferenceTable, updateReferenceItem } from '../api';
+import { Save, Trash2, Plus, ArrowLeft } from 'lucide-react';
+import {
+  fetchReferenceTable,
+  updateReferenceItem,
+  createReferenceItem,
+  deleteReferenceItem
+} from '../api';
 
 interface ReferenceAdminProps {
-  isVisible: boolean;
   onClose: () => void;
+  isVisible: boolean;
 }
 
 const TABLES = [
@@ -17,11 +22,11 @@ const TABLES = [
 ];
 
 function ReferenceAdmin({ isVisible, onClose }: ReferenceAdminProps) {
-  const [table, setTable] = useState<string>('brands');
+  const [table, setTable] = useState<string | null>(null);
   const [data, setData] = useState<any[]>([]);
 
   useEffect(() => {
-    if (isVisible) {
+    if (isVisible && table) {
       load(table);
     }
   }, [isVisible, table]);
@@ -47,10 +52,35 @@ function ReferenceAdmin({ isVisible, onClose }: ReferenceAdminProps) {
     const payload: Record<string, any> = { ...item };
     delete payload.id;
     try {
-      await updateReferenceItem(table, id, payload);
+      if (id < 0) {
+        await createReferenceItem(table!, payload);
+      } else {
+        await updateReferenceItem(table!, id, payload);
+      }
+      await load(table!);
     } catch {
       /* empty */
     }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      if (id < 0) {
+        setData((prev) => prev.filter((i) => i.id !== id));
+      } else {
+        await deleteReferenceItem(table!, id);
+        await load(table!);
+      }
+    } catch {
+      /* empty */
+    }
+  };
+
+  const handleAdd = () => {
+    const fields = data.length > 0 ? Object.keys(data[0]).filter((k) => k !== 'id') : [];
+    const newItem: any = { id: Date.now() * -1 };
+    fields.forEach((f) => (newItem[f] = ''));
+    setData((prev) => [...prev, newItem]);
   };
 
   if (!isVisible) return null;
@@ -58,47 +88,69 @@ function ReferenceAdmin({ isVisible, onClose }: ReferenceAdminProps) {
   const fields = data.length > 0 ? Object.keys(data[0]).filter((k) => k !== 'id') : [];
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-zinc-900 rounded-2xl border border-[#B8860B]/30 max-w-3xl w-full max-h-[90vh] overflow-hidden">
-        <div className="bg-[#B8860B] p-6 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-black">Tables de référence</h2>
-          <button onClick={onClose} className="p-2 hover:bg-black/10 rounded-lg">
-            <X className="w-6 h-6 text-black" />
-          </button>
-        </div>
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)] space-y-4">
-          <select
-            value={table}
-            onChange={(e) => setTable(e.target.value)}
-            className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white mb-4"
-          >
-            {TABLES.map((t) => (
-              <option key={t.key} value={t.key}>
-                {t.label}
-              </option>
-            ))}
-          </select>
-          {data.map((item) => (
-            <div key={item.id} className="flex items-center space-x-2 bg-zinc-800 p-2 rounded">
-              <span className="w-10 text-zinc-400">{item.id}</span>
-              {fields.map((f) => (
-                <input
-                  key={f}
-                  value={item[f] ?? ''}
-                  onChange={(e) => handleChange(item.id, f, e.target.value)}
-                  className="flex-1 px-2 py-1 bg-zinc-700 text-white rounded"
-                />
-              ))}
-              <button
-                onClick={() => handleSave(item.id)}
-                className="p-2 bg-green-600 text-white rounded hover:bg-green-700"
-              >
-                <Save className="w-4 h-4" />
-              </button>
-            </div>
+    <div className="mt-8">
+      <div className="flex justify-end mb-4">
+        <button
+          onClick={() => {
+            setTable(null);
+            onClose();
+          }}
+          className="px-3 py-1 bg-zinc-800 rounded hover:bg-zinc-700"
+        >
+          Fermer
+        </button>
+      </div>
+      {!table && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          {TABLES.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTable(t.key)}
+              className="p-6 rounded-xl bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 flex items-center justify-center font-semibold"
+            >
+              {t.label}
+            </button>
           ))}
         </div>
-      </div>
+      )}
+      {table && (
+        <div>
+          <div className="flex items-center mb-4 space-x-4">
+            <button onClick={() => setTable(null)} className="flex items-center space-x-2 px-3 py-2 bg-zinc-800 rounded hover:bg-zinc-700">
+              <ArrowLeft className="w-4 h-4" />
+              <span>Retour</span>
+            </button>
+            <h3 className="text-xl font-semibold">
+              {TABLES.find((t) => t.key === table)?.label}
+            </h3>
+            <button onClick={handleAdd} className="ml-auto flex items-center space-x-2 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+              <Plus className="w-4 h-4" />
+              <span>Ajouter</span>
+            </button>
+          </div>
+          <div className="space-y-2">
+            {data.map((item) => (
+              <div key={item.id} className="flex items-center space-x-2 bg-zinc-800 p-2 rounded">
+                <span className="w-10 text-zinc-400">{item.id > 0 ? item.id : '-'}</span>
+                {fields.map((f) => (
+                  <input
+                    key={f}
+                    value={item[f] ?? ''}
+                    onChange={(e) => handleChange(item.id, f, e.target.value)}
+                    className="flex-1 px-2 py-1 bg-zinc-700 text-white rounded"
+                  />
+                ))}
+                <button onClick={() => handleSave(item.id)} className="p-2 bg-green-600 text-white rounded hover:bg-green-700">
+                  <Save className="w-4 h-4" />
+                </button>
+                <button onClick={() => handleDelete(item.id)} className="p-2 bg-red-600 text-white rounded hover:bg-red-700">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
