@@ -1,11 +1,64 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
+import { fetchProductCalculations } from '../api';
+
+interface ProductCalculation {
+  [key: string]: string | number | null;
+}
 
 interface ProductsPageProps {
   onBack: () => void;
 }
 
 function ProductsPage({ onBack }: ProductsPageProps) {
+  const [data, setData] = useState<ProductCalculation[]>([]);
+  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
+
+  const columns: { key: string; label: string }[] = [
+    { key: 'id', label: 'ID' },
+    { key: 'name', label: 'Nom' },
+    { key: 'description', label: 'Description' },
+    { key: 'brand', label: 'Marque' },
+    { key: 'price', label: 'Prix' },
+    { key: 'memory', label: 'Mémoire' },
+    { key: 'color', label: 'Couleur' },
+    { key: 'type', label: 'Type' },
+    { key: 'tcp', label: 'TCP' },
+    { key: 'marge4_5', label: 'Marge 4.5' },
+    { key: 'prixht_tcp_marge4_5', label: 'PrixHT TCP Marge4.5' },
+    { key: 'prixht_marge4_5', label: 'PrixHT Marge4.5' },
+    { key: 'prixht_max', label: 'PrixHT Max' },
+    { key: 'date', label: 'Date' },
+    { key: 'week', label: 'Semaine' }
+  ];
+
+  useEffect(() => {
+    fetchProductCalculations()
+      .then((res) => {
+        setData(res as ProductCalculation[]);
+        setVisibleColumns(columns.map((c) => c.key));
+      })
+      .catch(() => setData([]));
+  }, []);
+
+  const filteredData = data.filter((row) =>
+    columns.every((col) => {
+      if (!filters[col.key]) return true;
+      const value = row[col.key];
+      return String(value ?? '')
+        .toLowerCase()
+        .includes(filters[col.key].toLowerCase());
+    })
+  );
+
+  const toggleColumn = (key: string) => {
+    setVisibleColumns((prev) =>
+      prev.includes(key) ? prev.filter((c) => c !== key) : [...prev, key]
+    );
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-2 sm:px-4 py-6 sm:py-8">
       <button
@@ -15,6 +68,76 @@ function ProductsPage({ onBack }: ProductsPageProps) {
         <ArrowLeft className="w-5 h-5" />
         <span>Retour</span>
       </button>
+      <div className="relative mb-4">
+        <button
+          onClick={() => setShowColumnMenu((s) => !s)}
+          className="px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700"
+        >
+          Colonnes
+        </button>
+        {showColumnMenu && (
+          <div className="absolute z-10 mt-2 p-4 bg-zinc-900 border border-zinc-700 rounded shadow-xl grid grid-cols-2 gap-2">
+            {columns.map((col) => (
+              <label key={col.key} className="flex items-center space-x-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={visibleColumns.includes(col.key)}
+                  onChange={() => toggleColumn(col.key)}
+                  className="rounded"
+                />
+                <span>{col.label}</span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="overflow-auto">
+        <table className="min-w-full text-sm text-left border border-zinc-700">
+          <thead>
+            <tr className="bg-zinc-800">
+              {columns.map(
+                (col) =>
+                  visibleColumns.includes(col.key) && (
+                    <th key={col.key} className="px-3 py-2 border-b border-zinc-700">
+                      {col.label}
+                    </th>
+                  )
+              )}
+            </tr>
+            <tr>
+              {columns.map(
+                (col) =>
+                  visibleColumns.includes(col.key) && (
+                    <th key={col.key} className="px-3 py-1 border-b border-zinc-700">
+                      <input
+                        type="text"
+                        value={filters[col.key] || ''}
+                        onChange={(e) =>
+                          setFilters({ ...filters, [col.key]: e.target.value })
+                        }
+                        className="w-full px-2 py-1 bg-zinc-900 border border-zinc-600 rounded"
+                      />
+                    </th>
+                  )
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {filteredData.map((row) => (
+              <tr key={String(row.id)} className="odd:bg-zinc-900 even:bg-zinc-800">
+                {columns.map(
+                  (col) =>
+                    visibleColumns.includes(col.key) && (
+                      <td key={col.key} className="px-3 py-1 border-b border-zinc-700">
+                        {String(row[col.key] ?? '')}
+                      </td>
+                    )
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

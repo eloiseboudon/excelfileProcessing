@@ -4,6 +4,7 @@ import { fetchProducts, refreshProduction, refreshProductionByWeek } from './api
 import ProcessingPage from './components/ProcessingPage';
 import FormattingPage from './components/FormattingPage';
 import AdminPage from './components/AdminPage';
+import ProductsPage from './components/ProductsPage';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<'processing' | 'formatting' | 'admin' | 'products'>('processing');
@@ -81,6 +82,9 @@ function App() {
       )}
       {currentPage === 'admin' && (
         <AdminPage onBack={() => setCurrentPage('processing')} />
+      )}
+      {currentPage === 'products' && (
+        <ProductsPage onBack={() => setCurrentPage('processing')} />
       )}
       {currentPage !== 'admin' && (
         <div className="text-center mt-8 mb-6">
