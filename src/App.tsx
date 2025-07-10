@@ -51,7 +51,6 @@ function App() {
               </button>
             </div>
             <button
-<<<<<<< HEAD
               onClick={() => setCurrentPage('products')}
               className="flex items-center space-x-2 px-4 py-2 rounded-lg font-semibold bg-zinc-800 text-white hover:bg-zinc-700 transition-all"
             >
@@ -59,8 +58,6 @@ function App() {
               <span>Products</span>
             </button>
             <button
-=======
->>>>>>> 18c65e982e17fcffd4decde92884c163392d0fe2
               onClick={() => setCurrentPage('admin')}
               className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-semibold transition-all duration-200
                   ${currentPage === 'admin'
