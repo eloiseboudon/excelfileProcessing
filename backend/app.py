@@ -82,8 +82,12 @@ def create_app():
                 "prixht_tcp_marge4_5": c.prixht_tcp_marge4_5,
                 "prixht_marge4_5": c.prixht_marge4_5,
                 "prixht_max": c.prixht_max,
-                "date": c.date.isoformat() if c.date else None,
-                "week": c.date.strftime("%Y-%W") if c.date else None,
+                "date": c.date.strftime("%D") if c.date else None,
+                "week": (
+                    "S" + c.date.strftime("%W") + "-" + c.date.strftime("%Y")
+                    if c.date
+                    else None
+                ),
             }
             for c in calculations
         ]
@@ -155,7 +159,6 @@ def create_app():
             )
             db.session.add(temp)
 
-            # Create reference if it does not already exist for this supplier
             ref = ProductReference.query.filter_by(
                 ean=ean_value, supplier_id=supplier_id
             ).first()
@@ -369,6 +372,7 @@ def create_app():
                 prixht_tcp_marge4_5=round(price_with_tcp, 2),
                 prixht_marge4_5=round(price_with_margin, 2),
                 prixht_max=max_price,
+                date=datetime.now(timezone.utc),
             )
             db.session.add(calc)
             created += 1
@@ -398,6 +402,8 @@ def create_app():
                     "Prix HT avec TCP et marge": c.prixht_tcp_marge4_5,
                     "Prix HT avec Marge": c.prixht_marge4_5,
                     "Prix HT Maximum": c.prixht_max,
+                    "Date": c.date.isoformat() if c.date else None,
+                    "Semaine": c.date.strftime("%Y-%W") if c.date else None,
                 }
             )
 
