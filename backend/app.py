@@ -463,6 +463,65 @@ def create_app():
         result = [{"id": e.id, "term": e.term} for e in exclusions]
         return jsonify(result)
 
+    @app.route("/references/<table>", methods=["GET"])
+    def get_reference_table(table):
+        mapping = {
+            "suppliers": Supplier,
+            "brands": Brand,
+            "colors": Color,
+            "memory_options": MemoryOption,
+            "device_types": DeviceType,
+            "exclusions": Exclusion,
+        }
+        model = mapping.get(table)
+        if not model:
+            return jsonify({"error": "Unknown table"}), 400
+        items = model.query.all()
+
+        def serialize(obj):
+            if isinstance(obj, Supplier):
+                return {
+                    "id": obj.id,
+                    "name": obj.name,
+                    "email": obj.email,
+                    "phone": obj.phone,
+                    "address": obj.address,
+                }
+            if isinstance(obj, Brand):
+                return {"id": obj.id, "brand": obj.brand}
+            if isinstance(obj, Color):
+                return {"id": obj.id, "color": obj.color}
+            if isinstance(obj, MemoryOption):
+                return {"id": obj.id, "memory": obj.memory}
+            if isinstance(obj, DeviceType):
+                return {"id": obj.id, "type": obj.type}
+            if isinstance(obj, Exclusion):
+                return {"id": obj.id, "term": obj.term}
+            return {}
+
+        return jsonify([serialize(i) for i in items])
+
+    @app.route("/references/<table>/<int:item_id>", methods=["PUT"])
+    def update_reference_item(table, item_id):
+        mapping = {
+            "suppliers": Supplier,
+            "brands": Brand,
+            "colors": Color,
+            "memory_options": MemoryOption,
+            "device_types": DeviceType,
+            "exclusions": Exclusion,
+        }
+        model = mapping.get(table)
+        if not model:
+            return jsonify({"error": "Unknown table"}), 400
+        item = model.query.get_or_404(item_id)
+        data = request.json or {}
+        for key, value in data.items():
+            if hasattr(item, key):
+                setattr(item, key, value)
+        db.session.commit()
+        return jsonify({"status": "success"})
+
     return app
 
 

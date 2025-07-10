@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import HotwavAdmin from './HotwavAdmin';
 import AccessoriesAdmin from './AccessoriesAdmin';
+import ReferenceAdmin from './ReferenceAdmin';
 
 interface AdminPageProps {
   onBack: () => void;
@@ -10,6 +11,7 @@ interface AdminPageProps {
 function AdminPage({ onBack }: AdminPageProps) {
   const [showHotwav, setShowHotwav] = useState(false);
   const [showAccessories, setShowAccessories] = useState(false);
+  const [showReferences, setShowReferences] = useState(false);
 
   return (
     <div className="max-w-6xl mx-auto px-2 sm:px-4 py-6 sm:py-8">
@@ -34,6 +36,12 @@ function AdminPage({ onBack }: AdminPageProps) {
         >
           Accessoires
         </button>
+        <button
+          onClick={() => setShowReferences(true)}
+          className="px-6 py-3 bg-[#B8860B] text-black rounded-lg font-semibold hover:bg-[#B8860B]/90"
+        >
+          Tables référence
+        </button>
       </div>
       <HotwavAdmin
         isVisible={showHotwav}
@@ -46,6 +54,10 @@ function AdminPage({ onBack }: AdminPageProps) {
         onClose={() => setShowAccessories(false)}
         onSave={() => { }}
         initialAccessories={[]}
+      />
+      <ReferenceAdmin
+        isVisible={showReferences}
+        onClose={() => setShowReferences(false)}
       />
     </div>
   );

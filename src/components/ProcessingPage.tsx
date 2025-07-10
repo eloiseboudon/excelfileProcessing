@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   FileUp,
   FileDown,
@@ -15,10 +15,9 @@ import {
   exportCalculations,
   fetchSuppliers,
   fetchLastImport,
-  refreshProduction,
-  refreshProductionByWeek,
 } from '../api';
 import { getCurrentWeekYear, getCurrentTimestamp,getWeekYear } from '../utils/date';
+import WeekToolbar from './WeekToolbar';
 
 interface ProcessingPageProps {
   onNext: () => void;
@@ -128,54 +127,6 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
   const [processedFileName, setProcessedFileName] = useState<string>('');
   const [lastImports, setLastImports] = useState<Record<number, string | null>>({});
   const [error, setError] = useState<string | null>(null);
-  const [refreshMessage, setRefreshMessage] = useState<string | null>(null);
-  const [selectedWeekStart, setSelectedWeekStart] = useState<Date | null>(null);
-
-  const getStartOfWeek = (date: Date) => {
-    const d = new Date(date);
-    const day = (d.getDay() + 6) % 7;
-    d.setDate(d.getDate() - day);
-    d.setHours(0, 0, 0, 0);
-    return d;
-  };
-
-  const getISOWeek = (date: Date) => {
-    const tmp = new Date(date);
-    tmp.setDate(tmp.getDate() + 4 - (tmp.getDay() || 7));
-    const yearStart = new Date(Date.UTC(tmp.getFullYear(), 0, 1));
-    return Math.ceil(((tmp.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
-  };
-
-  const weekOptions = useMemo(() => {
-    const today = new Date();
-    const start = getStartOfWeek(today);
-    return Array.from({ length: 4 }, (_, i) => {
-      const d = new Date(start);
-      d.setDate(start.getDate() - i * 7);
-      return { label: `Semaine ${getISOWeek(d)}`, value: d.toISOString() };
-    });
-  }, []);
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshMessage(null);
-    try {
-      await refreshProduction();
-      setRefreshMessage('Données de prod mises à jour');
-    } catch {
-      setRefreshMessage("Erreur lors du rafraîchissement des données de prod");
-    }
-  }, []);
-
-  const handleRefreshWeek = useCallback(async () => {
-    setRefreshMessage(null);
-    if (!selectedWeekStart) return;
-    try {
-      await refreshProductionByWeek([selectedWeekStart]);
-      setRefreshMessage('Semaine mise à jour');
-    } catch {
-      setRefreshMessage("Erreur lors du rafraîchissement des données de la semaine");
-    }
-  }, [selectedWeekStart]);
 
   const refreshCount = useCallback(async () => {
     const list = await fetchProducts();
@@ -255,56 +206,9 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
 
   return (
     <div className="max-w-6xl mx-auto px-2 sm:px-4 py-6 sm:py-8">
+      <WeekToolbar />
       <h1 className="text-4xl font-bold text-center mb-2">Étape 1 - Calculs et Traitement</h1>
       <p className="text-center text-[#B8860B] mb-4">Traitez vos fichiers Excel avec calculs TCP et marges</p>
-      <p className="text-center text-zinc-400 mb-4">Semaine en cours : {getCurrentWeekYear()}</p>
-      <div className="flex flex-wrap justify-center items-center gap-4 mb-8">
-        <button
-          onClick={() => {
-            if (!processedFile) return;
-            const link = document.createElement('a');
-            link.href = processedFile;
-            link.download =
-              processedFileName || `product_calculates_${getCurrentTimestamp()}.xlsx`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          }}
-          className="px-6 py-3 bg-[#B8860B] text-black rounded-lg flex items-center space-x-2 hover:bg-[#B8860B]/90 transition-colors font-semibold"
-        >
-          <Download className="w-5 h-5" />
-          <span>Télécharger</span>
-        </button>
-        <button
-          onClick={handleRefresh}
-          className="px-4 py-2 bg-[#B8860B] text-black rounded-lg hover:bg-[#B8860B]/90 font-semibold"
-        >
-          Rafraîchir la prod
-        </button>
-        <div className="flex items-center space-x-2">
-          <select
-            value={selectedWeekStart ? selectedWeekStart.toISOString() : ''}
-            onChange={(e) => setSelectedWeekStart(e.target.value ? new Date(e.target.value) : null)}
-            className="bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1 text-white"
-          >
-            <option value="">Choisir la semaine</option>
-            {weekOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={handleRefreshWeek}
-            className="px-4 py-2 bg-[#B8860B] text-black rounded-lg hover:bg-[#B8860B]/90 font-semibold"
-          >
-            Rafraîchir
-          </button>
-        </div>
-      </div>
-      {refreshMessage && (
-        <p className="text-center text-sm text-zinc-400 mb-4">{refreshMessage}</p>
-      )}
       <p className="text-center text-sm text-zinc-500 mb-8">Produits en base : {productsCount}</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

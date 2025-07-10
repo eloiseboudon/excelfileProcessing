@@ -125,3 +125,23 @@ export async function fetchProductCalculations() {
   }
   return res.json();
 }
+
+export async function fetchReferenceTable(table: string) {
+  const res = await fetch(`${API_BASE}/references/${table}`);
+  if (!res.ok) {
+    throw new Error('Erreur lors du chargement des références');
+  }
+  return res.json();
+}
+
+export async function updateReferenceItem(table: string, id: number, data: any) {
+  const res = await fetch(`${API_BASE}/references/${table}/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    throw new Error('Erreur lors de la mise à jour');
+  }
+  return res.json();
+}
