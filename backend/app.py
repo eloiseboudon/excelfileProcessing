@@ -5,6 +5,7 @@ from io import BytesIO
 
 import pandas as pd
 from dotenv import load_dotenv
+from flasgger import Swagger
 from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 from models import (
@@ -30,9 +31,12 @@ def create_app():
     load_dotenv(env_path)
 
     app = Flask(__name__)
+    swagger = Swagger(app, template_file="swagger_template.yml")
 
     frontend_origin = os.getenv("FRONTEND_URL", "*")
-    origins = [o.strip() for o in frontend_origin.split(",")] if frontend_origin else "*"
+    origins = (
+        [o.strip() for o in frontend_origin.split(",")] if frontend_origin else "*"
+    )
     CORS(
         app,
         resources={r"/*": {"origins": origins}},
