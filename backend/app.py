@@ -1,30 +1,32 @@
-from flask import Flask, request, jsonify, send_file
-from flask_cors import CORS
+import math
+import os
+from datetime import datetime, timedelta, timezone
+from io import BytesIO
+
+import pandas as pd
 from dotenv import load_dotenv
+from flask import Flask, jsonify, request, send_file
+from flask_cors import CORS
 from models import (
-    db,
-    Product,
-    TemporaryImport,
-    ProductReference,
-    Supplier,
     Brand,
     Color,
-    MemoryOption,
+    ColorTranslation,
     DeviceType,
     Exclusion,
-    ColorTranslation,
-    ProductCalculation,
     ImportHistory,
+    MemoryOption,
+    Product,
+    ProductCalculation,
+    ProductReference,
+    Supplier,
+    TemporaryImport,
+    db,
 )
-import pandas as pd
-import os
-import math
-from io import BytesIO
-from datetime import datetime, timezone
+
 
 def create_app():
     # Load environment variables from a local .env file if present
-    env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+    env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
     load_dotenv(env_path)
 
     app = Flask(__name__)
@@ -32,59 +34,63 @@ def create_app():
     frontend_origin = os.getenv("FRONTEND_URL")
     if not frontend_origin:
         raise RuntimeError("FRONTEND_URL environment variable is not set")
-    CORS(app, resources={r"/*": {"origins": frontend_origin}}, expose_headers=["Content-Disposition"])
+    CORS(
+        app,
+        resources={r"/*": {"origins": frontend_origin}},
+        expose_headers=["Content-Disposition"],
+    )
 
-    @app.route('/')
+    @app.route("/")
     def index():
-        return {'message': 'Hello World'}
+        return {"message": "Hello World"}
+
     database_url = os.getenv("DATABASE_URL")
     if not database_url:
         raise RuntimeError("DATABASE_URL environment variable is not set")
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     db.init_app(app)
 
     with app.app_context():
         db.create_all()
 
-    @app.route('/suppliers', methods=['GET'])
+    @app.route("/suppliers", methods=["GET"])
     def list_suppliers():
         suppliers = Supplier.query.all()
         result = [
             {
-                'id': s.id,
-                'name': s.name,
-                'email': s.email,
-                'phone': s.phone,
-                'address': s.address,
+                "id": s.id,
+                "name": s.name,
+                "email": s.email,
+                "phone": s.phone,
+                "address": s.address,
             }
             for s in suppliers
         ]
         return jsonify(result)
 
-    @app.route('/import_history', methods=['GET'])
+    @app.route("/import_history", methods=["GET"])
     def list_import_history():
         histories = ImportHistory.query.order_by(ImportHistory.import_date.desc()).all()
         result = [
             {
-                'id': h.id,
-                'filename': h.filename,
-                'supplier_id': h.supplier_id,
-                'product_count': h.product_count,
-                'import_date': h.import_date.isoformat(),
+                "id": h.id,
+                "filename": h.filename,
+                "supplier_id": h.supplier_id,
+                "product_count": h.product_count,
+                "import_date": h.import_date.isoformat(),
             }
             for h in histories
         ]
         return jsonify(result)
 
-
-    @app.route('/import', methods=['POST'])
+    @app.route("/import", methods=["POST"])
     def create_import():
-        if 'file' not in request.files:
-            return jsonify({'error': 'No file provided'}), 400
+        if "file" not in request.files:
+            return jsonify({"error": "No file provided"}), 400
 
-        file = request.files['file']
-        supplier_id = request.form.get('supplier_id')
+        file = request.files["file"]
+        supplier_id = request.form.get("supplier_id")
         if supplier_id is not None:
             try:
                 supplier_id = int(supplier_id)
@@ -97,99 +103,108 @@ def create_app():
 
         df = pd.read_excel(file)
         df.columns = [c.lower().strip() for c in df.columns]
-        if 'description' in df.columns:
-            df['description'] = df['description'].astype(str).str.strip()
-        df.drop_duplicates(subset=['ean'], inplace=True)
-        df = df[df['ean'].notna()]
+        if "description" in df.columns:
+            df["description"] = df["description"].astype(str).str.strip()
+        df.drop_duplicates(subset=["ean"], inplace=True)
+        df = df[df["ean"].notna()]
         count_new = 0
         count_update = 0
         for _, row in df.iterrows():
-            ean_value = str(int(row['ean']))
+            ean_value = str(int(row["ean"]))
             temp = TemporaryImport(
-                description=row.get('description'),
-                quantity=row.get('quantity', None),
-                selling_price=row.get('sellingprice', None),
+                description=row.get("description"),
+                quantity=row.get("quantity", None),
+                selling_price=row.get("sellingprice", None),
                 ean=ean_value,
-                supplier_id=supplier_id
+                supplier_id=supplier_id,
             )
             db.session.add(temp)
 
             # Create reference if it does not already exist for this supplier
-            ref = ProductReference.query.filter_by(ean=ean_value, supplier_id=supplier_id).first()
+            ref = ProductReference.query.filter_by(
+                ean=ean_value, supplier_id=supplier_id
+            ).first()
             if ref:
-                ref.description = row.get('description')
-                ref.quantity = row.get('quantity', None)
-                ref.selling_price = row.get('sellingprice', None)
+                ref.description = row.get("description")
+                ref.quantity = row.get("quantity", None)
+                ref.selling_price = row.get("sellingprice", None)
                 ref.supplier_id = supplier_id
                 count_update += 1
             else:
                 ref = ProductReference(
-                    description=row.get('description'),
-                    quantity=row.get('quantity', None),
-                    selling_price=row.get('sellingprice', None),
+                    description=row.get("description"),
+                    quantity=row.get("quantity", None),
+                    selling_price=row.get("sellingprice", None),
                     ean=ean_value,
-                    supplier_id=supplier_id
+                    supplier_id=supplier_id,
                 )
                 count_new += 1
                 db.session.add(ref)
 
         history = ImportHistory(
-            filename=file.filename,
-            supplier_id=supplier_id,
-            product_count=len(df)
+            filename=file.filename, supplier_id=supplier_id, product_count=len(df)
         )
         db.session.add(history)
 
         db.session.commit()
-        return jsonify({'status': 'success', 'new': count_new, 'updated': count_update})
+        return jsonify({"status": "success", "new": count_new, "updated": count_update})
 
-    @app.route('/products', methods=['GET'])
+    @app.route("/products", methods=["GET"])
     def list_products():
         products = Product.query.all()
         result = [
             {
-                'id': p.id,
-                'description': p.description,
-                'name': p.name,
-                'brand': p.brand.brand if p.brand else None,
-                'price': p.reference.selling_price if p.reference and p.reference.selling_price else None,
-                'memory': p.memory.memory if p.memory else None,
-                'color': p.color.color if p.color else None,
-                'type': p.type.type if p.type else None,
-                'reference': {
-                    'id': p.reference.id if p.reference else None,
-                    'description': p.reference.description if p.reference else None
-                } if p.reference else None
+                "id": p.id,
+                "description": p.description,
+                "name": p.name,
+                "brand": p.brand.brand if p.brand else None,
+                "price": (
+                    p.reference.selling_price
+                    if p.reference and p.reference.selling_price
+                    else None
+                ),
+                "memory": p.memory.memory if p.memory else None,
+                "color": p.color.color if p.color else None,
+                "type": p.type.type if p.type else None,
+                "reference": (
+                    {
+                        "id": p.reference.id if p.reference else None,
+                        "description": p.reference.description if p.reference else None,
+                    }
+                    if p.reference
+                    else None
+                ),
             }
             for p in products
         ]
         return jsonify(result)
 
-    @app.route('/last_import/<int:supplier_id>', methods=['GET'])
+    @app.route("/last_import/<int:supplier_id>", methods=["GET"])
     def last_import(supplier_id):
         history = (
-            ImportHistory.query
-            .filter_by(supplier_id=supplier_id)
+            ImportHistory.query.filter_by(supplier_id=supplier_id)
             .order_by(ImportHistory.import_date.desc())
             .first()
         )
         if not history:
             return jsonify({}), 200
 
-        return jsonify({
-            'id': history.id,
-            'filename': history.filename,
-            'supplier_id': history.supplier_id,
-            'product_count': history.product_count,
-            'import_date': history.import_date.isoformat(),
-        })
+        return jsonify(
+            {
+                "id": history.id,
+                "filename": history.filename,
+                "supplier_id": history.supplier_id,
+                "product_count": history.product_count,
+                "import_date": history.import_date.isoformat(),
+            }
+        )
 
-    @app.route('/product_calculations/count', methods=['GET'])
+    @app.route("/product_calculations/count", methods=["GET"])
     def count_product_calculations():
         count = ProductCalculation.query.count()
-        return jsonify({'count': count})
+        return jsonify({"count": count})
 
-    @app.route('/populate_products', methods=['POST'])
+    @app.route("/populate_products", methods=["POST"])
     def populate_products_from_reference():
         references = ProductReference.query.all()
         brands = Brand.query.all()
@@ -262,28 +277,47 @@ def create_app():
                 db.session.add(product)
                 created += 1
         db.session.commit()
-        return jsonify({'status': 'success', 'created': created, 'updated': updated})
+        return jsonify({"status": "success", "created": created, "updated": updated})
 
-    @app.route('/calculate_products', methods=['POST'])
+    @app.route("/calculate_products", methods=["POST"])
     def calculate_products():
         ProductCalculation.query.delete()
         db.session.commit()
         products = Product.query.all()
         created = 0
         for p in products:
-            price = p.reference.selling_price if p.reference and p.reference.selling_price else 0
-            memory = p.memory.memory.upper() if p.memory else ''
+            price = (
+                p.reference.selling_price
+                if p.reference and p.reference.selling_price
+                else 0
+            )
+            memory = p.memory.memory.upper() if p.memory else ""
             tcp = 0
-            if memory == '32GB':
+            if memory == "32GB":
                 tcp = 10
-            elif memory == '64GB':
+            elif memory == "64GB":
                 tcp = 12
-            elif memory in ['128GB', '256GB', '512GB', '1TB']:
+            elif memory in ["128GB", "256GB", "512GB", "1TB"]:
                 tcp = 14
             margin45 = price * 0.045
             price_with_tcp = price + tcp + margin45
             thresholds = [15, 29, 49, 79, 99, 129, 149, 179, 209, 299, 499, 799, 999]
-            margins = [1.25, 1.22, 1.20, 1.18, 1.15, 1.11, 1.10, 1.09, 1.09, 1.08, 1.08, 1.07, 1.07, 1.06]
+            margins = [
+                1.25,
+                1.22,
+                1.20,
+                1.18,
+                1.15,
+                1.11,
+                1.10,
+                1.09,
+                1.09,
+                1.08,
+                1.08,
+                1.07,
+                1.07,
+                1.06,
+            ]
             price_with_margin = price
             for i, t in enumerate(thresholds):
                 if price <= t:
@@ -304,31 +338,33 @@ def create_app():
             db.session.add(calc)
             created += 1
         db.session.commit()
-        return jsonify({'status': 'success', 'created': created})
+        return jsonify({"status": "success", "created": created})
 
-    @app.route('/export_calculates', methods=['GET'])
+    @app.route("/export_calculates", methods=["GET"])
     def export_calculates():
         calcs = ProductCalculation.query.join(Product).all()
         rows = []
         for c in calcs:
             p = c.product
-            rows.append({
-                'id': p.id if p else None,
-                'reference_id': p.reference_id if p else None,
-                'name': p.name if p else None,
-                'description': p.description if p else None,
-                'brand': p.brand.brand if p.brand else None,
-                'price': c.price if c else None,
-                'memory': p.memory.memory if p.memory else None,
-                'color': p.color.color if p.color else None,
-                'type': p.type.type if p.type else None,
-                'supplier': p.supplier.name if p.supplier else None,
-                'TCP': c.tcp,
-                'Marge de 4,5%': c.marge4_5,
-                'Prix HT avec TCP et marge': c.prixht_tcp_marge4_5,
-                'Prix HT avec Marge': c.prixht_marge4_5,
-                'Prix HT Maximum': c.prixht_max,
-            })
+            rows.append(
+                {
+                    "id": p.id if p else None,
+                    "reference_id": p.reference_id if p else None,
+                    "name": p.name if p else None,
+                    "description": p.description if p else None,
+                    "brand": p.brand.brand if p.brand else None,
+                    "price": c.price if c else None,
+                    "memory": p.memory.memory if p.memory else None,
+                    "color": p.color.color if p.color else None,
+                    "type": p.type.type if p.type else None,
+                    "supplier": p.supplier.name if p.supplier else None,
+                    "TCP": c.tcp,
+                    "Marge de 4,5%": c.marge4_5,
+                    "Prix HT avec TCP et marge": c.prixht_tcp_marge4_5,
+                    "Prix HT avec Marge": c.prixht_marge4_5,
+                    "Prix HT Maximum": c.prixht_max,
+                }
+            )
 
         df = pd.DataFrame(rows)
         output = BytesIO()
@@ -339,15 +375,58 @@ def create_app():
             output,
             as_attachment=True,
             download_name=filename,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
+
+    @app.route("/refresh", methods=["POST"])
+    def refresh():
+        ProductCalculation.query.delete()
+        return jsonify({"status": "success", "message": "Product calculations empty"})
+
+    @app.route("/refresh_week", methods=["POST"])
+    def refresh_week():
+        data = request.get_json(silent=True)
+        if not data or "dates" not in data:
+            return jsonify({"error": "No date provided"}), 400
+
+        try:
+            date_objs = [datetime.fromisoformat(d) for d in data["dates"]]
+        except Exception:
+            return jsonify({"error": "Invalid date format"}), 400
+
+        # Use monday as start of week and delete records for those weeks
+        week_ranges = {}
+        for d in date_objs:
+            start = d - timedelta(days=d.weekday())
+            start = start.replace(hour=0, minute=0, second=0, microsecond=0)
+            end = start + timedelta(days=7)
+            week_ranges[start] = end
+
+        for start, end in week_ranges.items():
+            ProductCalculation.query.filter(
+                ProductCalculation.date >= start,
+                ProductCalculation.date < end,
+            ).delete(synchronize_session=False)
+
+        db.session.commit()
+        return jsonify(
+            {
+                "status": "success",
+                "message": "Product calculations empty for selected weeks",
+            }
+        )
+
+    @app.route("/exclusions", methods=["GET"])
+    def list_exclusions():
+        exclusions = Exclusion.query.all()
+        result = [{"id": e.id, "term": e.term} for e in exclusions]
+        return jsonify(result)
 
     return app
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = create_app()
     host = os.getenv("FLASK_HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "5001"))
     app.run(host=host, port=port)
-
