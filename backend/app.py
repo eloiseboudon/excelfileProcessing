@@ -342,6 +342,27 @@ def create_app():
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
 
+    @app.route('/refresh', methods=['DELETE'])
+    def refresh():
+        ProductCalculation.query.delete();
+        return jsonify({'status': 'success','message': 'Product calculations empty'})
+
+    @app.route('/refresh_week', methods=['DELETE'])
+    def refresh_week():
+        if 'array_date' not in request.files:
+            return jsonify({'error': 'No date provided'}), 400
+
+        array_date = request.files['array_date'];
+        
+        ProductCalculation.query.filter_by(ProductCalculation.date in array_date).delete();
+        return jsonify({'status': 'success','message': 'Product calculations empty'})
+
+    @app.route('/exclusions', methods=['GET'])
+    def list_exclusions():
+        exclusions = Exclusion.query.all()
+        result = [{'id': e.id, 'term': e.term} for e in exclusions]
+        return jsonify(result)
+    
     return app
 
 
