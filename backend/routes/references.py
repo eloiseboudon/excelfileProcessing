@@ -6,6 +6,8 @@ from models import (
     DeviceType,
     Exclusion,
     MemoryOption,
+    Product,
+    ProductReference,
     Supplier,
     db,
 )
@@ -76,6 +78,26 @@ def _model_mapping():
     }
 
 
+def _update_products_for_color_translation(sources, target_color_id):
+    if not target_color_id:
+        return
+    if isinstance(sources, str):
+        sources = [sources]
+    for s in sources:
+        if not s:
+            continue
+        term = f"%{s.lower()}%"
+        products = (
+            Product.query.join(ProductReference, Product.reference_id == ProductReference.id)
+            .filter(ProductReference.description.ilike(term))
+            .all()
+        )
+        for p in products:
+            p.color_id = target_color_id
+    if sources:
+        db.session.commit()
+
+
 @bp.route("/references/<table>", methods=["GET"])
 def get_reference_table(table):
     model = _model_mapping().get(table)
@@ -120,10 +142,15 @@ def update_reference_item(table, item_id):
         return jsonify({"error": "Unknown table"}), 400
     item = model.query.get_or_404(item_id)
     data = request.json or {}
+    old_source = None
+    if isinstance(item, ColorTranslation):
+        old_source = item.color_source
     for key, value in data.items():
         if hasattr(item, key):
             setattr(item, key, value)
     db.session.commit()
+    if table == "color_translations":
+        _update_products_for_color_translation([old_source, item.color_source], item.color_target_id)
     return jsonify({"status": "success"})
 
 
@@ -136,6 +163,8 @@ def create_reference_item(table):
     item = model(**data)
     db.session.add(item)
     db.session.commit()
+    if table == "color_translations":
+        _update_products_for_color_translation(item.color_source, item.color_target_id)
     return jsonify({"id": item.id})
 
 
