@@ -4,7 +4,8 @@ import {
   fetchReferenceTable,
   updateReferenceItem,
   createReferenceItem,
-  deleteReferenceItem
+  deleteReferenceItem,
+  fetchColors
 } from '../api';
 
 interface TranslationAdminProps {
@@ -19,6 +20,7 @@ const TABLES = [
 function TranslationAdmin({ isVisible, onClose }: TranslationAdminProps) {
   const [table, setTable] = useState<string | null>(null);
   const [data, setData] = useState<any[]>([]);
+  const [colors, setColors] = useState<any[]>([]);
 
   useEffect(() => {
     if (isVisible && table) {
@@ -28,8 +30,21 @@ function TranslationAdmin({ isVisible, onClose }: TranslationAdminProps) {
 
   const load = async (t: string) => {
     try {
-      const res = await fetchReferenceTable(t);
-      setData(res as any[]);
+      if (t === 'color_translations') {
+        const [translations, cols] = await Promise.all([
+          fetchReferenceTable(t),
+          fetchColors(),
+        ]);
+        setColors(cols as any[]);
+        const mapped = (translations as any[]).map((item) => {
+          const c = (cols as any[]).find((cc) => cc.color === item.color_target);
+          return { ...item, color_target_id: c ? c.id : '' };
+        });
+        setData(mapped);
+      } else {
+        const res = await fetchReferenceTable(t);
+        setData(res as any[]);
+      }
     } catch {
       setData([]);
     }
@@ -37,7 +52,17 @@ function TranslationAdmin({ isVisible, onClose }: TranslationAdminProps) {
 
   const handleChange = (id: number, field: string, value: string) => {
     setData((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const updated = { ...item, [field]: value };
+        if (table === 'color_translations' && field === 'color_target_id') {
+          const col = colors.find((c) => String(c.id) === value);
+          if (col) {
+            updated.color_target = col.color;
+          }
+        }
+        return updated;
+      })
     );
   };
 
@@ -72,15 +97,25 @@ function TranslationAdmin({ isVisible, onClose }: TranslationAdminProps) {
   };
 
   const handleAdd = () => {
-    const fields = data.length > 0 ? Object.keys(data[0]).filter((k) => k !== 'id') : [];
+    const fields =
+      data.length > 0 ? Object.keys(data[0]).filter((k) => k !== 'id') : [];
     const newItem: any = { id: Date.now() * -1 };
     fields.forEach((f) => (newItem[f] = ''));
+    if (table === 'color_translations') {
+      newItem.color_target_id = colors[0]?.id ?? '';
+      newItem.color_target = colors[0]?.color ?? '';
+    }
     setData((prev) => [...prev, newItem]);
   };
 
   if (!isVisible) return null;
 
-  const fields = data.length > 0 ? Object.keys(data[0]).filter((k) => k !== 'id') : [];
+  const fields =
+    data.length > 0 ? Object.keys(data[0]).filter((k) => k !== 'id') : [];
+  const displayedFields =
+    table === 'color_translations'
+      ? fields.filter((f) => f !== 'color_target_id' && f !== 'color_target')
+      : fields;
 
   return (
     <div className="mt-8">
@@ -127,7 +162,7 @@ function TranslationAdmin({ isVisible, onClose }: TranslationAdminProps) {
             {data.map((item) => (
               <div key={item.id} className="flex items-center space-x-2 bg-zinc-800 p-2 rounded">
                 <span className="w-10 text-zinc-400">{item.id > 0 ? item.id : '-'}</span>
-                {fields.map((f) => (
+                {displayedFields.map((f) => (
                   <input
                     key={f}
                     value={item[f] ?? ''}
@@ -136,6 +171,19 @@ function TranslationAdmin({ isVisible, onClose }: TranslationAdminProps) {
                     className="flex-1 px-2 py-1 bg-zinc-700 text-white rounded placeholder:italic"
                   />
                 ))}
+                {table === 'color_translations' && (
+                  <select
+                    value={item.color_target_id ?? ''}
+                    onChange={(e) => handleChange(item.id, 'color_target_id', e.target.value)}
+                    className="flex-1 px-2 py-1 bg-zinc-700 text-white rounded"
+                  >
+                    {colors.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.color}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <button onClick={() => handleSave(item.id)} className="p-2 bg-green-600 text-white rounded hover:bg-green-700">
                   <Save className="w-4 h-4" />
                 </button>
