@@ -1,21 +1,34 @@
 export function determineBrand(name: string): string {
-  const brands = ['Apple', 'Samsung', 'Xiaomi', 'Hotwav', 'JBL', 'Google', 'Honor', 'Nothing', 'TCL', 'XO'];
+  const brands = [
+    "Apple",
+    "Samsung",
+    "Xiaomi",
+    "Hotwav",
+    "JBL",
+    "Google",
+    "Honor",
+    "Nothing",
+    "TCL",
+    "XO",
+  ];
   const lower = name.toLowerCase();
   for (const brand of brands) {
     if (lower.includes(brand.toLowerCase())) {
       return brand;
     }
   }
-  return 'Autre';
+  return "Autre";
 }
 
 export function generatePricingHtml(
   productsByBrand: Record<string, Array<{ name: string; price: number }>>,
   sortedBrands: string[],
-  productsWithPrices: Array<{ name: string; price: number }>,
-  weekYear: string
+  weekYear: string,
 ): string {
-  const total = Object.values(productsByBrand).reduce((s, p) => s + p.length, 0);
+  const total = Object.values(productsByBrand).reduce(
+    (s, p) => s + p.length,
+    0,
+  );
   return `
 <!DOCTYPE html>
 <html lang="fr">
@@ -108,22 +121,25 @@ export function generatePricingHtml(
         <div class="brands-grid" id="brandsGrid">
             ${sortedBrands
               .map(
-                b => `
+                (b) => `
                 <div class="brand-section" data-brand="${b.toLowerCase()}">
                     <div class="brand-header">${b} (${productsByBrand[b].length} produits)</div>
                     <div class="products-list">
                         ${productsByBrand[b]
-                          .map(p => `
+                          .map(
+                            (p) => `
                             <div class="product-item" data-name="${p.name.toLowerCase()}">
                                 <span class="product-name">${p.name}</span>
                                 <span class="product-price">${p.price}€</span>
                             </div>
-                        `)
-                          .join('')}
+                        `,
+                          )
+                          .join("")}
                     </div>
                 </div>
-            `)
-              .join('')}
+            `,
+              )
+              .join("")}
         </div>
         <div class="footer-note">
             📋 Tarif HT TCP incluse / hors DEEE de 2,56€ HT par pièce / FRANCO 1000€ HT ou 20€ de frais de port

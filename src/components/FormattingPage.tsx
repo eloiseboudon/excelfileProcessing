@@ -1,10 +1,18 @@
-import React, { useState, useCallback } from 'react';
-import { FileUp, FileDown, ArrowLeft, Loader2, Download, Globe, Eye } from 'lucide-react';
-import * as XLSX from 'xlsx';
-import SearchControls from './SearchControls';
-import { createImport } from '../api';
-import { determineBrand, generatePricingHtml } from '../utils/html';
-import { getCurrentWeekYear } from '../utils/date';
+import React, { useState, useCallback } from "react";
+import {
+  FileUp,
+  FileDown,
+  ArrowLeft,
+  Loader2,
+  Download,
+  Globe,
+  Eye,
+} from "lucide-react";
+import * as XLSX from "xlsx";
+import SearchControls from "./SearchControls";
+import { createImport } from "../api";
+import { determineBrand, generatePricingHtml } from "../utils/html";
+import { getCurrentWeekYear } from "../utils/date";
 
 interface FormattingPageProps {
   onBack: () => void;
@@ -27,12 +35,11 @@ function FormattingPage({ onBack }: FormattingPageProps) {
   const [previewData, setPreviewData] = useState<Product[]>([]);
 
   // États pour la recherche et les filtres
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedBrand, setSelectedBrand] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedBrand, setSelectedBrand] = useState<string>("all");
   const [minPrice, setMinPrice] = useState(0);
   const [maxPrice, setMaxPrice] = useState(2000);
   const [priceRange, setPriceRange] = useState({ min: 0, max: 2000 });
-
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -47,10 +54,13 @@ function FormattingPage({ onBack }: FormattingPageProps) {
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    
+
     const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile?.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
-        droppedFile?.type === 'application/vnd.ms-excel') {
+    if (
+      droppedFile?.type ===
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+      droppedFile?.type === "application/vnd.ms-excel"
+    ) {
       setFile(droppedFile);
       setFormattedFile(null);
       setHtmlFile(null);
@@ -58,15 +68,18 @@ function FormattingPage({ onBack }: FormattingPageProps) {
     }
   }, []);
 
-  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setFormattedFile(null);
-      setHtmlFile(null);
-      setError(null);
-    }
-  }, []);
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const selectedFile = e.target.files?.[0];
+      if (selectedFile) {
+        setFile(selectedFile);
+        setFormattedFile(null);
+        setHtmlFile(null);
+        setError(null);
+      }
+    },
+    [],
+  );
 
   // Utilitaire semaine/année
 
@@ -86,35 +99,42 @@ function FormattingPage({ onBack }: FormattingPageProps) {
 
       // Extraire les données du fichier traité (nom + prix de la colonne 7 "Prix HT Maximum")
       const productsFromFile = jsonData
-        .map(row => {
-          const name = row['Nom produit'];
-          const price = row['Prix HT Maximum'] || 0;
-          
-          if (!name || typeof name !== 'string' || name.trim() === '' || price <= 0) {
+        .map((row) => {
+          const name = row["Nom produit"];
+          const price = row["Prix HT Maximum"] || 0;
+
+          if (
+            !name ||
+            typeof name !== "string" ||
+            name.trim() === "" ||
+            price <= 0
+          ) {
             return null;
           }
-          
+
           return {
             name: name.trim(),
-            price: Number(price)
+            price: Number(price),
           };
         })
-        .filter(product => product !== null);
+        .filter((product) => product !== null);
 
       const allProductsWithPrices = [...productsFromFile];
 
       // Créer les données pour la prévisualisation
-      const previewProducts: Product[] = allProductsWithPrices.map(product => ({
-        name: product.name,
-        price: product.price,
-        brand: determineBrand(product.name)
-      }));
+      const previewProducts: Product[] = allProductsWithPrices.map(
+        (product) => ({
+          name: product.name,
+          price: product.price,
+          brand: determineBrand(product.name),
+        }),
+      );
 
       setPreviewData(previewProducts);
 
       // Calculer la plage de prix réelle
-      // à voir si création table ProductCalculate ou si calcul côté front, stockage ? 
-      const prices = previewProducts.map(p => p.price);
+      // à voir si création table ProductCalculate ou si calcul côté front, stockage ?
+      const prices = previewProducts.map((p) => p.price);
       const minPriceValue = Math.min(...prices);
       const maxPriceValue = Math.max(...prices);
       setPriceRange({ min: minPriceValue, max: maxPriceValue });
@@ -122,95 +142,101 @@ function FormattingPage({ onBack }: FormattingPageProps) {
       setMaxPrice(maxPriceValue);
 
       // Grouper par marque pour l'Excel et le HTML (avec noms ET prix)
-      const productsByBrand: Record<string, Array<{name: string, price: number}>> = {};
-      allProductsWithPrices.forEach(product => {
+      const productsByBrand: Record<
+        string,
+        Array<{ name: string; price: number }>
+      > = {};
+      allProductsWithPrices.forEach((product) => {
         const brand = determineBrand(product.name);
         if (!productsByBrand[brand]) {
           productsByBrand[brand] = [];
         }
         productsByBrand[brand].push({
           name: product.name,
-          price: product.price
+          price: product.price,
         });
       });
 
       // Trier les marques et les produits
       const sortedBrands = Object.keys(productsByBrand).sort();
-      sortedBrands.forEach(brand => {
+      sortedBrands.forEach((brand) => {
         productsByBrand[brand].sort((a, b) => a.name.localeCompare(b.name));
       });
 
       // Créer le fichier Excel avec mise en forme ET PRIX
       const newWorkbook = XLSX.utils.book_new();
       const currentWeekYear = getCurrentWeekYear();
-      
+
       // Préparer les données pour Excel avec 2 colonnes : Nom et Prix
       const excelData: (string | number)[][] = [];
-      
+
       // Ajouter le lien boutique en haut
-      excelData.push(['Boutique en ligne: https://shop.ajtpro.com/shop', '']);
-      excelData.push(['', '']); // Ligne vide
-      
+      excelData.push(["Boutique en ligne: https://shop.ajtpro.com/shop", ""]);
+      excelData.push(["", ""]); // Ligne vide
+
       // Ajouter le titre
-      excelData.push([`AJT PRO - Grille Tarifaire ${currentWeekYear}`, '']);
-      excelData.push(['', '']); // Ligne vide
+      excelData.push([`AJT PRO - Grille Tarifaire ${currentWeekYear}`, ""]);
+      excelData.push(["", ""]); // Ligne vide
 
       // Ajouter les en-têtes de colonnes
-      excelData.push(['PRODUIT', 'PRIX HT']);
-      excelData.push(['', '']); // Ligne vide
+      excelData.push(["PRODUIT", "PRIX HT"]);
+      excelData.push(["", ""]); // Ligne vide
 
       // Ajouter les produits groupés par marque AVEC PRIX
-      sortedBrands.forEach(brand => {
-        excelData.push([`=== ${brand} ===`, '']); // En-tête de marque
-        productsByBrand[brand].forEach(product => {
+      sortedBrands.forEach((brand) => {
+        excelData.push([`=== ${brand} ===`, ""]); // En-tête de marque
+        productsByBrand[brand].forEach((product) => {
           excelData.push([product.name, `${product.price}€`]);
         });
-        excelData.push(['', '']); // Ligne vide entre les marques
+        excelData.push(["", ""]); // Ligne vide entre les marques
       });
 
       // Ajouter la note tarifaire
-      excelData.push(['Tarif HT TCP incluse / hors DEEE de 2,56€ HT par pièce / FRANCO 1000€ HT ou 20€ de frais de port', '']);
-      excelData.push(['', '']); // Ligne vide
-      
+      excelData.push([
+        "Tarif HT TCP incluse / hors DEEE de 2,56€ HT par pièce / FRANCO 1000€ HT ou 20€ de frais de port",
+        "",
+      ]);
+      excelData.push(["", ""]); // Ligne vide
+
       // Ajouter le lien boutique en bas
-      excelData.push(['Boutique en ligne: https://shop.ajtpro.com/shop', '']);
+      excelData.push(["Boutique en ligne: https://shop.ajtpro.com/shop", ""]);
 
       // Créer la feuille Excel
       const formattedWorksheet = XLSX.utils.aoa_to_sheet(excelData);
 
       // Définir les largeurs de colonnes
-      formattedWorksheet['!cols'] = [
+      formattedWorksheet["!cols"] = [
         { wch: 70 }, // Colonne produit
-        { wch: 15 }  // Colonne prix
+        { wch: 15 }, // Colonne prix
       ];
 
       // Appliquer des styles
-      const range = XLSX.utils.decode_range(formattedWorksheet['!ref'] || 'A1');
-      
+      const range = XLSX.utils.decode_range(formattedWorksheet["!ref"] || "A1");
+
       for (let row = 0; row <= range.e.r; row++) {
         for (let col = 0; col <= 1; col++) {
           const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
           const cell = formattedWorksheet[cellAddress];
-          
+
           if (cell && cell.v) {
             const cellValue = String(cell.v);
-            
+
             // Style pour les liens boutique
-            if (cellValue.includes('https://shop.ajtpro.com/shop')) {
+            if (cellValue.includes("https://shop.ajtpro.com/shop")) {
               cell.s = {
                 font: { bold: true, color: { rgb: "0066CC" } },
-                alignment: { horizontal: "center" }
+                alignment: { horizontal: "center" },
               };
             }
             // Style pour le titre principal
-            else if (cellValue.includes('AJT PRO - Grille Tarifaire')) {
+            else if (cellValue.includes("AJT PRO - Grille Tarifaire")) {
               cell.s = {
                 font: { bold: true, size: 16, color: { rgb: "B8860B" } },
-                alignment: { horizontal: "center" }
+                alignment: { horizontal: "center" },
               };
             }
             // Style pour les en-têtes de colonnes
-            else if (cellValue === 'PRODUIT' || cellValue === 'PRIX HT') {
+            else if (cellValue === "PRODUIT" || cellValue === "PRIX HT") {
               cell.s = {
                 font: { bold: true, color: { rgb: "FFFFFF" } },
                 fill: { fgColor: { rgb: "333333" } },
@@ -219,12 +245,12 @@ function FormattingPage({ onBack }: FormattingPageProps) {
                   top: { style: "thin", color: { rgb: "000000" } },
                   bottom: { style: "thin", color: { rgb: "000000" } },
                   left: { style: "thin", color: { rgb: "000000" } },
-                  right: { style: "thin", color: { rgb: "000000" } }
-                }
+                  right: { style: "thin", color: { rgb: "000000" } },
+                },
               };
             }
             // Style pour les en-têtes de marque
-            else if (cellValue.startsWith('===') && cellValue.endsWith('===')) {
+            else if (cellValue.startsWith("===") && cellValue.endsWith("===")) {
               cell.s = {
                 font: { bold: true, color: { rgb: "FFFFFF" } },
                 fill: { fgColor: { rgb: "B8860B" } },
@@ -233,12 +259,12 @@ function FormattingPage({ onBack }: FormattingPageProps) {
                   top: { style: "thin", color: { rgb: "000000" } },
                   bottom: { style: "thin", color: { rgb: "000000" } },
                   left: { style: "thin", color: { rgb: "000000" } },
-                  right: { style: "thin", color: { rgb: "000000" } }
-                }
+                  right: { style: "thin", color: { rgb: "000000" } },
+                },
               };
             }
             // Style pour la note tarifaire
-            else if (cellValue.includes('Tarif HT TCP incluse')) {
+            else if (cellValue.includes("Tarif HT TCP incluse")) {
               cell.s = {
                 font: { bold: true, italic: true, color: { rgb: "B8860B" } },
                 fill: { fgColor: { rgb: "FFF8DC" } },
@@ -247,12 +273,12 @@ function FormattingPage({ onBack }: FormattingPageProps) {
                   top: { style: "medium", color: { rgb: "B8860B" } },
                   bottom: { style: "medium", color: { rgb: "B8860B" } },
                   left: { style: "medium", color: { rgb: "B8860B" } },
-                  right: { style: "medium", color: { rgb: "B8860B" } }
-                }
+                  right: { style: "medium", color: { rgb: "B8860B" } },
+                },
               };
             }
             // Style pour les prix
-            else if (cellValue.includes('€') && col === 1) {
+            else if (cellValue.includes("€") && col === 1) {
               cell.s = {
                 font: { bold: true, color: { rgb: "B8860B" } },
                 alignment: { horizontal: "right" },
@@ -260,46 +286,63 @@ function FormattingPage({ onBack }: FormattingPageProps) {
                   top: { style: "thin", color: { rgb: "E0E0E0" } },
                   bottom: { style: "thin", color: { rgb: "E0E0E0" } },
                   left: { style: "thin", color: { rgb: "E0E0E0" } },
-                  right: { style: "thin", color: { rgb: "E0E0E0" } }
-                }
+                  right: { style: "thin", color: { rgb: "E0E0E0" } },
+                },
               };
             }
             // Style pour les produits
-            else if (cellValue.trim() !== '' && !cellValue.includes('===') && col === 0) {
+            else if (
+              cellValue.trim() !== "" &&
+              !cellValue.includes("===") &&
+              col === 0
+            ) {
               cell.s = {
                 alignment: { horizontal: "left" },
                 border: {
                   top: { style: "thin", color: { rgb: "E0E0E0" } },
                   bottom: { style: "thin", color: { rgb: "E0E0E0" } },
                   left: { style: "thin", color: { rgb: "E0E0E0" } },
-                  right: { style: "thin", color: { rgb: "E0E0E0" } }
-                }
+                  right: { style: "thin", color: { rgb: "E0E0E0" } },
+                },
               };
             }
           }
         }
       }
 
-      XLSX.utils.book_append_sheet(newWorkbook, formattedWorksheet, 'Grille Tarifaire');
+      XLSX.utils.book_append_sheet(
+        newWorkbook,
+        formattedWorksheet,
+        "Grille Tarifaire",
+      );
 
       // Convertir en blob
-      const excelBuffer = XLSX.write(newWorkbook, { 
-        bookType: 'xlsx', 
-        type: 'array',
+      const excelBuffer = XLSX.write(newWorkbook, {
+        bookType: "xlsx",
+        type: "array",
         cellStyles: true,
-        sheetStubs: false
+        sheetStubs: false,
       });
-      const excelBlob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const excelBlob = new Blob([excelBuffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
       setFormattedFile(URL.createObjectURL(excelBlob));
 
       // Créer le fichier HTML avec les vrais prix
-      const htmlContent = generatePricingHtml(productsByBrand, sortedBrands, previewProducts, getCurrentWeekYear());
-      const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+      const htmlContent = generatePricingHtml(
+        productsByBrand,
+        sortedBrands,
+        getCurrentWeekYear(),
+      );
+      const htmlBlob = new Blob([htmlContent], { type: "text/html" });
       setHtmlFile(URL.createObjectURL(htmlBlob));
-
     } catch (error) {
-      console.error('Error formatting file:', error);
-      setError(error instanceof Error ? error.message : 'Une erreur est survenue lors du formatage du fichier');
+      console.error("Error formatting file:", error);
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Une erreur est survenue lors du formatage du fichier",
+      );
       setFormattedFile(null);
       setHtmlFile(null);
     } finally {
@@ -307,39 +350,44 @@ function FormattingPage({ onBack }: FormattingPageProps) {
     }
   }, [file]);
 
-  const handleDownloadExcel = useCallback(() => {
-    if (!formattedFile || !file) return;
-
-    const link = document.createElement('a');
-    link.href = formattedFile;
-    link.download = `grille_tarifaire_${getCurrentWeekYear()}_${file.name}`;
+  const downloadFile = useCallback((url: string, name: string) => {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = name;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  }, []);
+
+  const handleDownloadExcel = useCallback(() => {
+    if (!formattedFile || !file) return;
+    downloadFile(
+      formattedFile,
+      `grille_tarifaire_${getCurrentWeekYear()}_${file.name}`,
+    );
   }, [formattedFile, file]);
 
   const handleDownloadHtml = useCallback(() => {
     if (!htmlFile || !file) return;
-
-    const link = document.createElement('a');
-    link.href = htmlFile;
-    link.download = `grille_tarifaire_${getCurrentWeekYear()}.html`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadFile(htmlFile, `grille_tarifaire_${getCurrentWeekYear()}.html`);
   }, [htmlFile, file]);
 
   // Filtrer les produits pour la prévisualisation
-  const filteredProducts = previewData.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesBrand = selectedBrand === 'all' || product.brand === selectedBrand;
+  const filteredProducts = previewData.filter((product) => {
+    const matchesSearch = product.name
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+    const matchesBrand =
+      selectedBrand === "all" || product.brand === selectedBrand;
     const matchesPrice = product.price >= minPrice && product.price <= maxPrice;
-    
+
     return matchesSearch && matchesBrand && matchesPrice;
   });
 
   // Obtenir les marques uniques
-  const uniqueBrands = Array.from(new Set(previewData.map(p => p.brand))).sort();
+  const uniqueBrands = Array.from(
+    new Set(previewData.map((p) => p.brand)),
+  ).sort();
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-12">
@@ -351,7 +399,6 @@ function FormattingPage({ onBack }: FormattingPageProps) {
           <ArrowLeft className="w-5 h-5" />
           <span>Retour à l'étape 1</span>
         </button>
-        
       </div>
 
       <h1 className="text-4xl font-bold text-center mb-2">
@@ -363,13 +410,13 @@ function FormattingPage({ onBack }: FormattingPageProps) {
       <p className="text-center text-zinc-400 mb-12">
         Semaine {getCurrentWeekYear()}
       </p>
-      
+
       <div className="bg-zinc-900 rounded-2xl shadow-2xl p-8 border border-[#B8860B]/20">
-        <div 
+        <div
           className={`border-2 border-dashed rounded-xl p-8 transition-all duration-200 ${
-            isDragging 
-              ? 'border-[#B8860B] bg-black/50' 
-              : 'border-zinc-700 hover:border-[#B8860B]/50'
+            isDragging
+              ? "border-[#B8860B] bg-black/50"
+              : "border-zinc-700 hover:border-[#B8860B]/50"
           }`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -469,8 +516,10 @@ function FormattingPage({ onBack }: FormattingPageProps) {
 
                 {showPreview && (
                   <div className="mt-8 p-6 bg-zinc-800/50 rounded-lg border border-zinc-700">
-                    <h3 className="text-xl font-semibold text-white mb-6">Prévisualisation de la grille tarifaire</h3>
-                    
+                    <h3 className="text-xl font-semibold text-white mb-6">
+                      Prévisualisation de la grille tarifaire
+                    </h3>
+
                     <SearchControls
                       searchTerm={searchTerm}
                       onSearchChange={setSearchTerm}
@@ -488,25 +537,27 @@ function FormattingPage({ onBack }: FormattingPageProps) {
                     <div className="mb-6">
                       <div className="flex flex-wrap gap-2">
                         <button
-                          onClick={() => setSelectedBrand('all')}
+                          onClick={() => setSelectedBrand("all")}
                           className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                            selectedBrand === 'all'
-                              ? 'bg-[#B8860B] text-black'
-                              : 'bg-zinc-700 text-white hover:bg-zinc-600'
+                            selectedBrand === "all"
+                              ? "bg-[#B8860B] text-black"
+                              : "bg-zinc-700 text-white hover:bg-zinc-600"
                           }`}
                         >
                           Toutes ({previewData.length})
                         </button>
-                        {uniqueBrands.map(brand => {
-                          const count = previewData.filter(p => p.brand === brand).length;
+                        {uniqueBrands.map((brand) => {
+                          const count = previewData.filter(
+                            (p) => p.brand === brand,
+                          ).length;
                           return (
                             <button
                               key={brand}
                               onClick={() => setSelectedBrand(brand)}
                               className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
                                 selectedBrand === brand
-                                  ? 'bg-[#B8860B] text-black'
-                                  : 'bg-zinc-700 text-white hover:bg-zinc-600'
+                                  ? "bg-[#B8860B] text-black"
+                                  : "bg-zinc-700 text-white hover:bg-zinc-600"
                               }`}
                             >
                               {brand} ({count})
@@ -519,21 +570,37 @@ function FormattingPage({ onBack }: FormattingPageProps) {
                     {/* Statistiques */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                       <div className="bg-zinc-700 rounded-lg p-4 text-center">
-                        <div className="text-2xl font-bold text-[#B8860B]">{previewData.length}</div>
-                        <div className="text-sm text-zinc-400">Total produits</div>
+                        <div className="text-2xl font-bold text-[#B8860B]">
+                          {previewData.length}
+                        </div>
+                        <div className="text-sm text-zinc-400">
+                          Total produits
+                        </div>
                       </div>
                       <div className="bg-zinc-700 rounded-lg p-4 text-center">
-                        <div className="text-2xl font-bold text-[#B8860B]">{filteredProducts.length}</div>
+                        <div className="text-2xl font-bold text-[#B8860B]">
+                          {filteredProducts.length}
+                        </div>
                         <div className="text-sm text-zinc-400">Affichés</div>
                       </div>
                       <div className="bg-zinc-700 rounded-lg p-4 text-center">
                         <div className="text-2xl font-bold text-[#B8860B]">
-                          {filteredProducts.length > 0 ? Math.round(filteredProducts.reduce((sum, p) => sum + p.price, 0) / filteredProducts.length) : 0}€
+                          {filteredProducts.length > 0
+                            ? Math.round(
+                                filteredProducts.reduce(
+                                  (sum, p) => sum + p.price,
+                                  0,
+                                ) / filteredProducts.length,
+                              )
+                            : 0}
+                          €
                         </div>
                         <div className="text-sm text-zinc-400">Prix moyen</div>
                       </div>
                       <div className="bg-zinc-700 rounded-lg p-4 text-center">
-                        <div className="text-2xl font-bold text-[#B8860B]">{uniqueBrands.length}</div>
+                        <div className="text-2xl font-bold text-[#B8860B]">
+                          {uniqueBrands.length}
+                        </div>
                         <div className="text-sm text-zinc-400">Marques</div>
                       </div>
                     </div>
@@ -541,8 +608,13 @@ function FormattingPage({ onBack }: FormattingPageProps) {
                     {/* Grille de produits */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
                       {filteredProducts.map((product, index) => (
-                        <div key={index} className="bg-zinc-700 rounded-lg p-4 border border-zinc-600 hover:border-[#B8860B]/50 transition-colors">
-                          <div className="font-medium text-white mb-2 line-clamp-2">{product.name}</div>
+                        <div
+                          key={index}
+                          className="bg-zinc-700 rounded-lg p-4 border border-zinc-600 hover:border-[#B8860B]/50 transition-colors"
+                        >
+                          <div className="font-medium text-white mb-2 line-clamp-2">
+                            {product.name}
+                          </div>
                           <div className="flex items-center justify-between">
                             <div className="inline-block px-2 py-1 bg-[#B8860B]/20 text-[#B8860B] rounded text-sm">
                               {product.brand}
@@ -558,15 +630,20 @@ function FormattingPage({ onBack }: FormattingPageProps) {
                     {filteredProducts.length === 0 && (
                       <div className="text-center py-12">
                         <div className="text-6xl mb-4">🔍</div>
-                        <p className="text-zinc-400 text-lg">Aucun produit trouvé</p>
-                        <p className="text-zinc-500 text-sm mt-2">Essayez de modifier vos critères de recherche</p>
+                        <p className="text-zinc-400 text-lg">
+                          Aucun produit trouvé
+                        </p>
+                        <p className="text-zinc-500 text-sm mt-2">
+                          Essayez de modifier vos critères de recherche
+                        </p>
                       </div>
                     )}
 
                     {/* Note tarifaire */}
                     <div className="mt-6 p-4 bg-[#B8860B]/10 border border-[#B8860B]/30 rounded-lg text-center">
                       <p className="text-[#B8860B] font-medium">
-                        📋 Tarif HT TCP incluse / hors DEEE de 2,56€ HT par pièce / FRANCO 1000€ HT ou 20€ de frais de port
+                        📋 Tarif HT TCP incluse / hors DEEE de 2,56€ HT par
+                        pièce / FRANCO 1000€ HT ou 20€ de frais de port
                       </p>
                     </div>
                   </div>
@@ -578,10 +655,11 @@ function FormattingPage({ onBack }: FormattingPageProps) {
 
         <div className="mt-8 text-center text-sm text-zinc-500">
           <p>Formats supportés: .xlsx, .xls</p>
-          <p className="mt-2 text-[#B8860B]">✅ Organisation par marque avec mise en forme professionnelle</p>
+          <p className="mt-2 text-[#B8860B]">
+            ✅ Organisation par marque avec mise en forme professionnelle
+          </p>
         </div>
       </div>
-
     </div>
   );
 }
