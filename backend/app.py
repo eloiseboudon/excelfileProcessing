@@ -29,6 +29,7 @@ def create_app():
 
     @app.route("/")
     def index():
+        """Health check route used outside of blueprints."""
         return {"message": "Hello World"}
 
     database_url = os.getenv("DATABASE_URL")

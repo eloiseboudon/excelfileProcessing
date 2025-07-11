@@ -8,6 +8,15 @@ bp = Blueprint('imports', __name__)
 
 @bp.route('/import_history', methods=['GET'])
 def list_import_history():
+    """List previous import operations.
+
+    ---
+    tags:
+      - Imports
+    responses:
+      200:
+        description: Import history records
+    """
     histories = ImportHistory.query.order_by(ImportHistory.import_date.desc()).all()
     result = [
         {
@@ -24,6 +33,26 @@ def list_import_history():
 
 @bp.route('/import', methods=['POST'])
 def create_import():
+    """Import a new Excel file.
+
+    ---
+    tags:
+      - Imports
+    consumes:
+      - multipart/form-data
+    parameters:
+      - in: formData
+        name: file
+        type: file
+        required: true
+      - in: formData
+        name: supplier_id
+        type: integer
+        required: false
+    responses:
+      200:
+        description: Import result
+    """
     if 'file' not in request.files:
         return jsonify({'error': 'No file provided'}), 400
 
@@ -84,6 +113,20 @@ def create_import():
 
 @bp.route('/last_import/<int:supplier_id>', methods=['GET'])
 def last_import(supplier_id):
+    """Retrieve the last import for a supplier.
+
+    ---
+    tags:
+      - Imports
+    parameters:
+      - in: path
+        name: supplier_id
+        required: true
+        type: integer
+    responses:
+      200:
+        description: Last import information or empty object
+    """
     history = (
         ImportHistory.query.filter_by(supplier_id=supplier_id)
         .order_by(ImportHistory.import_date.desc())
