@@ -52,7 +52,7 @@ def list_product_calculations():
             "prixht_max": c.prixht_max,
             "date": c.date.strftime("%d/%m/%Y") if c.date else None,
             "week": (
-                "S" + c.date.strftime("%W") + "-" + c.date.strftime("%Y")
+                f"S{c.date.isocalendar().week:02d}-{c.date.isocalendar().year}"
                 if c.date
                 else None
             ),
