@@ -1,21 +1,10 @@
-import math
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 
 import pandas as pd
 from flask import Blueprint, jsonify, request, send_file
-from models import (
-    Brand,
-    Color,
-    ColorTranslation,
-    DeviceType,
-    Exclusion,
-    MemoryOption,
-    Product,
-    ProductCalculation,
-    TemporaryImport,
-    db,
-)
+from utils.calculations import recalculate_product_calculations
+from models import Product, ProductCalculation, db
 
 bp = Blueprint("products", __name__)
 
@@ -122,77 +111,6 @@ def count_product_calculations():
     return jsonify({"count": count})
 
 
-# @bp.route("/populate_products", methods=["POST"])
-# def populate_products_from_reference():
-#     """Populate products from imported references.
-
-#     ---
-#     tags:
-#       - Products
-#     responses:
-#       200:
-#         description: Number of products created or updated
-#     """
-#     temporary_import = TemporaryImport.query.all()
-#     brands = Brand.query.all()
-#     colors = Color.query.all()
-#     memories = MemoryOption.query.all()
-#     types = DeviceType.query.all()
-#     color_transcos = ColorTranslation.query.all()
-#     exclusions = [e.term.lower() for e in Exclusion.query.all()]
-
-#     matched = 0
-
-#     for temp_import in temporary_import:
-#         description_lower = (
-#             temp_import.description.lower() if temp_import.description else ""
-#         )
-#         if any(exc in description_lower for exc in exclusions):
-#             continue
-
-#         brand_id = None
-#         for b in brands:
-#             if b.brand.lower() in description_lower:
-#                 brand_id = b.id
-#                 break
-
-#         color_id = None
-#         for c in colors:
-#             if c.color.lower() in description_lower:
-#                 color_id = c.id
-#                 break
-#         if not color_id:
-#             for ct in color_transcos:
-#                 if ct.color_source.lower() in description_lower:
-#                     color_id = ct.color_target_id
-#                     break
-
-#         memory_id = None
-#         for m in memories:
-#             if m.memory.lower() in description_lower:
-#                 memory_id = m.id
-#                 break
-
-#         type_id = None
-#         for t in types:
-#             if t.type.lower() in description_lower:
-#                 type_id = t.id
-#                 break
-
-#         product = Product.query.filter_by(
-#             ean=temp_import.ean, supplier_id=temp_import.supplier_id
-#         ).first()
-#         if not product:
-#             product = Product.query.filter_by(
-#                 brand_id=brand_id,
-#                 color_id=color_id,
-#                 memory_id=memory_id,
-#             ).first()
-
-
-#     db.session.commit()
-#     return jsonify({"status": "success", "matched": matched})
-
 
 @bp.route("/calculate_products", methods=["POST"])
 def calculate_products():
@@ -205,68 +123,9 @@ def calculate_products():
       200:
         description: Calculation summary
     """
-    ProductCalculation.query.delete()
-    db.session.commit()
-    products = Product.query.all()
-    created = 0
-    price = 0
-    for p in products:
-        temp_product = TemporaryImport.query.filter_by(ean=p.ean).first()
-        price = (
-            temp_product.selling_price
-            if temp_product and temp_product.selling_price
-            else 0
-        )
-
-        memory = p.memory.memory.upper() if p.memory else ""
-        tcp = 0
-        if memory == "32GB":
-            tcp = 10
-        elif memory == "64GB":
-            tcp = 12
-        elif memory in ["128GB", "256GB", "512GB", "1TB"]:
-            tcp = 14
-        margin45 = price * 0.045
-        price_with_tcp = price + tcp + margin45
-        thresholds = [15, 29, 49, 79, 99, 129, 149, 179, 209, 299, 499, 799, 999]
-        margins = [
-            1.25,
-            1.22,
-            1.20,
-            1.18,
-            1.15,
-            1.11,
-            1.10,
-            1.09,
-            1.09,
-            1.08,
-            1.08,
-            1.07,
-            1.07,
-            1.06,
-        ]
-        price_with_margin = price
-        for i, t in enumerate(thresholds):
-            if price <= t:
-                price_with_margin = price * margins[i]
-                break
-        if price > thresholds[-1]:
-            price_with_margin = price * 1.06
-        max_price = math.ceil(max(price_with_tcp, price_with_margin))
-        calc = ProductCalculation(
-            product_id=p.id,
-            price=round(price, 2),
-            tcp=round(tcp, 2),
-            marge4_5=round(margin45, 2),
-            prixht_tcp_marge4_5=round(price_with_tcp, 2),
-            prixht_marge4_5=round(price_with_margin, 2),
-            prixht_max=max_price,
-            date=datetime.now(timezone.utc),
-        )
-        db.session.add(calc)
-        created += 1
-    db.session.commit()
-    return jsonify({"status": "success", "created": created})
+    recalculate_product_calculations()
+    count = ProductCalculation.query.count()
+    return jsonify({"status": "success", "created": count})
 
 
 @bp.route("/export_calculates", methods=["GET"])

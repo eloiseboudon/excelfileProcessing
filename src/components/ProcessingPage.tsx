@@ -8,7 +8,6 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import {
-  createProduct,
   fetchProducts,
   createImport,
   calculateProducts,
@@ -170,7 +169,6 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
         }
       }
 
-      await createProduct();
       await calculateProducts();
       await refreshCount();
       await refreshLastImports();

@@ -37,16 +37,6 @@ export async function fetchLastImport(id: number): Promise<{ import_date: string
   return res.json();
 }
 
-export async function createProduct() {
-  const res = await fetch(`${API_BASE}/populate_products`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-  });
-  if (!res.ok) {
-    throw new Error("Erreur lors de l'ajout du produit");
-  }
-  return res.json();
-}
 
 export async function calculateProducts() {
   const res = await fetch(`${API_BASE}/calculate_products`, {
