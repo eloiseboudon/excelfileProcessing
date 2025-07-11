@@ -15,6 +15,15 @@ bp = Blueprint("references", __name__)
 
 @bp.route("/suppliers", methods=["GET"])
 def list_suppliers():
+    """Retrieve supplier list.
+
+    ---
+    tags:
+      - References
+    responses:
+      200:
+        description: List of suppliers
+    """
     suppliers = Supplier.query.all()
     result = [
         {
@@ -31,6 +40,15 @@ def list_suppliers():
 
 @bp.route("/brands", methods=["GET"])
 def list_brands():
+    """Retrieve available brands.
+
+    ---
+    tags:
+      - References
+    responses:
+      200:
+        description: List of brands
+    """
     brands = Brand.query.all()
     result = [{"id": b.id, "brand": b.brand} for b in brands]
     return jsonify(result)
@@ -38,6 +56,15 @@ def list_brands():
 
 @bp.route("/colors", methods=["GET"])
 def list_colors():
+    """Retrieve available colors.
+
+    ---
+    tags:
+      - References
+    responses:
+      200:
+        description: List of colors
+    """
     colors = Color.query.all()
     result = [{"id": c.id, "color": c.color} for c in colors]
     return jsonify(result)
@@ -45,6 +72,15 @@ def list_colors():
 
 @bp.route("/memory_options", methods=["GET"])
 def list_memory_options():
+    """Retrieve memory capacities.
+
+    ---
+    tags:
+      - References
+    responses:
+      200:
+        description: List of memory options
+    """
     memories = MemoryOption.query.all()
     result = [{"id": m.id, "memory": m.memory} for m in memories]
     return jsonify(result)
@@ -52,6 +88,15 @@ def list_memory_options():
 
 @bp.route("/device_types", methods=["GET"])
 def list_device_types():
+    """Retrieve device types.
+
+    ---
+    tags:
+      - References
+    responses:
+      200:
+        description: List of device types
+    """
     types = DeviceType.query.all()
     result = [{"id": t.id, "type": t.type} for t in types]
     return jsonify(result)
@@ -59,6 +104,15 @@ def list_device_types():
 
 @bp.route("/exclusions", methods=["GET"])
 def list_exclusions():
+    """Retrieve exclusion terms.
+
+    ---
+    tags:
+      - References
+    responses:
+      200:
+        description: List of terms to ignore during product parsing
+    """
     exclusions = Exclusion.query.all()
     result = [{"id": e.id, "term": e.term} for e in exclusions]
     return jsonify(result)
@@ -78,6 +132,20 @@ def _model_mapping():
 
 @bp.route("/references/<table>", methods=["GET"])
 def get_reference_table(table):
+    """Retrieve a full reference table.
+
+    ---
+    tags:
+      - References
+    parameters:
+      - in: path
+        name: table
+        type: string
+        required: true
+    responses:
+      200:
+        description: Items from the requested table
+    """
     model = _model_mapping().get(table)
     if not model:
         return jsonify({"error": "Unknown table"}), 400
@@ -115,6 +183,28 @@ def get_reference_table(table):
 
 @bp.route("/references/<table>/<int:item_id>", methods=["PUT"])
 def update_reference_item(table, item_id):
+    """Update an item in a reference table.
+
+    ---
+    tags:
+      - References
+    parameters:
+      - in: path
+        name: table
+        required: true
+        type: string
+      - in: path
+        name: item_id
+        required: true
+        type: integer
+      - in: body
+        name: body
+        schema:
+          type: object
+    responses:
+      200:
+        description: Update status
+    """
     model = _model_mapping().get(table)
     if not model:
         return jsonify({"error": "Unknown table"}), 400
@@ -129,6 +219,24 @@ def update_reference_item(table, item_id):
 
 @bp.route("/references/<table>", methods=["POST"])
 def create_reference_item(table):
+    """Create an item in a reference table.
+
+    ---
+    tags:
+      - References
+    parameters:
+      - in: path
+        name: table
+        required: true
+        type: string
+      - in: body
+        name: body
+        schema:
+          type: object
+    responses:
+      200:
+        description: Identifier of created item
+    """
     model = _model_mapping().get(table)
     if not model:
         return jsonify({"error": "Unknown table"}), 400
@@ -141,6 +249,24 @@ def create_reference_item(table):
 
 @bp.route("/references/<table>/<int:item_id>", methods=["DELETE"])
 def delete_reference_item(table, item_id):
+    """Delete an item from a reference table.
+
+    ---
+    tags:
+      - References
+    parameters:
+      - in: path
+        name: table
+        required: true
+        type: string
+      - in: path
+        name: item_id
+        required: true
+        type: integer
+    responses:
+      200:
+        description: Deletion status
+    """
     model = _model_mapping().get(table)
     if not model:
         return jsonify({"error": "Unknown table"}), 400
