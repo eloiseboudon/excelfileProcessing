@@ -4,7 +4,6 @@ import { fetchProductCalculations } from '../api';
 import WeekToolbar from './WeekToolbar';
 
 import {
-  fetchProductCalculations,
   fetchBrands,
   fetchColors,
   fetchMemoryOptions,
