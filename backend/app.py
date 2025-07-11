@@ -1,7 +1,7 @@
 import os
 
 from dotenv import load_dotenv
-from flasgger import Swagger
+from flasgger import Blueprint, Swagger
 from flask import Flask
 from flask_cors import CORS
 from models import db
@@ -44,9 +44,9 @@ def create_app():
     return app
 
 
-
 if __name__ == "__main__":
     app = create_app()
     host = os.getenv("FLASK_HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "5001"))
+    app.register_blueprint(Blueprint("swagger", __name__, url_prefix="/apidocs"))
     app.run(host=host, port=port)
