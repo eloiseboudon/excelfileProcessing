@@ -7,10 +7,10 @@ function WeekToolbar() {
   const [message, setMessage] = useState<string | null>(null);
 
   const getStartOfWeek = (date: Date) => {
-    const d = new Date(date);
-    const day = (d.getDay() + 6) % 7;
-    d.setDate(d.getDate() - day);
-    d.setHours(0, 0, 0, 0);
+    const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+    const day = (d.getUTCDay() + 6) % 7;
+    d.setUTCDate(d.getUTCDate() - day);
+    d.setUTCHours(0, 0, 0, 0);
     return d;
   };
 
