@@ -83,7 +83,7 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZone
       {lastImportDate && (
         <p className="text-sm text-zinc-400 mb-2">
           Dernier import : {getWeekYear(new Date (lastImportDate))} -{' '}
-          {new Date(lastImportDate).toLocaleDateString('fr-FR', 
+          {new Date(lastImportDate).toLocaleDateString('fr-FR',
           {
             year: 'numeric',
             month: '2-digit',
@@ -205,7 +205,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
   }, [suppliers, refreshLastImports]);
 
   return (
-    <div className="max-w-6xl mx-auto px-2 sm:px-4 py-6 sm:py-8">
+    <div className="max-w-7xl mx-auto px-1 sm:px-2 py-6 sm:py-8">
       <WeekToolbar />
       <h1 className="text-4xl font-bold text-center mb-2">Étape 1 - Calculs et Traitement</h1>
       <p className="text-center text-[#B8860B] mb-4">Traitez vos fichiers Excel avec calculs TCP et marges</p>

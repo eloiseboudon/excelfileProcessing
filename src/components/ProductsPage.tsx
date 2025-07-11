@@ -185,7 +185,7 @@ function ProductsPage({ onBack }: ProductsPageProps) {
   );
 
   return (
-    <div className="max-w-6xl mx-auto px-2 sm:px-4 py-6 sm:py-8">
+    <div className="max-w-7xl mx-auto px-1 sm:px-2 py-6 sm:py-8">
       <WeekToolbar />
       <button
         onClick={onBack}
