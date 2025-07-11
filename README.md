@@ -5,29 +5,32 @@ Application complète de gestion de tarifs avec système de panier et commande p
 ## Fonctionnalités
 
 ### 🔧 Étape 1 - Traitement des données
-- Import de fichiers Excel
-- Calculs automatiques (TCP, marges)
-- Filtrage par marques
-- Exclusion configurable de certains produits
-- Nettoyage automatique et suppression des doublons
-- Export des données traitées
+- Import de fichiers Excel **(validée)**
+- Calculs automatiques (TCP, marges) **(validée)**
+- Filtrage par marques **(validée)**
+- Exclusion configurable de certains produits **(validée)**
+- Nettoyage automatique et suppression des doublons **(validée)**
+- Export des données traitées **(validée)**
 
 ### 🎨 Étape 2 - Mise en forme
-- Génération de fichiers Excel formatés
-- Création de pages web de consultation client
-- Interface moderne avec design professionnel
-- Publication en ligne
+- Génération de fichiers Excel formatés **(pas fait)**
+- Création de pages web de consultation client **(pas fait)**
+- Interface moderne avec design professionnel **(pas fait)**
+- Publication en ligne **(pas fait)**
 
 ### 🛒 Système de panier
-- Sélection de produits avec quantités
-- Gestion complète du panier
-- Formulaire de commande client
-- Envoi automatique par email
+- Sélection de produits avec quantités **(pas fait)**
+- Gestion complète du panier **(pas fait)**
+- Formulaire de commande client **(pas fait)**
+- Envoi automatique par email **(pas fait)**
 
 ### ⚙️ Administration
-- Gestion des produits Hotwav
-- Interface d'administration intuitive
-- Ajout/modification/suppression de produits
+- Interface d'administration intuitive **(validée)**
+- Ajout/modification/suppression de produits **(validée)**
+
+### 📱 Produits
+- Affichage des produits **(validée)**
+- Ajout/modification/suppression de produits **(à faire)**
 
 ## Configuration EmailJS
 
@@ -89,18 +92,23 @@ npm run dev
 ```
 src/
 ├── components/
-│   ├── ProcessingPage.tsx      # Étape 1 - Traitement
-│   ├── FormattingPage.tsx      # Étape 2 - Mise en forme
-│   ├── HotwavAdmin.tsx         # Administration Hotwav
-│   ├── QuantityModal.tsx       # Modal de sélection quantité
-│   └── CartModal.tsx           # Modal du panier
-├── contexts/
-│   └── CartContext.tsx         # Gestion du panier
-├── services/
-│   └── emailService.ts         # Service d'envoi email
-├── types/
-│   └── cart.ts                 # Types TypeScript
-└── App.tsx                     # Application principale
+│   ├── AdminPage.tsx          # Interface d'administration
+│   ├── FormattingPage.tsx     # Étape 2 - Mise en forme
+│   ├── ProcessingPage.tsx     # Étape 1 - Traitement
+│   ├── ProductsPage.tsx       # Visualisation des calculs
+│   ├── ReferenceAdmin.tsx     # Tables de référence
+│   ├── SearchControls.tsx     # Outils de recherche
+│   ├── TranslationAdmin.tsx   # Cohérence des couleurs
+│   └── WeekToolbar.tsx        # Outils hebdomadaires
+├── utils/
+│   ├── date.ts                # Fonctions de date
+│   ├── html.ts                # Génération HTML
+│   └── processing.ts          # Utilitaires de traitement
+├── api.ts                     # Appels API
+├── App.tsx                    # Application principale
+├── main.tsx                   # Point d'entrée
+├── index.css                  # Styles globaux
+└── vite-env.d.ts              # Types Vite
 ```
 
 ## Utilisation
