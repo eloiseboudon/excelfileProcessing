@@ -12,7 +12,7 @@ function AdminPage({ onBack }: AdminPageProps) {
   const [showTranslations, setShowTranslations] = useState(false);
 
   return (
-    <div className="max-w-6xl mx-auto px-1 sm:px-2 py-6 sm:py-8">
+    <div className="max-w-7xl mx-auto px-1 sm:px-2 py-6 sm:py-8">
       <button
         onClick={onBack}
         className="flex items-center space-x-2 px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors mb-6"
