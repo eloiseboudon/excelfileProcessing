@@ -34,6 +34,7 @@ function ProductsPage({ onBack }: ProductsPageProps) {
     { key: 'id', label: 'ID' },
     { key: 'name', label: 'Nom' },
     { key: 'description', label: 'Description' },
+    { key: 'supplier', label: 'Fournisseur' },
     { key: 'brand', label: 'Marque' },
     { key: 'price', label: 'Prix' },
     { key: 'memory', label: 'Mémoire' },

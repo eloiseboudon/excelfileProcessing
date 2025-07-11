@@ -3,8 +3,8 @@ from io import BytesIO
 
 import pandas as pd
 from flask import Blueprint, jsonify, request, send_file
-from utils.calculations import recalculate_product_calculations
 from models import Product, ProductCalculation, db
+from utils.calculations import recalculate_product_calculations
 
 bp = Blueprint("products", __name__)
 
@@ -45,6 +45,7 @@ def list_product_calculations():
                 if c.date
                 else None
             ),
+            "supplier": c.supplier.name if c.supplier else None,
         }
         for c in calculations
     ]
@@ -69,22 +70,9 @@ def list_products():
             "description": p.description,
             "name": p.name,
             "brand": p.brand.brand if p.brand else None,
-            "price": (
-                p.reference.selling_price
-                if p.reference and p.reference.selling_price
-                else None
-            ),
             "memory": p.memory.memory if p.memory else None,
             "color": p.color.color if p.color else None,
             "type": p.type.type if p.type else None,
-            "reference": (
-                {
-                    "id": p.reference.id if p.reference else None,
-                    "description": p.reference.description if p.reference else None,
-                }
-                if p.reference
-                else None
-            ),
         }
         for p in products
     ]
@@ -109,7 +97,6 @@ def count_product_calculations():
     """
     count = ProductCalculation.query.count()
     return jsonify({"count": count})
-
 
 
 @bp.route("/calculate_products", methods=["POST"])
@@ -148,7 +135,6 @@ def export_calculates():
         rows.append(
             {
                 "id": p.id if p else None,
-                "reference_id": p.reference_id if p else None,
                 "name": p.name if p else None,
                 "description": p.description if p else None,
                 "brand": p.brand.brand if p.brand else None,
@@ -156,7 +142,7 @@ def export_calculates():
                 "memory": p.memory.memory if p.memory else None,
                 "color": p.color.color if p.color else None,
                 "type": p.type.type if p.type else None,
-                "supplier": p.supplier.name if p.supplier else None,
+                "supplier": c.supplier.name if c.supplier else None,
                 "TCP": c.tcp,
                 "Marge de 4,5%": c.marge4_5,
                 "Prix HT avec TCP et marge": c.prixht_tcp_marge4_5,

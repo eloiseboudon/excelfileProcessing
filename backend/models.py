@@ -85,7 +85,7 @@ class Product(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    ean = db.Column(db.String(20), nullable=False)
+    ean = db.Column(db.String(20), nullable=True)
 
     name = db.Column(db.String(120), nullable=False)
     description = db.Column(db.String(120), nullable=False)
