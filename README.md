@@ -13,21 +13,24 @@ Application complète de gestion de tarifs avec système de panier et commande p
 - Export des données traitées **(validée)**
 
 ### 🎨 Étape 2 - Mise en forme
-- Génération de fichiers Excel formatés **(validée)**
-- Création de pages web de consultation client **(validée)**
-- Interface moderne avec design professionnel **(validée)**
-- Publication en ligne **(en cours)**
+- Génération de fichiers Excel formatés **(pas fait)**
+- Création de pages web de consultation client **(pas fait)**
+- Interface moderne avec design professionnel **(pas fait)**
+- Publication en ligne **(pas fait)**
 
 ### 🛒 Système de panier
-- Sélection de produits avec quantités **(en cours)**
-- Gestion complète du panier **(en cours)**
-- Formulaire de commande client **(en cours)**
-- Envoi automatique par email **(en cours)**
+- Sélection de produits avec quantités **(pas fait)**
+- Gestion complète du panier **(pas fait)**
+- Formulaire de commande client **(pas fait)**
+- Envoi automatique par email **(pas fait)**
 
 ### ⚙️ Administration
-- Gestion des produits Hotwav **(en cours)**
 - Interface d'administration intuitive **(validée)**
 - Ajout/modification/suppression de produits **(validée)**
+
+### 📱 Produits
+- Affichage des produits **(validée)**
+- Ajout/modification/suppression de produits **(à faire)**
 
 ## Configuration EmailJS
 
