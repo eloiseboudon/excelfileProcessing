@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import ReferenceAdmin from './ReferenceAdmin';
+import TranslationAdmin from './TranslationAdmin';
 
 interface AdminPageProps {
   onBack: () => void;
@@ -8,6 +9,7 @@ interface AdminPageProps {
 
 function AdminPage({ onBack }: AdminPageProps) {
   const [showReferences, setShowReferences] = useState(false);
+  const [showTranslations, setShowTranslations] = useState(false);
 
   return (
     <div className="max-w-6xl mx-auto px-2 sm:px-4 py-6 sm:py-8">
@@ -27,9 +29,21 @@ function AdminPage({ onBack }: AdminPageProps) {
           Tables référence
         </button>
       </div>
+         <div className="flex justify-center space-x-4">
+        <button
+          onClick={() => setShowTranslations(true)}
+          className="px-6 py-3 bg-[#B8860B] text-black rounded-lg font-semibold hover:bg-[#B8860B]/90"
+        >
+          Cohérence des tables de référence
+        </button>
+      </div>
       <ReferenceAdmin
         isVisible={showReferences}
         onClose={() => setShowReferences(false)}
+      />
+      <TranslationAdmin
+        isVisible={showTranslations}
+        onClose={() => setShowTranslations(false)}
       />
     </div>
   );

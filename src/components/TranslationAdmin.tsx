@@ -7,21 +7,16 @@ import {
   deleteReferenceItem
 } from '../api';
 
-interface ReferenceAdminProps {
+interface TranslationAdminProps {
   onClose: () => void;
   isVisible: boolean;
 }
 
 const TABLES = [
-  { key: 'brands', label: 'Marques' },
-  { key: 'colors', label: 'Couleurs' },
-  { key: 'memory_options', label: 'Options mémoire' },
-  { key: 'device_types', label: "Types d'appareil" },
-  { key: 'exclusions', label: 'Exclusions' },
-  { key: 'suppliers', label: 'Fournisseurs' },
+  { key: 'color_translations', label: 'Cohérence des couleurs' },
 ];
 
-function ReferenceAdmin({ isVisible, onClose }: ReferenceAdminProps) {
+function TranslationAdmin({ isVisible, onClose }: TranslationAdminProps) {
   const [table, setTable] = useState<string | null>(null);
   const [data, setData] = useState<any[]>([]);
 
@@ -156,5 +151,5 @@ function ReferenceAdmin({ isVisible, onClose }: ReferenceAdminProps) {
   );
 }
 
-export default ReferenceAdmin;
+export default TranslationAdmin;
 
