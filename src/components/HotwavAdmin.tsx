@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Edit3, Save, X, Plus, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Edit3, Save, X, Plus, Trash2 } from 'lucide-react';
 
 interface HotwavProduct {
   nom: string;
