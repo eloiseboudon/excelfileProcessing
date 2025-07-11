@@ -1,7 +1,7 @@
 import os
 
 from dotenv import load_dotenv
-from flasgger import Blueprint, Swagger
+from flasgger import Swagger
 from flask import Flask
 from flask_cors import CORS
 from models import db
@@ -14,7 +14,8 @@ def create_app():
     load_dotenv(env_path)
 
     app = Flask(__name__)
-    Swagger(app, template_file="swagger_template.yml")
+    swagger_template = os.path.join(os.path.dirname(__file__), "swagger_template.yml")
+    Swagger(app, template_file=swagger_template)
 
     frontend_origin = os.getenv("FRONTEND_URL", "*")
     origins = (
