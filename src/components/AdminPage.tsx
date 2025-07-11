@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
-import HotwavAdmin from './HotwavAdmin';
-import AccessoriesAdmin from './AccessoriesAdmin';
+import ReferenceAdmin from './ReferenceAdmin';
+import TranslationAdmin from './TranslationAdmin';
 
 interface AdminPageProps {
   onBack: () => void;
 }
 
 function AdminPage({ onBack }: AdminPageProps) {
-  const [showHotwav, setShowHotwav] = useState(false);
-  const [showAccessories, setShowAccessories] = useState(false);
+  const [showReferences, setShowReferences] = useState(false);
+  const [showTranslations, setShowTranslations] = useState(false);
 
   return (
     <div className="max-w-6xl mx-auto px-2 sm:px-4 py-6 sm:py-8">
@@ -23,29 +23,27 @@ function AdminPage({ onBack }: AdminPageProps) {
       <h1 className="text-4xl font-bold text-center mb-6">Administration</h1>
       <div className="flex justify-center space-x-4">
         <button
-          onClick={() => setShowHotwav(true)}
+          onClick={() => setShowReferences(true)}
           className="px-6 py-3 bg-[#B8860B] text-black rounded-lg font-semibold hover:bg-[#B8860B]/90"
         >
-          Produits Hotwav
-        </button>
-        <button
-          onClick={() => setShowAccessories(true)}
-          className="px-6 py-3 bg-[#B8860B] text-black rounded-lg font-semibold hover:bg-[#B8860B]/90"
-        >
-          Accessoires
+          Tables référence
         </button>
       </div>
-      <HotwavAdmin
-        isVisible={showHotwav}
-        onClose={() => setShowHotwav(false)}
-        onSave={() => { }}
-        initialProducts={[]}
+         <div className="flex justify-center space-x-4">
+        <button
+          onClick={() => setShowTranslations(true)}
+          className="px-6 py-3 bg-[#B8860B] text-black rounded-lg font-semibold hover:bg-[#B8860B]/90"
+        >
+          Cohérence des tables de référence
+        </button>
+      </div>
+      <ReferenceAdmin
+        isVisible={showReferences}
+        onClose={() => setShowReferences(false)}
       />
-      <AccessoriesAdmin
-        isVisible={showAccessories}
-        onClose={() => setShowAccessories(false)}
-        onSave={() => { }}
-        initialAccessories={[]}
+      <TranslationAdmin
+        isVisible={showTranslations}
+        onClose={() => setShowTranslations(false)}
       />
     </div>
   );

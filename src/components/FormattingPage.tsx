@@ -5,6 +5,7 @@ import SearchControls from './SearchControls';
 import { createImport } from '../api';
 import { determineBrand, generatePricingHtml } from '../utils/html';
 import { getCurrentWeekYear } from '../utils/date';
+import WeekToolbar from './WeekToolbar';
 
 interface FormattingPageProps {
   onBack: () => void;
@@ -354,6 +355,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
 
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-4 py-6 sm:py-8">
+      <WeekToolbar />
       <div className="flex items-center justify-between mb-8">
         <button
           onClick={onBack}
@@ -371,9 +373,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
       <p className="text-center text-[#B8860B] mb-4">
         Générez vos fichiers Excel formatés et pages web
       </p>
-      <p className="text-center text-zinc-400 mb-12">
-        Semaine {getCurrentWeekYear()}
-      </p>
+
       
       <div className="bg-zinc-900 rounded-2xl shadow-2xl p-8 border border-[#B8860B]/20">
         <div 
