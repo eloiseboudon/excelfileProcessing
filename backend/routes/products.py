@@ -22,6 +22,15 @@ bp = Blueprint("products", __name__)
 
 @bp.route("/product_calculation", methods=["GET"])
 def list_product_calculations():
+    """List calculated product prices.
+
+    ---
+    tags:
+      - Products
+    responses:
+      200:
+        description: Calculated prices for all products
+    """
     calculations = ProductCalculation.query.join(Product).all()
     result = [
         {
@@ -41,9 +50,9 @@ def list_product_calculations():
             "prixht_tcp_marge4_5": c.prixht_tcp_marge4_5,
             "prixht_marge4_5": c.prixht_marge4_5,
             "prixht_max": c.prixht_max,
-            "date": c.date.strftime("%D") if c.date else None,
+            "date": c.date.strftime("%d/%m/%Y") if c.date else None,
             "week": (
-                "S" + c.date.strftime("%W") + "-" + c.date.strftime("%Y")
+                f"S{c.date.isocalendar().week:02d}-{c.date.isocalendar().year}"
                 if c.date
                 else None
             ),
@@ -55,6 +64,15 @@ def list_product_calculations():
 
 @bp.route("/products", methods=["GET"])
 def list_products():
+    """List all products.
+
+    ---
+    tags:
+      - Products
+    responses:
+      200:
+        description: A list of products
+    """
     products = Product.query.all()
     result = [
         {
@@ -86,12 +104,35 @@ def list_products():
 
 @bp.route("/product_calculations/count", methods=["GET"])
 def count_product_calculations():
+    """Return the number of product calculations available.
+
+    ---
+    tags:
+      - Products
+    responses:
+      200:
+        description: Number of available calculations
+        schema:
+          type: object
+          properties:
+            count:
+              type: integer
+    """
     count = ProductCalculation.query.count()
     return jsonify({"count": count})
 
 
 @bp.route("/populate_products", methods=["POST"])
 def populate_products_from_reference():
+    """Populate products from imported references.
+
+    ---
+    tags:
+      - Products
+    responses:
+      200:
+        description: Number of products created or updated
+    """
     references = ProductReference.query.all()
     brands = Brand.query.all()
     colors = Color.query.all()
@@ -168,6 +209,15 @@ def populate_products_from_reference():
 
 @bp.route("/calculate_products", methods=["POST"])
 def calculate_products():
+    """Calculate pricing for all products in database.
+
+    ---
+    tags:
+      - Products
+    responses:
+      200:
+        description: Calculation summary
+    """
     ProductCalculation.query.delete()
     db.session.commit()
     products = Product.query.all()
@@ -231,6 +281,17 @@ def calculate_products():
 
 @bp.route("/export_calculates", methods=["GET"])
 def export_calculates():
+    """Export product calculations to an Excel file.
+
+    ---
+    tags:
+      - Products
+    produces:
+      - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+    responses:
+      200:
+        description: XLSX file containing product calculations
+    """
     calcs = ProductCalculation.query.join(Product).all()
     rows = []
     for c in calcs:
@@ -272,12 +333,41 @@ def export_calculates():
 
 @bp.route("/refresh", methods=["POST"])
 def refresh():
+    """Delete all product calculations.
+
+    ---
+    tags:
+      - Products
+    responses:
+      200:
+        description: Confirmation message
+    """
     ProductCalculation.query.delete()
     return jsonify({"status": "success", "message": "Product calculations empty"})
 
 
 @bp.route("/refresh_week", methods=["POST"])
 def refresh_week():
+    """Delete product calculations for specified weeks.
+
+    ---
+    tags:
+      - Products
+    parameters:
+      - in: body
+        name: dates
+        schema:
+          type: object
+          properties:
+            dates:
+              type: array
+              items:
+                type: string
+        required: true
+    responses:
+      200:
+        description: Confirmation message
+    """
     data = request.get_json(silent=True)
     if not data or "dates" not in data:
         return jsonify({"error": "No date provided"}), 400
