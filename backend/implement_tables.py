@@ -1,8 +1,9 @@
 import os
-from dotenv import load_dotenv
-import psycopg2
 
-env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+import psycopg2
+from dotenv import load_dotenv
+
+env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
 load_dotenv(env_path)
 db_url = os.getenv("DATABASE_URL")
 if not db_url:
@@ -11,24 +12,39 @@ if not db_url:
 conn = psycopg2.connect(db_url)
 cur = conn.cursor()
 
+cur.execute(
+    """
+    TRUNCATE TABLE suppliers, brands, colors, memory_options, device_types, exclusions, color_translations RESTART IDENTITY CASCADE;
+"""
+)
+conn.commit()
 
-cur.execute("""
+cur.execute(
+    """
     INSERT INTO suppliers (name) VALUES
     ('Yuka'),('supplier2')
     ;
-""")
+"""
+)
 
-cur.execute("""
+cur.execute(
+    """
     INSERT INTO brands(brand) VALUES ('Samsung'), ('Apple'), ('Huawei'), ('Xiaomi'), ('Oppo'),
     ('Dyson'), ('Sony'), ('LG'), ('Google'), ('Microsoft'), ('Lenovo'), ('Asus'),
     ('Dell'), ('HP'), ('Acer'), ('OnePlus'), ('Realme'),('Fairphone'),('JBL'), ('Bose'),
     ('Motorola'), ('Nokia'), ('Vivo'), ('ZTE'), ('Honor'),('GoPro'), ('Canon'), ('Nikon'),
     ('TCL'), ('Alcatel'), ('BlackBerry'), ('Panasonic'), ('Fujitsu'), ('Sharp'), ('Razer'), ('Logitech'),
     ('Corsair');
-""")
-cur.execute("INSERT INTO memory_options (memory) VALUES ('32GB'),('64GB'), ('128GB'), ('256GB'), ('512GB');")
-cur.execute("INSERT INTO colors (color) VALUES ('Blanc'), ('Noir'), ('Bleu'), ('Rouge'), ('Vert'),('Orange'),('Violet');")
-cur.execute("""
+"""
+)
+cur.execute(
+    "INSERT INTO memory_options (memory) VALUES ('32GB'),('64GB'), ('128GB'), ('256GB'), ('512GB');"
+)
+cur.execute(
+    "INSERT INTO colors (color) VALUES ('Blanc'), ('Noir'), ('Bleu'), ('Rouge'), ('Vert'),('Orange'),('Violet');"
+)
+cur.execute(
+    """
 
     INSERT INTO color_translations (color_source, color_target, color_target_id) VALUES
     ('black', 'Noir', 2),
@@ -50,10 +66,15 @@ cur.execute("""
     ('grey', 'Noir', 2),
     ('gray', 'Noir', 2),
     ('champagne', 'Blanc', 1);
-""")
+"""
+)
 
-cur.execute("INSERT INTO device_types (type) VALUES ('Téléphone'), ('Tablette'), ('Montre'), ('Ordinateur');")
-cur.execute("INSERT INTO exclusions (term) VALUES ('Mac'), ('Backbone'), ('Bulk'), ('OH25B'), ('Soundbar');")
+cur.execute(
+    "INSERT INTO device_types (type) VALUES ('Téléphone'), ('Tablette'), ('Montre'), ('Ordinateur');"
+)
+cur.execute(
+    "INSERT INTO exclusions (term) VALUES ('Mac'), ('Backbone'), ('Bulk'), ('OH25B'), ('Soundbar');"
+)
 
 conn.commit()
 cur.close()

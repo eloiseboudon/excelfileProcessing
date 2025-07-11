@@ -5,6 +5,7 @@ import SearchControls from './SearchControls';
 import { createImport } from '../api';
 import { determineBrand, generatePricingHtml } from '../utils/html';
 import { getCurrentWeekYear } from '../utils/date';
+import WeekToolbar from './WeekToolbar';
 
 interface FormattingPageProps {
   onBack: () => void;
@@ -58,7 +59,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    
+
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile?.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
         droppedFile?.type === 'application/vnd.ms-excel') {
@@ -100,11 +101,11 @@ function FormattingPage({ onBack }: FormattingPageProps) {
         .map(row => {
           const name = row['Nom produit'];
           const price = row['Prix HT Maximum'] || 0;
-          
+
           if (!name || typeof name !== 'string' || name.trim() === '' || price <= 0) {
             return null;
           }
-          
+
           return {
             name: name.trim(),
             price: Number(price)
@@ -124,7 +125,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
       setPreviewData(previewProducts);
 
       // Calculer la plage de prix réelle
-      // à voir si création table ProductCalculate ou si calcul côté front, stockage ? 
+      // à voir si création table ProductCalculate ou si calcul côté front, stockage ?
       const prices = previewProducts.map(p => p.price);
       const minPriceValue = Math.min(...prices);
       const maxPriceValue = Math.max(...prices);
@@ -154,14 +155,14 @@ function FormattingPage({ onBack }: FormattingPageProps) {
       // Créer le fichier Excel avec mise en forme ET PRIX
       const newWorkbook = XLSX.utils.book_new();
       const currentWeekYear = getCurrentWeekYear();
-      
+
       // Préparer les données pour Excel avec 2 colonnes : Nom et Prix
       const excelData: (string | number)[][] = [];
-      
+
       // Ajouter le lien boutique en haut
       excelData.push(['Boutique en ligne: https://shop.ajtpro.com/shop', '']);
       excelData.push(['', '']); // Ligne vide
-      
+
       // Ajouter le titre
       excelData.push([`AJT PRO - Grille Tarifaire ${currentWeekYear}`, '']);
       excelData.push(['', '']); // Ligne vide
@@ -182,7 +183,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
       // Ajouter la note tarifaire
       excelData.push(['Tarif HT TCP incluse / hors DEEE de 2,56€ HT par pièce / FRANCO 1000€ HT ou 20€ de frais de port', '']);
       excelData.push(['', '']); // Ligne vide
-      
+
       // Ajouter le lien boutique en bas
       excelData.push(['Boutique en ligne: https://shop.ajtpro.com/shop', '']);
 
@@ -197,15 +198,15 @@ function FormattingPage({ onBack }: FormattingPageProps) {
 
       // Appliquer des styles
       const range = XLSX.utils.decode_range(formattedWorksheet['!ref'] || 'A1');
-      
+
       for (let row = 0; row <= range.e.r; row++) {
         for (let col = 0; col <= 1; col++) {
           const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
           const cell = formattedWorksheet[cellAddress];
-          
+
           if (cell && cell.v) {
             const cellValue = String(cell.v);
-            
+
             // Style pour les liens boutique
             if (cellValue.includes('https://shop.ajtpro.com/shop')) {
               cell.s = {
@@ -294,8 +295,8 @@ function FormattingPage({ onBack }: FormattingPageProps) {
       XLSX.utils.book_append_sheet(newWorkbook, formattedWorksheet, 'Grille Tarifaire');
 
       // Convertir en blob
-      const excelBuffer = XLSX.write(newWorkbook, { 
-        bookType: 'xlsx', 
+      const excelBuffer = XLSX.write(newWorkbook, {
+        bookType: 'xlsx',
         type: 'array',
         cellStyles: true,
         sheetStubs: false
@@ -345,7 +346,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesBrand = selectedBrand === 'all' || product.brand === selectedBrand;
     const matchesPrice = product.price >= minPrice && product.price <= maxPrice;
-    
+
     return matchesSearch && matchesBrand && matchesPrice;
   });
 
@@ -353,7 +354,8 @@ function FormattingPage({ onBack }: FormattingPageProps) {
   const uniqueBrands = Array.from(new Set(previewData.map(p => p.brand))).sort();
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-12">
+    <div className="max-w-7xl mx-auto px-1 sm:px-2 py-6 sm:py-8">
+      <WeekToolbar />
       <div className="flex items-center justify-between mb-8">
         <button
           onClick={onBack}
@@ -362,7 +364,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
           <ArrowLeft className="w-5 h-5" />
           <span>Retour à l'étape 1</span>
         </button>
-        
+
       </div>
 
       <h1 className="text-4xl font-bold text-center mb-2">
@@ -371,15 +373,13 @@ function FormattingPage({ onBack }: FormattingPageProps) {
       <p className="text-center text-[#B8860B] mb-4">
         Générez vos fichiers Excel formatés et pages web
       </p>
-      <p className="text-center text-zinc-400 mb-12">
-        Semaine {getCurrentWeekYear()}
-      </p>
-      
+
+
       <div className="bg-zinc-900 rounded-2xl shadow-2xl p-8 border border-[#B8860B]/20">
-        <div 
+        <div
           className={`border-2 border-dashed rounded-xl p-8 transition-all duration-200 ${
-            isDragging 
-              ? 'border-[#B8860B] bg-black/50' 
+            isDragging
+              ? 'border-[#B8860B] bg-black/50'
               : 'border-zinc-700 hover:border-[#B8860B]/50'
           }`}
           onDragOver={handleDragOver}
@@ -481,7 +481,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
                 {showPreview && (
                   <div className="mt-8 p-6 bg-zinc-800/50 rounded-lg border border-zinc-700">
                     <h3 className="text-xl font-semibold text-white mb-6">Prévisualisation de la grille tarifaire</h3>
-                    
+
                     <SearchControls
                       searchTerm={searchTerm}
                       onSearchChange={setSearchTerm}

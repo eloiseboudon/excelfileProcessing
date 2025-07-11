@@ -2,6 +2,7 @@ Flask>=3.0
 Flask-SQLAlchemy>=3.1
 pandas>=2.2
 openpyxl>=3.1
+flasgger>=0.9
 flask-cors
 psycopg2-binary>=2.9
 python-dotenv>=1.0

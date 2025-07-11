@@ -1,13 +1,13 @@
 from __future__ import with_statement
+
 import os
+import sys
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config, pool
 from alembic import context
-from dotenv import load_dotenv
+from sqlalchemy import engine_from_config, pool
 
-import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.dirname(__file__))
 
 # Importez vos modèles
 from models import db
@@ -19,14 +19,14 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Chargez les variables d'environnement
-load_dotenv()
-db_url = os.getenv('DATABASE_URL')
+# Pour Docker : récupérez DATABASE_URL depuis les variables d'environnement
+db_url = os.getenv("DATABASE_URL")
 if db_url:
-    config.set_main_option('sqlalchemy.url', db_url)
+    config.set_main_option("sqlalchemy.url", db_url)
 
 # Configurez target_metadata pour l'autogenerate
 target_metadata = db.metadata
+
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
@@ -41,6 +41,7 @@ def run_migrations_offline() -> None:
     with context.begin_transaction():
         context.run_migrations()
 
+
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
     connectable = engine_from_config(
@@ -50,13 +51,11 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, 
-            target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()
+
 
 if context.is_offline_mode():
     run_migrations_offline()

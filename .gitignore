@@ -32,3 +32,5 @@ backend/instance/*
 backend/alembic/__pycache__/
 backend/alembic/__pycache__/*
 backend/alembic/versions/*
+backend/routes/__pycache__/
+backend/routes/__pycache__/*

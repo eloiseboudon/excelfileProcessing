@@ -141,6 +141,11 @@ make venv         # crée l'environnement virtuel et installe les dépendances
 make run          # démarre l'API Flask
 ```
 
+Une documentation interactive est générée grâce à **Flasgger**. Une fois
+l'application lancée, ouvrez `http://localhost:5001/apidocs` pour consulter les
+endpoints disponibles. Le fichier `backend/swagger_template.yml` contient le
+gabarit OpenAPI utilisé pour initialiser Swagger UI.
+
 La variable `FRONTEND_URL` doit correspondre exactement à l'origine (schéma et
 domaine) de votre site frontend afin que la politique CORS fonctionne.
 
@@ -167,3 +172,23 @@ Exécutez `npm run lint` après avoir installé les dépendances de développeme
 
 Il n'existe pas encore de tests automatisés mais `pytest` est configuré pour unifier la procédure. Lancez simplement `pytest` pour vérifier qu'aucune erreur n'est remontée.
 
+### Docker
+
+Une configuration Docker est fournie pour lancer rapidement l'API Flask et la base PostgreSQL.
+
+```bash
+# Construire les images
+make docker-build
+
+# Démarrer l'environnement en arrière-plan
+make docker-up
+
+# Consulter les logs
+make docker-logs
+
+# Arrêter les conteneurs
+make docker-down
+```
+
+Par défaut l'image utilise **Python 3.12** et **PostgreSQL 16**. La base de données est accessible sur `localhost:5432` et l'API Flask sur `localhost:5001`.
+Le fichier `docker-compose.yml` définit également la variable `FRONTEND_URL` sur `http://localhost:5173`. Modifiez-la si votre application frontend tourne sur une autre URL afin que la politique CORS fonctionne correctement.
