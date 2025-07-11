@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
+import { fetchProductCalculations } from '../api';
+import WeekToolbar from './WeekToolbar';
+
 import {
   fetchProductCalculations,
   fetchBrands,
@@ -184,6 +187,7 @@ function ProductsPage({ onBack }: ProductsPageProps) {
 
   return (
     <div className="max-w-6xl mx-auto px-2 sm:px-4 py-6 sm:py-8">
+      <WeekToolbar />
       <button
         onClick={onBack}
         className="flex items-center space-x-2 px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors mb-6"

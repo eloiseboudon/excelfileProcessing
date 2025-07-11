@@ -126,6 +126,50 @@ export async function fetchProductCalculations() {
   return res.json();
 }
 
+export async function fetchReferenceTable(table: string) {
+  const res = await fetch(`${API_BASE}/references/${table}`);
+  if (!res.ok) {
+    throw new Error('Erreur lors du chargement des références');
+    }
+  return res.json();
+}
+
+export async function updateReferenceItem(table: string, id: number, data: any) {
+  const res = await fetch(`${API_BASE}/references/${table}/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    throw new Error('Erreur lors de la mise à jour');
+    }
+  return res.json();
+}
+
+export async function createReferenceItem(table: string, data: any) {
+  const res = await fetch(`${API_BASE}/references/${table}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    throw new Error('Erreur lors de la création');
+     }
+  return res.json();
+}
+
+
+
+export async function deleteReferenceItem(table: string, id: number) {
+  const res = await fetch(`${API_BASE}/references/${table}/${id}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) {
+    throw new Error('Erreur lors de la suppression');
+     }
+  return res.json();
+}
+
 export async function fetchBrands() {
   const res = await fetch(`${API_BASE}/brands`);
   if (!res.ok) {
@@ -133,6 +177,7 @@ export async function fetchBrands() {
   }
   return res.json();
 }
+
 
 export async function fetchColors() {
   const res = await fetch(`${API_BASE}/colors`);
