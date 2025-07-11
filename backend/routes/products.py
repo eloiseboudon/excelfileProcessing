@@ -25,7 +25,7 @@ def list_product_calculations():
         {
             "id": c.id,
             "product_id": c.product_id,
-            "name": c.product.name if c.product else None,
+            "name": c.product.model if c.product else None,
             "description": c.product.description if c.product else None,
             "brand": c.product.brand.brand if c.product and c.product.brand else None,
             "price": c.price,
@@ -68,11 +68,16 @@ def list_products():
         {
             "id": p.id,
             "description": p.description,
-            "name": p.name,
+            "name": p.model,
             "brand": p.brand.brand if p.brand else None,
+            "brand_id": p.brand_id,
             "memory": p.memory.memory if p.memory else None,
+            "memory_id": p.memory_id,
             "color": p.color.color if p.color else None,
+            "color_id": p.color_id,
             "type": p.type.type if p.type else None,
+            "type_id": p.type_id,
+            "ean": p.ean,
         }
         for p in products
     ]
@@ -135,7 +140,7 @@ def export_calculates():
         rows.append(
             {
                 "id": p.id if p else None,
-                "name": p.name if p else None,
+                "name": p.model if p else None,
                 "description": p.description if p else None,
                 "brand": p.brand.brand if p.brand else None,
                 "price": c.price if c else None,
@@ -232,3 +237,51 @@ def refresh_week():
             "message": "Product calculations empty for selected weeks",
         }
     )
+
+
+@bp.route("/products", methods=["POST"])
+def create_product():
+    """Create a new product."""
+    data = request.get_json(silent=True) or {}
+    product = Product(
+        ean=data.get("ean"),
+        model=data.get("model", ""),
+        description=data.get("description", ""),
+        brand_id=data.get("brand_id"),
+        memory_id=data.get("memory_id"),
+        color_id=data.get("color_id"),
+        type_id=data.get("type_id"),
+    )
+    db.session.add(product)
+    db.session.commit()
+    return jsonify({"id": product.id}), 201
+
+
+@bp.route("/products/<int:product_id>", methods=["PUT"])
+def update_product(product_id):
+    """Update an existing product."""
+    product = Product.query.get_or_404(product_id)
+    data = request.get_json(silent=True) or {}
+    for field in [
+        "ean",
+        "model",
+        "description",
+        "brand_id",
+        "memory_id",
+        "color_id",
+        "type_id",
+    ]:
+        if field in data:
+            setattr(product, field, data[field])
+    db.session.commit()
+    return jsonify({"status": "updated"})
+
+
+@bp.route("/products/<int:product_id>", methods=["DELETE"])
+def delete_product(product_id):
+    """Delete a product."""
+    product = Product.query.get_or_404(product_id)
+    db.session.delete(product)
+    db.session.commit()
+    return jsonify({"status": "deleted"})
+
