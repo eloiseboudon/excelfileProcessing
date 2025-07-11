@@ -28,6 +28,40 @@ export async function fetchProducts() {
   return res.json();
 }
 
+export async function createProduct(data: any) {
+  const res = await fetch(`${API_BASE}/products`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    throw new Error("Erreur lors de la création du produit");
+  }
+  return res.json();
+}
+
+export async function updateProduct(id: number, data: any) {
+  const res = await fetch(`${API_BASE}/products/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    throw new Error("Erreur lors de la mise à jour du produit");
+  }
+  return res.json();
+}
+
+export async function deleteProduct(id: number) {
+  const res = await fetch(`${API_BASE}/products/${id}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) {
+    throw new Error("Erreur lors de la suppression du produit");
+  }
+  return res.json();
+}
+
 
 export async function fetchLastImport(id: number): Promise<{ import_date: string | null } | {}> {
   const res = await fetch(`${API_BASE}/last_import/${id}`);

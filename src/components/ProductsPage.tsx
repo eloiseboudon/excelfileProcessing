@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { fetchProductCalculations } from '../api';
 import WeekToolbar from './WeekToolbar';
+import ProductAdmin from './ProductAdmin';
 
 import {
   fetchBrands,
@@ -29,6 +30,7 @@ function ProductsPage({ onBack }: ProductsPageProps) {
   const [colorOptions, setColorOptions] = useState<string[]>([]);
   const [memoryOptions, setMemoryOptions] = useState<string[]>([]);
   const [typeOptions, setTypeOptions] = useState<string[]>([]);
+  const [tab, setTab] = useState<'calculations' | 'reference'>('calculations');
 
   const columns: { key: string; label: string }[] = [
     { key: 'id', label: 'ID' },
@@ -195,18 +197,36 @@ function ProductsPage({ onBack }: ProductsPageProps) {
         <ArrowLeft className="w-5 h-5" />
         <span>Retour</span>
       </button>
-      <h1 className="text-2xl font-bold text-center mb-4">
-        Calculs TCP et Marges par produits
-      </h1>
-      <div className="relative mb-4">
+      <h1 className="text-2xl font-bold text-center mb-4">Produits</h1>
+      <div className="flex justify-center space-x-4 mb-6">
         <button
-          onClick={() => setShowColumnMenu((s) => !s)}
-          className="px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700"
+          onClick={() => setTab('calculations')}
+          className={`px-4 py-2 rounded ${
+            tab === 'calculations' ? 'bg-[#B8860B] text-black' : 'bg-zinc-800 hover:bg-zinc-700'
+          }`}
         >
-          Colonnes
+          TCP/Marges
         </button>
-        {showColumnMenu && (
-          <div className="absolute z-10 mt-2 p-4 bg-zinc-900 border border-zinc-700 rounded shadow-xl grid grid-cols-2 gap-2">
+        <button
+          onClick={() => setTab('reference')}
+          className={`px-4 py-2 rounded ${
+            tab === 'reference' ? 'bg-[#B8860B] text-black' : 'bg-zinc-800 hover:bg-zinc-700'
+          }`}
+        >
+          Référentiel
+        </button>
+      </div>
+      {tab === 'calculations' && (
+        <>
+          <div className="relative mb-4">
+            <button
+              onClick={() => setShowColumnMenu((s) => !s)}
+              className="px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700"
+            >
+              Colonnes
+            </button>
+            {showColumnMenu && (
+              <div className="absolute z-10 mt-2 p-4 bg-zinc-900 border border-zinc-700 rounded shadow-xl grid grid-cols-2 gap-2">
             {columns.map((col) => (
               <label key={col.key} className="flex items-center space-x-2 text-sm">
                 <input
@@ -220,15 +240,15 @@ function ProductsPage({ onBack }: ProductsPageProps) {
             ))}
           </div>
         )}
-      </div>
-      {paginationControls}
-      <div className="overflow-auto mt-4">
-        <table className="min-w-full text-sm text-left border border-zinc-700">
-          <thead>
-            <tr className="bg-zinc-800">
-              {columns.map(
-                (col) =>
-                  visibleColumns.includes(col.key) && (
+          </div>
+          {paginationControls}
+          <div className="overflow-auto mt-4">
+            <table className="min-w-full text-sm text-left border border-zinc-700">
+              <thead>
+                <tr className="bg-zinc-800">
+                  {columns.map(
+                    (col) =>
+                      visibleColumns.includes(col.key) && (
                     <th key={col.key} className="px-3 py-2 border-b border-zinc-700">
                       {col.label}
                     </th>
@@ -291,9 +311,12 @@ function ProductsPage({ onBack }: ProductsPageProps) {
               </tr>
             ))}
           </tbody>
-        </table>
-      </div>
-      <div className="mt-4">{paginationControls}</div>
+            </table>
+          </div>
+          <div className="mt-4">{paginationControls}</div>
+        </>
+      )}
+      {tab === 'reference' && <ProductAdmin />}
     </div>
   );
 }
