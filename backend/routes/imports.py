@@ -1,6 +1,7 @@
 import pandas as pd
 from flask import Blueprint, jsonify, request
 from models import ImportHistory, TemporaryImport, db
+from utils.calculations import recalculate_product_calculations
 
 bp = Blueprint("imports", __name__)
 
@@ -72,7 +73,7 @@ def create_import():
         df["description"] = df["description"].astype(str).str.strip()
     df.drop_duplicates(subset=["ean"], inplace=True)
     df = df[df["ean"].notna()]
-    count_new = 0
+    count_new = len(df)
     count_update = 0
     for _, row in df.iterrows():
         ean_value = str(int(row["ean"]))
@@ -89,8 +90,10 @@ def create_import():
         filename=file.filename, supplier_id=supplier_id, product_count=len(df)
     )
     db.session.add(history)
-
     db.session.commit()
+
+    recalculate_product_calculations()
+
     return jsonify({"status": "success", "new": count_new, "updated": count_update})
 
 
