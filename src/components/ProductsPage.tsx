@@ -3,6 +3,14 @@ import { ArrowLeft } from 'lucide-react';
 import { fetchProductCalculations } from '../api';
 import WeekToolbar from './WeekToolbar';
 
+import {
+  fetchProductCalculations,
+  fetchBrands,
+  fetchColors,
+  fetchMemoryOptions,
+  fetchDeviceTypes,
+} from '../api';
+
 interface ProductCalculation {
   [key: string]: string | number | null;
 }
@@ -18,6 +26,10 @@ function ProductsPage({ onBack }: ProductsPageProps) {
   const [showColumnMenu, setShowColumnMenu] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(20);
+  const [brandOptions, setBrandOptions] = useState<string[]>([]);
+  const [colorOptions, setColorOptions] = useState<string[]>([]);
+  const [memoryOptions, setMemoryOptions] = useState<string[]>([]);
+  const [typeOptions, setTypeOptions] = useState<string[]>([]);
 
   const columns: { key: string; label: string }[] = [
     { key: 'id', label: 'ID' },
@@ -44,7 +56,56 @@ function ProductsPage({ onBack }: ProductsPageProps) {
         setVisibleColumns(columns.map((c) => c.key));
       })
       .catch(() => setData([]));
+
+    Promise.all([
+      fetchBrands(),
+      fetchColors(),
+      fetchMemoryOptions(),
+      fetchDeviceTypes(),
+    ])
+      .then(([brands, colors, memories, types]) => {
+        setBrandOptions(brands.map((b: any) => b.brand));
+        setColorOptions(colors.map((c: any) => c.color));
+        setMemoryOptions(memories.map((m: any) => m.memory));
+        setTypeOptions(types.map((t: any) => t.type));
+      })
+      .catch(() => {
+        setBrandOptions([]);
+        setColorOptions([]);
+        setMemoryOptions([]);
+        setTypeOptions([]);
+      });
   }, []);
+
+  useEffect(() => {
+    const usedBrands = Array.from(
+      new Set(data.map((d) => d.brand).filter(Boolean))
+    );
+    if (usedBrands.length) {
+      setBrandOptions((prev) => Array.from(new Set([...prev, ...usedBrands])));
+    }
+
+    const usedColors = Array.from(
+      new Set(data.map((d) => d.color).filter(Boolean))
+    );
+    if (usedColors.length) {
+      setColorOptions((prev) => Array.from(new Set([...prev, ...usedColors])));
+    }
+
+    const usedMemories = Array.from(
+      new Set(data.map((d) => d.memory).filter(Boolean))
+    );
+    if (usedMemories.length) {
+      setMemoryOptions((prev) => Array.from(new Set([...prev, ...usedMemories])));
+    }
+
+    const usedTypes = Array.from(
+      new Set(data.map((d) => d.type).filter(Boolean))
+    );
+    if (usedTypes.length) {
+      setTypeOptions((prev) => Array.from(new Set([...prev, ...usedTypes])));
+    }
+  }, [data]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -54,6 +115,12 @@ function ProductsPage({ onBack }: ProductsPageProps) {
     columns.every((col) => {
       if (!filters[col.key]) return true;
       const value = row[col.key];
+      if (['brand', 'memory', 'color', 'type'].includes(col.key)) {
+        return (
+          String(value ?? '').toLowerCase() ===
+          filters[col.key].toLowerCase()
+        );
+      }
       return String(value ?? '')
         .toLowerCase()
         .includes(filters[col.key].toLowerCase());
@@ -173,14 +240,38 @@ function ProductsPage({ onBack }: ProductsPageProps) {
                 (col) =>
                   visibleColumns.includes(col.key) && (
                     <th key={col.key} className="px-3 py-1 border-b border-zinc-700">
-                      <input
-                        type="text"
-                        value={filters[col.key] || ''}
-                        onChange={(e) =>
-                          setFilters({ ...filters, [col.key]: e.target.value })
-                        }
-                        className="w-full px-2 py-1 bg-zinc-900 border border-zinc-600 rounded"
-                      />
+                      {['brand', 'memory', 'color', 'type'].includes(col.key) ? (
+                        <select
+                          value={filters[col.key] || ''}
+                          onChange={(e) =>
+                            setFilters({ ...filters, [col.key]: e.target.value })
+                          }
+                          className="w-full px-2 py-1 bg-zinc-900 border border-zinc-600 rounded"
+                        >
+                          <option value="">Tous</option>
+                          {(col.key === 'brand'
+                            ? brandOptions
+                            : col.key === 'memory'
+                            ? memoryOptions
+                            : col.key === 'color'
+                            ? colorOptions
+                            : typeOptions
+                          ).map((opt) => (
+                            <option key={opt} value={opt}>
+                              {opt}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          value={filters[col.key] || ''}
+                          onChange={(e) =>
+                            setFilters({ ...filters, [col.key]: e.target.value })
+                          }
+                          className="w-full px-2 py-1 bg-zinc-900 border border-zinc-600 rounded"
+                        />
+                      )}
                     </th>
                   )
               )}

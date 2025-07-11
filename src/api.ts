@@ -130,7 +130,7 @@ export async function fetchReferenceTable(table: string) {
   const res = await fetch(`${API_BASE}/references/${table}`);
   if (!res.ok) {
     throw new Error('Erreur lors du chargement des références');
-  }
+    }
   return res.json();
 }
 
@@ -142,7 +142,7 @@ export async function updateReferenceItem(table: string, id: number, data: any) 
   });
   if (!res.ok) {
     throw new Error('Erreur lors de la mise à jour');
-  }
+    }
   return res.json();
 }
 
@@ -154,9 +154,11 @@ export async function createReferenceItem(table: string, data: any) {
   });
   if (!res.ok) {
     throw new Error('Erreur lors de la création');
-  }
+     }
   return res.json();
 }
+
+
 
 export async function deleteReferenceItem(table: string, id: number) {
   const res = await fetch(`${API_BASE}/references/${table}/${id}`, {
@@ -164,6 +166,39 @@ export async function deleteReferenceItem(table: string, id: number) {
   });
   if (!res.ok) {
     throw new Error('Erreur lors de la suppression');
+     }
+  return res.json();
+}
+
+export async function fetchBrands() {
+  const res = await fetch(`${API_BASE}/brands`);
+  if (!res.ok) {
+    throw new Error('Erreur lors du chargement des marques');
+  }
+  return res.json();
+}
+
+
+export async function fetchColors() {
+  const res = await fetch(`${API_BASE}/colors`);
+  if (!res.ok) {
+    throw new Error('Erreur lors du chargement des couleurs');
+  }
+  return res.json();
+}
+
+export async function fetchMemoryOptions() {
+  const res = await fetch(`${API_BASE}/memory_options`);
+  if (!res.ok) {
+    throw new Error('Erreur lors du chargement des mémoires');
+  }
+  return res.json();
+}
+
+export async function fetchDeviceTypes() {
+  const res = await fetch(`${API_BASE}/device_types`);
+  if (!res.ok) {
+    throw new Error('Erreur lors du chargement des types');
   }
   return res.json();
 }

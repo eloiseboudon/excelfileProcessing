@@ -457,6 +457,30 @@ def create_app():
             }
         )
 
+    @app.route("/brands", methods=["GET"])
+    def list_brands():
+        brands = Brand.query.all()
+        result = [{"id": b.id, "brand": b.brand} for b in brands]
+        return jsonify(result)
+
+    @app.route("/colors", methods=["GET"])
+    def list_colors():
+        colors = Color.query.all()
+        result = [{"id": c.id, "color": c.color} for c in colors]
+        return jsonify(result)
+
+    @app.route("/memory_options", methods=["GET"])
+    def list_memory_options():
+        memories = MemoryOption.query.all()
+        result = [{"id": m.id, "memory": m.memory} for m in memories]
+        return jsonify(result)
+
+    @app.route("/device_types", methods=["GET"])
+    def list_device_types():
+        types = DeviceType.query.all()
+        result = [{"id": t.id, "type": t.type} for t in types]
+        return jsonify(result)
+
     @app.route("/exclusions", methods=["GET"])
     def list_exclusions():
         exclusions = Exclusion.query.all()
