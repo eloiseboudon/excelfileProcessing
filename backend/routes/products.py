@@ -13,7 +13,7 @@ from models import (
     MemoryOption,
     Product,
     ProductCalculation,
-    ProductReference,
+    TemporaryImport,
     db,
 )
 
@@ -122,89 +122,76 @@ def count_product_calculations():
     return jsonify({"count": count})
 
 
-@bp.route("/populate_products", methods=["POST"])
-def populate_products_from_reference():
-    """Populate products from imported references.
+# @bp.route("/populate_products", methods=["POST"])
+# def populate_products_from_reference():
+#     """Populate products from imported references.
 
-    ---
-    tags:
-      - Products
-    responses:
-      200:
-        description: Number of products created or updated
-    """
-    references = ProductReference.query.all()
-    brands = Brand.query.all()
-    colors = Color.query.all()
-    memories = MemoryOption.query.all()
-    types = DeviceType.query.all()
-    color_transcos = ColorTranslation.query.all()
-    exclusions = [e.term.lower() for e in Exclusion.query.all()]
+#     ---
+#     tags:
+#       - Products
+#     responses:
+#       200:
+#         description: Number of products created or updated
+#     """
+#     temporary_import = TemporaryImport.query.all()
+#     brands = Brand.query.all()
+#     colors = Color.query.all()
+#     memories = MemoryOption.query.all()
+#     types = DeviceType.query.all()
+#     color_transcos = ColorTranslation.query.all()
+#     exclusions = [e.term.lower() for e in Exclusion.query.all()]
 
-    created = 0
-    updated = 0
-    for ref in references:
-        description_lower = ref.description.lower() if ref.description else ""
-        if any(exc in description_lower for exc in exclusions):
-            continue
+#     matched = 0
 
-        brand_id = None
-        for b in brands:
-            if b.brand.lower() in description_lower:
-                brand_id = b.id
-                break
+#     for temp_import in temporary_import:
+#         description_lower = (
+#             temp_import.description.lower() if temp_import.description else ""
+#         )
+#         if any(exc in description_lower for exc in exclusions):
+#             continue
 
-        color_id = None
-        for c in colors:
-            if c.color.lower() in description_lower:
-                color_id = c.id
-                break
-        if not color_id:
-            for ct in color_transcos:
-                if ct.color_source.lower() in description_lower:
-                    color_id = ct.color_target_id
-                    break
+#         brand_id = None
+#         for b in brands:
+#             if b.brand.lower() in description_lower:
+#                 brand_id = b.id
+#                 break
 
-        memory_id = None
-        for m in memories:
-            if m.memory.lower() in description_lower:
-                memory_id = m.id
-                break
+#         color_id = None
+#         for c in colors:
+#             if c.color.lower() in description_lower:
+#                 color_id = c.id
+#                 break
+#         if not color_id:
+#             for ct in color_transcos:
+#                 if ct.color_source.lower() in description_lower:
+#                     color_id = ct.color_target_id
+#                     break
 
-        type_id = None
-        for t in types:
-            if t.type.lower() in description_lower:
-                type_id = t.id
-                break
+#         memory_id = None
+#         for m in memories:
+#             if m.memory.lower() in description_lower:
+#                 memory_id = m.id
+#                 break
 
-        existing = Product.query.filter_by(
-            reference_id=ref.id,
-            supplier_id=ref.supplier_id,
-        ).first()
-        if existing:
-            existing.description = ref.description
-            existing.name = ref.description
-            existing.brand_id = brand_id
-            existing.color_id = color_id
-            existing.memory_id = memory_id
-            existing.type_id = type_id
-            existing.supplier_id = ref.supplier_id
-            updated += 1
-        else:
-            product = Product(
-                reference_id=ref.id,
-                description=ref.description,
-                name=ref.description,
-                brand_id=brand_id,
-                color_id=color_id,
-                memory_id=memory_id,
-                type_id=type_id,
-                supplier_id=ref.supplier_id,
-            )
-            db.session.add(product)
-            created += 1
-    db.session.commit()
-    return jsonify({"status": "success", "created": created, "updated": updated})
+#         type_id = None
+#         for t in types:
+#             if t.type.lower() in description_lower:
+#                 type_id = t.id
+#                 break
+
+#         product = Product.query.filter_by(
+#             ean=temp_import.ean, supplier_id=temp_import.supplier_id
+#         ).first()
+#         if not product:
+#             product = Product.query.filter_by(
+#                 brand_id=brand_id,
+#                 color_id=color_id,
+#                 memory_id=memory_id,
+#             ).first()
+
+
+#     db.session.commit()
+#     return jsonify({"status": "success", "matched": matched})
 
 
 @bp.route("/calculate_products", methods=["POST"])
@@ -222,12 +209,15 @@ def calculate_products():
     db.session.commit()
     products = Product.query.all()
     created = 0
+    price = 0
     for p in products:
+        temp_product = TemporaryImport.query.filter_by(ean=p.ean).first()
         price = (
-            p.reference.selling_price
-            if p.reference and p.reference.selling_price
+            temp_product.selling_price
+            if temp_product and temp_product.selling_price
             else 0
         )
+
         memory = p.memory.memory.upper() if p.memory else ""
         tcp = 0
         if memory == "32GB":

@@ -7,7 +7,6 @@ from models import (
     Exclusion,
     MemoryOption,
     Product,
-    ProductReference,
     Supplier,
     db,
 )
