@@ -7,7 +7,6 @@ from models import (
     Exclusion,
     MemoryOption,
     Product,
-    ProductReference,
     Supplier,
     db,
 )
@@ -141,13 +140,7 @@ def _update_products_for_color_translation(sources, target_color_id):
         if not s:
             continue
         term = f"%{s.lower()}%"
-        products = (
-            Product.query.join(
-                ProductReference, Product.reference_id == ProductReference.id
-            )
-            .filter(ProductReference.description.ilike(term))
-            .all()
-        )
+        products = Product.query.filter(Product.description.ilike(term)).all()
         for p in products:
             p.color_id = target_color_id
     if sources:

@@ -4,19 +4,18 @@ import {
   FileDown,
   ArrowRight,
   Loader2,
-  Download,
   ChevronRight,
 } from 'lucide-react';
 import {
-  createProduct,
   fetchProducts,
   createImport,
   calculateProducts,
-  exportCalculations,
   fetchSuppliers,
   fetchLastImport,
 } from '../api';
-import { getCurrentWeekYear, getCurrentTimestamp,getWeekYear } from '../utils/date';
+import { getWeekYear } from '../utils/date';
+import WeekToolbar from './WeekToolbar';
+
 
 interface ProcessingPageProps {
   onNext: () => void;
@@ -169,14 +168,13 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
         }
       }
 
-      await createProduct();
       await calculateProducts();
       await refreshCount();
       await refreshLastImports();
 
-      const { blob, filename } = await exportCalculations();
-      setProcessedFile(URL.createObjectURL(blob));
-      setProcessedFileName(filename);
+      // const { blob, filename } = await exportCalculations();
+      // setProcessedFile(URL.createObjectURL(blob));
+      // setProcessedFileName(filename);
     } catch (err) {
       console.error('Error processing files:', err);
       setError(

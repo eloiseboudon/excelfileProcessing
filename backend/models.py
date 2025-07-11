@@ -33,24 +33,6 @@ class TemporaryImport(db.Model):
     )
 
 
-class ProductReference(db.Model):
-    __tablename__ = "product_references"
-    __table_args__ = (
-        db.UniqueConstraint("ean", "supplier_id", name="uix_reference_ean_supplier"),
-    )
-
-    id = db.Column(db.Integer, primary_key=True)
-    description = db.Column(db.String(200), nullable=False)
-    quantity = db.Column(db.Float)
-    selling_price = db.Column(db.Float)
-    ean = db.Column(db.String(20), nullable=False)
-
-    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=True)
-    supplier = db.relationship(
-        "Supplier", backref=db.backref("product_references", lazy=True)
-    )
-
-
 class Brand(db.Model):
     __tablename__ = "brands"
 
@@ -100,25 +82,14 @@ class ColorTranslation(db.Model):
 
 class Product(db.Model):
     __tablename__ = "products"
-    __table_args__ = (
-        db.UniqueConstraint(
-            "reference_id", "supplier_id", name="uix_product_reference_supplier"
-        ),
-    )
 
     id = db.Column(db.Integer, primary_key=True)
-    reference_id = db.Column(
-        db.Integer, db.ForeignKey("product_references.id"), nullable=True
-    )
 
-    reference = db.relationship(
-        "ProductReference", backref=db.backref("products", lazy=True)
-    )
-    name = db.Column(db.String(120), nullable=False)
+    ean = db.Column(db.String(20), nullable=True)
+
+    model = db.Column(db.String(120), nullable=False)
+    # name = db.Column(db.String(120), nullable=False)
     description = db.Column(db.String(120), nullable=False)
-
-    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=True)
-    supplier = db.relationship("Supplier", backref=db.backref("products", lazy=True))
 
     brand_id = db.Column(db.Integer, db.ForeignKey("brands.id"), nullable=True)
     brand = db.relationship("Brand", backref=db.backref("products", lazy=True))
@@ -135,8 +106,15 @@ class ProductCalculation(db.Model):
     __tablename__ = "product_calculations"
 
     id = db.Column(db.Integer, primary_key=True)
+
     product_id = db.Column(db.Integer, db.ForeignKey("products.id"), nullable=False)
     product = db.relationship("Product", backref=db.backref("calculates", lazy=True))
+
+    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=True)
+    supplier = db.relationship(
+        "Supplier", backref=db.backref("product_calculations", lazy=True)
+    )
+
     price = db.Column(db.Float, nullable=False)
     tcp = db.Column(db.Float, nullable=False)
     marge4_5 = db.Column(db.Float, nullable=False)
