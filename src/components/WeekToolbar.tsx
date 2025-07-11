@@ -81,7 +81,7 @@ function WeekToolbar() {
             <span>Télécharger</span>
           </button>
         </div>
-        <div className="flex flex-col items-start gap-2">
+        <div className="flex flex-col items-end gap-2">
           <button
             onClick={handleRefresh}
             className="px-4 py-2 bg-[#B8860B] text-black rounded-lg hover:bg-[#B8860B]/90 font-semibold"
