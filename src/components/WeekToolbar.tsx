@@ -4,7 +4,6 @@ import { exportCalculations, refreshProduction, refreshProductionByWeek } from '
 import { getCurrentTimestamp, getCurrentWeekYear } from '../utils/date';
 
 function WeekToolbar() {
-  const [selectedWeekStart, setSelectedWeekStart] = useState<Date | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const getStartOfWeek = (date: Date) => {
@@ -59,55 +58,53 @@ function WeekToolbar() {
     }
   }, []);
 
-  const handleRefreshWeek = useCallback(async () => {
+  const handleRefreshWeek = useCallback(async (weekStart: Date) => {
     setMessage(null);
-    if (!selectedWeekStart) return;
     try {
-      await refreshProductionByWeek([selectedWeekStart]);
+      await refreshProductionByWeek([weekStart]);
       setMessage('Semaine mise à jour');
     } catch {
       setMessage("Erreur lors du rafraîchissement des données de la semaine");
     }
-  }, [selectedWeekStart]);
+  }, []);
 
   return (
     <div className="mb-4">
-      <div className="flex flex-wrap justify-center items-center gap-4">
-        <span className="text-zinc-400">Semaine en cours : {getCurrentWeekYear()}</span>
-        <button
-          onClick={handleDownload}
-          className="px-4 py-2 bg-[#B8860B] text-black rounded-lg flex items-center space-x-2 hover:bg-[#B8860B]/90 font-semibold"
-        >
-          <Download className="w-5 h-5" />
-          <span>Télécharger</span>
-        </button>
-        <button
-          onClick={handleRefresh}
-          className="px-4 py-2 bg-[#B8860B] text-black rounded-lg hover:bg-[#B8860B]/90 font-semibold"
-        >
-          Tout rafraîchir
-        </button>
-        <div className="flex items-center space-x-2">
-          <select
-            value={selectedWeekStart ? selectedWeekStart.toISOString() : ''}
-            onChange={(e) =>
-              setSelectedWeekStart(e.target.value ? new Date(e.target.value) : null)
-            }
-            className="bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1 text-white"
+      <div className="flex flex-col sm:flex-row sm:justify-between items-center gap-4">
+        <div className="flex items-center gap-4">
+          <span className="text-zinc-400">Semaine en cours : {getCurrentWeekYear()}</span>
+          <button
+            onClick={handleDownload}
+            className="px-4 py-2 bg-[#B8860B] text-black rounded-lg flex items-center space-x-2 hover:bg-[#B8860B]/90 font-semibold"
           >
-            <option value="">Choisir la semaine</option>
+            <Download className="w-5 h-5" />
+            <span>Télécharger</span>
+          </button>
+        </div>
+        <div className="flex flex-col items-start gap-2">
+          <button
+            onClick={handleRefresh}
+            className="px-4 py-2 bg-[#B8860B] text-black rounded-lg hover:bg-[#B8860B]/90 font-semibold"
+          >
+            Tout rafraîchir
+          </button>
+          <select
+            defaultValue=""
+            onChange={async (e) => {
+              if (e.target.value) {
+                await handleRefreshWeek(new Date(e.target.value));
+                e.target.value = '';
+              }
+            }}
+            className="px-4 py-2 bg-[#B8860B] text-black rounded-lg hover:bg-[#B8860B]/90 font-semibold cursor-pointer"
+          >
+            <option value="">Rafraîchir une semaine</option>
             {weekOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>
                 {opt.label}
               </option>
             ))}
           </select>
-          <button
-            onClick={handleRefreshWeek}
-            className="px-4 py-2 bg-[#B8860B] text-black rounded-lg hover:bg-[#B8860B]/90 font-semibold"
-          >
-            Rafraîchir
-          </button>
         </div>
       </div>
       {message && (
