@@ -85,7 +85,7 @@ function WeekToolbar() {
           onClick={handleRefresh}
           className="px-4 py-2 bg-[#B8860B] text-black rounded-lg hover:bg-[#B8860B]/90 font-semibold"
         >
-          Rafraîchir la prod
+          Tout rafraîchir
         </button>
         <div className="flex items-center space-x-2">
           <select

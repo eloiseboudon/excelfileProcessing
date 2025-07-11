@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
-import HotwavAdmin from './HotwavAdmin';
-import AccessoriesAdmin from './AccessoriesAdmin';
 import ReferenceAdmin from './ReferenceAdmin';
 
 interface AdminPageProps {
@@ -9,8 +7,6 @@ interface AdminPageProps {
 }
 
 function AdminPage({ onBack }: AdminPageProps) {
-  const [showHotwav, setShowHotwav] = useState(false);
-  const [showAccessories, setShowAccessories] = useState(false);
   const [showReferences, setShowReferences] = useState(false);
 
   return (
@@ -31,18 +27,6 @@ function AdminPage({ onBack }: AdminPageProps) {
           Tables référence
         </button>
       </div>
-      <HotwavAdmin
-        isVisible={showHotwav}
-        onClose={() => setShowHotwav(false)}
-        onSave={() => { }}
-        initialProducts={[]}
-      />
-      <AccessoriesAdmin
-        isVisible={showAccessories}
-        onClose={() => setShowAccessories(false)}
-        onSave={() => { }}
-        initialAccessories={[]}
-      />
       <ReferenceAdmin
         isVisible={showReferences}
         onClose={() => setShowReferences(false)}
