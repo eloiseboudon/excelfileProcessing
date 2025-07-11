@@ -16,6 +16,7 @@ import {
 import { getWeekYear } from '../utils/date';
 import WeekToolbar from './WeekToolbar';
 
+
 interface ProcessingPageProps {
   onNext: () => void;
 }
@@ -201,10 +202,28 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
   }, [suppliers, refreshLastImports]);
 
   return (
-    <div className="max-w-7xl mx-auto px-1 sm:px-2 py-6 sm:py-8">
-      <WeekToolbar />
+    <div className="max-w-4xl mx-auto px-4 py-12">
       <h1 className="text-4xl font-bold text-center mb-2">Étape 1 - Calculs et Traitement</h1>
       <p className="text-center text-[#B8860B] mb-4">Traitez vos fichiers Excel avec calculs TCP et marges</p>
+      <p className="text-center text-zinc-400 mb-4">Semaine en cours : {getCurrentWeekYear()}</p>
+      <div className="flex justify-center mb-8">
+        <button
+          onClick={() => {
+            if (!processedFile) return;
+            const link = document.createElement('a');
+            link.href = processedFile;
+            link.download =
+              processedFileName || `product_calculates_${getCurrentTimestamp()}.xlsx`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }}
+          className="px-6 py-3 bg-[#B8860B] text-black rounded-lg flex items-center space-x-2 hover:bg-[#B8860B]/90 transition-colors font-semibold"
+        >
+          <Download className="w-5 h-5" />
+          <span>Télécharger</span>
+        </button>
+      </div>
       <p className="text-center text-sm text-zinc-500 mb-8">Produits en base : {productsCount}</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
