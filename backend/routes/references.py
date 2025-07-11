@@ -88,7 +88,9 @@ def _update_products_for_color_translation(sources, target_color_id):
             continue
         term = f"%{s.lower()}%"
         products = (
-            Product.query.join(ProductReference, Product.reference_id == ProductReference.id)
+            Product.query.join(
+                ProductReference, Product.reference_id == ProductReference.id
+            )
             .filter(ProductReference.description.ilike(term))
             .all()
         )
@@ -150,7 +152,9 @@ def update_reference_item(table, item_id):
             setattr(item, key, value)
     db.session.commit()
     if table == "color_translations":
-        _update_products_for_color_translation([old_source, item.color_source], item.color_target_id)
+        _update_products_for_color_translation(
+            [old_source, item.color_source], item.color_target_id
+        )
     return jsonify({"status": "success"})
 
 
