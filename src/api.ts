@@ -52,6 +52,18 @@ export async function updateProduct(id: number, data: any) {
   return res.json();
 }
 
+export async function bulkUpdateProducts(data: any[]) {
+  const res = await fetch(`${API_BASE}/products/bulk_update`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    throw new Error("Erreur lors de la mise à jour des produits");
+  }
+  return res.json();
+}
+
 export async function deleteProduct(id: number) {
   const res = await fetch(`${API_BASE}/products/${id}`, {
     method: 'DELETE'

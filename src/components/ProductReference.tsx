@@ -5,20 +5,37 @@ import {
   fetchColors,
   fetchMemoryOptions,
   fetchDeviceTypes,
+  bulkUpdateProducts,
 } from '../api';
 import MultiSelectFilter from './MultiSelectFilter';
 
 interface ProductItem {
-  [key: string]: string | number | null;
+  id: number;
+  ean: string | null;
+  model: string;
+  description: string;
+  brand_id: number | null;
+  brand: string | null;
+  memory_id: number | null;
+  memory: string | null;
+  color_id: number | null;
+  color: string | null;
+  type_id: number | null;
+  type: string | null;
 }
 
 function ProductReference() {
-  const [data, setData] = useState<ProductItem[]>([]);
+  const [products, setProducts] = useState<ProductItem[]>([]);
+  const [edited, setEdited] = useState<Record<number, Partial<ProductItem>>>({});
   const [filters, setFilters] = useState<Record<string, string | string[]>>({});
   const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
   const [showColumnMenu, setShowColumnMenu] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(20);
+  const [brands, setBrands] = useState<any[]>([]);
+  const [colors, setColors] = useState<any[]>([]);
+  const [memories, setMemories] = useState<any[]>([]);
+  const [types, setTypes] = useState<any[]>([]);
   const [brandOptions, setBrandOptions] = useState<string[]>([]);
   const [colorOptions, setColorOptions] = useState<string[]>([]);
   const [memoryOptions, setMemoryOptions] = useState<string[]>([]);
@@ -26,10 +43,10 @@ function ProductReference() {
 
   const columns: { key: string; label: string }[] = [
     { key: 'id', label: 'ID' },
-    { key: 'model', label: 'Mod\u00e8le' },
+    { key: 'model', label: 'Modèle' },
     { key: 'description', label: 'Description' },
     { key: 'brand', label: 'Marque' },
-    { key: 'memory', label: 'M\u00e9moire' },
+    { key: 'memory', label: 'Mémoire' },
     { key: 'color', label: 'Couleur' },
     { key: 'type', label: 'Type' },
     { key: 'ean', label: 'EAN' },
@@ -38,10 +55,10 @@ function ProductReference() {
   useEffect(() => {
     fetchProducts()
       .then((res) => {
-        setData(res as ProductItem[]);
+        setProducts(res as ProductItem[]);
         setVisibleColumns(columns.map((c) => c.key));
       })
-      .catch(() => setData([]));
+      .catch(() => setProducts([]));
 
     Promise.all([
       fetchBrands(),
@@ -49,13 +66,21 @@ function ProductReference() {
       fetchMemoryOptions(),
       fetchDeviceTypes(),
     ])
-      .then(([brands, colors, memories, types]) => {
-        setBrandOptions((brands as any[]).map((b) => b.brand));
-        setColorOptions((colors as any[]).map((c) => c.color));
-        setMemoryOptions((memories as any[]).map((m) => m.memory));
-        setTypeOptions((types as any[]).map((t) => t.type));
+      .then(([b, c, m, t]) => {
+        setBrands(b as any[]);
+        setColors(c as any[]);
+        setMemories(m as any[]);
+        setTypes(t as any[]);
+        setBrandOptions((b as any[]).map((br) => br.brand));
+        setColorOptions((c as any[]).map((co) => co.color));
+        setMemoryOptions((m as any[]).map((me) => me.memory));
+        setTypeOptions((t as any[]).map((ty) => ty.type));
       })
       .catch(() => {
+        setBrands([]);
+        setColors([]);
+        setMemories([]);
+        setTypes([]);
         setBrandOptions([]);
         setColorOptions([]);
         setMemoryOptions([]);
@@ -67,15 +92,12 @@ function ProductReference() {
     setCurrentPage(1);
   }, [filters, rowsPerPage]);
 
-  const filteredData = data.filter((row) =>
+  const filteredData = products.filter((row) =>
     columns.every((col) => {
       const filterValue = filters[col.key];
-      if (
-        !filterValue ||
-        (Array.isArray(filterValue) && filterValue.length === 0)
-      )
+      if (!filterValue || (Array.isArray(filterValue) && filterValue.length === 0))
         return true;
-      const value = row[col.key];
+      const value = (row as any)[col.key];
       if (['brand', 'memory', 'color', 'type'].includes(col.key)) {
         return (filterValue as string[]).includes(String(value ?? ''));
       }
@@ -103,6 +125,36 @@ function ProductReference() {
     );
   };
 
+  const handleChange = (
+    id: number,
+    field: keyof ProductItem,
+    value: string | number | null
+  ) => {
+    setProducts((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, [field]: value } : p))
+    );
+    setEdited((prev) => ({
+      ...prev,
+      [id]: { ...(prev[id] || {}), [field]: value },
+    }));
+  };
+
+  const saveAll = async () => {
+    const payload = Object.entries(edited).map(([id, changes]) => ({
+      id: Number(id),
+      ...changes,
+    }));
+    if (!payload.length) return;
+    try {
+      await bulkUpdateProducts(payload);
+      setEdited({});
+      const res = await fetchProducts();
+      setProducts(res as ProductItem[]);
+    } catch {
+      /* empty */
+    }
+  };
+
   const paginationControls = (
     <div className="flex items-center justify-between">
       <div className="flex items-center space-x-2">
@@ -111,7 +163,7 @@ function ProductReference() {
           disabled={currentPage === 1}
           className="px-3 py-1 bg-zinc-800 rounded disabled:opacity-50"
         >
-          Pr\u00e9c\u00e9dent
+          Précédent
         </button>
         <span>
           Page {currentPage} / {totalPages}
@@ -145,28 +197,37 @@ function ProductReference() {
 
   return (
     <div>
-      <div className="relative mb-4">
+      <div className="flex justify-between mb-4">
+        <div className="relative">
+          <button
+            onClick={() => setShowColumnMenu((s) => !s)}
+            className="px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700"
+          >
+            Colonnes
+          </button>
+          {showColumnMenu && (
+            <div className="absolute z-10 mt-2 p-4 bg-zinc-900 border border-zinc-700 rounded shadow-xl grid grid-cols-2 gap-2">
+              {columns.map((col) => (
+                <label key={col.key} className="flex items-center space-x-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={visibleColumns.includes(col.key)}
+                    onChange={() => toggleColumn(col.key)}
+                    className="rounded"
+                  />
+                  <span>{col.label}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
         <button
-          onClick={() => setShowColumnMenu((s) => !s)}
-          className="px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700"
+          onClick={saveAll}
+          disabled={!Object.keys(edited).length}
+          className="px-4 py-2 bg-green-600 text-white rounded disabled:opacity-50 hover:bg-green-700"
         >
-          Colonnes
+          Enregistrer
         </button>
-        {showColumnMenu && (
-          <div className="absolute z-10 mt-2 p-4 bg-zinc-900 border border-zinc-700 rounded shadow-xl grid grid-cols-2 gap-2">
-            {columns.map((col) => (
-              <label key={col.key} className="flex items-center space-x-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={visibleColumns.includes(col.key)}
-                  onChange={() => toggleColumn(col.key)}
-                  className="rounded"
-                />
-                <span>{col.label}</span>
-              </label>
-            ))}
-          </div>
-        )}
       </div>
       {paginationControls}
       <div className="overflow-auto mt-4">
@@ -225,7 +286,103 @@ function ProductReference() {
                   (col) =>
                     visibleColumns.includes(col.key) && (
                       <td key={col.key} className="px-3 py-1 border-b border-zinc-700">
-                        {String(row[col.key] ?? '')}
+                        {col.key === 'brand' ? (
+                          <select
+                            value={row.brand_id ?? ''}
+                            onChange={(e) =>
+                              handleChange(
+                                row.id,
+                                'brand_id',
+                                e.target.value === '' ? null : Number(e.target.value)
+                              )
+                            }
+                            className="px-2 py-1 bg-zinc-700 rounded"
+                          >
+                            <option value="">null</option>
+                            {brands.map((b) => (
+                              <option key={b.id} value={b.id}>
+                                {b.brand}
+                              </option>
+                            ))}
+                          </select>
+                        ) : col.key === 'memory' ? (
+                          <select
+                            value={row.memory_id ?? ''}
+                            onChange={(e) =>
+                              handleChange(
+                                row.id,
+                                'memory_id',
+                                e.target.value === '' ? null : Number(e.target.value)
+                              )
+                            }
+                            className="px-2 py-1 bg-zinc-700 rounded"
+                          >
+                            <option value="">null</option>
+                            {memories.map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {m.memory}
+                              </option>
+                            ))}
+                          </select>
+                        ) : col.key === 'color' ? (
+                          <select
+                            value={row.color_id ?? ''}
+                            onChange={(e) =>
+                              handleChange(
+                                row.id,
+                                'color_id',
+                                e.target.value === '' ? null : Number(e.target.value)
+                              )
+                            }
+                            className="px-2 py-1 bg-zinc-700 rounded"
+                          >
+                            <option value="">null</option>
+                            {colors.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.color}
+                              </option>
+                            ))}
+                          </select>
+                        ) : col.key === 'type' ? (
+                          <select
+                            value={row.type_id ?? ''}
+                            onChange={(e) =>
+                              handleChange(
+                                row.id,
+                                'type_id',
+                                e.target.value === '' ? null : Number(e.target.value)
+                              )
+                            }
+                            className="px-2 py-1 bg-zinc-700 rounded"
+                          >
+                            <option value="">null</option>
+                            {types.map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.type}
+                              </option>
+                            ))}
+                          </select>
+                        ) : col.key === 'model' ? (
+                          <input
+                            value={row.model}
+                            onChange={(e) => handleChange(row.id, 'model', e.target.value)}
+                            className="w-full px-2 py-1 bg-zinc-700 rounded"
+                          />
+                        ) : col.key === 'description' ? (
+                          <input
+                            value={row.description}
+                            onChange={(e) => handleChange(row.id, 'description', e.target.value)}
+                            className="w-full px-2 py-1 bg-zinc-700 rounded"
+                          />
+                        ) : col.key === 'ean' ? (
+                          <input
+                            value={row.ean ?? ''}
+                            onChange={(e) => handleChange(row.id, 'ean', e.target.value)}
+                            className="w-full px-2 py-1 bg-zinc-700 rounded"
+                          />
+                        ) : (
+                          String((row as any)[col.key] ?? '')
+                        )}
                       </td>
                     )
                 )}
@@ -240,3 +397,4 @@ function ProductReference() {
 }
 
 export default ProductReference;
+
