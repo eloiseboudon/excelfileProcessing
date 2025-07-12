@@ -3,7 +3,14 @@ from io import BytesIO
 
 import pandas as pd
 from flask import Blueprint, jsonify, request, send_file
-from models import Brand, Product, ProductCalculation, db
+from models import (
+    Brand,
+    ImportHistory,
+    Product,
+    ProductCalculation,
+    TemporaryImport,
+    db,
+)
 
 from utils.calculations import recalculate_product_calculations
 
@@ -189,12 +196,13 @@ def refresh():
         description: Confirmation message
     """
     ProductCalculation.query.delete()
+    TemporaryImport.query.delete()
     return jsonify({"status": "success", "message": "Product calculations empty"})
 
 
 @bp.route("/refresh_week", methods=["POST"])
 def refresh_week():
-    """Delete product calculations for specified weeks.
+    """Delete product calculations and import history for specified weeks.
 
     ---
     tags:
@@ -235,12 +243,16 @@ def refresh_week():
             ProductCalculation.date >= start,
             ProductCalculation.date < end,
         ).delete(synchronize_session=False)
+        ImportHistory.query.filter(
+            ImportHistory.date >= start,
+            ImportHistory.date < end,
+        ).delete(synchronize_session=False)
 
     db.session.commit()
     return jsonify(
         {
             "status": "success",
-            "message": "Product calculations empty for selected weeks",
+            "message": "Product calculations and import history empty for selected weeks",
         }
     )
 
