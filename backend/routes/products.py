@@ -283,6 +283,40 @@ def update_product(product_id):
     return jsonify({"status": "updated"})
 
 
+@bp.route("/products/bulk_update", methods=["PUT"])
+def bulk_update_products():
+    """Update multiple products in a single request."""
+    items = request.get_json(silent=True) or []
+    if not isinstance(items, list):
+        return jsonify({"error": "Invalid payload"}), 400
+
+    fields = [
+        "ean",
+        "model",
+        "description",
+        "brand_id",
+        "memory_id",
+        "color_id",
+        "type_id",
+    ]
+    updated_ids = []
+    for item in items:
+        pid = item.get("id")
+        if not pid:
+            continue
+        product = Product.query.get(pid)
+        if not product:
+            continue
+        for field in fields:
+            if field in item:
+                setattr(product, field, item[field])
+        updated_ids.append(pid)
+
+    if updated_ids:
+        db.session.commit()
+    return jsonify({"status": "success", "updated": updated_ids})
+
+
 @bp.route("/products/<int:product_id>", methods=["DELETE"])
 def delete_product(product_id):
     """Delete a product."""
