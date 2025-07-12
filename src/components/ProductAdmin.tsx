@@ -126,10 +126,10 @@ function ProductAdmin() {
         ean: '',
         model: '',
         description: '',
-        brand_id: brands[0]?.id ?? null,
-        memory_id: memories[0]?.id ?? null,
-        color_id: colors[0]?.id ?? null,
-        type_id: types[0]?.id ?? null,
+        brand_id: null,
+        memory_id: null,
+        color_id: null,
+        type_id: null,
       },
     ]);
   };
@@ -176,6 +176,7 @@ function ProductAdmin() {
                   e.target.value === '' ? null : Number(e.target.value)
                 )
               }
+
               className="px-2 py-1 bg-zinc-700 rounded"
             >
               <option value="">null</option>
@@ -192,6 +193,7 @@ function ProductAdmin() {
                   e.target.value === '' ? null : Number(e.target.value)
                 )
               }
+
               className="px-2 py-1 bg-zinc-700 rounded"
             >
               <option value="">null</option>
@@ -208,6 +210,7 @@ function ProductAdmin() {
                   e.target.value === '' ? null : Number(e.target.value)
                 )
               }
+
               className="px-2 py-1 bg-zinc-700 rounded"
             >
               <option value="">null</option>
@@ -224,6 +227,7 @@ function ProductAdmin() {
                   e.target.value === '' ? null : Number(e.target.value)
                 )
               }
+
               className="px-2 py-1 bg-zinc-700 rounded"
             >
               <option value="">null</option>
