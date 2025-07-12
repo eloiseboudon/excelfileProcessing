@@ -60,10 +60,10 @@ function ProductAdmin() {
           ean: p.ean ?? '',
           model: p.name ?? '',
           description: p.description ?? '',
-          brand_id: null,
-          memory_id: null,
-          color_id: null,
-          type_id: null,
+          brand_id: p.brand_id ?? null,
+          memory_id: p.memory_id ?? null,
+          color_id: p.color_id ?? null,
+          type_id: p.type_id ?? null,
         }))
       );
     } catch {
