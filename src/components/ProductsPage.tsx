@@ -1,7 +1,7 @@
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { fetchProductCalculations } from '../api';
-import ProductAdmin from './ProductAdmin';
+import ProductReference from './ProductReference';
 import WeekToolbar from './WeekToolbar';
 
 import {
@@ -314,7 +314,7 @@ function ProductsPage({ onBack }: ProductsPageProps) {
           <div className="mt-4">{paginationControls}</div>
         </>
       )}
-      {tab === 'reference' && <ProductAdmin />}
+      {tab === 'reference' && <ProductReference />}
     </div>
   );
 }
