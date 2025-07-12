@@ -60,10 +60,10 @@ function ProductAdmin() {
           ean: p.ean ?? '',
           model: p.name ?? '',
           description: p.description ?? '',
-          brand_id: null,
-          memory_id: null,
-          color_id: null,
-          type_id: null,
+          brand_id: p.brand_id ?? null,
+          memory_id: p.memory_id ?? null,
+          color_id: p.color_id ?? null,
+          type_id: p.type_id ?? null,
         }))
       );
     } catch {
@@ -169,8 +169,13 @@ function ProductAdmin() {
             />
             <select
               value={p.brand_id ?? ''}
-              onChange={(e) => handleChange(p.id, 'brand_id', Number(e.target.value === '' ? null : Number(e.target.value)
-              ))}
+              onChange={(e) =>
+                handleChange(
+                  p.id,
+                  'brand_id',
+                  e.target.value === '' ? null : Number(e.target.value)
+                )
+              }
               className="px-2 py-1 bg-zinc-700 rounded"
             >
               <option value="">null</option>
@@ -180,8 +185,13 @@ function ProductAdmin() {
             </select>
             <select
               value={p.memory_id ?? ''}
-              onChange={(e) => handleChange(p.id, 'memory_id', Number(e.target.value === '' ? null : Number(e.target.value)
-              ))}
+              onChange={(e) =>
+                handleChange(
+                  p.id,
+                  'memory_id',
+                  e.target.value === '' ? null : Number(e.target.value)
+                )
+              }
               className="px-2 py-1 bg-zinc-700 rounded"
             >
               <option value="">null</option>
@@ -191,8 +201,13 @@ function ProductAdmin() {
             </select>
             <select
               value={p.color_id ?? ''}
-              onChange={(e) => handleChange(p.id, 'color_id', Number(e.target.value === '' ? null : Number(e.target.value)
-              ))}
+              onChange={(e) =>
+                handleChange(
+                  p.id,
+                  'color_id',
+                  e.target.value === '' ? null : Number(e.target.value)
+                )
+              }
               className="px-2 py-1 bg-zinc-700 rounded"
             >
               <option value="">null</option>
@@ -202,8 +217,13 @@ function ProductAdmin() {
             </select>
             <select
               value={p.type_id ?? ''}
-              onChange={(e) => handleChange(p.id, 'type_id', Number(e.target.value === '' ? null : Number(e.target.value)
-              ))}
+              onChange={(e) =>
+                handleChange(
+                  p.id,
+                  'type_id',
+                  e.target.value === '' ? null : Number(e.target.value)
+                )
+              }
               className="px-2 py-1 bg-zinc-700 rounded"
             >
               <option value="">null</option>

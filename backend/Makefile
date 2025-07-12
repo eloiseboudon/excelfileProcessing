@@ -6,6 +6,21 @@ PYTHON_VENV := $(VENV)/bin/python
 MSG := "Auto migration"
 DC := docker compose
 
+# Detect if running inside a container
+INSIDE_DOCKER := $(shell [ -f /.dockerenv ] && echo 1)
+
+ifeq ($(INSIDE_DOCKER),1)
+RUN_BACKEND :=
+EXEC_BACKEND :=
+EXEC_POSTGRES := psql -h postgres -U postgres -d ajtpro
+PG_DUMP_CMD := pg_dump -h postgres -U postgres ajtpro
+else
+RUN_BACKEND := $(DC) run --rm backend
+EXEC_BACKEND := $(DC) exec backend
+EXEC_POSTGRES := $(DC) exec postgres psql -U postgres -d ajtpro
+PG_DUMP_CMD := $(DC) exec postgres pg_dump -U postgres ajtpro
+endif
+
 .PHONY: help docker-build docker-up docker-down docker-logs alembic-init alembic-migrate alembic-upgrade alembic-current alembic-history db-create-local db-implement-tables clean-branches
 
 help:
@@ -45,26 +60,26 @@ docker-logs-postgres:
 
 # Commandes Alembic (toutes dans Docker)
 alembic-init:
-	$(DC) run --rm backend alembic init alembic
+	$(RUN_BACKEND) alembic init alembic
 	@echo "Alembic initialisé. Pensez à configurer env.py"
 
 alembic-migrate:
-	$(DC) run --rm backend alembic revision --autogenerate -m "$(MSG)"
+	$(RUN_BACKEND) alembic revision --autogenerate -m "$(MSG)"
 	@echo "Migration créée avec le message: $(MSG)"
 
 alembic-upgrade:
-	$(DC) run --rm backend alembic upgrade head
+	$(RUN_BACKEND) alembic upgrade head
 	@echo "Migrations appliquées"
 
 alembic-downgrade:
-	$(DC) run --rm backend alembic downgrade -1
+	$(RUN_BACKEND) alembic downgrade -1
 	@echo "Migration précédente annulée"
 
 alembic-current:
-	$(DC) run --rm backend alembic current
+	$(RUN_BACKEND) alembic current
 
 alembic-history:
-	$(DC) run --rm backend alembic history --verbose
+	$(RUN_BACKEND) alembic history --verbose
 
 # Commandes de développement
 dev-setup: docker-build docker-up alembic-upgrade
@@ -76,13 +91,13 @@ dev-reset: docker-down
 
 # Shell dans les conteneurs
 shell-backend:
-	$(DC) exec backend bash
+	$(EXEC_BACKEND) bash
 
 shell-postgres:
-	$(DC) exec postgres psql -U postgres -d ajtpro
+	$(EXEC_POSTGRES)
 
 shell-implement-tables:
-	$(DC) exec backend python -m implement_tables
+	$(EXEC_BACKEND) python -m implement_tables
 
 # Git utilities
 clean-branches:
@@ -96,12 +111,12 @@ clean:
 
 # Tests (si vous en avez)
 test:
-	$(DC) run --rm backend python -m pytest
+	$(RUN_BACKEND) python -m pytest
 
 # Backup/Restore
 backup:
-	$(DC) exec postgres pg_dump -U postgres ajtpro > backup_$(shell date +%Y%m%d_%H%M%S).sql
+	$(PG_DUMP_CMD) > backup_$(shell date +%Y%m%d_%H%M%S).sql
 
 restore:
 	@echo "Usage: make restore BACKUP_FILE=backup_file.sql"
-	$(DC) exec -T postgres psql -U postgres ajtpro < $(BACKUP_FILE)
+	cat $(BACKUP_FILE) | $(EXEC_POSTGRES)
