@@ -6,6 +6,7 @@ import {
   fetchMemoryOptions,
   fetchDeviceTypes,
 } from '../api';
+import MultiSelectFilter from './MultiSelectFilter';
 
 interface ProductItem {
   [key: string]: string | number | null;
@@ -187,31 +188,21 @@ function ProductReference() {
                   visibleColumns.includes(col.key) && (
                     <th key={col.key} className="px-3 py-1 border-b border-zinc-700">
                       {['brand', 'memory', 'color', 'type'].includes(col.key) ? (
-                        <select
-                          multiple
-                          size={3}
-                          value={(filters[col.key] as string[]) || []}
-                          onChange={(e) => {
-                            const selected = Array.from(e.target.selectedOptions).map(
-                              (o) => o.value
-                            );
-                            setFilters({ ...filters, [col.key]: selected });
-                          }}
-                          className="w-full px-2 py-1 bg-zinc-900 border border-zinc-600 rounded"
-                        >
-                          {(col.key === 'brand'
-                            ? brandOptions
-                            : col.key === 'memory'
-                            ? memoryOptions
-                            : col.key === 'color'
-                            ? colorOptions
-                            : typeOptions
-                          ).map((opt) => (
-                            <option key={opt} value={opt}>
-                              {opt}
-                            </option>
-                          ))}
-                        </select>
+                        <MultiSelectFilter
+                          options={
+                            col.key === 'brand'
+                              ? brandOptions
+                              : col.key === 'memory'
+                              ? memoryOptions
+                              : col.key === 'color'
+                              ? colorOptions
+                              : typeOptions
+                          }
+                          selected={(filters[col.key] as string[]) || []}
+                          onChange={(selected) =>
+                            setFilters({ ...filters, [col.key]: selected })
+                          }
+                        />
                       ) : (
                         <input
                           type="text"
