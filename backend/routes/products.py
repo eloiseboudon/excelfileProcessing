@@ -3,7 +3,8 @@ from io import BytesIO
 
 import pandas as pd
 from flask import Blueprint, jsonify, request, send_file
-from models import Product, ProductCalculation, db
+from models import Brand, Product, ProductCalculation, db
+
 from utils.calculations import recalculate_product_calculations
 
 bp = Blueprint("products", __name__)
@@ -20,12 +21,17 @@ def list_product_calculations():
       200:
         description: Calculated prices for all products
     """
-    calculations = ProductCalculation.query.join(Product).all()
+    calculations = (
+        ProductCalculation.query.join(Product)
+        .join(Brand)
+        .order_by(Brand.brand, Product.model)
+        .all()
+    )
     result = [
         {
             "id": c.id,
             "product_id": c.product_id,
-            "name": c.product.model if c.product else None,
+            "model": c.product.model if c.product else None,
             "description": c.product.description if c.product else None,
             "brand": c.product.brand.brand if c.product and c.product.brand else None,
             "price": c.price,
@@ -63,12 +69,12 @@ def list_products():
       200:
         description: A list of products
     """
-    products = Product.query.all()
+    products = Product.query.join(Brand).order_by(Brand.brand, Product.model).all()
     result = [
         {
             "id": p.id,
             "description": p.description,
-            "name": p.model,
+            "model": p.model,
             "brand": p.brand.brand if p.brand else None,
             "brand_id": p.brand_id,
             "memory": p.memory.memory if p.memory else None,
@@ -284,4 +290,3 @@ def delete_product(product_id):
     db.session.delete(product)
     db.session.commit()
     return jsonify({"status": "deleted"})
-

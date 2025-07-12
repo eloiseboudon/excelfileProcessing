@@ -1,14 +1,14 @@
-import React, { useEffect, useState } from 'react';
-import { Save, Trash2, Plus } from 'lucide-react';
+import { Plus, Save, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import {
-  fetchProducts,
   createProduct,
-  updateProduct,
   deleteProduct,
   fetchBrands,
   fetchColors,
+  fetchDeviceTypes,
   fetchMemoryOptions,
-  fetchDeviceTypes
+  fetchProducts,
+  updateProduct
 } from '../api';
 
 interface ProductItem {
@@ -58,7 +58,7 @@ function ProductAdmin() {
         (res as any[]).map((p) => ({
           id: p.id,
           ean: p.ean ?? '',
-          model: p.name ?? '',
+          model: p.model ?? '',
           description: p.description ?? '',
           brand_id: p.brand_id ?? null,
           memory_id: p.memory_id ?? null,
@@ -74,7 +74,7 @@ function ProductAdmin() {
   const handleChange = (
     id: number,
     field: keyof ProductItem,
-    value: string | number
+    value: string | number | null
   ) => {
     setProducts((prev) =>
       prev.map((p) => (p.id === id ? { ...p, [field]: value } : p))
@@ -148,25 +148,14 @@ function ProductAdmin() {
       <div className="space-y-2">
         {products.map((p) => (
           <div key={p.id} className="flex items-center space-x-2 bg-zinc-800 p-2 rounded">
-            <span className="w-10 text-zinc-400">{p.id > 0 ? p.id : '-'}</span>
-            <input
+            {/* <span className="w-10 text-zinc-400">{p.id > 0 ? p.id : '-'}</span> */}
+            {/* <input
               value={p.ean ?? ''}
               onChange={(e) => handleChange(p.id, 'ean', e.target.value)}
               placeholder="ean"
               className="w-24 px-2 py-1 bg-zinc-700 rounded"
-            />
-            <input
-              value={p.model}
-              onChange={(e) => handleChange(p.id, 'model', e.target.value)}
-              placeholder="model"
-              className="flex-1 px-2 py-1 bg-zinc-700 rounded"
-            />
-            <input
-              value={p.description}
-              onChange={(e) => handleChange(p.id, 'description', e.target.value)}
-              placeholder="description"
-              className="flex-1 px-2 py-1 bg-zinc-700 rounded"
-            />
+            /> */}
+
             <select
               value={p.brand_id ?? ''}
               onChange={(e) =>
@@ -184,6 +173,19 @@ function ProductAdmin() {
                 <option key={b.id} value={b.id}>{b.brand}</option>
               ))}
             </select>
+            <input
+              value={p.model}
+              onChange={(e) => handleChange(p.id, 'model', e.target.value)}
+              placeholder="model"
+              className="flex-1 px-2 py-1 bg-zinc-700 rounded"
+            />
+            <input
+              value={p.description}
+              onChange={(e) => handleChange(p.id, 'description', e.target.value)}
+              placeholder="description"
+              className="flex-1 px-2 py-1 bg-zinc-700 rounded"
+            />
+
             <select
               value={p.memory_id ?? ''}
               onChange={(e) =>
