@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
+import { useState } from 'react';
 import ReferenceAdmin from './ReferenceAdmin';
 import TranslationAdmin from './TranslationAdmin';
 
@@ -28,8 +28,6 @@ function AdminPage({ onBack }: AdminPageProps) {
         >
           Tables référence
         </button>
-      </div>
-         <div className="flex justify-center space-x-4">
         <button
           onClick={() => setShowTranslations(true)}
           className="px-6 py-3 bg-[#B8860B] text-black rounded-lg font-semibold hover:bg-[#B8860B]/90"
