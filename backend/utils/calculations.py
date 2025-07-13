@@ -1,5 +1,6 @@
 import math
 from datetime import datetime, timezone
+from typing import Dict, Iterable, Tuple
 
 from models import (
     BrandTranslation,
@@ -13,41 +14,51 @@ from models import (
 )
 
 
-def process_description(description: str):
-    """Process the description to extract product characteristics."""
-    # Normalize the description
-    description = description.lower().strip()
+def _load_mappings() -> Dict[str, Iterable[Tuple[str, int]]]:
+    """Load translation mappings into memory for faster lookups."""
+    return {
+        "brand": [
+            (t.brand_source.lower(), t.brand_target_id)
+            for t in BrandTranslation.query.all()
+        ],
+        "memory": [
+            (t.memory_source.lower(), t.memory_target_id)
+            for t in MemoryTranslation.query.all()
+        ],
+        "color": [
+            (t.color_source.lower(), t.color_target_id)
+            for t in ColorTranslation.query.all()
+        ],
+        "type": [
+            (t.type_source.lower(), t.type_target_id)
+            for t in TypeTranslation.query.all()
+        ],
+    }
 
-    # Extract brand
-    brand = BrandTranslation.query.filter(
-        BrandTranslation.brand_source.ilike(f"%{description}%")
-    ).first()
 
-    # Extract memory
-    memory = MemoryTranslation.query.filter(
-        MemoryTranslation.memory_source.ilike(f"%{description}%")
-    ).first()
+def process_description(description: str | None, mappings: Dict[str, Iterable[Tuple[str, int]]]):
+    """Extract identifiers from the product description using cached mappings."""
+    desc = (description or "").lower()
 
-    # Extract color
-    color = ColorTranslation.query.filter(
-        ColorTranslation.color_source.ilike(f"%{description}%")
-    ).first()
-
-    # Extract type
-    type_ = TypeTranslation.query.filter(
-        TypeTranslation.type_source.ilike(f"%{description}%")
-    ).first()
+    def find_id(items: Iterable[Tuple[str, int]]):
+        for src, target in items:
+            if src and src in desc:
+                return target
+        return None
 
     return {
-        "brand_id": brand.brand_target_id if brand else None,
-        "memory_id": memory.memory_target_id if memory else None,
-        "color_id": color.color_target_id if color else None,
-        "type_id": type_.type_target_id if type_ else None,
+        "brand_id": find_id(mappings["brand"]),
+        "memory_id": find_id(mappings["memory"]),
+        "color_id": find_id(mappings["color"]),
+        "type_id": find_id(mappings["type"]),
     }
 
 
 def recalculate_product_calculations():
     """Recompute ProductCalculation entries from TemporaryImport data."""
+
+    # Précharger les tables de correspondance pour éviter les requêtes répétées
+    mappings = _load_mappings()
 
     # Récupérer tous les imports temporaires
     temps = TemporaryImport.query.all()
@@ -55,7 +66,7 @@ def recalculate_product_calculations():
     # D'abord enrichir les données des imports temporaires
     for temp in temps:
         # Extraire les caractéristiques de la description
-        characteristics = process_description(temp.description)
+        characteristics = process_description(temp.description, mappings)
 
         # Mettre à jour les champs de l'import temporaire
         temp.brand_id = characteristics["brand_id"]
@@ -72,20 +83,19 @@ def recalculate_product_calculations():
     # Maintenant faire la recherche de correspondance
     for temp in temps:
         # Étape 1 : Recherche sans le type
-        product = Product.query.filter(
-            Product.brand_id == temp.brand_id,
-            Product.memory_id == temp.memory_id,
-            Product.color_id == temp.color_id,
-        ).first()
+        query = Product.query
+        if temp.brand_id is not None:
+            query = query.filter(Product.brand_id == temp.brand_id)
+        if temp.memory_id is not None:
+            query = query.filter(Product.memory_id == temp.memory_id)
+        if temp.color_id is not None:
+            query = query.filter(Product.color_id == temp.color_id)
+        product = query.first()
 
         # Si non trouvé et que le type est défini, on essaie avec le type
-        if not product and temp.type_id:
-            product = Product.query.filter(
-                Product.brand_id == temp.brand_id,
-                Product.memory_id == temp.memory_id,
-                Product.color_id == temp.color_id,
-                Product.type_id == temp.type_id,
-            ).first()
+        if not product and temp.type_id is not None:
+            query_type = query.filter(Product.type_id == temp.type_id)
+            product = query_type.first()
 
         # Si toujours non trouvé, passer au suivant
         if not product:
@@ -94,12 +104,9 @@ def recalculate_product_calculations():
         # Calculer les valeurs
         price = temp.selling_price or 0
         memory = product.memory.memory.upper() if product.memory else ""
-        tcp = 0
-        if memory == "32GB":
-            tcp = 10
-        elif memory == "64GB":
-            tcp = 12
-        elif memory in ["128GB", "256GB", "512GB", "1TB"]:
+        tcp_map = {"32GB": 10, "64GB": 12}
+        tcp = tcp_map.get(memory, 0)
+        if tcp == 0 and memory in ["128GB", "256GB", "512GB", "1TB"]:
             tcp = 14
 
         margin45 = price * 0.045
