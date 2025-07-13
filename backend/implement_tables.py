@@ -38,10 +38,10 @@ cur.execute(
 """
 )
 cur.execute(
-    "INSERT INTO memory_options (memory) VALUES ('32GB'),('64GB'), ('128GB'), ('256GB'), ('512GB');"
+    "INSERT INTO memory_options (memory, tcp_value) VALUES ('32GB', 10),('64GB', 12), ('128GB', 14), ('256GB', 14), ('512GB', 14);"
 )
 cur.execute(
-    "INSERT INTO colors (color) VALUES ('Blanc'), ('Noir'), ('Bleu'), ('Rouge'), ('Vert'),('Orange'),('Violet');"
+    "INSERT INTO colors (color) VALUES ('Blanc'), ('Noir'), ('Bleu'), ('Rouge'), ('Vert'),('Orange'),('Violet'),('Jaune'),('Rose');"
 )
 cur.execute(
     """
@@ -57,7 +57,7 @@ cur.execute(
     ('midnight', 'Bleu', 3),
     ('ultramarine', 'Bleu', 3),
     ('red', 'Rouge', 4),
-    ('pink', 'Rouge', 4),
+    ('pink', 'Rose', 9),
     ('green', 'Vert', 5),
     ('orange', 'Orange', 6),
     ('purple', 'Violet', 7),
@@ -65,12 +65,15 @@ cur.execute(
     ('silver', 'Blanc', 1),
     ('grey', 'Noir', 2),
     ('gray', 'Noir', 2),
-    ('champagne', 'Blanc', 1);
+    ('champagne', 'Blanc', 1),
+    ('rose', 'Rose', 9),
+    ('yellow', 'Jaune', 8)
+    
 """
 )
 
 cur.execute(
-    "INSERT INTO device_types (type) VALUES ('Téléphone'), ('Tablette'), ('Montre'), ('Ordinateur');"
+    "INSERT INTO device_types (type) VALUES ('Téléphone'), ('Tablette'), ('Montre'), ('Ordinateur'), ('Accessoire'),('Ecouteur'),('Chargeur'),('Câble'),('A définir');"
 )
 cur.execute(
     "INSERT INTO exclusions (term) VALUES ('Mac'), ('Backbone'), ('Bulk'), ('OH25B'), ('Soundbar');"

@@ -32,3 +32,5 @@ backend/alembic/*
 
 **/__pycache__
 **/*.pyc
+
+todo.md
