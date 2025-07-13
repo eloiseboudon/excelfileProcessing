@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from 'react';
-import { Calculator, Palette, Settings, LibraryBig } from 'lucide-react';
-import { fetchProducts, refreshProduction, refreshProductionByWeek } from './api';
-import ProcessingPage from './components/ProcessingPage';
-import FormattingPage from './components/FormattingPage';
+import { Calculator, LibraryBig, Palette, Settings } from 'lucide-react';
+import { useState } from 'react';
+import { fetchProducts } from './api';
 import AdminPage from './components/AdminPage';
+import FormattingPage from './components/FormattingPage';
+import ProcessingPage from './components/ProcessingPage';
 import ProductsPage from './components/ProductsPage';
 
 function App() {
@@ -60,16 +60,16 @@ function App() {
                 }`}
             >
               <LibraryBig className="w-5 h-5" />
-              <span>Products</span>
+              <span>Produits</span>
             </button>
             <button
               onClick={() => setCurrentPage('admin')}
               className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-semibold transition-all duration-200
                   ${currentPage === 'admin'
-                    ? 'bg-[#B8860B] text-black'
-                    : 'bg-zinc-800 text-white hover:bg-zinc-700'
-                  }`}
-              >
+                  ? 'bg-[#B8860B] text-black'
+                  : 'bg-zinc-800 text-white hover:bg-zinc-700'
+                }`}
+            >
               <Settings className="w-5 h-5" />
               <span>Admin</span>
             </button>

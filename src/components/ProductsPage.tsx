@@ -1,14 +1,14 @@
-import React, { useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { fetchProductCalculations } from '../api';
+import ProductReference from './ProductReference';
 import WeekToolbar from './WeekToolbar';
-import ProductAdmin from './ProductAdmin';
 
 import {
   fetchBrands,
   fetchColors,
-  fetchMemoryOptions,
   fetchDeviceTypes,
+  fetchMemoryOptions,
 } from '../api';
 
 interface ProductCalculation {
@@ -34,7 +34,7 @@ function ProductsPage({ onBack }: ProductsPageProps) {
 
   const columns: { key: string; label: string }[] = [
     { key: 'id', label: 'ID' },
-    { key: 'name', label: 'Nom' },
+    { key: 'model', label: 'Modèle' },
     { key: 'description', label: 'Description' },
     { key: 'supplier', label: 'Fournisseur' },
     { key: 'brand', label: 'Marque' },
@@ -81,28 +81,28 @@ function ProductsPage({ onBack }: ProductsPageProps) {
 
   useEffect(() => {
     const usedBrands = Array.from(
-      new Set(data.map((d) => d.brand).filter(Boolean))
+      new Set(data.map((d) => d.brand).filter((brand): brand is string => typeof brand === 'string'))
     );
     if (usedBrands.length) {
       setBrandOptions((prev) => Array.from(new Set([...prev, ...usedBrands])));
     }
 
     const usedColors = Array.from(
-      new Set(data.map((d) => d.color).filter(Boolean))
+      new Set(data.map((d) => d.color).filter((color): color is string => typeof color === 'string'))
     );
     if (usedColors.length) {
       setColorOptions((prev) => Array.from(new Set([...prev, ...usedColors])));
     }
 
     const usedMemories = Array.from(
-      new Set(data.map((d) => d.memory).filter(Boolean))
+      new Set(data.map((d) => d.memory).filter((memory): memory is string => typeof memory === 'string'))
     );
     if (usedMemories.length) {
       setMemoryOptions((prev) => Array.from(new Set([...prev, ...usedMemories])));
     }
 
     const usedTypes = Array.from(
-      new Set(data.map((d) => d.type).filter(Boolean))
+      new Set(data.map((d) => d.type).filter((type): type is string => typeof type === 'string'))
     );
     if (usedTypes.length) {
       setTypeOptions((prev) => Array.from(new Set([...prev, ...usedTypes])));
@@ -201,17 +201,15 @@ function ProductsPage({ onBack }: ProductsPageProps) {
       <div className="flex justify-center space-x-4 mb-6">
         <button
           onClick={() => setTab('calculations')}
-          className={`px-4 py-2 rounded ${
-            tab === 'calculations' ? 'bg-[#B8860B] text-black' : 'bg-zinc-800 hover:bg-zinc-700'
-          }`}
+          className={`px-4 py-2 rounded ${tab === 'calculations' ? 'bg-[#B8860B] text-black' : 'bg-zinc-800 hover:bg-zinc-700'
+            }`}
         >
           TCP/Marges
         </button>
         <button
           onClick={() => setTab('reference')}
-          className={`px-4 py-2 rounded ${
-            tab === 'reference' ? 'bg-[#B8860B] text-black' : 'bg-zinc-800 hover:bg-zinc-700'
-          }`}
+          className={`px-4 py-2 rounded ${tab === 'reference' ? 'bg-[#B8860B] text-black' : 'bg-zinc-800 hover:bg-zinc-700'
+            }`}
         >
           Référentiel
         </button>
@@ -227,19 +225,19 @@ function ProductsPage({ onBack }: ProductsPageProps) {
             </button>
             {showColumnMenu && (
               <div className="absolute z-10 mt-2 p-4 bg-zinc-900 border border-zinc-700 rounded shadow-xl grid grid-cols-2 gap-2">
-            {columns.map((col) => (
-              <label key={col.key} className="flex items-center space-x-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={visibleColumns.includes(col.key)}
-                  onChange={() => toggleColumn(col.key)}
-                  className="rounded"
-                />
-                <span>{col.label}</span>
-              </label>
-            ))}
-          </div>
-        )}
+                {columns.map((col) => (
+                  <label key={col.key} className="flex items-center space-x-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={visibleColumns.includes(col.key)}
+                      onChange={() => toggleColumn(col.key)}
+                      className="rounded"
+                    />
+                    <span>{col.label}</span>
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
           {paginationControls}
           <div className="overflow-auto mt-4">
@@ -249,74 +247,74 @@ function ProductsPage({ onBack }: ProductsPageProps) {
                   {columns.map(
                     (col) =>
                       visibleColumns.includes(col.key) && (
-                    <th key={col.key} className="px-3 py-2 border-b border-zinc-700">
-                      {col.label}
-                    </th>
-                  )
-              )}
-            </tr>
-            <tr>
-              {columns.map(
-                (col) =>
-                  visibleColumns.includes(col.key) && (
-                    <th key={col.key} className="px-3 py-1 border-b border-zinc-700">
-                      {['brand', 'memory', 'color', 'type'].includes(col.key) ? (
-                        <select
-                          value={filters[col.key] || ''}
-                          onChange={(e) =>
-                            setFilters({ ...filters, [col.key]: e.target.value })
-                          }
-                          className="w-full px-2 py-1 bg-zinc-900 border border-zinc-600 rounded"
-                        >
-                          <option value="">Tous</option>
-                          {(col.key === 'brand'
-                            ? brandOptions
-                            : col.key === 'memory'
-                            ? memoryOptions
-                            : col.key === 'color'
-                            ? colorOptions
-                            : typeOptions
-                          ).map((opt) => (
-                            <option key={opt} value={opt}>
-                              {opt}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          type="text"
-                          value={filters[col.key] || ''}
-                          onChange={(e) =>
-                            setFilters({ ...filters, [col.key]: e.target.value })
-                          }
-                          className="w-full px-2 py-1 bg-zinc-900 border border-zinc-600 rounded"
-                        />
-                      )}
-                    </th>
-                  )
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedData.map((row) => (
-              <tr key={String(row.id)} className="odd:bg-zinc-900 even:bg-zinc-800">
-                {columns.map(
-                  (col) =>
-                    visibleColumns.includes(col.key) && (
-                      <td key={col.key} className="px-3 py-1 border-b border-zinc-700">
-                        {String(row[col.key] ?? '')}
-                      </td>
-                    )
-                )}
-              </tr>
-            ))}
-          </tbody>
+                        <th key={col.key} className="px-3 py-2 border-b border-zinc-700">
+                          {col.label}
+                        </th>
+                      )
+                  )}
+                </tr>
+                <tr>
+                  {columns.map(
+                    (col) =>
+                      visibleColumns.includes(col.key) && (
+                        <th key={col.key} className="px-3 py-1 border-b border-zinc-700">
+                          {['brand', 'memory', 'color', 'type'].includes(col.key) ? (
+                            <select
+                              value={filters[col.key] || ''}
+                              onChange={(e) =>
+                                setFilters({ ...filters, [col.key]: e.target.value })
+                              }
+                              className="w-full px-2 py-1 bg-zinc-900 border border-zinc-600 rounded"
+                            >
+                              <option value="">Tous</option>
+                              {(col.key === 'brand'
+                                ? brandOptions
+                                : col.key === 'memory'
+                                  ? memoryOptions
+                                  : col.key === 'color'
+                                    ? colorOptions
+                                    : typeOptions
+                              ).map((opt) => (
+                                <option key={opt} value={opt}>
+                                  {opt}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input
+                              type="text"
+                              value={filters[col.key] || ''}
+                              onChange={(e) =>
+                                setFilters({ ...filters, [col.key]: e.target.value })
+                              }
+                              className="w-full px-2 py-1 bg-zinc-900 border border-zinc-600 rounded"
+                            />
+                          )}
+                        </th>
+                      )
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedData.map((row) => (
+                  <tr key={String(row.id)} className="odd:bg-zinc-900 even:bg-zinc-800">
+                    {columns.map(
+                      (col) =>
+                        visibleColumns.includes(col.key) && (
+                          <td key={col.key} className="px-3 py-1 border-b border-zinc-700">
+                            {String(row[col.key] ?? '')}
+                          </td>
+                        )
+                    )}
+                  </tr>
+                ))}
+              </tbody>
             </table>
           </div>
           <div className="mt-4">{paginationControls}</div>
         </>
       )}
-      {tab === 'reference' && <ProductAdmin />}
+      {tab === 'reference' && <ProductReference />}
     </div>
   );
 }

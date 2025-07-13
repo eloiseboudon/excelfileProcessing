@@ -22,10 +22,27 @@ class TemporaryImport(db.Model):
     )
 
     id = db.Column(db.Integer, primary_key=True)
-    description = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.String(200), nullable=True)
+    model = db.Column(db.String(200), nullable=True)
     quantity = db.Column(db.Integer)
     selling_price = db.Column(db.Float)
     ean = db.Column(db.String(20), nullable=False)
+
+    # Champs pour stocker les valeurs extraites
+    brand_id = db.Column(db.Integer, db.ForeignKey("brands.id"), nullable=True)
+    memory_id = db.Column(db.Integer, db.ForeignKey("memory_options.id"), nullable=True)
+    color_id = db.Column(db.Integer, db.ForeignKey("colors.id"), nullable=True)
+    type_id = db.Column(db.Integer, db.ForeignKey("device_types.id"), nullable=True)
+
+    # Relations
+    brand = db.relationship("Brand", backref=db.backref("temporary_imports", lazy=True))
+    memory = db.relationship(
+        "MemoryOption", backref=db.backref("temporary_imports", lazy=True)
+    )
+    color = db.relationship("Color", backref=db.backref("temporary_imports", lazy=True))
+    type = db.relationship(
+        "DeviceType", backref=db.backref("temporary_imports", lazy=True)
+    )
 
     supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=True)
     supplier = db.relationship(
@@ -52,6 +69,7 @@ class MemoryOption(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     memory = db.Column(db.String(50), nullable=False)
+    tcp_value = db.Column(db.Integer, nullable=False)
 
 
 class DeviceType(db.Model):
@@ -75,8 +93,36 @@ class ColorTranslation(db.Model):
     color_source = db.Column(db.String(50), nullable=False)
     color_target = db.Column(db.String(50), nullable=False)
     color_target_id = db.Column(db.Integer, db.ForeignKey("colors.id"), nullable=False)
-    color_reference = db.relationship(
-        "Color", backref=db.backref("translations", lazy=True)
+
+
+class BrandTranslation(db.Model):
+    __tablename__ = "brand_translations"
+
+    id = db.Column(db.Integer, primary_key=True)
+    brand_source = db.Column(db.String(50), nullable=False)
+    brand_target = db.Column(db.String(50), nullable=False)
+    brand_target_id = db.Column(db.Integer, db.ForeignKey("brands.id"), nullable=False)
+
+
+class MemoryTranslation(db.Model):
+    __tablename__ = "memory_translations"
+
+    id = db.Column(db.Integer, primary_key=True)
+    memory_source = db.Column(db.String(50), nullable=False)
+    memory_target = db.Column(db.String(50), nullable=False)
+    memory_target_id = db.Column(
+        db.Integer, db.ForeignKey("memory_options.id"), nullable=False
+    )
+
+
+class TypeTranslation(db.Model):
+    __tablename__ = "type_translations"
+
+    id = db.Column(db.Integer, primary_key=True)
+    type_source = db.Column(db.String(50), nullable=False)
+    type_target = db.Column(db.String(50), nullable=False)
+    type_target_id = db.Column(
+        db.Integer, db.ForeignKey("device_types.id"), nullable=False
     )
 
 

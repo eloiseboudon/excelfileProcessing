@@ -3,7 +3,15 @@ from io import BytesIO
 
 import pandas as pd
 from flask import Blueprint, jsonify, request, send_file
-from models import Product, ProductCalculation, db
+from models import (
+    Brand,
+    ImportHistory,
+    Product,
+    ProductCalculation,
+    TemporaryImport,
+    db,
+)
+
 from utils.calculations import recalculate_product_calculations
 
 bp = Blueprint("products", __name__)
@@ -20,12 +28,17 @@ def list_product_calculations():
       200:
         description: Calculated prices for all products
     """
-    calculations = ProductCalculation.query.join(Product).all()
+    calculations = (
+        ProductCalculation.query.join(Product)
+        .join(Brand)
+        .order_by(Brand.brand, Product.model)
+        .all()
+    )
     result = [
         {
             "id": c.id,
             "product_id": c.product_id,
-            "name": c.product.model if c.product else None,
+            "model": c.product.model if c.product else None,
             "description": c.product.description if c.product else None,
             "brand": c.product.brand.brand if c.product and c.product.brand else None,
             "price": c.price,
@@ -63,12 +76,12 @@ def list_products():
       200:
         description: A list of products
     """
-    products = Product.query.all()
+    products = Product.query.join(Brand).order_by(Brand.brand, Product.model).all()
     result = [
         {
             "id": p.id,
             "description": p.description,
-            "name": p.model,
+            "model": p.model,
             "brand": p.brand.brand if p.brand else None,
             "brand_id": p.brand_id,
             "memory": p.memory.memory if p.memory else None,
@@ -183,12 +196,13 @@ def refresh():
         description: Confirmation message
     """
     ProductCalculation.query.delete()
+    TemporaryImport.query.delete()
     return jsonify({"status": "success", "message": "Product calculations empty"})
 
 
 @bp.route("/refresh_week", methods=["POST"])
 def refresh_week():
-    """Delete product calculations for specified weeks.
+    """Delete product calculations and import history for specified weeks.
 
     ---
     tags:
@@ -229,12 +243,16 @@ def refresh_week():
             ProductCalculation.date >= start,
             ProductCalculation.date < end,
         ).delete(synchronize_session=False)
+        ImportHistory.query.filter(
+            ImportHistory.date >= start,
+            ImportHistory.date < end,
+        ).delete(synchronize_session=False)
 
     db.session.commit()
     return jsonify(
         {
             "status": "success",
-            "message": "Product calculations empty for selected weeks",
+            "message": "Product calculations and import history empty for selected weeks",
         }
     )
 
@@ -277,6 +295,40 @@ def update_product(product_id):
     return jsonify({"status": "updated"})
 
 
+@bp.route("/products/bulk_update", methods=["PUT"])
+def bulk_update_products():
+    """Update multiple products in a single request."""
+    items = request.get_json(silent=True) or []
+    if not isinstance(items, list):
+        return jsonify({"error": "Invalid payload"}), 400
+
+    fields = [
+        "ean",
+        "model",
+        "description",
+        "brand_id",
+        "memory_id",
+        "color_id",
+        "type_id",
+    ]
+    updated_ids = []
+    for item in items:
+        pid = item.get("id")
+        if not pid:
+            continue
+        product = Product.query.get(pid)
+        if not product:
+            continue
+        for field in fields:
+            if field in item:
+                setattr(product, field, item[field])
+        updated_ids.append(pid)
+
+    if updated_ids:
+        db.session.commit()
+    return jsonify({"status": "success", "updated": updated_ids})
+
+
 @bp.route("/products/<int:product_id>", methods=["DELETE"])
 def delete_product(product_id):
     """Delete a product."""
@@ -284,4 +336,3 @@ def delete_product(product_id):
     db.session.delete(product)
     db.session.commit()
     return jsonify({"status": "deleted"})
-

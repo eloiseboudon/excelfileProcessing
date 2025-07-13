@@ -1,28 +1,108 @@
-from datetime import datetime, timezone
 import math
-from models import db, Product, TemporaryImport, ProductCalculation
+from datetime import datetime, timezone
+from typing import Dict, Iterable, Tuple
+
+from models import (
+    BrandTranslation,
+    ColorTranslation,
+    MemoryOption,
+    MemoryTranslation,
+    Product,
+    ProductCalculation,
+    TemporaryImport,
+    TypeTranslation,
+    db,
+)
+
+
+def _load_mappings() -> Dict[str, Iterable[Tuple[str, int]]]:
+    """Load translation mappings into memory for faster lookups."""
+    return {
+        "brand": [
+            (t.brand_source.lower(), t.brand_target_id)
+            for t in BrandTranslation.query.all()
+        ],
+        "memory": [
+            (t.memory_source.lower(), t.memory_target_id)
+            for t in MemoryTranslation.query.all()
+        ],
+        "color": [
+            (t.color_source.lower(), t.color_target_id)
+            for t in ColorTranslation.query.all()
+        ],
+        "type": [
+            (t.type_source.lower(), t.type_target_id)
+            for t in TypeTranslation.query.all()
+        ],
+    }
+
+
+def process_description(
+    description: str | None,
+    model: str | None,
+    mappings: Dict[str, Iterable[Tuple[str, int]]],
+):
+    """Extract identifiers from the product description using cached mappings."""
+    desc = (description or "").lower()
+    model = (model or description or "").lower()
+
+    def find_id(items: Iterable[Tuple[str, int]]):
+        for src, target in items:
+            if src and src in desc:
+                return target
+        return None
+
+    return {
+        "brand_id": find_id(mappings["brand"]),
+        "memory_id": find_id(mappings["memory"]),
+        "color_id": find_id(mappings["color"]),
+        "type_id": find_id(mappings["type"]),
+    }
 
 
 def recalculate_product_calculations():
     """Recompute ProductCalculation entries from TemporaryImport data."""
-    ProductCalculation.query.delete()
+    mappings = _load_mappings()
+    temps = TemporaryImport.query.all()
+
+    for temp in temps:
+        characteristics = process_description(temp.description, temp.model, mappings)
+        temp.brand_id = characteristics["brand_id"]
+        temp.memory_id = characteristics["memory_id"]
+        temp.color_id = characteristics["color_id"]
+        temp.type_id = characteristics["type_id"]
+        db.session.add(temp)
+
     db.session.commit()
 
-    temps = TemporaryImport.query.all()
     for temp in temps:
-        product = Product.query.filter_by(ean=temp.ean).first()
+        query = Product.query
+
+        if temp.brand_id is not None:
+            query = query.filter(Product.brand_id == temp.brand_id)
+        if temp.memory_id is not None:
+            query = query.filter(Product.memory_id == temp.memory_id)
+        if temp.color_id is not None:
+            query = query.filter(Product.color_id == temp.color_id)
+        if temp.model_id is not None:
+            query = query.filter(Product.model.ilike(f"%{temp.model}%"))
+        product = query.first()
+
+        # if not product and temp.type_id is not None:
+        #     query_type = query.filter(Product.type_id == temp.type_id)
+        #     product = query_type.first()
+
         if not product:
             continue
 
         price = temp.selling_price or 0
         memory = product.memory.memory.upper() if product.memory else ""
-        tcp = 0
-        if memory == "32GB":
-            tcp = 10
-        elif memory == "64GB":
-            tcp = 12
-        elif memory in ["128GB", "256GB", "512GB", "1TB"]:
-            tcp = 14
+
+        memory_option = MemoryOption.query.filter_by(memory=memory).first()
+        if not memory_option:
+            tcp = 0
+        else:
+            tcp = memory_option.tcp_value
 
         margin45 = price * 0.045
         price_with_tcp = price + tcp + margin45

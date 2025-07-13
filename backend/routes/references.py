@@ -83,7 +83,9 @@ def list_memory_options():
         description: List of memory options
     """
     memories = MemoryOption.query.all()
-    result = [{"id": m.id, "memory": m.memory} for m in memories]
+    result = [
+        {"id": m.id, "memory": m.memory, "tcp_value": m.tcp_value} for m in memories
+    ]
     return jsonify(result)
 
 

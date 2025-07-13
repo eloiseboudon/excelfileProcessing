@@ -6,21 +6,6 @@ PYTHON_VENV := $(VENV)/bin/python
 MSG := "Auto migration"
 DC := docker compose
 
-# Detect if running inside a container
-INSIDE_DOCKER := $(shell [ -f /.dockerenv ] && echo 1)
-
-ifeq ($(INSIDE_DOCKER),1)
-RUN_BACKEND :=
-EXEC_BACKEND :=
-EXEC_POSTGRES := psql -h postgres -U postgres -d ajtpro
-PG_DUMP_CMD := pg_dump -h postgres -U postgres ajtpro
-else
-RUN_BACKEND := $(DC) run --rm backend
-EXEC_BACKEND := $(DC) exec backend
-EXEC_POSTGRES := $(DC) exec postgres psql -U postgres -d ajtpro
-PG_DUMP_CMD := $(DC) exec postgres pg_dump -U postgres ajtpro
-endif
-
 .PHONY: help docker-build docker-up docker-down docker-logs alembic-init alembic-migrate alembic-upgrade alembic-current alembic-history db-create-local db-implement-tables clean-branches
 
 help:
@@ -60,26 +45,26 @@ docker-logs-postgres:
 
 # Commandes Alembic (toutes dans Docker)
 alembic-init:
-	$(RUN_BACKEND) alembic init alembic
+	docker compose run --rm backend alembic init alembic
 	@echo "Alembic initialisé. Pensez à configurer env.py"
 
 alembic-migrate:
-	$(RUN_BACKEND) alembic revision --autogenerate -m "$(MSG)"
+	docker compose run --rm backend alembic revision --autogenerate -m "$(MSG)"
 	@echo "Migration créée avec le message: $(MSG)"
 
 alembic-upgrade:
-	$(RUN_BACKEND) alembic upgrade head
+	docker compose exec backend alembic upgrade head
 	@echo "Migrations appliquées"
 
 alembic-downgrade:
-	$(RUN_BACKEND) alembic downgrade -1
+	docker compose exec backend alembic downgrade -1
 	@echo "Migration précédente annulée"
 
 alembic-current:
-	$(RUN_BACKEND) alembic current
+	docker compose exec backend alembic current
 
 alembic-history:
-	$(RUN_BACKEND) alembic history --verbose
+	docker compose exec backend alembic history --verbose
 
 # Commandes de développement
 dev-setup: docker-build docker-up alembic-upgrade
@@ -91,13 +76,13 @@ dev-reset: docker-down
 
 # Shell dans les conteneurs
 shell-backend:
-	$(EXEC_BACKEND) bash
+	docker compose exec backend bash
 
 shell-postgres:
-	$(EXEC_POSTGRES)
+	docker compose exec postgres psql -U postgres -d ajtpro
 
 shell-implement-tables:
-	$(EXEC_BACKEND) python -m implement_tables
+	docker compose exec backend python -m implement_tables
 
 # Git utilities
 clean-branches:
@@ -111,11 +96,11 @@ clean:
 
 # Tests (si vous en avez)
 test:
-	$(RUN_BACKEND) python -m pytest
+	docker compose exec backend python -m pytest
 
 # Backup/Restore
 backup:
-	$(PG_DUMP_CMD) > backup_$(shell date +%Y%m%d_%H%M%S).sql
+	docker compose exec postgres pg_dump -U postgres ajtpro > backup_$(shell date +%Y%m%d_%H%M%S).sql
 
 restore:
 	@echo "Usage: make restore BACKUP_FILE=backup_file.sql"
