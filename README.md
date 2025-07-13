@@ -11,6 +11,7 @@ Application complète de gestion de tarifs avec système de panier et commande p
 - Exclusion configurable de certains produits **(validée)**
 - Nettoyage automatique et suppression des doublons **(validée)**
 - Export des données traitées **(validée)**
+- Rapprochement automatique avec les références **(validée)**
 
 ### 🎨 Étape 2 - Mise en forme
 - Génération de fichiers Excel formatés **(pas fait)**
@@ -26,11 +27,13 @@ Application complète de gestion de tarifs avec système de panier et commande p
 
 ### ⚙️ Administration
 - Interface d'administration intuitive **(validée)**
+- Mise à jour en masse des produits **(validée)**
 - Ajout/modification/suppression de produits **(validée)**
 
 ### 📱 Produits
 - Affichage des produits **(validée)**
-- Ajout/modification/suppression de produits **(à faire)**
+- Vue filtrable et édition en masse du référentiel **(validée)**
+- Ajout/modification/suppression de produits **(validée)**
 
 ## Configuration EmailJS
 
@@ -96,6 +99,9 @@ src/
 │   ├── FormattingPage.tsx     # Étape 2 - Mise en forme
 │   ├── ProcessingPage.tsx     # Étape 1 - Traitement
 │   ├── ProductsPage.tsx       # Visualisation des calculs
+│   ├── ProductAdmin.tsx       # Gestion des produits
+│   ├── ProductReference.tsx   # Référentiel produit filtrable
+│   ├── MultiSelectFilter.tsx  # Filtre multi-sélection
 │   ├── ReferenceAdmin.tsx     # Tables de référence
 │   ├── SearchControls.tsx     # Outils de recherche
 │   ├── TranslationAdmin.tsx   # Cohérence des couleurs
