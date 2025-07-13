@@ -1,21 +1,19 @@
-import React, { useState, useCallback, useEffect } from 'react';
 import {
-  FileUp,
-  FileDown,
   ArrowRight,
-  Loader2,
   ChevronRight,
   Download,
+  FileDown,
+  FileUp,
+  Loader2,
 } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  fetchProducts,
-  createImport,
   calculateProducts,
-  fetchSuppliers,
+  createImport,
   fetchLastImport,
+  fetchSuppliers
 } from '../api';
-import { getWeekYear,getCurrentWeekYear } from '../utils/date';
-import WeekToolbar from './WeekToolbar';
+import { getCurrentTimestamp, getCurrentWeekYear, getWeekYear } from '../utils/date';
 
 
 interface ProcessingPageProps {
@@ -57,7 +55,7 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZone
       const droppedFile = e.dataTransfer.files[0];
       if (
         droppedFile?.type ===
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
         droppedFile?.type === 'application/vnd.ms-excel'
       ) {
         onFileChange(supplier.id, droppedFile);
@@ -81,19 +79,18 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZone
       <h2 className="text-xl font-semibold mb-6">Import de {supplier.name}</h2>
       {lastImportDate && (
         <p className="text-sm text-zinc-400 mb-2">
-          Dernier import : {getWeekYear(new Date (lastImportDate))} -{' '}
+          Dernier import : {getWeekYear(new Date(lastImportDate))} -{' '}
           {new Date(lastImportDate).toLocaleDateString('fr-FR',
-          {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-          }
-        )} </p>
+            {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+            }
+          )} </p>
       )}
       <div
-        className={`border-2 border-dashed rounded-xl p-8 transition-all duration-200 ${
-          isDragging ? 'border-[#B8860B] bg-black/50' : 'border-zinc-700 hover:border-[#B8860B]/50'
-        }`}
+        className={`border-2 border-dashed rounded-xl p-8 transition-all duration-200 ${isDragging ? 'border-[#B8860B] bg-black/50' : 'border-zinc-700 hover:border-[#B8860B]/50'
+          }`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -118,7 +115,6 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZone
 }
 
 function ProcessingPage({ onNext }: ProcessingPageProps) {
-  const [productsCount, setProductsCount] = useState(0);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [files, setFiles] = useState<Record<number, File | null>>({});
   const [isProcessing, setIsProcessing] = useState(false);
@@ -127,10 +123,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
   const [lastImports, setLastImports] = useState<Record<number, string | null>>({});
   const [error, setError] = useState<string | null>(null);
 
-  const refreshCount = useCallback(async () => {
-    const list = await fetchProducts();
-    setProductsCount(list.length);
-  }, []);
+
 
   const refreshLastImports = useCallback(async () => {
     const entries = await Promise.all(
@@ -170,12 +163,9 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
       }
 
       await calculateProducts();
-      await refreshCount();
+
       await refreshLastImports();
 
-      // const { blob, filename } = await exportCalculations();
-      // setProcessedFile(URL.createObjectURL(blob));
-      // setProcessedFileName(filename);
     } catch (err) {
       console.error('Error processing files:', err);
       setError(
@@ -187,14 +177,13 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
     } finally {
       setIsProcessing(false);
     }
-  }, [files, suppliers, refreshCount, refreshLastImports]);
+  }, [files, suppliers, refreshLastImports]);
 
   useEffect(() => {
-    refreshCount();
     fetchSuppliers()
       .then(setSuppliers)
-      .catch(() => {});
-  }, [refreshCount]);
+      .catch(() => { });
+  }, []);
 
   useEffect(() => {
     if (suppliers.length > 0) {
@@ -225,8 +214,6 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
           <span>Télécharger</span>
         </button>
       </div>
-      <p className="text-center text-sm text-zinc-500 mb-8">Produits en base : {productsCount}</p>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {suppliers.map((f) => (
           <ImportZone

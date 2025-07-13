@@ -1,6 +1,6 @@
 import { Calculator, LibraryBig, Palette, Settings } from 'lucide-react';
 import { useState } from 'react';
-import { fetchProducts } from './api';
+import { fetchApitest } from './api';
 import AdminPage from './components/AdminPage';
 import FormattingPage from './components/FormattingPage';
 import ProcessingPage from './components/ProcessingPage';
@@ -13,7 +13,7 @@ function App() {
   const handleApiTest = async () => {
     setApiTestMessage(null);
     try {
-      await fetchProducts();
+      await fetchApitest();
       setApiTestMessage('Connexion réussie !');
     } catch {
       setApiTestMessage("Erreur lors de la connexion à l'API");
