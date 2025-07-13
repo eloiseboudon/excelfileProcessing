@@ -22,9 +22,9 @@ function App() {
 
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
+    <div className="min-h-screen text-white flex flex-col">
       {/* Navigation Header */}
-      <div className="bg-black border-b border-[#B8860B]/20">
+      <div className="bg-black/50 backdrop-blur border-b border-[#B8860B]/20">
         <div className="max-w-7xl mx-auto py-4 px-1 sm:px-2 lg:px-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap justify-center gap-2 sm:gap-4">

@@ -75,7 +75,7 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZone
   );
 
   return (
-    <div className="bg-zinc-900 rounded-2xl shadow-2xl p-8 border border-[#B8860B]/20">
+    <div className="card p-8">
       <h2 className="text-xl font-semibold mb-6">Import de {supplier.name}</h2>
       {lastImportDate && (
         <p className="text-sm text-zinc-400 mb-2">

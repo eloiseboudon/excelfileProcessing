@@ -1,3 +1,17 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html {
+    font-family: theme('fontFamily.sans');
+  }
+}
+
+body {
+  @apply bg-gradient-to-br from-black via-zinc-900 to-zinc-800 font-sans text-white;
+}
+
+.card {
+  @apply rounded-2xl bg-zinc-900/60 border border-gold/20 backdrop-blur-md shadow-xl;
+}

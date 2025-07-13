@@ -5,6 +5,9 @@ export default {
     extend: {
       colors: {
         gold: '#B8860B',
+      },
+      fontFamily: {
+        sans: ['Inter', 'sans-serif'],
       }
     },
   },

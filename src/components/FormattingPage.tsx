@@ -375,7 +375,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
       </p>
 
 
-      <div className="bg-zinc-900 rounded-2xl shadow-2xl p-8 border border-[#B8860B]/20">
+      <div className="card p-8">
         <div
           className={`border-2 border-dashed rounded-xl p-8 transition-all duration-200 ${
             isDragging
