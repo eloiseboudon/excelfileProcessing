@@ -53,18 +53,18 @@ alembic-migrate:
 	@echo "Migration créée avec le message: $(MSG)"
 
 alembic-upgrade:
-	docker compose run --rm backend alembic upgrade head
+	docker compose exec backend alembic upgrade head
 	@echo "Migrations appliquées"
 
 alembic-downgrade:
-	docker compose run --rm backend alembic downgrade -1
+	docker compose exec backend alembic downgrade -1
 	@echo "Migration précédente annulée"
 
 alembic-current:
-	docker compose run --rm backend alembic current
+	docker compose exec backend alembic current
 
 alembic-history:
-	docker compose run --rm backend alembic history --verbose
+	docker compose exec backend alembic history --verbose
 
 # Commandes de développement
 dev-setup: docker-build docker-up alembic-upgrade
@@ -96,7 +96,7 @@ clean:
 
 # Tests (si vous en avez)
 test:
-	docker compose run --rm backend python -m pytest
+	docker compose exec backend python -m pytest
 
 # Backup/Restore
 backup:
