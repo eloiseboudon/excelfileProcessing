@@ -16,15 +16,18 @@ export function getCurrentTimestamp(): string {
 }
 
 export function getWeekYear(today: Date): string {
-  const date = new Date(today);
-  const year = date.getFullYear();
+  // Calculate ISO week number with Monday as the first day of the week
+  const date = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
 
-  const startOfYear = new Date(year, 0, 1);
-  const startOfYearDay = startOfYear.getDay() === 0 ? 7 : startOfYear.getDay();
+  // getUTCDay returns 0 for Sunday which should be treated as 7 in ISO format
+  const dayOfWeek = date.getUTCDay() || 7;
 
-  const pastDays = (date.getTime() - startOfYear.getTime()) / 86400000;
-  const weekNumber = Math.ceil((pastDays + (8 - startOfYearDay)) / 7);
+  // Adjust to the nearest Thursday to correctly determine the ISO week/year
+  date.setUTCDate(date.getUTCDate() + 4 - dayOfWeek);
 
-  return `S${weekNumber}-${year}`;
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const weekNumber = Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+
+  return `S${weekNumber}-${date.getUTCFullYear()}`;
 }
 
