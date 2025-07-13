@@ -5,6 +5,7 @@ from typing import Dict, Iterable, Tuple
 from models import (
     BrandTranslation,
     ColorTranslation,
+    MemoryOption,
     MemoryTranslation,
     Product,
     ProductCalculation,
@@ -36,9 +37,14 @@ def _load_mappings() -> Dict[str, Iterable[Tuple[str, int]]]:
     }
 
 
-def process_description(description: str | None, mappings: Dict[str, Iterable[Tuple[str, int]]]):
+def process_description(
+    description: str | None,
+    model: str | None,
+    mappings: Dict[str, Iterable[Tuple[str, int]]],
+):
     """Extract identifiers from the product description using cached mappings."""
     desc = (description or "").lower()
+    model = (model or description or "").lower()
 
     def find_id(items: Iterable[Tuple[str, int]]):
         for src, target in items:
@@ -56,58 +62,47 @@ def process_description(description: str | None, mappings: Dict[str, Iterable[Tu
 
 def recalculate_product_calculations():
     """Recompute ProductCalculation entries from TemporaryImport data."""
-
-    # Précharger les tables de correspondance pour éviter les requêtes répétées
     mappings = _load_mappings()
-
-    # Récupérer tous les imports temporaires
     temps = TemporaryImport.query.all()
 
-    # D'abord enrichir les données des imports temporaires
     for temp in temps:
-        # Extraire les caractéristiques de la description
-        characteristics = process_description(temp.description, mappings)
-
-        # Mettre à jour les champs de l'import temporaire
+        characteristics = process_description(temp.description, temp.model, mappings)
         temp.brand_id = characteristics["brand_id"]
         temp.memory_id = characteristics["memory_id"]
         temp.color_id = characteristics["color_id"]
         temp.type_id = characteristics["type_id"]
-
-        # Sauvegarder les changements
         db.session.add(temp)
 
-    # Commit les mises à jour des imports temporaires
     db.session.commit()
 
-    # Maintenant faire la recherche de correspondance
     for temp in temps:
-        # Étape 1 : Recherche sans le type
         query = Product.query
+
         if temp.brand_id is not None:
             query = query.filter(Product.brand_id == temp.brand_id)
         if temp.memory_id is not None:
             query = query.filter(Product.memory_id == temp.memory_id)
         if temp.color_id is not None:
             query = query.filter(Product.color_id == temp.color_id)
+        if temp.model_id is not None:
+            query = query.filter(Product.model.ilike(f"%{temp.model}%"))
         product = query.first()
 
-        # Si non trouvé et que le type est défini, on essaie avec le type
-        if not product and temp.type_id is not None:
-            query_type = query.filter(Product.type_id == temp.type_id)
-            product = query_type.first()
+        # if not product and temp.type_id is not None:
+        #     query_type = query.filter(Product.type_id == temp.type_id)
+        #     product = query_type.first()
 
-        # Si toujours non trouvé, passer au suivant
         if not product:
             continue
 
-        # Calculer les valeurs
         price = temp.selling_price or 0
         memory = product.memory.memory.upper() if product.memory else ""
-        tcp_map = {"32GB": 10, "64GB": 12}
-        tcp = tcp_map.get(memory, 0)
-        if tcp == 0 and memory in ["128GB", "256GB", "512GB", "1TB"]:
-            tcp = 14
+
+        memory_option = MemoryOption.query.filter_by(memory=memory).first()
+        if not memory_option:
+            tcp = 0
+        else:
+            tcp = memory_option.tcp_value
 
         margin45 = price * 0.045
         price_with_tcp = price + tcp + margin45
@@ -139,7 +134,6 @@ def recalculate_product_calculations():
 
         max_price = math.ceil(max(price_with_tcp, price_with_margin))
 
-        # Créer une nouvelle entrée de calcul avec la date courante
         calc = ProductCalculation(
             product_id=product.id,
             supplier_id=temp.supplier_id,
