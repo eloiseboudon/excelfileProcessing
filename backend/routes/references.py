@@ -14,113 +14,6 @@ from models import (
 bp = Blueprint("references", __name__)
 
 
-@bp.route("/suppliers", methods=["GET"])
-def list_suppliers():
-    """Retrieve supplier list.
-
-    ---
-    tags:
-      - References
-    responses:
-      200:
-        description: List of suppliers
-    """
-    suppliers = Supplier.query.all()
-    result = [
-        {
-            "id": s.id,
-            "name": s.name,
-            "email": s.email,
-            "phone": s.phone,
-            "address": s.address,
-        }
-        for s in suppliers
-    ]
-    return jsonify(result)
-
-
-@bp.route("/brands", methods=["GET"])
-def list_brands():
-    """Retrieve available brands.
-
-    ---
-    tags:
-      - References
-    responses:
-      200:
-        description: List of brands
-    """
-    brands = Brand.query.all()
-    result = [{"id": b.id, "brand": b.brand} for b in brands]
-    return jsonify(result)
-
-
-@bp.route("/colors", methods=["GET"])
-def list_colors():
-    """Retrieve available colors.
-
-    ---
-    tags:
-      - References
-    responses:
-      200:
-        description: List of colors
-    """
-    colors = Color.query.all()
-    result = [{"id": c.id, "color": c.color} for c in colors]
-    return jsonify(result)
-
-
-@bp.route("/memory_options", methods=["GET"])
-def list_memory_options():
-    """Retrieve memory capacities.
-
-    ---
-    tags:
-      - References
-    responses:
-      200:
-        description: List of memory options
-    """
-    memories = MemoryOption.query.all()
-    result = [
-        {"id": m.id, "memory": m.memory, "tcp_value": m.tcp_value} for m in memories
-    ]
-    return jsonify(result)
-
-
-@bp.route("/device_types", methods=["GET"])
-def list_device_types():
-    """Retrieve device types.
-
-    ---
-    tags:
-      - References
-    responses:
-      200:
-        description: List of device types
-    """
-    types = DeviceType.query.all()
-    result = [{"id": t.id, "type": t.type} for t in types]
-    return jsonify(result)
-
-
-@bp.route("/exclusions", methods=["GET"])
-def list_exclusions():
-    """Retrieve exclusion terms.
-
-    ---
-    tags:
-      - References
-    responses:
-      200:
-        description: List of terms to ignore during product parsing
-    """
-    exclusions = Exclusion.query.all()
-    result = [{"id": e.id, "term": e.term} for e in exclusions]
-    return jsonify(result)
-
-
 def _model_mapping():
     return {
         "suppliers": Supplier,
@@ -184,7 +77,7 @@ def get_reference_table(table):
         if isinstance(obj, Color):
             return {"id": obj.id, "color": obj.color}
         if isinstance(obj, MemoryOption):
-            return {"id": obj.id, "memory": obj.memory}
+            return {"id": obj.id, "memory": obj.memory, "tcp_value": obj.tcp_value}
         if isinstance(obj, DeviceType):
             return {"id": obj.id, "type": obj.type}
         if isinstance(obj, Exclusion):

@@ -113,7 +113,7 @@ export async function exportCalculations() {
 }
 
 export async function fetchSuppliers() {
-  const res = await fetch(`${API_BASE}/suppliers`);
+  const res = await fetch(`${API_BASE}/references/suppliers`);
   if (!res.ok) {
     throw new Error("Erreur lors du chargement des suppliers");
   }
@@ -156,7 +156,7 @@ export async function fetchReferenceTable(table: string) {
   const res = await fetch(`${API_BASE}/references/${table}`);
   if (!res.ok) {
     throw new Error('Erreur lors du chargement des références');
-    }
+  }
   return res.json();
 }
 
@@ -168,7 +168,7 @@ export async function updateReferenceItem(table: string, id: number, data: any) 
   });
   if (!res.ok) {
     throw new Error('Erreur lors de la mise à jour');
-    }
+  }
   return res.json();
 }
 
@@ -180,7 +180,7 @@ export async function createReferenceItem(table: string, data: any) {
   });
   if (!res.ok) {
     throw new Error('Erreur lors de la création');
-     }
+  }
   return res.json();
 }
 
@@ -192,12 +192,12 @@ export async function deleteReferenceItem(table: string, id: number) {
   });
   if (!res.ok) {
     throw new Error('Erreur lors de la suppression');
-     }
+  }
   return res.json();
 }
 
 export async function fetchBrands() {
-  const res = await fetch(`${API_BASE}/brands`);
+  const res = await fetch(`${API_BASE}/references/brands`);
   if (!res.ok) {
     throw new Error('Erreur lors du chargement des marques');
   }
@@ -206,7 +206,7 @@ export async function fetchBrands() {
 
 
 export async function fetchColors() {
-  const res = await fetch(`${API_BASE}/colors`);
+  const res = await fetch(`${API_BASE}/references/colors`);
   if (!res.ok) {
     throw new Error('Erreur lors du chargement des couleurs');
   }
@@ -214,7 +214,7 @@ export async function fetchColors() {
 }
 
 export async function fetchMemoryOptions() {
-  const res = await fetch(`${API_BASE}/memory_options`);
+  const res = await fetch(`${API_BASE}/references/memory_options`);
   if (!res.ok) {
     throw new Error('Erreur lors du chargement des mémoires');
   }
@@ -222,7 +222,7 @@ export async function fetchMemoryOptions() {
 }
 
 export async function fetchDeviceTypes() {
-  const res = await fetch(`${API_BASE}/device_types`);
+  const res = await fetch(`${API_BASE}/references/device_types`);
   if (!res.ok) {
     throw new Error('Erreur lors du chargement des types');
   }
