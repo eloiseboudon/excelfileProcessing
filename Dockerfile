@@ -4,6 +4,7 @@ FROM python:3.13-slim
 RUN apt-get update && apt-get install -y \
     gcc \
     postgresql-client \
+    make \
     && rm -rf /var/lib/apt/lists/*
 
 # Créer le répertoire de travail

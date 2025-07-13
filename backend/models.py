@@ -69,7 +69,7 @@ class MemoryOption(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     memory = db.Column(db.String(50), nullable=False)
-    tcp_value = db.Column(db.Integer, nullable=True)
+    tcp_value = db.Column(db.Integer, nullable=False)
 
 
 class DeviceType(db.Model):
