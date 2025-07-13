@@ -2,6 +2,14 @@ import { getCurrentTimestamp } from './utils/date';
 
 export const API_BASE = import.meta.env.VITE_API_BASE || '';
 
+export async function fetchApitest() {
+  const res = await fetch(`${API_BASE}/`);
+  if (!res.ok) {
+    throw new Error('Erreur lors du chargement des produits');
+  }
+  return res.json();
+}
+
 
 export async function createImport(file: File, supplierId?: number) {
   const formData = new FormData();
