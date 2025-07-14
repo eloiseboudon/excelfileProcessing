@@ -3,6 +3,7 @@ from datetime import datetime
 import pandas as pd
 from flask import Blueprint, jsonify, request
 from models import ImportHistory, TemporaryImport, db
+from sqlalchemy import extract
 
 from utils.calculations import recalculate_product_calculations
 
@@ -45,7 +46,6 @@ def verify_import(supplier_id):
       200:
         description: Return if an import already exists for the current week for a supplier
     """
-    from sqlalchemy import extract
 
     verification = (
         ImportHistory.query.filter_by(supplier_id=supplier_id)
@@ -108,6 +108,7 @@ def create_import():
         ean_value = str(int(row["ean"]))
         temp = TemporaryImport(
             description=row.get("description"),
+            model=row.get("description"),
             quantity=row.get("quantity", None),
             selling_price=row.get("sellingprice", None),
             ean=ean_value,
@@ -115,13 +116,13 @@ def create_import():
         )
         db.session.add(temp)
 
+    recalculate_product_calculations()
+
     history = ImportHistory(
         filename=file.filename, supplier_id=supplier_id, product_count=len(df)
     )
     db.session.add(history)
     db.session.commit()
-
-    recalculate_product_calculations()
 
     return jsonify({"status": "success", "new": count_new, "updated": count_update})
 
