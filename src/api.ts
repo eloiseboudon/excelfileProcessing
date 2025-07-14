@@ -91,6 +91,14 @@ export async function fetchLastImport(id: number): Promise<{ import_date: string
   return res.json();
 }
 
+export async function verifyImport(id: number) {
+  const res = await fetch(`${API_BASE}/verify_import/${id}`);
+  if (!res.ok) {
+    throw new Error("Erreur lors de la vérification de l'import");
+  }
+  return res.json();
+}
+
 
 export async function calculateProducts() {
   const res = await fetch(`${API_BASE}/calculate_products`, {

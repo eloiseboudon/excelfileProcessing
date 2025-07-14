@@ -1,6 +1,9 @@
+from datetime import datetime
+
 import pandas as pd
 from flask import Blueprint, jsonify, request
 from models import ImportHistory, TemporaryImport, db
+
 from utils.calculations import recalculate_product_calculations
 
 bp = Blueprint("imports", __name__)
@@ -29,6 +32,32 @@ def list_import_history():
         for h in histories
     ]
     return jsonify(result)
+
+
+@bp.route("/verify_import/<int:supplier_id>", methods=["GET"])
+def verify_import(supplier_id):
+    """Verify if an import already exists for the current week for a supplier.
+
+    ---
+    tags:
+      - Imports
+    responses:
+      200:
+        description: Return if an import already exists for the current week for a supplier
+    """
+    from sqlalchemy import extract
+
+    verification = (
+        ImportHistory.query.filter_by(supplier_id=supplier_id)
+        .filter(
+            extract('week', ImportHistory.import_date)
+            == extract('week', datetime.utcnow())
+        )
+        .first()
+    )
+    if verification:
+        return jsonify({"status": "error", "message": "Import already exists"}), 200
+    return jsonify({"status": "success", "message": "Import does not exist"}), 200
 
 
 @bp.route("/import", methods=["POST"])

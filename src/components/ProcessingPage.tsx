@@ -11,7 +11,8 @@ import {
   calculateProducts,
   createImport,
   fetchLastImport,
-  fetchSuppliers
+  fetchSuppliers,
+  verifyImport
 } from '../api';
 import { getCurrentTimestamp, getCurrentWeekYear, getWeekYear } from '../utils/date';
 
@@ -158,6 +159,19 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
       for (const f of suppliers) {
         const file = files[f.id];
         if (file) {
+          try {
+            const check = await verifyImport(f.id);
+            if (check.status === 'error') {
+              const confirmOverride = window.confirm(
+                `Un import a déjà été réalisé cette semaine pour ${f.name}. Voulez-vous écraser les données ?`
+              );
+              if (!confirmOverride) {
+                continue;
+              }
+            }
+          } catch {
+            // ignore verification errors and proceed
+          }
           await createImport(file, f.id);
         }
       }
