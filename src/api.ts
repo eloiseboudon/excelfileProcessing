@@ -265,3 +265,23 @@ export async function fetchPriceStats(params?: {
   }
   return res.json();
 }
+
+export async function fetchGraphSettings() {
+  const res = await fetch(`${API_BASE}/graph_settings`);
+  if (!res.ok) {
+    throw new Error('Erreur lors du chargement des préférences');
+  }
+  return res.json();
+}
+
+export async function updateGraphSetting(name: string, visible: boolean) {
+  const res = await fetch(`${API_BASE}/graph_settings/${name}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ visible })
+  });
+  if (!res.ok) {
+    throw new Error('Erreur lors de la mise à jour');
+  }
+  return res.json();
+}
