@@ -10,6 +10,7 @@ from models import (
     Supplier,
     db,
 )
+from utils.calculations import update_product_calculations_for_memory_option
 
 bp = Blueprint("references", __name__)
 
@@ -133,6 +134,8 @@ def update_reference_item(table, item_id):
         _update_products_for_color_translation(
             [old_source, item.color_source], item.color_target_id
         )
+    if table == "memory_options" and "tcp_value" in data:
+        update_product_calculations_for_memory_option(item.id)
     return jsonify({"status": "success"})
 
 
