@@ -1,4 +1,3 @@
-import math
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 
@@ -6,16 +5,14 @@ import pandas as pd
 from flask import Blueprint, jsonify, request, send_file
 from models import (
     Brand,
-    Color,
-    ColorTranslation,
-    DeviceType,
-    Exclusion,
-    MemoryOption,
+    ImportHistory,
     Product,
     ProductCalculation,
-    ProductReference,
+    TemporaryImport,
     db,
 )
+
+from utils.calculations import recalculate_product_calculations
 
 bp = Blueprint("products", __name__)
 
@@ -31,12 +28,17 @@ def list_product_calculations():
       200:
         description: Calculated prices for all products
     """
-    calculations = ProductCalculation.query.join(Product).all()
+    calculations = (
+        ProductCalculation.query.join(Product)
+        .join(Brand)
+        .order_by(Brand.brand, Product.model)
+        .all()
+    )
     result = [
         {
             "id": c.id,
             "product_id": c.product_id,
-            "name": c.product.name if c.product else None,
+            "model": c.product.model if c.product else None,
             "description": c.product.description if c.product else None,
             "brand": c.product.brand.brand if c.product and c.product.brand else None,
             "price": c.price,
@@ -56,6 +58,7 @@ def list_product_calculations():
                 if c.date
                 else None
             ),
+            "supplier": c.supplier.name if c.supplier else None,
         }
         for c in calculations
     ]
@@ -73,29 +76,21 @@ def list_products():
       200:
         description: A list of products
     """
-    products = Product.query.all()
+    products = Product.query.join(Brand).order_by(Brand.brand, Product.model).all()
     result = [
         {
             "id": p.id,
             "description": p.description,
-            "name": p.name,
+            "model": p.model,
             "brand": p.brand.brand if p.brand else None,
-            "price": (
-                p.reference.selling_price
-                if p.reference and p.reference.selling_price
-                else None
-            ),
+            "brand_id": p.brand_id,
             "memory": p.memory.memory if p.memory else None,
+            "memory_id": p.memory_id,
             "color": p.color.color if p.color else None,
+            "color_id": p.color_id,
             "type": p.type.type if p.type else None,
-            "reference": (
-                {
-                    "id": p.reference.id if p.reference else None,
-                    "description": p.reference.description if p.reference else None,
-                }
-                if p.reference
-                else None
-            ),
+            "type_id": p.type_id,
+            "ean": p.ean,
         }
         for p in products
     ]
@@ -122,91 +117,6 @@ def count_product_calculations():
     return jsonify({"count": count})
 
 
-@bp.route("/populate_products", methods=["POST"])
-def populate_products_from_reference():
-    """Populate products from imported references.
-
-    ---
-    tags:
-      - Products
-    responses:
-      200:
-        description: Number of products created or updated
-    """
-    references = ProductReference.query.all()
-    brands = Brand.query.all()
-    colors = Color.query.all()
-    memories = MemoryOption.query.all()
-    types = DeviceType.query.all()
-    color_transcos = ColorTranslation.query.all()
-    exclusions = [e.term.lower() for e in Exclusion.query.all()]
-
-    created = 0
-    updated = 0
-    for ref in references:
-        description_lower = ref.description.lower() if ref.description else ""
-        if any(exc in description_lower for exc in exclusions):
-            continue
-
-        brand_id = None
-        for b in brands:
-            if b.brand.lower() in description_lower:
-                brand_id = b.id
-                break
-
-        color_id = None
-        for c in colors:
-            if c.color.lower() in description_lower:
-                color_id = c.id
-                break
-        if not color_id:
-            for ct in color_transcos:
-                if ct.color_source.lower() in description_lower:
-                    color_id = ct.color_target_id
-                    break
-
-        memory_id = None
-        for m in memories:
-            if m.memory.lower() in description_lower:
-                memory_id = m.id
-                break
-
-        type_id = None
-        for t in types:
-            if t.type.lower() in description_lower:
-                type_id = t.id
-                break
-
-        existing = Product.query.filter_by(
-            reference_id=ref.id,
-            supplier_id=ref.supplier_id,
-        ).first()
-        if existing:
-            existing.description = ref.description
-            existing.name = ref.description
-            existing.brand_id = brand_id
-            existing.color_id = color_id
-            existing.memory_id = memory_id
-            existing.type_id = type_id
-            existing.supplier_id = ref.supplier_id
-            updated += 1
-        else:
-            product = Product(
-                reference_id=ref.id,
-                description=ref.description,
-                name=ref.description,
-                brand_id=brand_id,
-                color_id=color_id,
-                memory_id=memory_id,
-                type_id=type_id,
-                supplier_id=ref.supplier_id,
-            )
-            db.session.add(product)
-            created += 1
-    db.session.commit()
-    return jsonify({"status": "success", "created": created, "updated": updated})
-
-
 @bp.route("/calculate_products", methods=["POST"])
 def calculate_products():
     """Calculate pricing for all products in database.
@@ -218,65 +128,9 @@ def calculate_products():
       200:
         description: Calculation summary
     """
-    ProductCalculation.query.delete()
-    db.session.commit()
-    products = Product.query.all()
-    created = 0
-    for p in products:
-        price = (
-            p.reference.selling_price
-            if p.reference and p.reference.selling_price
-            else 0
-        )
-        memory = p.memory.memory.upper() if p.memory else ""
-        tcp = 0
-        if memory == "32GB":
-            tcp = 10
-        elif memory == "64GB":
-            tcp = 12
-        elif memory in ["128GB", "256GB", "512GB", "1TB"]:
-            tcp = 14
-        margin45 = price * 0.045
-        price_with_tcp = price + tcp + margin45
-        thresholds = [15, 29, 49, 79, 99, 129, 149, 179, 209, 299, 499, 799, 999]
-        margins = [
-            1.25,
-            1.22,
-            1.20,
-            1.18,
-            1.15,
-            1.11,
-            1.10,
-            1.09,
-            1.09,
-            1.08,
-            1.08,
-            1.07,
-            1.07,
-            1.06,
-        ]
-        price_with_margin = price
-        for i, t in enumerate(thresholds):
-            if price <= t:
-                price_with_margin = price * margins[i]
-                break
-        if price > thresholds[-1]:
-            price_with_margin = price * 1.06
-        max_price = math.ceil(max(price_with_tcp, price_with_margin))
-        calc = ProductCalculation(
-            product_id=p.id,
-            price=round(price, 2),
-            tcp=round(tcp, 2),
-            marge4_5=round(margin45, 2),
-            prixht_tcp_marge4_5=round(price_with_tcp, 2),
-            prixht_marge4_5=round(price_with_margin, 2),
-            prixht_max=max_price,
-            date=datetime.now(timezone.utc),
-        )
-        db.session.add(calc)
-        created += 1
-    db.session.commit()
-    return jsonify({"status": "success", "created": created})
+    recalculate_product_calculations()
+    count = ProductCalculation.query.count()
+    return jsonify({"status": "success", "created": count})
 
 
 @bp.route("/export_calculates", methods=["GET"])
@@ -299,15 +153,14 @@ def export_calculates():
         rows.append(
             {
                 "id": p.id if p else None,
-                "reference_id": p.reference_id if p else None,
-                "name": p.name if p else None,
+                "name": p.model if p else None,
                 "description": p.description if p else None,
                 "brand": p.brand.brand if p.brand else None,
                 "price": c.price if c else None,
                 "memory": p.memory.memory if p.memory else None,
                 "color": p.color.color if p.color else None,
                 "type": p.type.type if p.type else None,
-                "supplier": p.supplier.name if p.supplier else None,
+                "supplier": c.supplier.name if c.supplier else None,
                 "TCP": c.tcp,
                 "Marge de 4,5%": c.marge4_5,
                 "Prix HT avec TCP et marge": c.prixht_tcp_marge4_5,
@@ -343,12 +196,13 @@ def refresh():
         description: Confirmation message
     """
     ProductCalculation.query.delete()
+    TemporaryImport.query.delete()
     return jsonify({"status": "success", "message": "Product calculations empty"})
 
 
 @bp.route("/refresh_week", methods=["POST"])
 def refresh_week():
-    """Delete product calculations for specified weeks.
+    """Delete product calculations and import history for specified weeks.
 
     ---
     tags:
@@ -389,11 +243,96 @@ def refresh_week():
             ProductCalculation.date >= start,
             ProductCalculation.date < end,
         ).delete(synchronize_session=False)
+        ImportHistory.query.filter(
+            ImportHistory.date >= start,
+            ImportHistory.date < end,
+        ).delete(synchronize_session=False)
 
     db.session.commit()
     return jsonify(
         {
             "status": "success",
-            "message": "Product calculations empty for selected weeks",
+            "message": "Product calculations and import history empty for selected weeks",
         }
     )
+
+
+@bp.route("/products", methods=["POST"])
+def create_product():
+    """Create a new product."""
+    data = request.get_json(silent=True) or {}
+    product = Product(
+        ean=data.get("ean"),
+        model=data.get("model", ""),
+        description=data.get("description", ""),
+        brand_id=data.get("brand_id"),
+        memory_id=data.get("memory_id"),
+        color_id=data.get("color_id"),
+        type_id=data.get("type_id"),
+    )
+    db.session.add(product)
+    db.session.commit()
+    return jsonify({"id": product.id}), 201
+
+
+@bp.route("/products/<int:product_id>", methods=["PUT"])
+def update_product(product_id):
+    """Update an existing product."""
+    product = Product.query.get_or_404(product_id)
+    data = request.get_json(silent=True) or {}
+    for field in [
+        "ean",
+        "model",
+        "description",
+        "brand_id",
+        "memory_id",
+        "color_id",
+        "type_id",
+    ]:
+        if field in data:
+            setattr(product, field, data[field])
+    db.session.commit()
+    return jsonify({"status": "updated"})
+
+
+@bp.route("/products/bulk_update", methods=["PUT"])
+def bulk_update_products():
+    """Update multiple products in a single request."""
+    items = request.get_json(silent=True) or []
+    if not isinstance(items, list):
+        return jsonify({"error": "Invalid payload"}), 400
+
+    fields = [
+        "ean",
+        "model",
+        "description",
+        "brand_id",
+        "memory_id",
+        "color_id",
+        "type_id",
+    ]
+    updated_ids = []
+    for item in items:
+        pid = item.get("id")
+        if not pid:
+            continue
+        product = Product.query.get(pid)
+        if not product:
+            continue
+        for field in fields:
+            if field in item:
+                setattr(product, field, item[field])
+        updated_ids.append(pid)
+
+    if updated_ids:
+        db.session.commit()
+    return jsonify({"status": "success", "updated": updated_ids})
+
+
+@bp.route("/products/<int:product_id>", methods=["DELETE"])
+def delete_product(product_id):
+    """Delete a product."""
+    product = Product.query.get_or_404(product_id)
+    db.session.delete(product)
+    db.session.commit()
+    return jsonify({"status": "deleted"})

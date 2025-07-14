@@ -2,6 +2,14 @@ import { getCurrentTimestamp } from './utils/date';
 
 export const API_BASE = import.meta.env.VITE_API_BASE || '';
 
+export async function fetchApitest() {
+  const res = await fetch(`${API_BASE}/`);
+  if (!res.ok) {
+    throw new Error('Erreur lors du chargement des produits');
+  }
+  return res.json();
+}
+
 
 export async function createImport(file: File, supplierId?: number) {
   const formData = new FormData();
@@ -28,6 +36,52 @@ export async function fetchProducts() {
   return res.json();
 }
 
+export async function createProduct(data: any) {
+  const res = await fetch(`${API_BASE}/products`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    throw new Error("Erreur lors de la création du produit");
+  }
+  return res.json();
+}
+
+export async function updateProduct(id: number, data: any) {
+  const res = await fetch(`${API_BASE}/products/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    throw new Error("Erreur lors de la mise à jour du produit");
+  }
+  return res.json();
+}
+
+export async function bulkUpdateProducts(data: any[]) {
+  const res = await fetch(`${API_BASE}/products/bulk_update`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    throw new Error("Erreur lors de la mise à jour des produits");
+  }
+  return res.json();
+}
+
+export async function deleteProduct(id: number) {
+  const res = await fetch(`${API_BASE}/products/${id}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) {
+    throw new Error("Erreur lors de la suppression du produit");
+  }
+  return res.json();
+}
+
 
 export async function fetchLastImport(id: number): Promise<{ import_date: string | null } | {}> {
   const res = await fetch(`${API_BASE}/last_import/${id}`);
@@ -37,16 +91,14 @@ export async function fetchLastImport(id: number): Promise<{ import_date: string
   return res.json();
 }
 
-export async function createProduct() {
-  const res = await fetch(`${API_BASE}/populate_products`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-  });
+export async function verifyImport(id: number) {
+  const res = await fetch(`${API_BASE}/verify_import/${id}`);
   if (!res.ok) {
-    throw new Error("Erreur lors de l'ajout du produit");
+    throw new Error("Erreur lors de la vérification de l'import");
   }
   return res.json();
 }
+
 
 export async function calculateProducts() {
   const res = await fetch(`${API_BASE}/calculate_products`, {
@@ -76,18 +128,8 @@ export async function exportCalculations() {
   return { blob, filename };
 }
 
-export async function fetchCalculationCount(): Promise<number> {
-  const res = await fetch(`${API_BASE}/product_calculations/count`);
-  if (!res.ok) {
-    throw new Error('Erreur lors du chargement des calculs');
-  }
-  const data = await res.json();
-  return data.count as number;
-}
-
-
 export async function fetchSuppliers() {
-  const res = await fetch(`${API_BASE}/suppliers`);
+  const res = await fetch(`${API_BASE}/references/suppliers`);
   if (!res.ok) {
     throw new Error("Erreur lors du chargement des suppliers");
   }
@@ -130,7 +172,7 @@ export async function fetchReferenceTable(table: string) {
   const res = await fetch(`${API_BASE}/references/${table}`);
   if (!res.ok) {
     throw new Error('Erreur lors du chargement des références');
-    }
+  }
   return res.json();
 }
 
@@ -142,7 +184,7 @@ export async function updateReferenceItem(table: string, id: number, data: any) 
   });
   if (!res.ok) {
     throw new Error('Erreur lors de la mise à jour');
-    }
+  }
   return res.json();
 }
 
@@ -154,7 +196,7 @@ export async function createReferenceItem(table: string, data: any) {
   });
   if (!res.ok) {
     throw new Error('Erreur lors de la création');
-     }
+  }
   return res.json();
 }
 
@@ -166,12 +208,12 @@ export async function deleteReferenceItem(table: string, id: number) {
   });
   if (!res.ok) {
     throw new Error('Erreur lors de la suppression');
-     }
+  }
   return res.json();
 }
 
 export async function fetchBrands() {
-  const res = await fetch(`${API_BASE}/brands`);
+  const res = await fetch(`${API_BASE}/references/brands`);
   if (!res.ok) {
     throw new Error('Erreur lors du chargement des marques');
   }
@@ -180,7 +222,7 @@ export async function fetchBrands() {
 
 
 export async function fetchColors() {
-  const res = await fetch(`${API_BASE}/colors`);
+  const res = await fetch(`${API_BASE}/references/colors`);
   if (!res.ok) {
     throw new Error('Erreur lors du chargement des couleurs');
   }
@@ -188,7 +230,7 @@ export async function fetchColors() {
 }
 
 export async function fetchMemoryOptions() {
-  const res = await fetch(`${API_BASE}/memory_options`);
+  const res = await fetch(`${API_BASE}/references/memory_options`);
   if (!res.ok) {
     throw new Error('Erreur lors du chargement des mémoires');
   }
@@ -196,9 +238,94 @@ export async function fetchMemoryOptions() {
 }
 
 export async function fetchDeviceTypes() {
-  const res = await fetch(`${API_BASE}/device_types`);
+  const res = await fetch(`${API_BASE}/references/device_types`);
   if (!res.ok) {
     throw new Error('Erreur lors du chargement des types');
+  }
+  return res.json();
+}
+
+export async function fetchPriceStats(params?: {
+  supplierId?: number;
+  brandId?: number;
+  productId?: number;
+  startWeek?: string;
+  endWeek?: string;
+}) {
+  const search = new URLSearchParams();
+  if (params?.supplierId) search.set('supplier_id', String(params.supplierId));
+  if (params?.brandId) search.set('brand_id', String(params.brandId));
+  if (params?.productId) search.set('product_id', String(params.productId));
+  if (params?.startWeek) search.set('start_week', params.startWeek);
+  if (params?.endWeek) search.set('end_week', params.endWeek);
+  const query = search.toString();
+  const res = await fetch(`${API_BASE}/price_stats${query ? `?${query}` : ''}`);
+  if (!res.ok) {
+    throw new Error('Erreur lors du chargement des statistiques');
+  }
+  return res.json();
+}
+
+export async function fetchBrandSupplierAverage(params?: {
+  supplierId?: number;
+  brandId?: number;
+  startWeek?: string;
+  endWeek?: string;
+}) {
+  const search = new URLSearchParams();
+  if (params?.supplierId) search.set('supplier_id', String(params.supplierId));
+  if (params?.brandId) search.set('brand_id', String(params.brandId));
+  if (params?.startWeek) search.set('start_week', params.startWeek);
+  if (params?.endWeek) search.set('end_week', params.endWeek);
+  const query = search.toString();
+  const res = await fetch(
+    `${API_BASE}/brand_supplier_average${query ? `?${query}` : ''}`
+  );
+  if (!res.ok) {
+    throw new Error('Erreur lors du chargement des statistiques');
+  }
+  return res.json();
+}
+
+export async function fetchProductSupplierAverage(params?: {
+  supplierId?: number;
+  brandId?: number;
+  productId?: number;
+  startWeek?: string;
+  endWeek?: string;
+}) {
+  const search = new URLSearchParams();
+  if (params?.supplierId) search.set('supplier_id', String(params.supplierId));
+  if (params?.brandId) search.set('brand_id', String(params.brandId));
+  if (params?.productId) search.set('product_id', String(params.productId));
+  if (params?.startWeek) search.set('start_week', params.startWeek);
+  if (params?.endWeek) search.set('end_week', params.endWeek);
+  const query = search.toString();
+  const res = await fetch(
+    `${API_BASE}/product_supplier_average${query ? `?${query}` : ''}`
+  );
+  if (!res.ok) {
+    throw new Error('Erreur lors du chargement des statistiques');
+  }
+  return res.json();
+}
+
+export async function fetchGraphSettings() {
+  const res = await fetch(`${API_BASE}/graph_settings`);
+  if (!res.ok) {
+    throw new Error('Erreur lors du chargement des préférences');
+  }
+  return res.json();
+}
+
+export async function updateGraphSetting(name: string, visible: boolean) {
+  const res = await fetch(`${API_BASE}/graph_settings/${name}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ visible })
+  });
+  if (!res.ok) {
+    throw new Error('Erreur lors de la mise à jour');
   }
   return res.json();
 }

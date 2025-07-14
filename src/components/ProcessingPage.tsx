@@ -1,23 +1,21 @@
-import React, { useState, useCallback, useEffect } from 'react';
 import {
-  FileUp,
-  FileDown,
   ArrowRight,
-  Loader2,
-  Download,
   ChevronRight,
+  Download,
+  FileDown,
+  FileUp,
+  Loader2,
 } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  createProduct,
-  fetchProducts,
-  createImport,
   calculateProducts,
-  exportCalculations,
-  fetchSuppliers,
+  createImport,
   fetchLastImport,
+  fetchSuppliers,
+  verifyImport
 } from '../api';
-import { getCurrentWeekYear, getCurrentTimestamp,getWeekYear } from '../utils/date';
-import WeekToolbar from './WeekToolbar';
+import { getCurrentTimestamp, getCurrentWeekYear, getWeekYear } from '../utils/date';
+
 
 interface ProcessingPageProps {
   onNext: () => void;
@@ -58,7 +56,7 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZone
       const droppedFile = e.dataTransfer.files[0];
       if (
         droppedFile?.type ===
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
         droppedFile?.type === 'application/vnd.ms-excel'
       ) {
         onFileChange(supplier.id, droppedFile);
@@ -78,23 +76,22 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZone
   );
 
   return (
-    <div className="bg-zinc-900 rounded-2xl shadow-2xl p-8 border border-[#B8860B]/20">
+    <div className="card p-8">
       <h2 className="text-xl font-semibold mb-6">Import de {supplier.name}</h2>
       {lastImportDate && (
         <p className="text-sm text-zinc-400 mb-2">
-          Dernier import : {getWeekYear(new Date (lastImportDate))} -{' '}
+          Dernier import : {getWeekYear(new Date(lastImportDate))} -{' '}
           {new Date(lastImportDate).toLocaleDateString('fr-FR',
-          {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-          }
-        )} </p>
+            {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+            }
+          )} </p>
       )}
       <div
-        className={`border-2 border-dashed rounded-xl p-8 transition-all duration-200 ${
-          isDragging ? 'border-[#B8860B] bg-black/50' : 'border-zinc-700 hover:border-[#B8860B]/50'
-        }`}
+        className={`border-2 border-dashed rounded-xl p-8 transition-all duration-200 ${isDragging ? 'border-[#B8860B] bg-black/50' : 'border-zinc-700 hover:border-[#B8860B]/50'
+          }`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -102,7 +99,7 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZone
         <div className="flex flex-col items-center justify-center space-y-4">
           <FileUp className="w-12 h-12 text-[#B8860B]" />
           <p className="text-lg text-zinc-300">Glissez votre fichier Excel ici ou</p>
-          <label className="px-6 py-3 bg-[#B8860B] text-black rounded-lg cursor-pointer hover:bg-[#B8860B]/90 transition-colors font-semibold">
+          <label className="btn btn-primary cursor-pointer">
             Sélectionnez un fichier
             <input type="file" className="hidden" accept=".xlsx,.xls" onChange={handleFileChange} />
           </label>
@@ -119,7 +116,6 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZone
 }
 
 function ProcessingPage({ onNext }: ProcessingPageProps) {
-  const [productsCount, setProductsCount] = useState(0);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [files, setFiles] = useState<Record<number, File | null>>({});
   const [isProcessing, setIsProcessing] = useState(false);
@@ -128,10 +124,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
   const [lastImports, setLastImports] = useState<Record<number, string | null>>({});
   const [error, setError] = useState<string | null>(null);
 
-  const refreshCount = useCallback(async () => {
-    const list = await fetchProducts();
-    setProductsCount(list.length);
-  }, []);
+
 
   const refreshLastImports = useCallback(async () => {
     const entries = await Promise.all(
@@ -166,18 +159,27 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
       for (const f of suppliers) {
         const file = files[f.id];
         if (file) {
+          try {
+            const check = await verifyImport(f.id);
+            if (check.status === 'error') {
+              const confirmOverride = window.confirm(
+                `Un import a déjà été réalisé cette semaine pour ${f.name}. Voulez-vous écraser les données ?`
+              );
+              if (!confirmOverride) {
+                continue;
+              }
+            }
+          } catch {
+            // ignore verification errors and proceed
+          }
           await createImport(file, f.id);
         }
       }
 
-      await createProduct();
       await calculateProducts();
-      await refreshCount();
+
       await refreshLastImports();
 
-      const { blob, filename } = await exportCalculations();
-      setProcessedFile(URL.createObjectURL(blob));
-      setProcessedFileName(filename);
     } catch (err) {
       console.error('Error processing files:', err);
       setError(
@@ -189,14 +191,13 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
     } finally {
       setIsProcessing(false);
     }
-  }, [files, suppliers, refreshCount, refreshLastImports]);
+  }, [files, suppliers, refreshLastImports]);
 
   useEffect(() => {
-    refreshCount();
     fetchSuppliers()
       .then(setSuppliers)
-      .catch(() => {});
-  }, [refreshCount]);
+      .catch(() => { });
+  }, []);
 
   useEffect(() => {
     if (suppliers.length > 0) {
@@ -205,12 +206,28 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
   }, [suppliers, refreshLastImports]);
 
   return (
-    <div className="max-w-7xl mx-auto px-1 sm:px-2 py-6 sm:py-8">
-      <WeekToolbar />
+    <div className="max-w-4xl mx-auto px-4 py-12">
       <h1 className="text-4xl font-bold text-center mb-2">Étape 1 - Calculs et Traitement</h1>
       <p className="text-center text-[#B8860B] mb-4">Traitez vos fichiers Excel avec calculs TCP et marges</p>
-      <p className="text-center text-sm text-zinc-500 mb-8">Produits en base : {productsCount}</p>
-
+      <p className="text-center text-zinc-400 mb-4">Semaine en cours : {getCurrentWeekYear()}</p>
+      <div className="flex justify-center mb-8">
+        <button
+          onClick={() => {
+            if (!processedFile) return;
+            const link = document.createElement('a');
+            link.href = processedFile;
+            link.download =
+              processedFileName || `product_calculates_${getCurrentTimestamp()}.xlsx`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }}
+          className="btn btn-primary px-6 py-3 flex items-center space-x-2"
+        >
+          <Download className="w-5 h-5" />
+          <span>Télécharger</span>
+        </button>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {suppliers.map((f) => (
           <ImportZone
@@ -227,7 +244,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
         <button
           onClick={processAll}
           disabled={isProcessing}
-          className="px-6 py-3 bg-[#B8860B] text-black rounded-lg flex items-center space-x-2 hover:bg-[#B8860B]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+          className="btn btn-primary px-6 py-3 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isProcessing ? (
             <>
@@ -252,7 +269,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
           {processedFile && (
             <button
               onClick={onNext}
-              className="px-8 py-4 bg-green-600 text-white rounded-lg flex items-center space-x-2 hover:bg-green-700 transition-colors font-semibold text-lg"
+              className="btn bg-green-600 hover:bg-green-700 text-white px-8 py-4 text-lg"
             >
               <span>Passer à l'étape 2 - Mise en forme</span>
               <ChevronRight className="w-6 h-6" />

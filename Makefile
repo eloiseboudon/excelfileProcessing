@@ -45,26 +45,26 @@ docker-logs-postgres:
 
 # Commandes Alembic (toutes dans Docker)
 alembic-init:
-	$(DC) run --rm backend alembic init alembic
+	docker compose run --rm backend alembic init alembic
 	@echo "Alembic initialisé. Pensez à configurer env.py"
 
 alembic-migrate:
-	$(DC) run --rm backend alembic revision --autogenerate -m "$(MSG)"
+	docker compose run --rm backend alembic revision --autogenerate -m "$(MSG)"
 	@echo "Migration créée avec le message: $(MSG)"
 
 alembic-upgrade:
-	$(DC) run --rm backend alembic upgrade head
+	docker compose exec backend alembic upgrade head
 	@echo "Migrations appliquées"
 
 alembic-downgrade:
-	$(DC) run --rm backend alembic downgrade -1
+	docker compose exec backend alembic downgrade -1
 	@echo "Migration précédente annulée"
 
 alembic-current:
-	$(DC) run --rm backend alembic current
+	docker compose exec backend alembic current
 
 alembic-history:
-	$(DC) run --rm backend alembic history --verbose
+	docker compose exec backend alembic history --verbose
 
 # Commandes de développement
 dev-setup: docker-build docker-up alembic-upgrade
@@ -76,13 +76,13 @@ dev-reset: docker-down
 
 # Shell dans les conteneurs
 shell-backend:
-	$(DC) exec backend bash
+	docker compose exec backend bash
 
 shell-postgres:
-	$(DC) exec postgres psql -U postgres -d ajtpro
+	docker compose exec postgres psql -U postgres -d ajtpro
 
 shell-implement-tables:
-	$(DC) exec backend python -m implement_tables
+	docker compose exec backend python -m implement_tables
 
 # Git utilities
 clean-branches:
@@ -96,12 +96,12 @@ clean:
 
 # Tests (si vous en avez)
 test:
-	$(DC) run --rm backend python -m pytest
+	docker compose exec backend python -m pytest
 
 # Backup/Restore
 backup:
-	$(DC) exec postgres pg_dump -U postgres ajtpro > backup_$(shell date +%Y%m%d_%H%M%S).sql
+	docker compose exec postgres pg_dump -U postgres ajtpro > backup_$(shell date +%Y%m%d_%H%M%S).sql
 
 restore:
 	@echo "Usage: make restore BACKUP_FILE=backup_file.sql"
-	$(DC) exec -T postgres psql -U postgres ajtpro < $(BACKUP_FILE)
+	cat $(BACKUP_FILE) | $(EXEC_POSTGRES)

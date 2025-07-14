@@ -24,13 +24,14 @@ dist-ssr
 *.sw?
 .venv
 .env
+.flake8
 
-backend/__pycache__/
-backend/__pycache__/*
 backend/instance/
 backend/instance/*
-backend/alembic/__pycache__/
-backend/alembic/__pycache__/*
-backend/alembic/versions/*
-backend/routes/__pycache__/
-backend/routes/__pycache__/*
+backend/alembic/*
+
+**/__pycache__
+**/*.pyc
+
+todo.md
+

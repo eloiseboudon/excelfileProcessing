@@ -7,117 +7,12 @@ from models import (
     Exclusion,
     MemoryOption,
     Product,
-    ProductReference,
     Supplier,
     db,
 )
+from utils.calculations import update_product_calculations_for_memory_option
 
 bp = Blueprint("references", __name__)
-
-
-@bp.route("/suppliers", methods=["GET"])
-def list_suppliers():
-    """Retrieve supplier list.
-
-    ---
-    tags:
-      - References
-    responses:
-      200:
-        description: List of suppliers
-    """
-    suppliers = Supplier.query.all()
-    result = [
-        {
-            "id": s.id,
-            "name": s.name,
-            "email": s.email,
-            "phone": s.phone,
-            "address": s.address,
-        }
-        for s in suppliers
-    ]
-    return jsonify(result)
-
-
-@bp.route("/brands", methods=["GET"])
-def list_brands():
-    """Retrieve available brands.
-
-    ---
-    tags:
-      - References
-    responses:
-      200:
-        description: List of brands
-    """
-    brands = Brand.query.all()
-    result = [{"id": b.id, "brand": b.brand} for b in brands]
-    return jsonify(result)
-
-
-@bp.route("/colors", methods=["GET"])
-def list_colors():
-    """Retrieve available colors.
-
-    ---
-    tags:
-      - References
-    responses:
-      200:
-        description: List of colors
-    """
-    colors = Color.query.all()
-    result = [{"id": c.id, "color": c.color} for c in colors]
-    return jsonify(result)
-
-
-@bp.route("/memory_options", methods=["GET"])
-def list_memory_options():
-    """Retrieve memory capacities.
-
-    ---
-    tags:
-      - References
-    responses:
-      200:
-        description: List of memory options
-    """
-    memories = MemoryOption.query.all()
-    result = [{"id": m.id, "memory": m.memory} for m in memories]
-    return jsonify(result)
-
-
-@bp.route("/device_types", methods=["GET"])
-def list_device_types():
-    """Retrieve device types.
-
-    ---
-    tags:
-      - References
-    responses:
-      200:
-        description: List of device types
-    """
-    types = DeviceType.query.all()
-    result = [{"id": t.id, "type": t.type} for t in types]
-    return jsonify(result)
-
-
-@bp.route("/exclusions", methods=["GET"])
-def list_exclusions():
-    """Retrieve exclusion terms.
-
-    ---
-    tags:
-      - References
-    responses:
-      200:
-        description: List of terms to ignore during product parsing
-    """
-    exclusions = Exclusion.query.all()
-    result = [{"id": e.id, "term": e.term} for e in exclusions]
-    return jsonify(result)
 
 
 def _model_mapping():
@@ -141,13 +36,7 @@ def _update_products_for_color_translation(sources, target_color_id):
         if not s:
             continue
         term = f"%{s.lower()}%"
-        products = (
-            Product.query.join(
-                ProductReference, Product.reference_id == ProductReference.id
-            )
-            .filter(ProductReference.description.ilike(term))
-            .all()
-        )
+        products = Product.query.filter(Product.description.ilike(term)).all()
         for p in products:
             p.color_id = target_color_id
     if sources:
@@ -189,7 +78,7 @@ def get_reference_table(table):
         if isinstance(obj, Color):
             return {"id": obj.id, "color": obj.color}
         if isinstance(obj, MemoryOption):
-            return {"id": obj.id, "memory": obj.memory}
+            return {"id": obj.id, "memory": obj.memory, "tcp_value": obj.tcp_value}
         if isinstance(obj, DeviceType):
             return {"id": obj.id, "type": obj.type}
         if isinstance(obj, Exclusion):
@@ -245,6 +134,8 @@ def update_reference_item(table, item_id):
         _update_products_for_color_translation(
             [old_source, item.color_source], item.color_target_id
         )
+    if table == "memory_options" and "tcp_value" in data:
+        update_product_calculations_for_memory_option(item.id)
     return jsonify({"status": "success"})
 
 
