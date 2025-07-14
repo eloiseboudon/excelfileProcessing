@@ -7,6 +7,7 @@ import {
   fetchBrands,
   fetchProducts,
   fetchBrandSupplierAverage,
+  fetchProductSupplierAverage,
   fetchGraphSettings,
   updateGraphSetting,
 } from '../api';
@@ -21,6 +22,12 @@ interface PriceStat {
 interface BrandSupplierAvg {
   supplier: string;
   brand: string;
+  avg_price: number;
+}
+
+interface ProductSupplierAvg {
+  supplier: string;
+  product: string;
   avg_price: number;
 }
 
@@ -41,6 +48,8 @@ interface Point {
 
 const GRAPH_OPTIONS = [
   { key: 'global', label: 'Vue globale' },
+  { key: 'brandSupplier', label: 'Prix moyen marque/fournisseur' },
+  { key: 'productSupplier', label: 'Prix moyen produit/fournisseur' },
   { key: 'product', label: 'Évolution du produit' },
   { key: 'relative', label: 'Évolution relative (%)' },
   { key: 'distribution', label: 'Distribution des prix' },
@@ -49,7 +58,6 @@ const GRAPH_OPTIONS = [
   { key: 'index', label: 'Indice des prix' },
   { key: 'correlation', label: 'Corrélation des prix' },
   { key: 'anomalies', label: 'Anomalies détectées' },
-  { key: 'brandSupplier', label: 'Prix moyen marque/fournisseur' },
 ];
 
 function LineChart({ data }: { data: Point[] }) {
@@ -418,6 +426,7 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
   const [globalStats, setGlobalStats] = useState<PriceStat[]>([]);
   const [productStats, setProductStats] = useState<PriceStat[]>([]);
   const [brandSupplierStats, setBrandSupplierStats] = useState<BrandSupplierAvg[]>([]);
+  const [productSupplierStats, setProductSupplierStats] = useState<ProductSupplierAvg[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [brands, setBrands] = useState<any[]>([]);
   const [products, setProducts] = useState<ProductItem[]>([]);
@@ -488,6 +497,18 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
       .catch(() => setBrandSupplierStats([]));
   }, [supplierId, brandId, startWeek, endWeek]);
 
+  const loadProductSupplier = useCallback(() => {
+    fetchProductSupplierAverage({
+      supplierId: supplierId ? Number(supplierId) : undefined,
+      brandId: brandId ? Number(brandId) : undefined,
+      productId: productId ? Number(productId) : undefined,
+      startWeek: toApiWeek(startWeek),
+      endWeek: toApiWeek(endWeek),
+    })
+      .then((res) => setProductSupplierStats(res as ProductSupplierAvg[]))
+      .catch(() => setProductSupplierStats([]));
+  }, [supplierId, brandId, productId, startWeek, endWeek]);
+
   const loadProduct = useCallback(() => {
     if (!productId) {
       setProductStats([]);
@@ -513,6 +534,10 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
   useEffect(() => {
     loadBrandSupplier();
   }, [loadBrandSupplier]);
+
+  useEffect(() => {
+    loadProductSupplier();
+  }, [loadProductSupplier]);
 
   const filteredProducts = useMemo(
     () => products.filter((p) => (brandId ? p.brand_id === Number(brandId) : true)),
@@ -647,6 +672,18 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
     }));
   }, [brandSupplierStats]);
 
+  const productSupplierSeries = useMemo(() => {
+    const map: Record<string, Point[]> = {};
+    productSupplierStats.forEach((s) => {
+      if (!map[s.supplier]) map[s.supplier] = [];
+      map[s.supplier].push({ label: s.product, value: s.avg_price });
+    });
+    return Object.entries(map).map(([name, data]) => ({
+      name,
+      data: data.sort((a, b) => a.label.localeCompare(b.label)),
+    }));
+  }, [productSupplierStats]);
+
   const anomalies = useMemo(() => {
     const sorted = globalData.slice().sort((a, b) => a.label.localeCompare(b.label));
     const arr: { week: string; change: number }[] = [];
@@ -745,6 +782,24 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
           )}
         </div>
         )}
+        {graphVisible.brandSupplier && (
+        <div>
+          <h2 className="font-semibold mb-2 flex items-center">Prix moyen marque/fournisseur<InfoButton text="Compare les prix moyens par marque selon les fournisseurs." /></h2>
+          <GroupedBarChart series={brandSupplierSeries} />
+          {brandSupplierSeries.length === 0 && (
+            <p className="text-center text-sm text-zinc-400 mt-2">Pas de données</p>
+          )}
+        </div>
+        )}
+        {graphVisible.productSupplier && (
+        <div>
+          <h2 className="font-semibold mb-2 flex items-center">Prix moyen produit/fournisseur<InfoButton text="Compare les prix moyens par produit selon les fournisseurs." /></h2>
+          <GroupedBarChart series={productSupplierSeries} />
+          {productSupplierSeries.length === 0 && (
+            <p className="text-center text-sm text-zinc-400 mt-2">Pas de données</p>
+          )}
+        </div>
+        )}
         {graphVisible.product && (
         <div>
           <h2 className="font-semibold mb-2 flex items-center">Évolution du produit<InfoButton text="Comparer l'évolution du prix du produit selon les fournisseurs." /></h2>
@@ -790,15 +845,6 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
         <div>
           <h2 className="font-semibold mb-2 flex items-center">Corrélation des prix<InfoButton text="Met en évidence les fournisseurs ayant des évolutions similaires." /></h2>
           <Heatmap labels={correlationMatrix.labels} matrix={correlationMatrix.matrix} />
-        </div>
-        )}
-        {graphVisible.brandSupplier && (
-        <div>
-          <h2 className="font-semibold mb-2 flex items-center">Prix moyen marque/fournisseur<InfoButton text="Compare les prix moyens par marque selon les fournisseurs." /></h2>
-          <GroupedBarChart series={brandSupplierSeries} />
-          {brandSupplierSeries.length === 0 && (
-            <p className="text-center text-sm text-zinc-400 mt-2">Pas de données</p>
-          )}
         </div>
         )}
         {graphVisible.anomalies && (
