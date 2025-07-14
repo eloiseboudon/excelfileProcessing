@@ -1,13 +1,14 @@
-import { Calculator, LibraryBig, Palette, Settings } from 'lucide-react';
+import { Calculator, LibraryBig, Palette, Settings, BarChart2 } from 'lucide-react';
 import { useState } from 'react';
 import { fetchApitest } from './api';
 import AdminPage from './components/AdminPage';
 import FormattingPage from './components/FormattingPage';
 import ProcessingPage from './components/ProcessingPage';
 import ProductsPage from './components/ProductsPage';
+import StatisticsPage from './components/StatisticsPage';
 
 function App() {
-  const [currentPage, setCurrentPage] = useState<'processing' | 'formatting' | 'admin' | 'products'>('processing');
+  const [currentPage, setCurrentPage] = useState<'processing' | 'formatting' | 'admin' | 'products' | 'stats'>('processing');
   const [apiTestMessage, setApiTestMessage] = useState<string | null>(null);
 
   const handleApiTest = async () => {
@@ -51,6 +52,17 @@ function App() {
               <span>Produits</span>
             </button>
             <button
+              onClick={() => setCurrentPage('stats')}
+              className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-semibold transition-all duration-200
+                ${currentPage === 'stats'
+                  ? 'bg-[#B8860B] text-black'
+                  : 'bg-zinc-800 text-white hover:bg-zinc-700'
+                }`}
+            >
+              <BarChart2 className="w-5 h-5" />
+              <span>Stats</span>
+            </button>
+            <button
               onClick={() => setCurrentPage('admin')}
               className={`btn px-6 py-3 ${currentPage === 'admin' ? 'btn-primary' : 'btn-secondary'}`}
             >
@@ -73,6 +85,9 @@ function App() {
       )}
       {currentPage === 'products' && (
         <ProductsPage onBack={() => setCurrentPage('processing')} />
+      )}
+      {currentPage === 'stats' && (
+        <StatisticsPage onBack={() => setCurrentPage('processing')} />
       )}
       {currentPage !== 'admin' && (
         <div className="text-center mt-8 mb-6">
