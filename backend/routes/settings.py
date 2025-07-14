@@ -3,10 +3,12 @@ from models import GraphSetting, db
 
 bp = Blueprint("settings", __name__)
 
+
 @bp.route("/graph_settings", methods=["GET"])
 def list_graph_settings():
     settings = GraphSetting.query.all()
     return jsonify([{"name": s.name, "visible": s.visible} for s in settings])
+
 
 @bp.route("/graph_settings/<name>", methods=["PUT"])
 def update_graph_setting(name):

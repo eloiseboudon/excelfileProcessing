@@ -187,5 +187,5 @@ class GraphSetting(db.Model):
     __tablename__ = "graph_settings"
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), unique=True, nullable=False)
-    visible = db.Column(db.Boolean, nullable=False, default=True)
+    name = db.Column(db.String(50), unique=True, nullable=True)
+    visible = db.Column(db.Boolean, nullable=True, default=True)
