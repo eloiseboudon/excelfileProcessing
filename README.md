@@ -36,7 +36,7 @@ Application complète de gestion de tarifs avec système de panier et commande p
 - Ajout/modification/suppression de produits **(validée)**
 
 ### 📊 Statistiques
-- Graphiques dynamiques par semaine, fournisseur et marque **(nouveau)**
+- Graphiques dynamiques par semaine avec filtres fournisseur, produit et marque **(nouveau)**
 
 ## Configuration EmailJS
 

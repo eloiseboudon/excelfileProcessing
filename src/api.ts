@@ -245,8 +245,17 @@ export async function fetchDeviceTypes() {
   return res.json();
 }
 
-export async function fetchPriceStats() {
-  const res = await fetch(`${API_BASE}/price_stats`);
+export async function fetchPriceStats(params?: {
+  supplierId?: number;
+  brandId?: number;
+  productId?: number;
+}) {
+  const search = new URLSearchParams();
+  if (params?.supplierId) search.set('supplier_id', String(params.supplierId));
+  if (params?.brandId) search.set('brand_id', String(params.brandId));
+  if (params?.productId) search.set('product_id', String(params.productId));
+  const query = search.toString();
+  const res = await fetch(`${API_BASE}/price_stats${query ? `?${query}` : ''}`);
   if (!res.ok) {
     throw new Error('Erreur lors du chargement des statistiques');
   }

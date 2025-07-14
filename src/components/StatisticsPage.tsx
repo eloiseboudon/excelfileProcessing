@@ -1,9 +1,15 @@
 import { ArrowLeft } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
-import { fetchPriceStats } from '../api';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  fetchPriceStats,
+  fetchSuppliers,
+  fetchBrands,
+  fetchProducts,
+} from '../api';
 
 interface PriceStat {
   supplier: string;
+  product: string;
   brand: string;
   week: string;
   avg_price: number;
@@ -13,9 +19,15 @@ interface StatisticsPageProps {
   onBack: () => void;
 }
 
+interface ProductItem {
+  id: number;
+  model: string;
+  brand_id: number | null;
+}
+
 function LineChart({ data }: { data: { label: string; value: number }[] }) {
-  const width = 600;
-  const height = 300;
+  const width = 700;
+  const height = 320;
   const padding = 40;
 
   if (!data.length) {
@@ -35,8 +47,22 @@ function LineChart({ data }: { data: { label: string; value: number }[] }) {
     .map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`)
     .join(' ');
 
+  const ticks = 4;
+  const stepY = (height - padding * 2) / ticks;
+
   return (
     <svg width={width} height={height} className="bg-zinc-900 rounded">
+      {/* grid */}
+      {Array.from({ length: ticks + 1 }).map((_, i) => (
+        <line
+          key={i}
+          x1={padding}
+          y1={height - padding - i * stepY}
+          x2={width - padding}
+          y2={height - padding - i * stepY}
+          stroke="#333"
+        />
+      ))}
       {/* axes */}
       <line
         x1={padding}
@@ -65,10 +91,23 @@ function LineChart({ data }: { data: { label: string; value: number }[] }) {
           {d.label}
         </text>
       ))}
+      {/* Y-axis labels */}
+      {Array.from({ length: ticks + 1 }).map((_, i) => (
+        <text
+          key={i}
+          x={padding - 5}
+          y={height - padding - i * stepY + 4}
+          fontSize="10"
+          textAnchor="end"
+          fill="white"
+        >
+          {((maxVal / ticks) * i).toFixed(0)}
+        </text>
+      ))}
       {/* line */}
-      <path d={path} fill="none" stroke="#B8860B" strokeWidth="2" />
+      <path d={path} fill="none" stroke="orange" strokeWidth="2" />
       {points.map((p, i) => (
-        <circle key={i} cx={p.x} cy={p.y} r={3} fill="#B8860B" />
+        <circle key={i} cx={p.x} cy={p.y} r={3} fill="orange" />
       ))}
     </svg>
   );
@@ -76,44 +115,45 @@ function LineChart({ data }: { data: { label: string; value: number }[] }) {
 
 function StatisticsPage({ onBack }: StatisticsPageProps) {
   const [stats, setStats] = useState<PriceStat[]>([]);
-  const [supplier, setSupplier] = useState('');
-  const [brand, setBrand] = useState('');
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [brands, setBrands] = useState<any[]>([]);
+  const [products, setProducts] = useState<ProductItem[]>([]);
+
+  const [supplierId, setSupplierId] = useState<number | ''>('');
+  const [brandId, setBrandId] = useState<number | ''>('');
+  const [productId, setProductId] = useState<number | ''>('');
 
   useEffect(() => {
-    fetchPriceStats()
-      .then((res) => {
-        setStats(res as PriceStat[]);
-      })
-      .catch(() => setStats([]));
+    fetchSuppliers().then((s) => setSuppliers(s as any[])).catch(() => setSuppliers([]));
+    fetchBrands().then((b) => setBrands(b as any[])).catch(() => setBrands([]));
+    fetchProducts().then((p) => setProducts(p as ProductItem[])).catch(() => setProducts([]));
   }, []);
 
-  const suppliers = useMemo(
-    () => Array.from(new Set(stats.map((s) => s.supplier))).sort(),
-    [stats]
-  );
-  const brands = useMemo(
-    () => Array.from(new Set(stats.map((s) => s.brand))).sort(),
-    [stats]
-  );
+  const loadStats = useCallback(() => {
+    fetchPriceStats({
+      supplierId: supplierId ? Number(supplierId) : undefined,
+      brandId: brandId ? Number(brandId) : undefined,
+      productId: productId ? Number(productId) : undefined,
+    })
+      .then((res) => setStats(res as PriceStat[]))
+      .catch(() => setStats([]));
+  }, [supplierId, brandId, productId]);
 
   useEffect(() => {
-    if (!supplier && suppliers.length) {
-      setSupplier(suppliers[0]);
-    }
-  }, [supplier, suppliers]);
+    loadStats();
+  }, [loadStats]);
 
-  useEffect(() => {
-    if (!brand && brands.length) {
-      setBrand(brands[0]);
-    }
-  }, [brand, brands]);
+  const filteredProducts = useMemo(
+    () =>
+      products.filter((p) =>
+        brandId ? p.brand_id === Number(brandId) : true
+      ),
+    [products, brandId]
+  );
 
-  const filtered = stats
-    .filter((s) => (supplier ? s.supplier === supplier : true))
-    .filter((s) => (brand ? s.brand === brand : true))
-    .sort((a, b) => a.week.localeCompare(b.week));
-
-  const chartData = filtered.map((f) => ({ label: f.week, value: f.avg_price }));
+  const chartData = stats
+    .sort((a, b) => a.week.localeCompare(b.week))
+    .map((f) => ({ label: f.week, value: f.avg_price }));
 
   return (
     <div className="max-w-7xl mx-auto px-1 sm:px-2 py-6 sm:py-8">
@@ -127,24 +167,38 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
       <h1 className="text-2xl font-bold text-center mb-4">Statistiques de prix</h1>
       <div className="flex flex-wrap gap-4 mb-6">
         <select
-          value={supplier}
-          onChange={(e) => setSupplier(e.target.value)}
+          value={supplierId}
+          onChange={(e) => setSupplierId(e.target.value ? Number(e.target.value) : '')}
           className="bg-zinc-900 border border-zinc-600 rounded px-2 py-1"
         >
-          {suppliers.map((s) => (
-            <option key={s} value={s}>
-              {s}
+          <option value="">Tous fournisseurs</option>
+          {suppliers.map((s: any) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
             </option>
           ))}
         </select>
         <select
-          value={brand}
-          onChange={(e) => setBrand(e.target.value)}
+          value={brandId}
+          onChange={(e) => setBrandId(e.target.value ? Number(e.target.value) : '')}
           className="bg-zinc-900 border border-zinc-600 rounded px-2 py-1"
         >
-          {brands.map((b) => (
-            <option key={b} value={b}>
-              {b}
+          <option value="">Toutes marques</option>
+          {brands.map((b: any) => (
+            <option key={b.id} value={b.id}>
+              {b.brand}
+            </option>
+          ))}
+        </select>
+        <select
+          value={productId}
+          onChange={(e) => setProductId(e.target.value ? Number(e.target.value) : '')}
+          className="bg-zinc-900 border border-zinc-600 rounded px-2 py-1"
+        >
+          <option value="">Tous produits</option>
+          {filteredProducts.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.model}
             </option>
           ))}
         </select>
