@@ -1,4 +1,5 @@
 import math
+import pandas as pd
 from datetime import datetime, timezone
 from typing import Dict, Iterable, Tuple
 
@@ -131,7 +132,16 @@ def recalculate_product_calculations():
         if price > thresholds[-1]:
             price_with_margin = price * 1.06
 
-        max_price = math.ceil(max(price_with_tcp, price_with_margin))
+        # Vérifier que les valeurs ne sont pas NaN
+        if pd.isna(price_with_tcp) or pd.isna(price_with_margin):
+            print(f"Valeurs NaN détectées pour le produit {product.id}")
+            continue
+
+        try:
+            max_price = math.ceil(max(price_with_tcp, price_with_margin))
+        except ValueError as e:
+            print(f"Erreur de calcul pour le produit {product.id}: {str(e)}")
+            continue
 
         calc = ProductCalculation(
             product_id=product.id,
