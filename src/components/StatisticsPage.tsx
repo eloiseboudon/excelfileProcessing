@@ -35,7 +35,12 @@ function LineChart({ data }: { data: Point[] }) {
   const padding = 40;
 
   if (!data.length) {
-    return <svg width={width} height={height} />;
+    return (
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full h-80 bg-zinc-900 rounded"
+      />
+    );
   }
 
   const maxVal = Math.max(...data.map((d) => d.value)) * 1.1;
@@ -55,7 +60,11 @@ function LineChart({ data }: { data: Point[] }) {
   const stepY = (height - padding * 2) / ticks;
 
   return (
-    <svg width={width} height={height} className="bg-zinc-900 rounded">
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      className="w-full h-80 bg-zinc-900 rounded"
+      preserveAspectRatio="xMidYMid meet"
+    >
       {Array.from({ length: ticks + 1 }).map((_, i) => (
         <line
           key={i}
@@ -93,7 +102,12 @@ function MultiLineChart({ series }: { series: { name: string; data: Point[] }[] 
   const all = series.flatMap((s) => s.data);
 
   if (!all.length) {
-    return <svg width={width} height={height} />;
+    return (
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full h-80 bg-zinc-900 rounded"
+      />
+    );
   }
 
   const maxVal = Math.max(...all.map((d) => d.value)) * 1.1;
@@ -117,7 +131,11 @@ function MultiLineChart({ series }: { series: { name: string; data: Point[] }[] 
   });
 
   return (
-    <svg width={width} height={height} className="bg-zinc-900 rounded">
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      className="w-full h-80 bg-zinc-900 rounded"
+      preserveAspectRatio="xMidYMid meet"
+    >
       {Array.from({ length: ticks + 1 }).map((_, i) => (
         <line key={i} x1={padding} y1={height - padding - i * stepY} x2={width - padding} y2={height - padding - i * stepY} stroke="#333" />
       ))}
@@ -296,14 +314,24 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
           ))}
         </select>
       </div>
-      <div className="overflow-auto space-y-8">
+      <div className="overflow-x-auto space-y-8">
         <div>
           <h2 className="font-semibold mb-2">Vue globale</h2>
           <LineChart data={globalData} />
+          {globalData.length === 0 && (
+            <p className="text-center text-sm text-zinc-400 mt-2">
+              {brandId ? 'Pas de données pour cette marque' : 'Pas de données'}
+            </p>
+          )}
         </div>
         <div>
           <h2 className="font-semibold mb-2">Évolution du produit</h2>
           <MultiLineChart series={productSeries} />
+          {productId && productSeries.length === 0 && (
+            <p className="text-center text-sm text-zinc-400 mt-2">
+              Pas de données pour ce produit
+            </p>
+          )}
         </div>
       </div>
     </div>
