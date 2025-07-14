@@ -181,3 +181,11 @@ class ImportHistory(db.Model):
     )
     product_count = db.Column(db.Integer, nullable=False)
     import_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
+class GraphSetting(db.Model):
+    __tablename__ = "graph_settings"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+    visible = db.Column(db.Boolean, nullable=False, default=True)

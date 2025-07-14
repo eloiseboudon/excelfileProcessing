@@ -6,6 +6,8 @@ import {
   fetchSuppliers,
   fetchBrands,
   fetchProducts,
+  fetchGraphSettings,
+  updateGraphSetting,
 } from '../api';
 
 interface PriceStat {
@@ -29,6 +31,18 @@ interface Point {
   label: string;
   value: number;
 }
+
+const GRAPH_OPTIONS = [
+  { key: 'global', label: 'Vue globale' },
+  { key: 'product', label: 'Évolution du produit' },
+  { key: 'relative', label: 'Évolution relative (%)' },
+  { key: 'distribution', label: 'Distribution des prix' },
+  { key: 'stdev', label: 'Écart-type par fournisseur' },
+  { key: 'range', label: 'Prix min/max par semaine' },
+  { key: 'index', label: 'Indice des prix' },
+  { key: 'correlation', label: 'Corrélation des prix' },
+  { key: 'anomalies', label: 'Anomalies détectées' },
+];
 
 function LineChart({ data }: { data: Point[] }) {
   const width = 700;
@@ -317,6 +331,7 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [brands, setBrands] = useState<any[]>([]);
   const [products, setProducts] = useState<ProductItem[]>([]);
+  const [graphVisible, setGraphVisible] = useState<Record<string, boolean>>({});
 
   const [supplierId, setSupplierId] = useState<number | ''>('');
   const [brandId, setBrandId] = useState<number | ''>('');
@@ -328,7 +343,32 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
     fetchSuppliers().then((s) => setSuppliers(s as any[])).catch(() => setSuppliers([]));
     fetchBrands().then((b) => setBrands(b as any[])).catch(() => setBrands([]));
     fetchProducts().then((p) => setProducts(p as ProductItem[])).catch(() => setProducts([]));
+    fetchGraphSettings()
+      .then((gs) => {
+        const vis: Record<string, boolean> = {};
+        (gs as any[]).forEach((g) => {
+          vis[g.name] = g.visible;
+        });
+        GRAPH_OPTIONS.forEach((o) => {
+          if (!(o.key in vis)) vis[o.key] = true;
+        });
+        setGraphVisible(vis);
+      })
+      .catch(() => {
+        const vis: Record<string, boolean> = {};
+        GRAPH_OPTIONS.forEach((o) => (vis[o.key] = true));
+        setGraphVisible(vis);
+      });
   }, []);
+
+  const toggleGraph = (key: string) => {
+    setGraphVisible((prev) => {
+      const newVal = !prev[key];
+      const next = { ...prev, [key]: newVal };
+      updateGraphSetting(key, newVal).catch(() => undefined);
+      return next;
+    });
+  };
 
   const toApiWeek = (val: string) => {
     if (!val) return undefined;
@@ -563,7 +603,21 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
           ))}
         </select>
       </div>
+      <div className="flex flex-wrap gap-4 mb-6">
+        {GRAPH_OPTIONS.map((opt) => (
+          <label key={opt.key} className="flex items-center space-x-1 text-sm">
+            <input
+              type="checkbox"
+              checked={graphVisible[opt.key] ?? true}
+              onChange={() => toggleGraph(opt.key)}
+              className="accent-orange-500"
+            />
+            <span>{opt.label}</span>
+          </label>
+        ))}
+      </div>
       <div className="overflow-x-auto space-y-8">
+        {graphVisible.global && (
         <div>
           <h2 className="font-semibold mb-2 flex items-center">Vue globale<InfoButton text="Prix moyen toutes marques et fournisseurs pour chaque semaine." /></h2>
           <LineChart data={globalData} />
@@ -573,6 +627,8 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
             </p>
           )}
         </div>
+        )}
+        {graphVisible.product && (
         <div>
           <h2 className="font-semibold mb-2 flex items-center">Évolution du produit<InfoButton text="Comparer l'évolution du prix du produit selon les fournisseurs." /></h2>
           <MultiLineChart series={productSeries} />
@@ -582,30 +638,44 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
             </p>
           )}
         </div>
+        )}
+        {graphVisible.relative && (
         <div>
           <h2 className="font-semibold mb-2 flex items-center">Évolution relative (%)<InfoButton text="Variation en pourcentage d'une semaine sur l'autre." /></h2>
           <LineChart data={relativeData} />
         </div>
+        )}
+        {graphVisible.distribution && (
         <div>
           <h2 className="font-semibold mb-2 flex items-center">Distribution des prix<InfoButton text="Répartition des prix moyens pour identifier les valeurs atypiques." /></h2>
           <BarChart data={distributionData} />
         </div>
+        )}
+        {graphVisible.stdev && (
         <div>
           <h2 className="font-semibold mb-2 flex items-center">Écart-type par fournisseur<InfoButton text="Mesure la dispersion des prix pour chaque fournisseur." /></h2>
           <BarChart data={stdevData} />
         </div>
+        )}
+        {graphVisible.range && (
         <div>
           <h2 className="font-semibold mb-2 flex items-center">Prix min/max par semaine<InfoButton text="Fourchette des prix observés chaque semaine." /></h2>
           <RangeChart data={rangeData} />
         </div>
+        )}
+        {graphVisible.index && (
         <div>
           <h2 className="font-semibold mb-2 flex items-center">Indice des prix (base 100)<InfoButton text="Indice basé sur la première semaine pour suivre l'évolution globale." /></h2>
           <LineChart data={priceIndexData} />
         </div>
+        )}
+        {graphVisible.correlation && (
         <div>
           <h2 className="font-semibold mb-2 flex items-center">Corrélation des prix<InfoButton text="Met en évidence les fournisseurs ayant des évolutions similaires." /></h2>
           <Heatmap labels={correlationMatrix.labels} matrix={correlationMatrix.matrix} />
         </div>
+        )}
+        {graphVisible.anomalies && (
         <div>
           <h2 className="font-semibold mb-2 flex items-center">Anomalies détectées<InfoButton text="Signale les variations supérieures à 20\u00a0% d'une semaine sur l'autre." /></h2>
           {anomalies.length ? (
@@ -629,6 +699,7 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
             <p className="text-center text-sm text-zinc-400">Aucune anomalie</p>
           )}
         </div>
+        )}
       </div>
     </div>
   );
