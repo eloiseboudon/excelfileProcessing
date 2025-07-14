@@ -17,7 +17,7 @@ Application de gestion des couts par fournisseurs et définition des prix de ven
 - A partir de la page produits ajout **(pas fait)**
 - Génération de fichiers Excel formatés **(pas fait)**
 - Création de pages web de consultation client **(pas fait)**
-- Interface moderne avec design professionnel **(pas fait)**
+- Interface moderne avec design professionnel **(en amélioration)**
 - Publication en ligne **(pas fait)**
 
 ### ⚙️ Administration

@@ -153,7 +153,7 @@ function ProductsPage({ onBack }: ProductsPageProps) {
         <button
           onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
           disabled={currentPage === 1}
-          className="px-3 py-1 bg-zinc-800 rounded disabled:opacity-50"
+          className="btn btn-secondary px-3 py-1 disabled:opacity-50"
         >
           Précédent
         </button>
@@ -163,7 +163,7 @@ function ProductsPage({ onBack }: ProductsPageProps) {
         <button
           onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
           disabled={currentPage === totalPages}
-          className="px-3 py-1 bg-zinc-800 rounded disabled:opacity-50"
+          className="btn btn-secondary px-3 py-1 disabled:opacity-50"
         >
           Suivant
         </button>
@@ -188,11 +188,11 @@ function ProductsPage({ onBack }: ProductsPageProps) {
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-1 sm:px-2 py-6 sm:py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       <WeekToolbar />
       <button
         onClick={onBack}
-        className="flex items-center space-x-2 px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors mb-6"
+        className="btn btn-secondary mb-6"
       >
         <ArrowLeft className="w-5 h-5" />
         <span>Retour</span>
@@ -201,15 +201,13 @@ function ProductsPage({ onBack }: ProductsPageProps) {
       <div className="flex justify-center space-x-4 mb-6">
         <button
           onClick={() => setTab('calculations')}
-          className={`px-4 py-2 rounded ${tab === 'calculations' ? 'bg-[#B8860B] text-black' : 'bg-zinc-800 hover:bg-zinc-700'
-            }`}
+          className={`btn ${tab === 'calculations' ? 'btn-primary' : 'btn-secondary'}`}
         >
           TCP/Marges
         </button>
         <button
           onClick={() => setTab('reference')}
-          className={`px-4 py-2 rounded ${tab === 'reference' ? 'bg-[#B8860B] text-black' : 'bg-zinc-800 hover:bg-zinc-700'
-            }`}
+          className={`btn ${tab === 'reference' ? 'btn-primary' : 'btn-secondary'}`}
         >
           Référentiel
         </button>
@@ -219,7 +217,7 @@ function ProductsPage({ onBack }: ProductsPageProps) {
           <div className="relative mb-4">
             <button
               onClick={() => setShowColumnMenu((s) => !s)}
-              className="px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700"
+              className="btn btn-secondary"
             >
               Colonnes
             </button>
@@ -241,7 +239,7 @@ function ProductsPage({ onBack }: ProductsPageProps) {
           </div>
           {paginationControls}
           <div className="overflow-auto mt-4">
-            <table className="min-w-full text-sm text-left border border-zinc-700">
+            <table className="table">
               <thead>
                 <tr className="bg-zinc-800">
                   {columns.map(
