@@ -12,10 +12,10 @@ function AdminPage({ onBack }: AdminPageProps) {
   const [showTranslations, setShowTranslations] = useState(false);
 
   return (
-    <div className="max-w-7xl mx-auto px-1 sm:px-2 py-6 sm:py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       <button
         onClick={onBack}
-        className="flex items-center space-x-2 px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors mb-6"
+        className="btn btn-secondary mb-6"
       >
         <ArrowLeft className="w-5 h-5" />
         <span>Retour</span>
@@ -24,13 +24,13 @@ function AdminPage({ onBack }: AdminPageProps) {
       <div className="flex justify-center space-x-4">
         <button
           onClick={() => setShowReferences(true)}
-          className="px-6 py-3 bg-[#B8860B] text-black rounded-lg font-semibold hover:bg-[#B8860B]/90"
+          className="btn btn-primary px-6 py-3"
         >
           Tables référence
         </button>
         <button
           onClick={() => setShowTranslations(true)}
-          className="px-6 py-3 bg-[#B8860B] text-black rounded-lg font-semibold hover:bg-[#B8860B]/90"
+          className="btn btn-primary px-6 py-3"
         >
           Cohérence des tables de référence
         </button>
