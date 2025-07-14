@@ -35,6 +35,9 @@ Application complète de gestion de tarifs avec système de panier et commande p
 - Vue filtrable et édition en masse du référentiel **(validée)**
 - Ajout/modification/suppression de produits **(validée)**
 
+### 📊 Statistiques
+- Graphiques dynamiques par semaine, fournisseur et marque **(nouveau)**
+
 ## Configuration EmailJS
 
 Pour activer l'envoi d'emails, configurez EmailJS :
@@ -105,6 +108,7 @@ src/
 │   ├── ReferenceAdmin.tsx     # Tables de référence
 │   ├── SearchControls.tsx     # Outils de recherche
 │   ├── TranslationAdmin.tsx   # Cohérence des couleurs
+│   ├── StatisticsPage.tsx     # Visualisation des statistiques
 │   └── WeekToolbar.tsx        # Outils hebdomadaires
 ├── utils/
 │   ├── date.ts                # Fonctions de date

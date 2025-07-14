@@ -244,3 +244,11 @@ export async function fetchDeviceTypes() {
   }
   return res.json();
 }
+
+export async function fetchPriceStats() {
+  const res = await fetch(`${API_BASE}/price_stats`);
+  if (!res.ok) {
+    throw new Error('Erreur lors du chargement des statistiques');
+  }
+  return res.json();
+}
