@@ -75,7 +75,7 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZone
   );
 
   return (
-    <div className="bg-zinc-900 rounded-2xl shadow-2xl p-8 border border-[#B8860B]/20">
+    <div className="card p-8">
       <h2 className="text-xl font-semibold mb-6">Import de {supplier.name}</h2>
       {lastImportDate && (
         <p className="text-sm text-zinc-400 mb-2">
@@ -98,7 +98,7 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZone
         <div className="flex flex-col items-center justify-center space-y-4">
           <FileUp className="w-12 h-12 text-[#B8860B]" />
           <p className="text-lg text-zinc-300">Glissez votre fichier Excel ici ou</p>
-          <label className="px-6 py-3 bg-[#B8860B] text-black rounded-lg cursor-pointer hover:bg-[#B8860B]/90 transition-colors font-semibold">
+          <label className="btn btn-primary cursor-pointer">
             Sélectionnez un fichier
             <input type="file" className="hidden" accept=".xlsx,.xls" onChange={handleFileChange} />
           </label>
@@ -208,7 +208,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
             link.click();
             document.body.removeChild(link);
           }}
-          className="px-6 py-3 bg-[#B8860B] text-black rounded-lg flex items-center space-x-2 hover:bg-[#B8860B]/90 transition-colors font-semibold"
+          className="btn btn-primary px-6 py-3 flex items-center space-x-2"
         >
           <Download className="w-5 h-5" />
           <span>Télécharger</span>
@@ -230,7 +230,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
         <button
           onClick={processAll}
           disabled={isProcessing}
-          className="px-6 py-3 bg-[#B8860B] text-black rounded-lg flex items-center space-x-2 hover:bg-[#B8860B]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+          className="btn btn-primary px-6 py-3 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isProcessing ? (
             <>
@@ -255,7 +255,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
           {processedFile && (
             <button
               onClick={onNext}
-              className="px-8 py-4 bg-green-600 text-white rounded-lg flex items-center space-x-2 hover:bg-green-700 transition-colors font-semibold text-lg"
+              className="btn bg-green-600 hover:bg-green-700 text-white px-8 py-4 text-lg"
             >
               <span>Passer à l'étape 2 - Mise en forme</span>
               <ChevronRight className="w-6 h-6" />

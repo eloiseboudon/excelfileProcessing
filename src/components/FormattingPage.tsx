@@ -354,12 +354,12 @@ function FormattingPage({ onBack }: FormattingPageProps) {
   const uniqueBrands = Array.from(new Set(previewData.map(p => p.brand))).sort();
 
   return (
-    <div className="max-w-7xl mx-auto px-1 sm:px-2 py-6 sm:py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       <WeekToolbar />
       <div className="flex items-center justify-between mb-8">
         <button
           onClick={onBack}
-          className="flex items-center space-x-2 px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors"
+          className="btn btn-secondary"
         >
           <ArrowLeft className="w-5 h-5" />
           <span>Retour à l'étape 1</span>
@@ -375,7 +375,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
       </p>
 
 
-      <div className="bg-zinc-900 rounded-2xl shadow-2xl p-8 border border-[#B8860B]/20">
+      <div className="card p-8">
         <div
           className={`border-2 border-dashed rounded-xl p-8 transition-all duration-200 ${
             isDragging
@@ -391,7 +391,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
             <p className="text-lg text-zinc-300">
               Glissez votre fichier traité de l'étape 1 ici ou
             </p>
-            <label className="px-6 py-3 bg-[#B8860B] text-black rounded-lg cursor-pointer hover:bg-[#B8860B]/90 transition-colors font-semibold">
+            <label className="btn btn-primary cursor-pointer">
               Sélectionnez un fichier
               <input
                 type="file"
@@ -413,7 +413,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
               <button
                 onClick={handleFormat}
                 disabled={isProcessing}
-                className="px-6 py-3 bg-[#B8860B] text-black rounded-lg flex items-center space-x-2 hover:bg-[#B8860B]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                className="btn btn-primary px-6 py-3 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isProcessing ? (
                   <>
@@ -445,7 +445,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
                     </div>
                     <button
                       onClick={handleDownloadExcel}
-                      className="px-4 py-2 bg-[#B8860B] text-black rounded-lg flex items-center space-x-2 hover:bg-[#B8860B]/90 transition-colors font-semibold"
+                      className="btn btn-primary"
                     >
                       <Download className="w-4 h-4" />
                     </button>
@@ -458,7 +458,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
                     </div>
                     <button
                       onClick={handleDownloadHtml}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg flex items-center space-x-2 hover:bg-green-700 transition-colors font-semibold"
+                      className="btn bg-green-600 hover:bg-green-700 text-white"
                     >
                       <Download className="w-4 h-4" />
                     </button>
@@ -471,7 +471,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
                     </div>
                     <button
                       onClick={() => setShowPreview(!showPreview)}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center space-x-2 hover:bg-blue-700 transition-colors font-semibold"
+                      className="btn bg-blue-600 hover:bg-blue-700 text-white"
                     >
                       <Eye className="w-4 h-4" />
                     </button>
@@ -500,10 +500,10 @@ function FormattingPage({ onBack }: FormattingPageProps) {
                       <div className="flex flex-wrap gap-2">
                         <button
                           onClick={() => setSelectedBrand('all')}
-                          className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                          className={`btn font-medium ${
                             selectedBrand === 'all'
-                              ? 'bg-[#B8860B] text-black'
-                              : 'bg-zinc-700 text-white hover:bg-zinc-600'
+                              ? 'btn-primary'
+                              : 'btn-secondary'
                           }`}
                         >
                           Toutes ({previewData.length})
@@ -514,10 +514,10 @@ function FormattingPage({ onBack }: FormattingPageProps) {
                             <button
                               key={brand}
                               onClick={() => setSelectedBrand(brand)}
-                              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                              className={`btn font-medium ${
                                 selectedBrand === brand
-                                  ? 'bg-[#B8860B] text-black'
-                                  : 'bg-zinc-700 text-white hover:bg-zinc-600'
+                                  ? 'btn-primary'
+                                  : 'btn-secondary'
                               }`}
                             >
                               {brand} ({count})

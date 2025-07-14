@@ -16,7 +16,7 @@ Application complète de gestion de tarifs avec système de panier et commande p
 ### 🎨 Étape 2 - Mise en forme
 - Génération de fichiers Excel formatés **(pas fait)**
 - Création de pages web de consultation client **(pas fait)**
-- Interface moderne avec design professionnel **(pas fait)**
+- Interface moderne avec design professionnel **(en amélioration)**
 - Publication en ligne **(pas fait)**
 
 ### 🛒 Système de panier
