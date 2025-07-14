@@ -9,6 +9,7 @@ import {
 
 interface PriceStat {
   supplier?: string;
+  brand?: string;
   week: string;
   avg_price: number;
 }
@@ -207,9 +208,20 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
     [products, brandId]
   );
 
-  const globalData = globalStats
-    .sort((a, b) => a.week.localeCompare(b.week))
-    .map((f) => ({ label: f.week, value: f.avg_price }));
+  const globalData = useMemo(() => {
+    const map: Record<string, { sum: number; count: number }> = {};
+    globalStats.forEach((s) => {
+      if (!map[s.week]) {
+        map[s.week] = { sum: s.avg_price, count: 1 };
+      } else {
+        map[s.week].sum += s.avg_price;
+        map[s.week].count += 1;
+      }
+    });
+    return Object.entries(map)
+      .map(([week, { sum, count }]) => ({ label: week, value: sum / count }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [globalStats]);
 
   const productSeries = useMemo(() => {
     const map: Record<string, Point[]> = {};
