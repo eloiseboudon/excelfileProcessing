@@ -38,6 +38,7 @@ Application complète de gestion de tarifs avec système de panier et commande p
 ### 📊 Statistiques
 - Graphiques dynamiques par semaine avec filtres fournisseur, marque et intervalle de semaines
 - Comparaison de l'évolution d'un produit selon les fournisseurs
+- Visualisations avancées : évolution relative, distribution des prix, écart-type, min/max, indice, corrélations et détection d'anomalies
 
 ## Configuration EmailJS
 

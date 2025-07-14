@@ -1,4 +1,5 @@
 import { ArrowLeft } from 'lucide-react';
+import InfoButton from './InfoButton';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   fetchPriceStats,
@@ -564,7 +565,7 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
       </div>
       <div className="overflow-x-auto space-y-8">
         <div>
-          <h2 className="font-semibold mb-2">Vue globale</h2>
+          <h2 className="font-semibold mb-2 flex items-center">Vue globale<InfoButton text="Prix moyen toutes marques et fournisseurs pour chaque semaine." /></h2>
           <LineChart data={globalData} />
           {globalData.length === 0 && (
             <p className="text-center text-sm text-zinc-400 mt-2">
@@ -573,7 +574,7 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
           )}
         </div>
         <div>
-          <h2 className="font-semibold mb-2">Évolution du produit</h2>
+          <h2 className="font-semibold mb-2 flex items-center">Évolution du produit<InfoButton text="Comparer l'évolution du prix du produit selon les fournisseurs." /></h2>
           <MultiLineChart series={productSeries} />
           {productId && productSeries.length === 0 && (
             <p className="text-center text-sm text-zinc-400 mt-2">
@@ -582,31 +583,31 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
           )}
         </div>
         <div>
-          <h2 className="font-semibold mb-2">Évolution relative (%)</h2>
+          <h2 className="font-semibold mb-2 flex items-center">Évolution relative (%)<InfoButton text="Variation en pourcentage d'une semaine sur l'autre." /></h2>
           <LineChart data={relativeData} />
         </div>
         <div>
-          <h2 className="font-semibold mb-2">Distribution des prix</h2>
+          <h2 className="font-semibold mb-2 flex items-center">Distribution des prix<InfoButton text="Répartition des prix moyens pour identifier les valeurs atypiques." /></h2>
           <BarChart data={distributionData} />
         </div>
         <div>
-          <h2 className="font-semibold mb-2">Écart-type par fournisseur</h2>
+          <h2 className="font-semibold mb-2 flex items-center">Écart-type par fournisseur<InfoButton text="Mesure la dispersion des prix pour chaque fournisseur." /></h2>
           <BarChart data={stdevData} />
         </div>
         <div>
-          <h2 className="font-semibold mb-2">Prix min/max par semaine</h2>
+          <h2 className="font-semibold mb-2 flex items-center">Prix min/max par semaine<InfoButton text="Fourchette des prix observés chaque semaine." /></h2>
           <RangeChart data={rangeData} />
         </div>
         <div>
-          <h2 className="font-semibold mb-2">Indice des prix (base 100)</h2>
+          <h2 className="font-semibold mb-2 flex items-center">Indice des prix (base 100)<InfoButton text="Indice basé sur la première semaine pour suivre l'évolution globale." /></h2>
           <LineChart data={priceIndexData} />
         </div>
         <div>
-          <h2 className="font-semibold mb-2">Corrélation des prix</h2>
+          <h2 className="font-semibold mb-2 flex items-center">Corrélation des prix<InfoButton text="Met en évidence les fournisseurs ayant des évolutions similaires." /></h2>
           <Heatmap labels={correlationMatrix.labels} matrix={correlationMatrix.matrix} />
         </div>
         <div>
-          <h2 className="font-semibold mb-2">Anomalies détectées</h2>
+          <h2 className="font-semibold mb-2 flex items-center">Anomalies détectées<InfoButton text="Signale les variations supérieures à 20\u00a0% d'une semaine sur l'autre." /></h2>
           {anomalies.length ? (
             <table className="w-full text-sm text-center">
               <thead>
