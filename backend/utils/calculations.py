@@ -13,7 +13,6 @@ from models import (
     TypeTranslation,
     db,
 )
-from sqlalchemy import extract
 
 
 def _load_mappings() -> Dict[str, Iterable[Tuple[str, int]]]:
@@ -65,10 +64,6 @@ def recalculate_product_calculations():
     """Recompute ProductCalculation entries from TemporaryImport data."""
     mappings = _load_mappings()
     temps = TemporaryImport.query.all()
-    ProductCalculation.query.filter(
-        extract('week', ProductCalculation.date) == extract('week', datetime.utcnow())
-    ).delete()
-    db.session.commit()
 
     for temp in temps:
         characteristics = process_description(temp.description, temp.model, mappings)
@@ -82,17 +77,20 @@ def recalculate_product_calculations():
 
     for temp in temps:
         query = Product.query
-        if temp.model is not None:
-            if temp.brand_id is not None:
-                query = query.filter(Product.brand_id == temp.brand_id)
-            if temp.memory_id is not None:
-                query = query.filter(Product.memory_id == temp.memory_id)
-            if temp.color_id is not None:
-                query = query.filter(Product.color_id == temp.color_id)
+
+        if temp.brand_id is not None:
+            query = query.filter(Product.brand_id == temp.brand_id)
+        if temp.memory_id is not None:
+            query = query.filter(Product.memory_id == temp.memory_id)
+        if temp.color_id is not None:
+            query = query.filter(Product.color_id == temp.color_id)
+        if temp.model_id is not None:
             query = query.filter(Product.model.ilike(f"%{temp.model}%"))
-            product = query.first()
-        else:
-            product = None
+        product = query.first()
+
+        # if not product and temp.type_id is not None:
+        #     query_type = query.filter(Product.type_id == temp.type_id)
+        #     product = query_type.first()
 
         if not product:
             continue
@@ -150,3 +148,58 @@ def recalculate_product_calculations():
         db.session.add(calc)
 
     db.session.commit()
+
+def update_product_calculations_for_memory_option(memory_option_id: int) -> None:
+    """Update ProductCalculation rows when a memory option's TCP changes."""
+    option = MemoryOption.query.get(memory_option_id)
+    if not option:
+        return
+
+    calcs = (
+        ProductCalculation.query.join(Product)
+        .filter(Product.memory_id == option.id)
+        .all()
+    )
+
+    for calc in calcs:
+        price = calc.price
+        tcp = option.tcp_value
+        margin45 = price * 0.045
+        price_with_tcp = price + tcp + margin45
+
+        thresholds = [15, 29, 49, 79, 99, 129, 149, 179, 209, 299, 499, 799, 999]
+        margins = [
+            1.25,
+            1.22,
+            1.20,
+            1.18,
+            1.15,
+            1.11,
+            1.10,
+            1.09,
+            1.09,
+            1.08,
+            1.08,
+            1.07,
+            1.07,
+            1.06,
+        ]
+
+        price_with_margin = price
+        for i, t in enumerate(thresholds):
+            if price <= t:
+                price_with_margin = price * margins[i]
+                break
+        if price > thresholds[-1]:
+            price_with_margin = price * 1.06
+
+        max_price = math.ceil(max(price_with_tcp, price_with_margin))
+
+        calc.tcp = round(tcp, 2)
+        calc.marge4_5 = round(margin45, 2)
+        calc.prixht_tcp_marge4_5 = round(price_with_tcp, 2)
+        calc.prixht_marge4_5 = round(price_with_margin, 2)
+        calc.prixht_max = max_price
+
+    if calcs:
+        db.session.commit()
