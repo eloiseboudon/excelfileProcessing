@@ -82,6 +82,7 @@ def recalculate_product_calculations():
 
     for temp in temps:
         query = Product.query
+
         if temp.model is not None:
             if temp.brand_id is not None:
                 query = query.filter(Product.brand_id == temp.brand_id)

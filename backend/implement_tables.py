@@ -79,6 +79,10 @@ cur.execute(
     "INSERT INTO exclusions (term) VALUES ('Mac'), ('Backbone'), ('Bulk'), ('OH25B'), ('Soundbar');"
 )
 
+cur.execute(
+    "INSERT INTO graph_settings (name, visible) VALUES ('global', True),('product', False),('relative', False),('distribution', False),('stdev', False),('range', False),('index', False),('correlation', False),('anomalies', False);"
+)
+
 conn.commit()
 cur.close()
 conn.close()
