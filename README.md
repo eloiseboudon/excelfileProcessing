@@ -1,10 +1,10 @@
 # AJT PRO - Système de Tarification avec Panier
 
-Application complète de gestion de tarifs avec système de panier et commande par email.
+Application de gestion des couts par fournisseurs et définition des prix de ventes
 
 ## Fonctionnalités
 
-### 🔧 Étape 1 - Traitement des données
+### 🔧 Traitement des données
 - Import de fichiers Excel **(validée)**
 - Calculs automatiques (TCP, marges) **(validée)**
 - Filtrage par marques **(validée)**
@@ -13,17 +13,12 @@ Application complète de gestion de tarifs avec système de panier et commande p
 - Export des données traitées **(validée)**
 - Rapprochement automatique avec les références **(validée)**
 
-### 🎨 Étape 2 - Mise en forme
+### 🎨 Mise en forme
+- A partir de la page produits ajout **(pas fait)**
 - Génération de fichiers Excel formatés **(pas fait)**
 - Création de pages web de consultation client **(pas fait)**
 - Interface moderne avec design professionnel **(pas fait)**
 - Publication en ligne **(pas fait)**
-
-### 🛒 Système de panier
-- Sélection de produits avec quantités **(pas fait)**
-- Gestion complète du panier **(pas fait)**
-- Formulaire de commande client **(pas fait)**
-- Envoi automatique par email **(pas fait)**
 
 ### ⚙️ Administration
 - Interface d'administration intuitive **(validée)**
@@ -41,33 +36,6 @@ Application complète de gestion de tarifs avec système de panier et commande p
 - Visualisations avancées : évolution relative, distribution des prix, écart-type, min/max, indice, corrélations et détection d'anomalies
 - Bouton d'information (i) expliquant chaque graphique
 - Filtre pour choisir les graphiques visibles, enregistré en base
-
-## Configuration EmailJS
-
-Pour activer l'envoi d'emails, configurez EmailJS :
-
-1. Créez un compte sur [EmailJS](https://www.emailjs.com/)
-2. Créez un service email
-3. Créez un template avec les variables suivantes :
-   - `{{customer_name}}`
-   - `{{customer_email}}`
-   - `{{customer_phone}}`
-   - `{{customer_company}}`
-   - `{{customer_address}}`
-   - `{{order_details}}`
-   - `{{total_amount}}`
-   - `{{order_date}}`
-   - `{{total_items}}`
-   - `{{order_id}}`
-   - `{{brands_summary}}`
-
-4. Remplacez les valeurs dans `src/services/emailService.ts` :
-   const EMAIL_CONFIG = {
-    serviceId: 'VOTRE_SERVICE_ID',
-    templateId: 'VOTRE_TEMPLATE_ID',
-    publicKey: 'VOTRE_PUBLIC_KEY'
-  };
-  ```
 
 ## Fichier `.env`
 
@@ -87,7 +55,6 @@ Ce fichier est ignoré par Git afin de protéger vos informations sensibles.
 - **Tailwind CSS** pour le design
 - **Lucide React** pour les icônes
 - **XLSX** pour la manipulation Excel
-- **EmailJS** pour l'envoi d'emails
 - **Context API** pour la gestion d'état
 
 ## Installation
