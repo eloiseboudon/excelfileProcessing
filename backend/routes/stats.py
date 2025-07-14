@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
-from sqlalchemy import func, extract
-from models import ProductCalculation, Product, Supplier, Brand
+from models import Brand, Product, ProductCalculation, Supplier
+from sqlalchemy import extract, func
 
 bp = Blueprint("stats", __name__)
 
@@ -29,11 +29,7 @@ def price_stats():
     start_week = request.args.get("start_week")
     end_week = request.args.get("end_week")
 
-    query = (
-        ProductCalculation.query.join(Supplier)
-        .join(Product)
-        .join(Brand)
-    )
+    query = ProductCalculation.query.join(Supplier).join(Product).join(Brand)
 
     if supplier_id:
         query = query.filter(ProductCalculation.supplier_id == supplier_id)
@@ -69,8 +65,14 @@ def price_stats():
         ]
         group_by = [Supplier.name, week_field, year_field]
     else:
-        fields = [week_field, year_field, func.avg(ProductCalculation.price).label("avg_price")]
-        group_by = [week_field, year_field]
+        fields = [
+            Supplier.name.label("supplier"),
+            Brand.brand.label("brand"),
+            week_field,
+            year_field,
+            func.avg(ProductCalculation.price).label("avg_price"),
+        ]
+        group_by = [Supplier.name, Brand.brand, week_field, year_field]
 
     results = (
         query.with_entities(*fields)
@@ -84,9 +86,11 @@ def price_stats():
         entry = {
             "week": f"S{int(r.week):02d}-{int(r.year)}",
             "avg_price": float(r.avg_price),
+            "supplier": r.supplier,
         }
-        if product_id:
-            entry["supplier"] = r.supplier
+
+        if not product_id:
+            entry["brand"] = r.brand
         data.append(entry)
 
     return jsonify(data)
