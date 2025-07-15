@@ -1,9 +1,9 @@
-from datetime import datetime
 import uuid
+from datetime import datetime
 
 import pandas as pd
 from flask import Blueprint, jsonify, request
-from models import ImportHistory, TemporaryImport, FormatImport, db
+from models import FormatImport, ImportHistory, TemporaryImport, db
 from sqlalchemy import extract
 
 from utils.calculations import recalculate_product_calculations
@@ -101,7 +101,11 @@ def create_import():
     df.columns = [str(c).lower().strip() for c in df.columns]
 
     # Apply column mappings defined for the supplier if available
-    mappings = FormatImport.query.filter_by(supplier_id=supplier_id).all() if supplier_id else []
+    mappings = (
+        FormatImport.query.filter_by(supplier_id=supplier_id).all()
+        if supplier_id
+        else []
+    )
     by_name = {
         (m.column_name or '').lower(): (m.column_type or '').lower()
         for m in mappings
