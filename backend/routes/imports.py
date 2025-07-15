@@ -99,6 +99,7 @@ def create_import():
 
     df = pd.read_excel(file)
     df.columns = [str(c).lower().strip() for c in df.columns]
+    df_raw = df.copy()
 
     # Apply column mappings defined for the supplier if available
     mappings = (
@@ -131,13 +132,38 @@ def create_import():
     if "description" in df.columns:
         df["description"] = df["description"].astype(str).str.strip()
 
+    expected_types = {
+        (m.column_name or "").lower(): (m.column_type or "").lower()
+        for m in mappings
+    }
+
+    count_new = 0
+    invalid_rows = 0
+    count_update = 0
+
     # The EAN column is unreliable and may be missing or empty.
     # Do not use it to filter or deduplicate rows.
 
-    count_new = len(df)
-    count_update = 0
+    for idx, row in df.iterrows():
+        raw_row = df_raw.iloc[idx]
+        valid = True
+        for col, typ in expected_types.items():
+            if col not in raw_row:
+                continue
+            val = raw_row[col]
+            if typ == "number":
+                if pd.isna(pd.to_numeric(val, errors="coerce")):
+                    valid = False
+                    break
+            elif typ == "string":
+                if pd.isna(val):
+                    valid = False
+                    break
+        if not valid:
+            invalid_rows += 1
+            continue
 
-    for _, row in df.iterrows():
+        count_new += 1
         ean_raw = row.get("ean")
 
         # When column mappings are misconfigured pandas may return a Series
@@ -171,12 +197,12 @@ def create_import():
     recalculate_product_calculations()
 
     history = ImportHistory(
-        filename=file.filename, supplier_id=supplier_id, product_count=len(df)
+        filename=file.filename, supplier_id=supplier_id, product_count=count_new
     )
     db.session.add(history)
     db.session.commit()
 
-    return jsonify({"status": "success", "new": count_new, "updated": count_update})
+    return jsonify({"status": "success", "new": count_new, "updated": count_update, "invalid": invalid_rows})
 
 
 @bp.route("/last_import/<int:supplier_id>", methods=["GET"])
