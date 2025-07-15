@@ -4,6 +4,7 @@ import {
   createReferenceItem,
   deleteReferenceItem,
   fetchReferenceTable,
+  fetchSuppliers,
   updateReferenceItem
 } from '../api';
 
@@ -25,12 +26,21 @@ const TABLES = [
 function ReferenceAdmin({ isVisible, onClose }: ReferenceAdminProps) {
   const [table, setTable] = useState<string | null>(null);
   const [data, setData] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
 
   useEffect(() => {
     if (isVisible && table) {
       load(table);
     }
   }, [isVisible, table]);
+
+  useEffect(() => {
+    if (table === 'format_imports') {
+      fetchSuppliers()
+        .then((s) => setSuppliers(s as any[]))
+        .catch(() => setSuppliers([]));
+    }
+  }, [table]);
 
   const load = async (t: string) => {
     try {
@@ -130,17 +140,43 @@ function ReferenceAdmin({ isVisible, onClose }: ReferenceAdminProps) {
             </button>
           </div>
           <div className="space-y-2">
+            {fields.length > 0 && (
+              <div className="flex items-center space-x-2 font-semibold px-2">
+                <span className="w-10 text-zinc-400">ID</span>
+                {fields.map((f) => (
+                  <span key={f} className="flex-1 capitalize">
+                    {f}
+                  </span>
+                ))}
+                <span className="w-8" />
+                <span className="w-8" />
+              </div>
+            )}
             {data.map((item) => (
               <div key={item.id} className="flex items-center space-x-2 bg-zinc-800 p-2 rounded">
                 <span className="w-10 text-zinc-400">{item.id > 0 ? item.id : '-'}</span>
                 {fields.map((f) => (
-                  <input
-                    key={f}
-                    value={item[f] ?? ''}
-                    placeholder={f}
-                    onChange={(e) => handleChange(item.id, f, e.target.value)}
-                    className="flex-1 px-2 py-1 bg-zinc-700 text-white rounded placeholder:italic"
-                  />
+                  table === 'format_imports' && f === 'supplier_id' ? (
+                    <select
+                      key={f}
+                      value={item[f] ?? ''}
+                      onChange={(e) => handleChange(item.id, f, e.target.value)}
+                      className="flex-1 px-2 py-1 bg-zinc-700 text-white rounded"
+                    >
+                      <option value="">--</option>
+                      {suppliers.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      key={f}
+                      value={item[f] ?? ''}
+                      placeholder={f}
+                      onChange={(e) => handleChange(item.id, f, e.target.value)}
+                      className="flex-1 px-2 py-1 bg-zinc-700 text-white rounded placeholder:italic"
+                    />
+                  )
                 ))}
                 <button onClick={() => handleSave(item.id)} className="p-2 bg-green-600 text-white rounded hover:bg-green-700">
                   <Save className="w-4 h-4" />
