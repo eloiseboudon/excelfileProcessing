@@ -259,7 +259,20 @@ def refresh_week():
 
 @bp.route("/products", methods=["POST"])
 def create_product():
-    """Create a new product."""
+    """Create a new product.
+
+    ---
+    tags:
+      - Products
+    parameters:
+      - in: body
+        name: body
+        schema:
+          type: object
+    responses:
+      201:
+        description: Identifier of created product
+    """
     data = request.get_json(silent=True) or {}
     product = Product(
         ean=data.get("ean"),
@@ -277,7 +290,24 @@ def create_product():
 
 @bp.route("/products/<int:product_id>", methods=["PUT"])
 def update_product(product_id):
-    """Update an existing product."""
+    """Update an existing product.
+
+    ---
+    tags:
+      - Products
+    parameters:
+      - in: path
+        name: product_id
+        required: true
+        type: integer
+      - in: body
+        name: body
+        schema:
+          type: object
+    responses:
+      200:
+        description: Update status
+    """
     product = Product.query.get_or_404(product_id)
     data = request.get_json(silent=True) or {}
     for field in [
@@ -297,7 +327,22 @@ def update_product(product_id):
 
 @bp.route("/products/bulk_update", methods=["PUT"])
 def bulk_update_products():
-    """Update multiple products in a single request."""
+    """Update multiple products in a single request.
+
+    ---
+    tags:
+      - Products
+    parameters:
+      - in: body
+        name: body
+        schema:
+          type: array
+          items:
+            type: object
+    responses:
+      200:
+        description: Update results
+    """
     items = request.get_json(silent=True) or []
     if not isinstance(items, list):
         return jsonify({"error": "Invalid payload"}), 400
@@ -331,7 +376,20 @@ def bulk_update_products():
 
 @bp.route("/products/<int:product_id>", methods=["DELETE"])
 def delete_product(product_id):
-    """Delete a product."""
+    """Delete a product.
+
+    ---
+    tags:
+      - Products
+    parameters:
+      - in: path
+        name: product_id
+        required: true
+        type: integer
+    responses:
+      200:
+        description: Deletion status
+    """
     product = Product.query.get_or_404(product_id)
     db.session.delete(product)
     db.session.commit()
