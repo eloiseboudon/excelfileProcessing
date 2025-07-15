@@ -139,13 +139,21 @@ def create_import():
 
     for _, row in df.iterrows():
         ean_raw = row.get("ean")
+
+        # When column mappings are misconfigured pandas may return a Series
+        # instead of a scalar. In that case just grab the first value.
         if isinstance(ean_raw, pd.Series):
             ean_raw = ean_raw.iloc[0]
 
-        if pd.isna(ean_raw) or str(ean_raw).strip() == "":
+        ean_str = str(ean_raw).strip()
+
+        # Consider empty strings and values like "unknown" as missing so we
+        # generate a unique placeholder. This prevents UNIQUE constraint
+        # violations when suppliers use repeated dummy values.
+        if pd.isna(ean_raw) or ean_str == "" or ean_str.lower() == "unknown":
             ean_value = str(uuid.uuid4())
         else:
-            ean_value = str(ean_raw).strip()
+            ean_value = ean_str
 
         temp = TemporaryImport(
             description=row.get("description"),
