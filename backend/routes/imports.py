@@ -1,8 +1,9 @@
 from datetime import datetime
+import uuid
 
 import pandas as pd
 from flask import Blueprint, jsonify, request
-from models import ImportHistory, TemporaryImport, db
+from models import ImportHistory, TemporaryImport, FormatImport, db
 from sqlalchemy import extract
 
 from utils.calculations import recalculate_product_calculations
@@ -97,20 +98,53 @@ def create_import():
     db.session.commit()
 
     df = pd.read_excel(file)
-    df.columns = [c.lower().strip() for c in df.columns]
+    df.columns = [str(c).lower().strip() for c in df.columns]
+
+    # Apply column mappings defined for the supplier if available
+    mappings = FormatImport.query.filter_by(supplier_id=supplier_id).all() if supplier_id else []
+    by_name = {
+        (m.column_name or '').lower(): (m.column_type or '').lower()
+        for m in mappings
+        if m.column_name
+    }
+    by_order = {
+        m.column_order: (m.column_type or '').lower()
+        for m in mappings
+        if m.column_order is not None
+    }
+
+    for idx, col in enumerate(list(df.columns)):
+        if idx in by_order:
+            df.rename(columns={col: by_order[idx]}, inplace=True)
+
+    for src, target in by_name.items():
+        if src in df.columns:
+            df.rename(columns={src: target}, inplace=True)
+
+    if "sellingprice" in df.columns and "selling_price" not in df.columns:
+        df.rename(columns={"sellingprice": "selling_price"}, inplace=True)
+
     if "description" in df.columns:
         df["description"] = df["description"].astype(str).str.strip()
-    df.drop_duplicates(subset=["ean"], inplace=True)
-    df = df[df["ean"].notna()]
+
+    # The EAN column is unreliable and may be missing or empty.
+    # Do not use it to filter or deduplicate rows.
+
     count_new = len(df)
     count_update = 0
+
     for _, row in df.iterrows():
-        ean_value = str(int(row["ean"]))
+        ean_raw = row.get("ean")
+        if pd.isna(ean_raw) or str(ean_raw).strip() == "":
+            ean_value = str(uuid.uuid4())
+        else:
+            ean_value = str(ean_raw).strip()
+
         temp = TemporaryImport(
             description=row.get("description"),
-            model=row.get("description"),
-            quantity=row.get("quantity", None),
-            selling_price=row.get("sellingprice", None),
+            model=row.get("model", row.get("description")),
+            quantity=row.get("quantity"),
+            selling_price=row.get("selling_price"),
             ean=ean_value,
             supplier_id=supplier_id,
         )
