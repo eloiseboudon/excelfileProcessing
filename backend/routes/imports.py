@@ -139,10 +139,24 @@ def create_import():
 
     for _, row in df.iterrows():
         ean_raw = row.get("ean")
-        if pd.isna(ean_raw) or str(ean_raw).strip() == "":
-            ean_value = str(uuid.uuid4())
+
+        # When column mappings are misconfigured pandas may return a Series
+        # instead of a scalar. In that case just grab the first value.
+        if isinstance(ean_raw, pd.Series):
+            ean_raw = ean_raw.iloc[0]
+
+        ean_str = str(ean_raw).strip()
+
+        # Consider empty strings and values like "unknown" as missing so we
+        # generate a unique placeholder. This prevents UNIQUE constraint
+        # violations when suppliers use repeated dummy values.
+        if pd.isna(ean_raw) or ean_str == "" or ean_str.lower() == "unknown":
+            # The database field is limited to 20 characters, so truncate the
+            # generated UUID accordingly.
+            ean_value = uuid.uuid4().hex[:20]
         else:
-            ean_value = str(ean_raw).strip()
+            # Truncate real EANs that exceed the column length to avoid errors.
+            ean_value = ean_str[:20]
 
         temp = TemporaryImport(
             description=row.get("description"),
