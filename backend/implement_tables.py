@@ -28,6 +28,10 @@ cur.execute(
 )
 
 cur.execute(
+    "INSERT INTO format_imports (supplier_id, column_name, column_type, column_order) VALUES (1, 'description', 'description', 1), (1, 'model', 'model', 2), (1, 'quantity', 'quantity', 3), (1, 'selling_price', 'selling_price', 4), (1, 'ean', 'ean', 5);"
+)
+
+cur.execute(
     """
     INSERT INTO brands(brand) VALUES ('Samsung'), ('Apple'), ('Huawei'), ('Xiaomi'), ('Oppo'),
     ('Dyson'), ('Sony'), ('LG'), ('Google'), ('Microsoft'), ('Lenovo'), ('Asus'),
