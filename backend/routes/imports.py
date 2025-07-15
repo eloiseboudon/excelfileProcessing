@@ -139,6 +139,9 @@ def create_import():
 
     for _, row in df.iterrows():
         ean_raw = row.get("ean")
+        if isinstance(ean_raw, pd.Series):
+            ean_raw = ean_raw.iloc[0]
+
         if pd.isna(ean_raw) or str(ean_raw).strip() == "":
             ean_value = str(uuid.uuid4())
         else:
