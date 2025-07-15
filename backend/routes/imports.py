@@ -151,9 +151,12 @@ def create_import():
         # generate a unique placeholder. This prevents UNIQUE constraint
         # violations when suppliers use repeated dummy values.
         if pd.isna(ean_raw) or ean_str == "" or ean_str.lower() == "unknown":
-            ean_value = str(uuid.uuid4())
+            # The database field is limited to 20 characters, so truncate the
+            # generated UUID accordingly.
+            ean_value = uuid.uuid4().hex[:20]
         else:
-            ean_value = ean_str
+            # Truncate real EANs that exceed the column length to avoid errors.
+            ean_value = ean_str[:20]
 
         temp = TemporaryImport(
             description=row.get("description"),
