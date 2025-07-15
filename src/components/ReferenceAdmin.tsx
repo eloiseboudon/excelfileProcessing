@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { Save, Trash2, Plus, ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Plus, Save, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import {
-  fetchReferenceTable,
-  updateReferenceItem,
   createReferenceItem,
-  deleteReferenceItem
+  deleteReferenceItem,
+  fetchReferenceTable,
+  updateReferenceItem
 } from '../api';
 
 interface ReferenceAdminProps {
@@ -19,6 +19,7 @@ const TABLES = [
   { key: 'device_types', label: "Types d'appareil" },
   { key: 'exclusions', label: 'Exclusions' },
   { key: 'suppliers', label: 'Fournisseurs' },
+  { key: 'format_imports', label: 'Format import' },
 ];
 
 function ReferenceAdmin({ isVisible, onClose }: ReferenceAdminProps) {
