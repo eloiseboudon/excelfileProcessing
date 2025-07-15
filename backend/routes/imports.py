@@ -1,4 +1,5 @@
 from datetime import datetime
+import uuid
 
 import pandas as pd
 from flask import Blueprint, jsonify, request
@@ -126,20 +127,17 @@ def create_import():
     if "description" in df.columns:
         df["description"] = df["description"].astype(str).str.strip()
 
-    if "ean" not in df.columns:
-        return jsonify({"error": "EAN column not found"}), 400
-
-    df.drop_duplicates(subset=["ean"], inplace=True)
-    df = df[df["ean"].notna()]
+    # The EAN column is unreliable and may be missing or empty.
+    # Do not use it to filter or deduplicate rows.
 
     count_new = len(df)
     count_update = 0
 
     for _, row in df.iterrows():
         ean_raw = row.get("ean")
-        try:
-            ean_value = str(int(ean_raw))
-        except (ValueError, TypeError):
+        if pd.isna(ean_raw) or str(ean_raw).strip() == "":
+            ean_value = str(uuid.uuid4())
+        else:
             ean_value = str(ean_raw).strip()
 
         temp = TemporaryImport(
