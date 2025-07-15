@@ -21,7 +21,14 @@ def _parse_week(w):
 @bp.route("/price_stats", methods=["GET"])
 def price_stats():
     """Return average prices per week. If a product_id is supplied, results are
-    grouped by supplier, otherwise aggregated globally."""
+    grouped by supplier, otherwise aggregated globally.
+    ---
+    tags:
+      - Stats
+    responses:
+      200:
+        description: List of graph settings
+    """
 
     supplier_id = request.args.get("supplier_id", type=int)
     brand_id = request.args.get("brand_id", type=int)
