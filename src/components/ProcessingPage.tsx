@@ -185,7 +185,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
       setError(
         err instanceof Error
           ? err.message
-          : 'Une erreur est survenue lors du traitement des fichiers'
+          : 'Le traitement des fichiers a échoué. Veuillez vérifier les fichiers et réessayer.'
       );
       setProcessedFile(null);
     } finally {

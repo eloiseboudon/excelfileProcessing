@@ -18,7 +18,7 @@ function WeekToolbar() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } catch {
-      setMessage('Erreur lors du téléchargement');
+      setMessage('Le téléchargement du fichier a échoué. Veuillez réessayer.');
     }
   }, []);
 

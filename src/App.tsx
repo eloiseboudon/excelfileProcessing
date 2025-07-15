@@ -17,7 +17,7 @@ function App() {
       await fetchApitest();
       setApiTestMessage('Connexion réussie !');
     } catch {
-      setApiTestMessage("Erreur lors de la connexion à l'API");
+      setApiTestMessage("Impossible de se connecter à l'API. Vérifiez la configuration du serveur.");
     }
   };
 
