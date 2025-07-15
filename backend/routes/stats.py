@@ -111,6 +111,12 @@ def brand_supplier_average():
     - brand_id: filter on a specific brand
     - supplier_id: filter on a specific supplier
     - start_week / end_week: limit to a week range
+    ---
+    tags:
+      - Stats
+    responses:
+      200:
+        description: Average price grouped by brand and supplier
     """
 
     supplier_id = request.args.get("supplier_id", type=int)
@@ -167,6 +173,12 @@ def product_supplier_average():
     - product_id: filter on a specific product
     - supplier_id: filter on a specific supplier
     - start_week / end_week: limit to a week range
+    ---
+    tags:
+      - Stats
+    responses:
+      200:
+        description: Average price grouped by product and supplier
     """
 
     supplier_id = request.args.get("supplier_id", type=int)
