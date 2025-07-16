@@ -147,6 +147,8 @@ class Product(db.Model):
     type_id = db.Column(db.Integer, db.ForeignKey("device_types.id"), nullable=True)
     type = db.relationship("DeviceType", backref=db.backref("products", lazy=True))
 
+    recommended_price = db.Column(db.Float, nullable=True)
+
 
 class ProductCalculation(db.Model):
     __tablename__ = "product_calculations"

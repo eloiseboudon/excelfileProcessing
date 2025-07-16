@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import MultiSelectFilter from './MultiSelectFilter';
 import { getCurrentTimestamp } from '../utils/date';
-import { fetchProductPriceSummary } from '../api';
+import { fetchProductPriceSummary, updateProduct } from '../api';
 import ProductReference from './ProductReference';
 import WeekToolbar from './WeekToolbar';
 
@@ -13,6 +13,7 @@ import {
   fetchDeviceTypes,
   fetchMemoryOptions,
 } from '../api';
+import { useNotification } from './NotificationProvider';
 
 interface AggregatedProduct {
   id: number;
@@ -44,6 +45,7 @@ function ProductsPage({ onBack }: ProductsPageProps) {
   const [memoryOptions, setMemoryOptions] = useState<string[]>([]);
   const [typeOptions, setTypeOptions] = useState<string[]>([]);
   const [tab, setTab] = useState<'calculations' | 'reference'>('calculations');
+  const notify = useNotification();
 
   const baseColumns: { key: string; label: string }[] = [
     { key: 'id', label: 'ID' },
@@ -81,7 +83,8 @@ function ProductsPage({ onBack }: ProductsPageProps) {
             memory: it.memory,
             color: it.color,
             type: it.type,
-            averagePrice: it.average_price ?? 0,
+            averagePrice:
+              it.recommended_price ?? it.average_price ?? 0,
             supplierPrices: it.supplier_prices || {},
           } as AggregatedProduct;
         });
@@ -204,6 +207,22 @@ function ProductsPage({ onBack }: ProductsPageProps) {
     const ws = XLSX.utils.json_to_sheet(buildExportRows());
     XLSX.utils.book_append_sheet(wb, ws, 'Data');
     XLSX.writeFile(wb, `tcp_marge_${getCurrentTimestamp()}.xlsx`);
+  };
+
+  const handleSavePrices = async () => {
+    const entries = Object.entries(editedPrices);
+    if (!entries.length) return;
+    try {
+      await Promise.all(
+        entries.map(([id, price]) =>
+          updateProduct(Number(id), { recommended_price: price })
+        )
+      );
+      notify(`${entries.length} prix mis à jour`, 'success');
+      setEditedPrices({});
+    } catch {
+      notify("Erreur lors de l'enregistrement", 'error');
+    }
   };
 
   const handleExportJSON = () => {
@@ -332,6 +351,9 @@ function ProductsPage({ onBack }: ProductsPageProps) {
           </div>
           {paginationControls}
           <div className="flex space-x-2 my-4">
+            <button onClick={handleSavePrices} className="btn btn-primary">
+              Enregistrer
+            </button>
             <button onClick={handleExportExcel} className="btn btn-secondary">
               Export Excel
             </button>
