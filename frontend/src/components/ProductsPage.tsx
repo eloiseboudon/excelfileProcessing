@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import MultiSelectFilter from './MultiSelectFilter';
 import { getCurrentTimestamp } from '../utils/date';
-import { fetchProductCalculations } from '../api';
+import { fetchProductPriceSummary, updateProduct } from '../api';
 import ProductReference from './ProductReference';
 import WeekToolbar from './WeekToolbar';
 
@@ -13,10 +13,7 @@ import {
   fetchDeviceTypes,
   fetchMemoryOptions,
 } from '../api';
-
-interface ProductCalculation {
-  [key: string]: string | number | null;
-}
+import { useNotification } from './NotificationProvider';
 
 interface AggregatedProduct {
   id: number;
@@ -35,7 +32,6 @@ interface ProductsPageProps {
 }
 
 function ProductsPage({ onBack }: ProductsPageProps) {
-  const [rawData, setRawData] = useState<ProductCalculation[]>([]);
   const [data, setData] = useState<AggregatedProduct[]>([]);
   const [suppliers, setSuppliers] = useState<string[]>([]);
   const [filters, setFilters] = useState<Record<string, string | string[]>>({});
@@ -49,6 +45,8 @@ function ProductsPage({ onBack }: ProductsPageProps) {
   const [memoryOptions, setMemoryOptions] = useState<string[]>([]);
   const [typeOptions, setTypeOptions] = useState<string[]>([]);
   const [tab, setTab] = useState<'calculations' | 'reference'>('calculations');
+  const notify = useNotification();
+  const hasEdits = Object.keys(editedPrices).length > 0;
 
   const baseColumns: { key: string; label: string }[] = [
     { key: 'id', label: 'ID' },
@@ -72,73 +70,29 @@ function ProductsPage({ onBack }: ProductsPageProps) {
   }, [suppliers]);
 
   useEffect(() => {
-    fetchProductCalculations()
+    fetchProductPriceSummary()
       .then((res) => {
-        const raw = res as ProductCalculation[];
-        setRawData(raw);
-
+        const items = res as any[];
         const suppliersSet = new Set<string>();
-        const map = new Map<number, {
-          id: number;
-          model: string | null;
-          description: string | null;
-          brand: string | null;
-          memory: string | null;
-          color: string | null;
-          type: string | null;
-          sum: number;
-          count: number;
-          prices: Record<string, number>;
-        }>();
-
-        raw.forEach((item) => {
-          const pid = item.product_id as number;
-          const supplier = (item.supplier as string) || '';
-          if (supplier) suppliersSet.add(supplier);
-          const prix = Number(item.prixht_max);
-          if (!map.has(pid)) {
-            map.set(pid, {
-              id: pid,
-              model: item.model as string | null,
-              description: item.description as string | null,
-              brand: item.brand as string | null,
-              memory: item.memory as string | null,
-              color: item.color as string | null,
-              type: item.type as string | null,
-              sum: 0,
-              count: 0,
-              prices: {},
-            });
-          }
-          const entry = map.get(pid)!;
-          if (!Number.isNaN(prix)) {
-            entry.sum += prix;
-            entry.count += 1;
-            entry.prices[supplier] = prix;
-          }
+        const aggregated: AggregatedProduct[] = items.map((it) => {
+          Object.keys(it.supplier_prices || {}).forEach((s) => suppliersSet.add(s));
+          return {
+            id: it.id,
+            model: it.model,
+            description: it.description,
+            brand: it.brand,
+            memory: it.memory,
+            color: it.color,
+            type: it.type,
+            averagePrice:
+              it.recommended_price ?? it.average_price ?? 0,
+            supplierPrices: it.supplier_prices || {},
+          } as AggregatedProduct;
         });
-
-        const supplierList = Array.from(suppliersSet).sort();
-        setSuppliers(supplierList);
-
-        const aggregated: AggregatedProduct[] = [];
-        map.forEach((val) => {
-          aggregated.push({
-            id: val.id,
-            model: val.model,
-            description: val.description,
-            brand: val.brand,
-            memory: val.memory,
-            color: val.color,
-            type: val.type,
-            averagePrice: val.count ? val.sum / val.count : 0,
-            supplierPrices: val.prices,
-          });
-        });
+        setSuppliers(Array.from(suppliersSet).sort());
         setData(aggregated);
       })
       .catch(() => {
-        setRawData([]);
         setData([]);
         setSuppliers([]);
       });
@@ -254,6 +208,22 @@ function ProductsPage({ onBack }: ProductsPageProps) {
     const ws = XLSX.utils.json_to_sheet(buildExportRows());
     XLSX.utils.book_append_sheet(wb, ws, 'Data');
     XLSX.writeFile(wb, `tcp_marge_${getCurrentTimestamp()}.xlsx`);
+  };
+
+  const handleSavePrices = async () => {
+    const entries = Object.entries(editedPrices);
+    if (!entries.length) return;
+    try {
+      await Promise.all(
+        entries.map(([id, price]) =>
+          updateProduct(Number(id), { recommended_price: price })
+        )
+      );
+      notify(`${entries.length} prix mis à jour`, 'success');
+      setEditedPrices({});
+    } catch {
+      notify("Erreur lors de l'enregistrement", 'error');
+    }
   };
 
   const handleExportJSON = () => {
@@ -382,6 +352,13 @@ function ProductsPage({ onBack }: ProductsPageProps) {
           </div>
           {paginationControls}
           <div className="flex space-x-2 my-4">
+            <button
+              onClick={handleSavePrices}
+              className="btn btn-primary"
+              disabled={!hasEdits}
+            >
+              Enregistrer
+            </button>
             <button onClick={handleExportExcel} className="btn btn-secondary">
               Export Excel
             </button>
@@ -469,6 +446,7 @@ function ProductsPage({ onBack }: ProductsPageProps) {
                             {col.key === 'averagePrice' ? (
                               <input
                                 type="number"
+                                step="0.01"
                                 value={editedPrices[row.id] ?? row.averagePrice}
                                 onChange={(e) => {
                                   const v = Number(e.target.value);

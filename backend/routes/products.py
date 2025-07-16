@@ -3,6 +3,7 @@ from io import BytesIO
 
 import pandas as pd
 from flask import Blueprint, jsonify, request, send_file
+from sqlalchemy import func
 from models import (
     Brand,
     ImportHistory,
@@ -65,6 +66,67 @@ def list_product_calculations():
     return jsonify(result)
 
 
+@bp.route("/product_price_summary", methods=["GET"])
+def product_price_summary():
+    """Return latest supplier prices and average per product."""
+
+    subq = (
+        db.session.query(
+            ProductCalculation.product_id,
+            ProductCalculation.supplier_id,
+            func.max(ProductCalculation.date).label("latest"),
+        )
+        .group_by(ProductCalculation.product_id, ProductCalculation.supplier_id)
+        .subquery()
+    )
+
+    latest = (
+        ProductCalculation.query.join(
+            subq,
+            (ProductCalculation.product_id == subq.c.product_id)
+            & (ProductCalculation.supplier_id == subq.c.supplier_id)
+            & (ProductCalculation.date == subq.c.latest),
+        )
+        .join(Product)
+        .join(Brand)
+        .all()
+    )
+
+    data = {}
+    for calc in latest:
+        pid = calc.product_id
+        p = calc.product
+        if pid not in data:
+            data[pid] = {
+                "id": pid,
+                "model": p.model,
+                "description": p.description,
+                "brand": p.brand.brand if p.brand else None,
+                "memory": p.memory.memory if p.memory else None,
+                "color": p.color.color if p.color else None,
+                "type": p.type.type if p.type else None,
+                "supplier_prices": {},
+                "recommended_price": p.recommended_price,
+            }
+        supplier = calc.supplier.name if calc.supplier else ""
+        data[pid]["supplier_prices"][supplier] = calc.prixht_max
+
+    result = []
+    for item in data.values():
+        prices = [p for p in item["supplier_prices"].values() if p is not None]
+        avg = sum(prices) / len(prices) if prices else 0
+        item["average_price"] = round(avg, 2)
+        if item["recommended_price"] is None:
+            item["recommended_price"] = item["average_price"]
+            prod = Product.query.get(item["id"])
+            if prod:
+                prod.recommended_price = item["recommended_price"]
+        result.append(item)
+
+    db.session.commit()
+    return jsonify(result)
+
+
 @bp.route("/products", methods=["GET"])
 def list_products():
     """List all products.
@@ -91,6 +153,7 @@ def list_products():
             "type": p.type.type if p.type else None,
             "type_id": p.type_id,
             "ean": p.ean,
+            "recommended_price": p.recommended_price,
         }
         for p in products
     ]
@@ -282,6 +345,7 @@ def create_product():
         memory_id=data.get("memory_id"),
         color_id=data.get("color_id"),
         type_id=data.get("type_id"),
+        recommended_price=data.get("recommended_price"),
     )
     db.session.add(product)
     db.session.commit()
@@ -318,6 +382,7 @@ def update_product(product_id):
         "memory_id",
         "color_id",
         "type_id",
+        "recommended_price",
     ]:
         if field in data:
             setattr(product, field, data[field])
@@ -355,6 +420,7 @@ def bulk_update_products():
         "memory_id",
         "color_id",
         "type_id",
+        "recommended_price",
     ]
     updated_ids = []
     for item in items:
