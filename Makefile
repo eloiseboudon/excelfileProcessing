@@ -5,20 +5,17 @@ USER := postgres
 PYTHON_VENV := $(VENV)/bin/python
 MSG := "Auto migration"
 DC := docker compose
+SERVICE ?=
 
-.PHONY: help docker-build docker-up docker-down docker-logs docker-build-frontend docker-up-frontend docker-down-frontend docker-logs-frontend shell-frontend alembic-init alembic-migrate alembic-upgrade alembic-current alembic-history db-create-local db-implement-tables clean-branches
+.PHONY: help docker-build docker-up docker-down docker-logs docker-build-% docker-up-% docker-down-% docker-logs-% shell shell-% alembic-init alembic-migrate alembic-upgrade alembic-current alembic-history clean-branches
 
 help:
 	@echo "Commandes disponibles:"
-	@echo "  docker-build     - Construire les images Docker"
-	@echo "  docker-up        - Démarrer les services"
-	@echo "  docker-down      - Arrêter les services"
-	@echo "  docker-logs      - Voir les logs"
-	@echo "  docker-build-frontend - Construire l'image du frontend"
-	@echo "  docker-up-frontend   - D\xE9marrer uniquement le frontend"
-	@echo "  docker-down-frontend - Arr\xEAter uniquement le frontend"
-	@echo "  docker-logs-frontend - Logs du frontend"
-	@echo "  shell-frontend       - Ouvrir un shell dans le conteneur frontend"
+	@echo "  docker-build [SERVICE=nom] - Construire les images Docker"
+	@echo "  docker-up [SERVICE=nom]    - Démarrer les services"
+	@echo "  docker-down [SERVICE=nom]  - Arrêter les services"
+	@echo "  docker-logs [SERVICE=nom]  - Voir les logs"
+	@echo "  shell-<service>            - Ouvrir un shell dans un conteneur"
 	@echo "  alembic-init     - Initialiser Alembic (une seule fois)"
 	@echo "  alembic-migrate  - Créer une nouvelle migration"
 	@echo "  alembic-upgrade  - Appliquer les migrations"
@@ -28,19 +25,26 @@ help:
 
 # Docker commands
 docker-build:
-	$(DC) build
+	$(DC) build $(SERVICE)
 
 docker-up:
-	$(DC) up -d
-	@echo "Services démarrés. PostgreSQL: localhost:5432, Backend: localhost:5001"
+	$(DC) up -d $(SERVICE)
+	@if [ -z "$(SERVICE)" ]; then \
+	echo "Services démarrés. PostgreSQL: localhost:5432, Backend: localhost:5001"; \
+	fi
 
 docker-down:
-	$(DC) down
+	@if [ -z "$(SERVICE)" ]; then \
+	$(DC) down; \
+	else \
+	$(DC) stop $(SERVICE); \
+	$(DC) rm -f $(SERVICE); \
+	fi
 
 docker-restart: docker-down docker-up
 
 docker-logs:
-	$(DC) logs -f
+	$(DC) logs -f $(SERVICE)
 
 docker-logs-backend:
 	$(DC) logs -f backend
@@ -48,21 +52,22 @@ docker-logs-backend:
 docker-logs-postgres:
 	$(DC) logs -f postgres
 
-docker-build-frontend:
-	$(DC) build frontend
+# Règles génériques pour un service
+docker-build-%:
+	$(DC) build $*
 
-docker-up-frontend:
-	$(DC) up -d frontend
+docker-up-%:
+	$(DC) up -d $*
 
-docker-down-frontend:
-	$(DC) stop frontend
-	$(DC) rm -f frontend
+docker-down-%:
+	$(DC) stop $*
+	$(DC) rm -f $*
 
-docker-logs-frontend:
-	$(DC) logs -f frontend
+docker-logs-%:
+	$(DC) logs -f $*
 
-shell-frontend:
-	docker compose exec frontend sh
+shell-%:
+	docker compose exec $* sh
 
 # Commandes Alembic (toutes dans Docker)
 alembic-init:
