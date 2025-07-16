@@ -166,17 +166,23 @@ Il n'existe pas encore de tests automatisés mais `pytest` est configuré pour u
 Une configuration Docker est fournie pour lancer rapidement l'API Flask et la base PostgreSQL.
 
 ```bash
-# Construire les images
+# Construire les images pour tous les services
 make docker-build
+# ou seulement pour le frontend
+make docker-build SERVICE=frontend
 
 # Démarrer l'environnement en arrière-plan
 make docker-up
+# ou uniquement le frontend
+make docker-up SERVICE=frontend
 
 # Consulter les logs
-make docker-logs
+make docker-logs SERVICE=frontend
 
 # Arrêter les conteneurs
 make docker-down
+# ou uniquement le frontend
+make docker-down SERVICE=frontend
 ```
 
 Par défaut l'image utilise **Python 3.12** et **PostgreSQL 16**. La base de données est accessible sur `localhost:5432` et l'API Flask sur `localhost:5001`.
