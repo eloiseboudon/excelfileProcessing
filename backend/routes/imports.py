@@ -60,6 +60,91 @@ def verify_import(supplier_id):
     return jsonify({"status": "success", "message": "Import does not exist"}), 200
 
 
+@bp.route("/import_preview", methods=["POST"])
+def preview_import():
+    """Return a preview of the first five valid rows from an Excel file.
+
+    ---
+    tags:
+      - Imports
+    consumes:
+      - multipart/form-data
+    parameters:
+      - in: formData
+        name: file
+        type: file
+        required: true
+      - in: formData
+        name: supplier_id
+        type: integer
+        required: false
+    responses:
+      200:
+        description: Rows preview
+    """
+
+    if "file" not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+
+    file = request.files["file"]
+    supplier_id = request.form.get("supplier_id")
+    if supplier_id is not None:
+        try:
+            supplier_id = int(supplier_id)
+        except ValueError:
+            supplier_id = None
+
+    df = pd.read_excel(file)
+    df.columns = [str(c).lower().strip() for c in df.columns]
+
+    for col in ["quantity", "selling_price"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    mappings = []
+    if supplier_id:
+        mappings = FormatImport.query.filter_by(supplier_id=supplier_id).all()
+        if not mappings:
+            return jsonify({"error": "Format d'import non trouvé pour ce fournisseur"}), 400
+
+    for m in mappings:
+        if m.column_order is None or not m.column_name:
+            continue
+        idx = m.column_order - 1
+        if 0 <= idx < len(df.columns):
+            df[(m.column_name or "").lower()] = df.iloc[:, idx]
+
+    required_columns = [(m.column_name or "").lower() for m in mappings if m.column_name]
+    missing_columns = [c for c in required_columns if c not in df.columns]
+    if missing_columns:
+        return (
+            jsonify({"error": "Missing columns after mapping: " + ", ".join(missing_columns)}),
+            400,
+        )
+
+    if "description" in df.columns:
+        df["description"] = df["description"].astype(str).str.strip()
+
+    preview_rows = []
+    for _, row in df.iterrows():
+        quantity = row.get("quantity")
+        selling_price = row.get("selling_price")
+        if pd.isna(quantity) or pd.isna(selling_price):
+            continue
+        preview_rows.append(
+            {
+                "description": row.get("description"),
+                "model": row.get("model") or row.get("description"),
+                "quantity": int(quantity),
+                "selling_price": float(selling_price),
+            }
+        )
+        if len(preview_rows) >= 5:
+            break
+
+    return jsonify({"preview": preview_rows})
+
+
 @bp.route("/import", methods=["POST"])
 def create_import():
     """Import a new Excel file.
@@ -173,36 +258,11 @@ def create_import():
         f"Premières lignes du DataFrame :\n{df.head().to_string()}"
     )
 
-    expected_types = {
-        (m.column_name or "").lower(): (m.column_type or "").lower() for m in mappings
-    }
-
     count_new = 0
     invalid_rows = 0
 
     for idx, row in df.iterrows():
-        valid = True
         reason = ""
-        for col, typ in expected_types.items():
-            if col not in row:
-                continue
-            val = row[col]
-            if typ == "number":
-                if pd.isna(pd.to_numeric(val, errors="coerce")):
-                    valid = False
-                    reason = f"invalid type for {col}"
-                    break
-            elif typ == "string":
-                if pd.isna(val):
-                    valid = False
-                    reason = f"missing value for {col}"
-                    break
-        if not valid:
-            invalid_rows += 1
-            log_entries.append(
-                f"{idx + 2}\t{row.get('description', '')}\t{reason}"
-            )
-            continue
 
         quantity = row.get("quantity")
         selling_price = row.get("selling_price")

@@ -97,7 +97,6 @@ def get_reference_table(table):
                 "id": obj.id,
                 "supplier_id": obj.supplier_id,
                 "column_name": obj.column_name,
-                "column_type": obj.column_type,
                 "column_order": obj.column_order,
             }
         return {}
