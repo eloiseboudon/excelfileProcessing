@@ -207,12 +207,18 @@ def create_import():
             invalid_rows += 1
             continue
 
+        quantity = pd.to_numeric(row.get("quantity"), errors="coerce")
+        selling_price = pd.to_numeric(row.get("selling_price"), errors="coerce")
+        if pd.isna(quantity) or pd.isna(selling_price):
+            invalid_rows += 1
+            continue
+
         count_new += 1
         temp = TemporaryImport(
             description=row.get("description"),
             model=row.get("model") or row.get("description"),
-            quantity=row.get("quantity"),
-            selling_price=row.get("selling_price"),
+            quantity=quantity,
+            selling_price=selling_price,
             ean=uuid.uuid4().hex[:20],
             supplier_id=supplier_id,
         )
