@@ -168,6 +168,14 @@ export async function fetchProductCalculations() {
   return res.json();
 }
 
+export async function fetchProductPriceSummary() {
+  const res = await fetch(`${API_BASE}/product_price_summary`);
+  if (!res.ok) {
+    throw new Error('Erreur lors du chargement des données agrégées.');
+  }
+  return res.json();
+}
+
 export async function fetchReferenceTable(table: string) {
   const res = await fetch(`${API_BASE}/references/${table}`);
   if (!res.ok) {
