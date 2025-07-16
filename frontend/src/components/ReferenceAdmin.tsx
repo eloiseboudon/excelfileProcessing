@@ -7,6 +7,7 @@ import {
   fetchSuppliers,
   updateReferenceItem
 } from '../api';
+import { useNotification } from './NotificationProvider';
 
 interface ReferenceAdminProps {
   onClose: () => void;
@@ -27,6 +28,7 @@ function ReferenceAdmin({ isVisible, onClose }: ReferenceAdminProps) {
   const [table, setTable] = useState<string | null>(null);
   const [data, setData] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
+  const notify = useNotification();
 
   useEffect(() => {
     if (isVisible && table) {
@@ -65,8 +67,10 @@ function ReferenceAdmin({ isVisible, onClose }: ReferenceAdminProps) {
     try {
       if (id < 0) {
         await createReferenceItem(table!, payload);
+        notify('Entrée créée', 'success');
       } else {
         await updateReferenceItem(table!, id, payload);
+        notify('Entrée mise à jour', 'success');
       }
       await load(table!);
     } catch {
@@ -80,6 +84,7 @@ function ReferenceAdmin({ isVisible, onClose }: ReferenceAdminProps) {
         setData((prev) => prev.filter((i) => i.id !== id));
       } else {
         await deleteReferenceItem(table!, id);
+        notify('Entrée supprimée', 'success');
         await load(table!);
       }
     } catch {

@@ -3,6 +3,7 @@ import { FileUp, FileDown, ArrowLeft, Loader2, Download, Globe, Eye } from 'luci
 import * as XLSX from 'xlsx';
 import SearchControls from './SearchControls';
 import { createImport } from '../api';
+import { useNotification } from './NotificationProvider';
 import { determineBrand, generatePricingHtml } from '../utils/html';
 import { getCurrentWeekYear } from '../utils/date';
 import WeekToolbar from './WeekToolbar';
@@ -82,6 +83,8 @@ function FormattingPage({ onBack }: FormattingPageProps) {
 
   // Utilitaire semaine/année
 
+  const notify = useNotification();
+
   const handleFormat = useCallback(async () => {
     if (!file) return;
 
@@ -89,7 +92,12 @@ function FormattingPage({ onBack }: FormattingPageProps) {
     setError(null);
 
     try {
-      await createImport(file);
+      const res = await createImport(file);
+      if ('new' in res) {
+        notify(`Import réussi (${res.new} lignes)`, 'success');
+      } else {
+        notify('Import réussi', 'success');
+      }
       // Lire le fichier Excel
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
@@ -316,6 +324,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
           ? error.message
           : 'Impossible de formater le fichier. Veuillez vérifier le fichier et réessayer.'
       );
+      notify('Erreur lors du formatage du fichier', 'error');
       setFormattedFile(null);
       setHtmlFile(null);
     } finally {
