@@ -13,6 +13,7 @@ import {
   fetchDeviceTypes,
   fetchMemoryOptions,
 } from '../api';
+import { parsePrice } from '../utils/numbers';
 
 interface ProductCalculation {
   [key: string]: string | number | null;
@@ -95,7 +96,7 @@ function ProductsPage({ onBack }: ProductsPageProps) {
           const pid = item.product_id as number;
           const supplier = (item.supplier as string) || '';
           if (supplier) suppliersSet.add(supplier);
-          const prix = Number(item.prixht_max);
+          const prix = parsePrice(item.prixht_max);
           if (!map.has(pid)) {
             map.set(pid, {
               id: pid,
@@ -131,7 +132,9 @@ function ProductsPage({ onBack }: ProductsPageProps) {
             memory: val.memory,
             color: val.color,
             type: val.type,
-            averagePrice: val.count ? val.sum / val.count : 0,
+            averagePrice: val.count
+              ? Number((val.sum / val.count).toFixed(2))
+              : 0,
             supplierPrices: val.prices,
           });
         });
