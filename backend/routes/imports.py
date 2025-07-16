@@ -128,13 +128,8 @@ def create_import():
                 jsonify({"error": "Format d'import non trouvé pour ce fournisseur"}),
                 400,
             )
-    by_name = {
-        (m.column_name or '').lower(): (m.column_type or '').lower()
-        for m in mappings
-        if m.column_name
-    }
     by_order = {
-        m.column_order: (m.column_type or '').lower()
+        m.column_order: (m.column_name or '').lower()
         for m in mappings
         if m.column_order is not None
     }
@@ -143,9 +138,6 @@ def create_import():
         if idx in by_order:
             df.rename(columns={col: by_order[idx]}, inplace=True)
 
-    for src, target in by_name.items():
-        if src in df.columns:
-            df.rename(columns={src: target}, inplace=True)
 
     if "sellingprice" in df.columns and "selling_price" not in df.columns:
         df.rename(columns={"sellingprice": "selling_price"}, inplace=True)
