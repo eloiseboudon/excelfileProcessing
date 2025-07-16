@@ -10,6 +10,7 @@ import {
   fetchProducts,
   updateProduct
 } from '../api';
+import { useNotification } from './NotificationProvider';
 
 interface ProductItem {
   id: number;
@@ -28,6 +29,7 @@ function ProductAdmin() {
   const [colors, setColors] = useState<any[]>([]);
   const [memories, setMemories] = useState<any[]>([]);
   const [types, setTypes] = useState<any[]>([]);
+  const notify = useNotification();
 
   useEffect(() => {
     load();
@@ -96,8 +98,10 @@ function ProductAdmin() {
     try {
       if (id < 0) {
         await createProduct(payload);
+        notify('Produit créé', 'success');
       } else {
         await updateProduct(id, payload);
+        notify('Produit mis à jour', 'success');
       }
       await load();
     } catch {
@@ -111,6 +115,7 @@ function ProductAdmin() {
         setProducts((prev) => prev.filter((p) => p.id !== id));
       } else {
         await deleteProduct(id);
+        notify('Produit supprimé', 'success');
         await load();
       }
     } catch {

@@ -9,6 +9,7 @@ import {
   createProduct,
 } from '../api';
 import MultiSelectFilter from './MultiSelectFilter';
+import { useNotification } from './NotificationProvider';
 
 interface ProductItem {
   id: number;
@@ -37,6 +38,7 @@ function ProductReference() {
   const [colors, setColors] = useState<any[]>([]);
   const [memories, setMemories] = useState<any[]>([]);
   const [types, setTypes] = useState<any[]>([]);
+  const notify = useNotification();
   const [brandOptions, setBrandOptions] = useState<string[]>([]);
   const [colorOptions, setColorOptions] = useState<string[]>([]);
   const [memoryOptions, setMemoryOptions] = useState<string[]>([]);
@@ -190,14 +192,18 @@ function ProductReference() {
     if (!toCreate.length && !toUpdate.length) return;
     try {
       await Promise.all(toCreate.map((p) => createProduct(p)));
+      if (toCreate.length) {
+        notify(`${toCreate.length} produit(s) créés`, 'success');
+      }
       if (toUpdate.length) {
         await bulkUpdateProducts(toUpdate);
+        notify(`${toUpdate.length} produit(s) mis à jour`, 'success');
       }
       setEdited({});
       const res = await fetchProducts();
       setProducts(res as ProductItem[]);
     } catch {
-      /* empty */
+      notify("Erreur lors de l'enregistrement", 'error');
     }
   };
 

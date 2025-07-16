@@ -14,6 +14,7 @@ import {
   fetchSuppliers,
   verifyImport
 } from '../api';
+import { useNotification } from './NotificationProvider';
 import { getCurrentTimestamp, getCurrentWeekYear, getWeekYear } from '../utils/date';
 
 
@@ -123,6 +124,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
   const [processedFileName, setProcessedFileName] = useState<string>('');
   const [lastImports, setLastImports] = useState<Record<number, string | null>>({});
   const [error, setError] = useState<string | null>(null);
+  const notify = useNotification();
 
 
 
@@ -172,11 +174,13 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
           } catch {
             // ignore verification errors and proceed
           }
-          await createImport(file, f.id);
+          const res = await createImport(file, f.id);
+          notify(`Import de ${f.name} réussi (${res.new} lignes)`, 'success');
         }
       }
 
-      await calculateProducts();
+      const calc = await calculateProducts();
+      notify(`Calculs terminés (${calc.created} enregistrements)`, 'success');
 
       await refreshLastImports();
 
@@ -187,6 +191,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
           ? err.message
           : 'Le traitement des fichiers a échoué. Veuillez vérifier les fichiers et réessayer.'
       );
+      notify('Erreur lors du traitement des fichiers', 'error');
       setProcessedFile(null);
     } finally {
       setIsProcessing(false);
