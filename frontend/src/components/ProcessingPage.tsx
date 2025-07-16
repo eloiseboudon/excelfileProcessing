@@ -10,11 +10,13 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   calculateProducts,
   createImport,
+  fetchImportPreview,
   fetchLastImport,
   fetchSuppliers,
   verifyImport
 } from '../api';
 import { useNotification } from './NotificationProvider';
+import ImportPreviewModal from './ImportPreviewModal';
 import { getCurrentTimestamp, getCurrentWeekYear, getWeekYear } from '../utils/date';
 
 
@@ -39,6 +41,10 @@ interface ImportZoneProps {
 
 function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewRows, setPreviewRows] = useState<any[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const notify = useNotification();
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -57,10 +63,11 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZone
       const droppedFile = e.dataTransfer.files[0];
       if (
         droppedFile?.type ===
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
         droppedFile?.type === 'application/vnd.ms-excel'
       ) {
         onFileChange(supplier.id, droppedFile);
+        previewFile(droppedFile);
       }
     },
     [supplier.id, onFileChange]
@@ -71,9 +78,27 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZone
       const selectedFile = e.target.files?.[0];
       if (selectedFile) {
         onFileChange(supplier.id, selectedFile);
+        previewFile(selectedFile);
       }
     },
     [supplier.id, onFileChange]
+  );
+
+  const previewFile = useCallback(
+    async (f: File) => {
+      setPreviewLoading(true);
+      try {
+        const res = await fetchImportPreview(f, supplier.id);
+        setPreviewRows(res.preview || []);
+        setShowPreview(true);
+      } catch (err) {
+        console.error('preview error', err);
+        notify('Erreur lors de la prévisualisation du fichier', 'error');
+      } finally {
+        setPreviewLoading(false);
+      }
+    },
+    [supplier.id]
   );
 
   return (
@@ -107,10 +132,19 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZone
         </div>
       </div>
       {file && (
-        <div className="mt-4 flex items-center space-x-3 p-4 bg-zinc-800/50 rounded-lg border border-zinc-700">
-          <FileDown className="w-6 h-6 text-[#B8860B]" />
-          <span className="text-zinc-300 truncate">{file.name}</span>
-        </div>
+        <>
+          <div className="mt-4 flex items-center space-x-3 p-4 bg-zinc-800/50 rounded-lg border border-zinc-700">
+            <FileDown className="w-6 h-6 text-[#B8860B]" />
+            <span className="text-zinc-300 truncate flex-1">{file.name}</span>
+            <button onClick={() => previewFile(file)} className="btn btn-secondary ml-auto">Prévisualiser</button>
+          </div>
+          {previewLoading && (
+            <p className="text-sm text-zinc-400 mt-2">Chargement de la prévisualisation...</p>
+          )}
+        </>
+      )}
+      {showPreview && (
+        <ImportPreviewModal rows={previewRows} onClose={() => setShowPreview(false)} />
       )}
     </div>
   );
