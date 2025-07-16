@@ -7,7 +7,7 @@ MSG := "Auto migration"
 DC := docker compose
 SERVICE ?=
 
-.PHONY: help docker-build docker-up docker-down docker-logs docker-build-% docker-up-% docker-down-% docker-logs-% shell shell-% alembic-init alembic-migrate alembic-upgrade alembic-current alembic-history clean-branches frontend-dev npm-fix npm-clean docker-build-fix implement-tables reset-database check-tables list-brands list-colors
+.PHONY: help docker-build docker-up docker-down docker-logs docker-build-% docker-up-% docker-down-% docker-logs-% shell shell-% alembic-init alembic-migrate alembic-upgrade alembic-current alembic-history clean-branches frontend-dev npm-fix npm-clean docker-build-fix implement-tables reset-database check-tables list-brands list-colors network-debug test-connectivity fix-network
 
 help:
 	@echo "Commandes disponibles:"
@@ -32,6 +32,9 @@ help:
 	@echo "  check-tables              - Vérifier le contenu des tables"
 	@echo "  list-brands               - Lister les marques"
 	@echo "  list-colors               - Lister les couleurs"
+	@echo "  network-debug             - Diagnostiquer les problèmes réseau"
+	@echo "  test-connectivity         - Tester la connectivité entre services"
+	@echo "  fix-network               - Corriger les problèmes réseau"
 	@echo "  clean-branches            - Supprimer les branches git locales"
 	@echo "  dev-setup                 - Configuration complète pour le développement"
 	@echo "  prod-setup                - Configuration pour la production"
@@ -263,9 +266,42 @@ list-brands:
 	@echo "=== Liste des marques ==="
 	@docker compose exec backend python -c "import psycopg2; import os; conn = psycopg2.connect(os.getenv('DATABASE_URL')); cur = conn.cursor(); cur.execute('SELECT brand FROM brands ORDER BY brand'); [print(f'  - {row[0]}') for row in cur.fetchall()]; cur.close(); conn.close()"
 
-list-colors:
-	@echo "=== Liste des couleurs ==="
-	@docker compose exec backend python -c "import psycopg2; import os; conn = psycopg2.connect(os.getenv('DATABASE_URL')); cur = conn.cursor(); cur.execute('SELECT color FROM colors ORDER BY color'); [print(f'  - {row[0]}') for row in cur.fetchall()]; cur.close(); conn.close()"
+# Diagnostic réseau et connectivité
+network-debug:
+	@echo "=== Diagnostic réseau Docker ==="
+	@echo "1. Réseaux Docker:"
+	@docker network ls
+	@echo -e "\n2. Conteneurs et leurs IPs:"
+	@docker compose ps
+	@echo -e "\n3. Test de connectivité interne:"
+	@docker compose exec frontend ping -c 3 backend 2>/dev/null || echo "❌ Frontend ne peut pas joindre le backend"
+	@docker compose exec backend ping -c 3 postgres 2>/dev/null || echo "❌ Backend ne peut pas joindre postgres"
+	@echo -e "\n4. Ports ouverts sur l'hôte:"
+	@netstat -tlnp 2>/dev/null | grep -E "(3000|5001|5432)" || echo "❌ Ports non ouverts"
+	@echo -e "\n5. Test d'accès externe:"
+	@curl -I http://localhost:3000 2>/dev/null || echo "❌ Frontend non accessible"
+	@curl -I http://localhost:5001 2>/dev/null || echo "❌ Backend non accessible"
+
+test-connectivity:
+	@echo "=== Test de connectivité ==="
+	@echo "Frontend -> Backend:"
+	@docker compose exec frontend curl -I http://backend:5001 2>/dev/null || echo "❌ Échec"
+	@echo "Backend -> Database:"
+	@docker compose exec backend python -c "import psycopg2; import os; psycopg2.connect(os.getenv('DATABASE_URL')); print('✅ Connexion DB OK')" 2>/dev/null || echo "❌ Échec DB"
+	@echo "External -> Frontend:"
+	@curl -I http://localhost:3000 2>/dev/null && echo "✅ Frontend OK" || echo "❌ Frontend KO"
+	@echo "External -> Backend:"
+	@curl -I http://localhost:5001 2>/dev/null && echo "✅ Backend OK" || echo "❌ Backend KO"
+
+fix-network:
+	@echo "=== Tentative de correction réseau ==="
+	@echo "Redémarrage des services avec reconstruction du réseau..."
+	@docker compose down
+	@docker network prune -f
+	@docker compose up -d
+	@echo "Attente du démarrage des services..."
+	@sleep 10
+	@make test-connectivity
 
 # Commandes de développement
 dev-setup: docker-build docker-up alembic-upgrade implement-tables
