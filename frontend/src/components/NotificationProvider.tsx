@@ -20,7 +20,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     setNotifications(prev => [...prev, { id, message, type }]);
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => n.id !== id));
-    }, 3000);
+    }, 5000);
   };
 
   return (
@@ -30,13 +30,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         {notifications.map(n => (
           <div
             key={n.id}
-            className={`px-4 py-2 rounded shadow-lg text-white ${
-              n.type === 'error'
+            className={`px-4 py-2 rounded shadow-lg text-white ${n.type === 'error'
                 ? 'bg-red-600'
                 : n.type === 'info'
-                ? 'bg-blue-600'
-                : 'bg-green-600'
-            }`}
+                  ? 'bg-blue-600'
+                  : 'bg-green-600'
+              }`}
           >
             {n.message}
           </div>
