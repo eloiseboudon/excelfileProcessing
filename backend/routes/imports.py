@@ -50,8 +50,8 @@ def verify_import(supplier_id):
     verification = (
         ImportHistory.query.filter_by(supplier_id=supplier_id)
         .filter(
-            extract('week', ImportHistory.import_date)
-            == extract('week', datetime.utcnow())
+            extract("week", ImportHistory.import_date)
+            == extract("week", datetime.utcnow())
         )
         .first()
     )
@@ -88,10 +88,10 @@ def create_import():
     current_app.logger.debug(f"Headers: {request.headers}")
     current_app.logger.debug(f"Content-Type: {request.content_type}")
 
-    if request.content_type == 'application/json':
+    if request.content_type == "application/json":
         data = request.get_json()
         current_app.logger.debug(f"JSON reçu: {data}")
-    elif request.content_type.startswith('multipart/form-data'):
+    elif request.content_type.startswith("multipart/form-data"):
         current_app.logger.debug(f"Fichiers: {request.files}")
         current_app.logger.debug(f"Formulaire: {request.form}")
     else:
@@ -120,15 +120,13 @@ def create_import():
     if supplier_id:
         mappings = FormatImport.query.filter_by(supplier_id=supplier_id).all()
         if not mappings:
-            current_app.logger.error(
-                "Aucun format d'import défini pour ce fournisseur"
-            )
+            current_app.logger.error("Aucun format d'import défini pour ce fournisseur")
             return (
                 jsonify({"error": "Format d'import non trouvé pour ce fournisseur"}),
                 400,
             )
     by_order = {
-        m.column_order: (m.column_name or '').lower()
+        m.column_order: (m.column_name or "").lower()
         for m in mappings
         if m.column_order is not None
     }
@@ -136,7 +134,6 @@ def create_import():
     for idx, col in enumerate(list(df.columns)):
         if idx in by_order:
             df.rename(columns={col: by_order[idx]}, inplace=True)
-
 
     if "description" in df.columns:
         df["description"] = df["description"].astype(str).str.strip()
@@ -183,13 +180,14 @@ def create_import():
         )
         db.session.add(temp)
 
-    recalculate_product_calculations()
-
     history = ImportHistory(
         filename=file.filename, supplier_id=supplier_id, product_count=count_new
     )
     db.session.add(history)
     db.session.commit()
+
+    with db.session.no_autoflush:
+        recalculate_product_calculations()
 
     return jsonify(
         {
