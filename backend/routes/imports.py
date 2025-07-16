@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime
 
 import pandas as pd
@@ -50,8 +49,8 @@ def verify_import(supplier_id):
     verification = (
         ImportHistory.query.filter_by(supplier_id=supplier_id)
         .filter(
-            extract('week', ImportHistory.import_date)
-            == extract('week', datetime.utcnow())
+            extract("week", ImportHistory.import_date)
+            == extract("week", datetime.utcnow())
         )
         .first()
     )
@@ -88,10 +87,10 @@ def create_import():
     current_app.logger.debug(f"Headers: {request.headers}")
     current_app.logger.debug(f"Content-Type: {request.content_type}")
 
-    if request.content_type == 'application/json':
+    if request.content_type == "application/json":
         data = request.get_json()
         current_app.logger.debug(f"JSON reçu: {data}")
-    elif request.content_type.startswith('multipart/form-data'):
+    elif request.content_type.startswith("multipart/form-data"):
         current_app.logger.debug(f"Fichiers: {request.files}")
         current_app.logger.debug(f"Formulaire: {request.form}")
     else:
@@ -120,23 +119,53 @@ def create_import():
     if supplier_id:
         mappings = FormatImport.query.filter_by(supplier_id=supplier_id).all()
         if not mappings:
-            current_app.logger.error(
-                "Aucun format d'import défini pour ce fournisseur"
-            )
+            current_app.logger.error("Aucun format d'import défini pour ce fournisseur")
             return (
                 jsonify({"error": "Format d'import non trouvé pour ce fournisseur"}),
                 400,
             )
-    by_order = {
-        m.column_order: (m.column_name or '').lower()
-        for m in mappings
-        if m.column_order is not None
-    }
+
+    by_order = {}
+    duplicate_orders = []
+    for m in mappings:
+        if m.column_order is None:
+            continue
+        idx = m.column_order - 1
+        if idx in by_order:
+            duplicate_orders.append(m.column_order)
+        else:
+            by_order[idx] = (m.column_name or "").lower()
+    if duplicate_orders:
+        current_app.logger.error(
+            f"Duplicated column_order values for supplier {supplier_id}: {duplicate_orders}"
+        )
+        return (
+            jsonify({"error": "Duplicate column orders found for this supplier."}),
+            400,
+        )
 
     for idx, col in enumerate(list(df.columns)):
         if idx in by_order:
             df.rename(columns={col: by_order[idx]}, inplace=True)
 
+
+    required_columns = [
+        (m.column_name or "").lower() for m in mappings if m.column_name
+    ]
+    missing_columns = [c for c in required_columns if c not in df.columns]
+    if missing_columns:
+        current_app.logger.error(
+            f"Required columns missing after renaming: {missing_columns}"
+        )
+        return (
+            jsonify(
+                {
+                    "error": "Missing columns after mapping: "
+                    + ", ".join(missing_columns)
+                }
+            ),
+            400,
+        )
 
     if "description" in df.columns:
         df["description"] = df["description"].astype(str).str.strip()
@@ -152,7 +181,6 @@ def create_import():
 
     count_new = 0
     invalid_rows = 0
-    count_update = 0
 
     for idx, row in df.iterrows():
         valid = True
@@ -172,18 +200,21 @@ def create_import():
             invalid_rows += 1
             continue
 
+        quantity = pd.to_numeric(row.get("quantity"), errors="coerce")
+        selling_price = pd.to_numeric(row.get("selling_price"), errors="coerce")
+        if pd.isna(quantity) or pd.isna(selling_price):
+            invalid_rows += 1
+            continue
+
         count_new += 1
         temp = TemporaryImport(
             description=row.get("description"),
             model=row.get("model") or row.get("description"),
             quantity=row.get("quantity"),
             selling_price=row.get("selling_price"),
-            ean=uuid.uuid4().hex[:20],
             supplier_id=supplier_id,
         )
         db.session.add(temp)
-
-    recalculate_product_calculations()
 
     history = ImportHistory(
         filename=file.filename, supplier_id=supplier_id, product_count=count_new
@@ -191,11 +222,13 @@ def create_import():
     db.session.add(history)
     db.session.commit()
 
+    with db.session.no_autoflush:
+        recalculate_product_calculations()
+
     return jsonify(
         {
             "status": "success",
             "new": count_new,
-            "updated": count_update,
             "invalid": invalid_rows,
         }
     )
