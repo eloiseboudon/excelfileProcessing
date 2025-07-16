@@ -15,12 +15,26 @@ interface ProductCalculation {
   [key: string]: string | number | null;
 }
 
+interface AggregatedProduct {
+  id: number;
+  model: string | null;
+  description: string | null;
+  brand: string | null;
+  memory: string | null;
+  color: string | null;
+  type: string | null;
+  averagePrice: number;
+  supplierPrices: Record<string, number | undefined>;
+}
+
 interface ProductsPageProps {
   onBack: () => void;
 }
 
 function ProductsPage({ onBack }: ProductsPageProps) {
-  const [data, setData] = useState<ProductCalculation[]>([]);
+  const [rawData, setRawData] = useState<ProductCalculation[]>([]);
+  const [data, setData] = useState<AggregatedProduct[]>([]);
+  const [suppliers, setSuppliers] = useState<string[]>([]);
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
   const [showColumnMenu, setShowColumnMenu] = useState(false);
@@ -32,32 +46,98 @@ function ProductsPage({ onBack }: ProductsPageProps) {
   const [typeOptions, setTypeOptions] = useState<string[]>([]);
   const [tab, setTab] = useState<'calculations' | 'reference'>('calculations');
 
-  const columns: { key: string; label: string }[] = [
+  const baseColumns: { key: string; label: string }[] = [
     { key: 'id', label: 'ID' },
     { key: 'model', label: 'Modèle' },
     { key: 'description', label: 'Description' },
-    { key: 'supplier', label: 'Fournisseur' },
     { key: 'brand', label: 'Marque' },
-    { key: 'price', label: 'Prix' },
     { key: 'memory', label: 'Mémoire' },
     { key: 'color', label: 'Couleur' },
     { key: 'type', label: 'Type' },
-    { key: 'tcp', label: 'TCP' },
-    { key: 'marge4_5', label: 'Marge 4.5' },
-    { key: 'prixht_tcp_marge4_5', label: 'PrixHT TCP Marge4.5' },
-    { key: 'prixht_marge4_5', label: 'PrixHT Marge4.5' },
-    { key: 'prixht_max', label: 'PrixHT Max' },
-    { key: 'date', label: 'Date' },
-    { key: 'week', label: 'Semaine' }
+    { key: 'averagePrice', label: 'Prix de vente (moy)' }
   ];
+
+  const columns = [
+    ...baseColumns,
+    ...suppliers.map((s) => ({ key: `pv_${s}`, label: `PV ${s}` })),
+  ];
+
+  useEffect(() => {
+    const allKeys = [...baseColumns.map((c) => c.key), ...suppliers.map((s) => `pv_${s}`)];
+    setVisibleColumns(allKeys);
+  }, [suppliers]);
 
   useEffect(() => {
     fetchProductCalculations()
       .then((res) => {
-        setData(res as ProductCalculation[]);
-        setVisibleColumns(columns.map((c) => c.key));
+        const raw = res as ProductCalculation[];
+        setRawData(raw);
+
+        const suppliersSet = new Set<string>();
+        const map = new Map<number, {
+          id: number;
+          model: string | null;
+          description: string | null;
+          brand: string | null;
+          memory: string | null;
+          color: string | null;
+          type: string | null;
+          sum: number;
+          count: number;
+          prices: Record<string, number>;
+        }>();
+
+        raw.forEach((item) => {
+          const pid = item.product_id as number;
+          const supplier = (item.supplier as string) || '';
+          if (supplier) suppliersSet.add(supplier);
+          const prix = Number(item.prixht_max);
+          if (!map.has(pid)) {
+            map.set(pid, {
+              id: pid,
+              model: item.model as string | null,
+              description: item.description as string | null,
+              brand: item.brand as string | null,
+              memory: item.memory as string | null,
+              color: item.color as string | null,
+              type: item.type as string | null,
+              sum: 0,
+              count: 0,
+              prices: {},
+            });
+          }
+          const entry = map.get(pid)!;
+          if (!Number.isNaN(prix)) {
+            entry.sum += prix;
+            entry.count += 1;
+            entry.prices[supplier] = prix;
+          }
+        });
+
+        const supplierList = Array.from(suppliersSet).sort();
+        setSuppliers(supplierList);
+
+        const aggregated: AggregatedProduct[] = [];
+        map.forEach((val) => {
+          aggregated.push({
+            id: val.id,
+            model: val.model,
+            description: val.description,
+            brand: val.brand,
+            memory: val.memory,
+            color: val.color,
+            type: val.type,
+            averagePrice: val.count ? val.sum / val.count : 0,
+            supplierPrices: val.prices,
+          });
+        });
+        setData(aggregated);
       })
-      .catch(() => setData([]));
+      .catch(() => {
+        setRawData([]);
+        setData([]);
+        setSuppliers([]);
+      });
 
     Promise.all([
       fetchBrands(),
@@ -114,9 +194,9 @@ function ProductsPage({ onBack }: ProductsPageProps) {
   }, [filters, rowsPerPage]);
 
   const filteredData = data.filter((row) =>
-    columns.every((col) => {
+    baseColumns.every((col) => {
       if (!filters[col.key]) return true;
-      const value = row[col.key];
+      const value = (row as any)[col.key];
       if (['brand', 'memory', 'color', 'type'].includes(col.key)) {
         return (
           String(value ?? '').toLowerCase() ===
@@ -256,56 +336,75 @@ function ProductsPage({ onBack }: ProductsPageProps) {
                     (col) =>
                       visibleColumns.includes(col.key) && (
                         <th key={col.key} className="px-3 py-1 border-b border-zinc-700">
-                          {['brand', 'memory', 'color', 'type'].includes(col.key) ? (
-                            <select
-                              value={filters[col.key] || ''}
-                              onChange={(e) =>
-                                setFilters({ ...filters, [col.key]: e.target.value })
-                              }
-                              className="w-full px-2 py-1 bg-zinc-900 border border-zinc-600 rounded"
-                            >
-                              <option value="">Tous</option>
-                              {(col.key === 'brand'
-                                ? brandOptions
-                                : col.key === 'memory'
-                                  ? memoryOptions
-                                  : col.key === 'color'
-                                    ? colorOptions
-                                    : typeOptions
-                              ).map((opt) => (
-                                <option key={opt} value={opt}>
-                                  {opt}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            <input
-                              type="text"
-                              value={filters[col.key] || ''}
-                              onChange={(e) =>
-                                setFilters({ ...filters, [col.key]: e.target.value })
-                              }
-                              className="w-full px-2 py-1 bg-zinc-900 border border-zinc-600 rounded"
-                            />
-                          )}
+                          {baseColumns.some((c) => c.key === col.key) ? (
+                            ['brand', 'memory', 'color', 'type'].includes(col.key) ? (
+                              <select
+                                value={filters[col.key] || ''}
+                                onChange={(e) =>
+                                  setFilters({ ...filters, [col.key]: e.target.value })
+                                }
+                                className="w-full px-2 py-1 bg-zinc-900 border border-zinc-600 rounded"
+                              >
+                                <option value="">Tous</option>
+                                {(col.key === 'brand'
+                                  ? brandOptions
+                                  : col.key === 'memory'
+                                    ? memoryOptions
+                                    : col.key === 'color'
+                                      ? colorOptions
+                                      : typeOptions
+                                ).map((opt) => (
+                                  <option key={opt} value={opt}>
+                                    {opt}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <input
+                                type="text"
+                                value={filters[col.key] || ''}
+                                onChange={(e) =>
+                                  setFilters({ ...filters, [col.key]: e.target.value })
+                                }
+                                className="w-full px-2 py-1 bg-zinc-900 border border-zinc-600 rounded"
+                              />
+                            )
+                          ) : null}
                         </th>
                       )
                   )}
                 </tr>
               </thead>
               <tbody>
-                {paginatedData.map((row) => (
-                  <tr key={String(row.id)} className="odd:bg-zinc-900 even:bg-zinc-800">
-                    {columns.map(
-                      (col) =>
-                        visibleColumns.includes(col.key) && (
-                          <td key={col.key} className="px-3 py-1 border-b border-zinc-700">
-                            {String(row[col.key] ?? '')}
+                {paginatedData.map((row) => {
+                  const prices = suppliers.map((s) => row.supplierPrices[s]);
+                  const validPrices = prices.filter((p) => typeof p === 'number') as number[];
+                  const minPrice = validPrices.length ? Math.min(...validPrices) : undefined;
+                  return (
+                    <tr key={String(row.id)} className="odd:bg-zinc-900 even:bg-zinc-800">
+                      {columns.map((col) => {
+                        if (!visibleColumns.includes(col.key)) return null;
+                        let value: any = (row as any)[col.key];
+                        if (col.key.startsWith('pv_')) {
+                          const supplierName = col.key.slice(3);
+                          value = row.supplierPrices[supplierName];
+                        }
+                        const isMin =
+                          col.key.startsWith('pv_') &&
+                          typeof value === 'number' &&
+                          value === minPrice;
+                        return (
+                          <td
+                            key={col.key}
+                            className={`px-3 py-1 border-b border-zinc-700 ${isMin ? 'text-green-400' : ''}`}
+                          >
+                            {value !== undefined ? String(value) : ''}
                           </td>
-                        )
-                    )}
-                  </tr>
-                ))}
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
