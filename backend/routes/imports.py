@@ -125,29 +125,14 @@ def create_import():
                 400,
             )
 
-    by_order = {}
-    duplicate_orders = []
+    # Map Excel columns to standardized names. Duplicate column_order values
+    # are allowed and will copy data from the same source column.
     for m in mappings:
-        if m.column_order is None:
+        if m.column_order is None or not m.column_name:
             continue
         idx = m.column_order - 1
-        if idx in by_order:
-            duplicate_orders.append(m.column_order)
-        else:
-            by_order[idx] = (m.column_name or "").lower()
-    if duplicate_orders:
-        current_app.logger.error(
-            f"Duplicated column_order values for supplier {supplier_id}: {duplicate_orders}"
-        )
-        return (
-            jsonify({"error": "Duplicate column orders found for this supplier."}),
-            400,
-        )
-
-    for idx, col in enumerate(list(df.columns)):
-        if idx in by_order:
-            df.rename(columns={col: by_order[idx]}, inplace=True)
-
+        if 0 <= idx < len(df.columns):
+            df[(m.column_name or "").lower()] = df.iloc[:, idx]
 
     required_columns = [
         (m.column_name or "").lower() for m in mappings if m.column_name

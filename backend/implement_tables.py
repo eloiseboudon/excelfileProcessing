@@ -53,11 +53,11 @@ def main():
         # Insérer les formats d'import
         cur.execute(
             """
-            INSERT INTO format_imports (supplier_id, column_name, column_type, column_order) VALUES 
-            (1, 'description', 'string', 2), 
-            (1, 'model', 'string', 2), 
-            (1, 'quantity', 'number', 3), 
-            (1, 'sellingprice', 'number', 4), 
+            INSERT INTO format_imports (supplier_id, column_name, column_type, column_order) VALUES
+            (1, 'description', 'string', 2),
+            (1, 'model', 'string', 2),
+            (1, 'quantity', 'number', 3),
+            (1, 'sellingprice', 'number', 4),
             (1, 'ean', 'number', 7);
         """
         )
