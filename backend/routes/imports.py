@@ -1,4 +1,5 @@
 from datetime import datetime
+import os
 
 import pandas as pd
 from flask import Blueprint, jsonify, request
@@ -114,6 +115,13 @@ def create_import():
     df = pd.read_excel(file)
     df.columns = [str(c).lower().strip() for c in df.columns]
 
+    # Prepare invalid rows log
+    log_dir = os.path.join(os.path.dirname(__file__), "..", "log")
+    os.makedirs(log_dir, exist_ok=True)
+    log_filename = datetime.utcnow().strftime("import_%Y%m%d_%H%M%S.txt")
+    log_path = os.path.join(log_dir, log_filename)
+    log_entries = ["line\tdescription\treason"]
+
     # Apply column mappings defined for the supplier if available
     mappings = []
     if supplier_id:
@@ -169,6 +177,7 @@ def create_import():
 
     for idx, row in df.iterrows():
         valid = True
+        reason = ""
         for col, typ in expected_types.items():
             if col not in row:
                 continue
@@ -176,19 +185,27 @@ def create_import():
             if typ == "number":
                 if pd.isna(pd.to_numeric(val, errors="coerce")):
                     valid = False
+                    reason = f"invalid type for {col}"
                     break
             elif typ == "string":
                 if pd.isna(val):
                     valid = False
+                    reason = f"missing value for {col}"
                     break
         if not valid:
             invalid_rows += 1
+            log_entries.append(
+                f"{idx + 2}\t{row.get('description', '')}\t{reason}"
+            )
             continue
 
         quantity = pd.to_numeric(row.get("quantity"), errors="coerce")
         selling_price = pd.to_numeric(row.get("selling_price"), errors="coerce")
         if pd.isna(quantity) or pd.isna(selling_price):
             invalid_rows += 1
+            log_entries.append(
+                f"{idx + 2}\t{row.get('description', '')}\tinvalid quantity or selling_price"
+            )
             continue
 
         count_new += 1
@@ -200,6 +217,11 @@ def create_import():
             supplier_id=supplier_id,
         )
         db.session.add(temp)
+
+    # Write invalid rows report
+    with open(log_path, "w", encoding="utf-8") as log_file:
+        for entry in log_entries:
+            log_file.write(entry + "\n")
 
     history = ImportHistory(
         filename=file.filename, supplier_id=supplier_id, product_count=count_new
