@@ -67,7 +67,6 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZone
         droppedFile?.type === 'application/vnd.ms-excel'
       ) {
         onFileChange(supplier.id, droppedFile);
-        previewFile(droppedFile);
       }
     },
     [supplier.id, onFileChange]
@@ -78,7 +77,6 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZone
       const selectedFile = e.target.files?.[0];
       if (selectedFile) {
         onFileChange(supplier.id, selectedFile);
-        previewFile(selectedFile);
       }
     },
     [supplier.id, onFileChange]
@@ -102,6 +100,7 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZone
   );
 
   return (
+    <>
     <div className="card p-8">
       <h2 className="text-xl font-semibold mb-6">Import de {supplier.name}</h2>
       {lastImportDate && (
@@ -143,10 +142,11 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZone
           )}
         </>
       )}
-      {showPreview && (
-        <ImportPreviewModal rows={previewRows} onClose={() => setShowPreview(false)} />
-      )}
     </div>
+    {showPreview && (
+      <ImportPreviewModal rows={previewRows} onClose={() => setShowPreview(false)} />
+    )}
+    </>
   );
 }
 
