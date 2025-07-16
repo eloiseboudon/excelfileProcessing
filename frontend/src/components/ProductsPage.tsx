@@ -419,6 +419,7 @@ function ProductsPage({ onBack }: ProductsPageProps) {
                             {col.key === 'averagePrice' ? (
                               <input
                                 type="number"
+                                step="0.01"
                                 value={editedPrices[row.id] ?? row.averagePrice}
                                 onChange={(e) => {
                                   const v = Number(e.target.value);
