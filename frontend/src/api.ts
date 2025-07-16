@@ -28,6 +28,23 @@ export async function createImport(file: File, supplierId?: number) {
   return res.json();
 }
 
+export async function fetchImportPreview(file: File, supplierId?: number) {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (supplierId !== undefined) {
+    formData.append('supplier_id', String(supplierId));
+  }
+
+  const res = await fetch(`${API_BASE}/import_preview`, {
+    method: 'POST',
+    body: formData
+  });
+  if (!res.ok) {
+    throw new Error('Erreur lors de la prévisualisation du fichier.');
+  }
+  return res.json();
+}
+
 export async function fetchProducts() {
   const res = await fetch(`${API_BASE}/products`);
   if (!res.ok) {
