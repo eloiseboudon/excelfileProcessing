@@ -91,7 +91,11 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZone
         setShowPreview(true);
       } catch (err) {
         console.error('preview error', err);
-        notify(JSON.stringify(err), 'error');
+        const message =
+          err instanceof Error
+            ? err.message
+            : 'Le traitement des fichiers a échoué. Veuillez vérifier les fichiers et réessayer.';
+        notify(message, 'error');
       } finally {
         setPreviewLoading(false);
       }
