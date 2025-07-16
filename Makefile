@@ -6,7 +6,7 @@ PYTHON_VENV := $(VENV)/bin/python
 MSG := "Auto migration"
 DC := docker compose
 
-.PHONY: help docker-build docker-up docker-down docker-logs alembic-init alembic-migrate alembic-upgrade alembic-current alembic-history db-create-local db-implement-tables clean-branches
+.PHONY: help docker-build docker-up docker-down docker-logs docker-build-frontend docker-up-frontend docker-down-frontend docker-logs-frontend shell-frontend alembic-init alembic-migrate alembic-upgrade alembic-current alembic-history db-create-local db-implement-tables clean-branches
 
 help:
 	@echo "Commandes disponibles:"
@@ -14,6 +14,11 @@ help:
 	@echo "  docker-up        - Démarrer les services"
 	@echo "  docker-down      - Arrêter les services"
 	@echo "  docker-logs      - Voir les logs"
+	@echo "  docker-build-frontend - Construire l'image du frontend"
+	@echo "  docker-up-frontend   - D\xE9marrer uniquement le frontend"
+	@echo "  docker-down-frontend - Arr\xEAter uniquement le frontend"
+	@echo "  docker-logs-frontend - Logs du frontend"
+	@echo "  shell-frontend       - Ouvrir un shell dans le conteneur frontend"
 	@echo "  alembic-init     - Initialiser Alembic (une seule fois)"
 	@echo "  alembic-migrate  - Créer une nouvelle migration"
 	@echo "  alembic-upgrade  - Appliquer les migrations"
@@ -42,6 +47,22 @@ docker-logs-backend:
 
 docker-logs-postgres:
 	$(DC) logs -f postgres
+
+docker-build-frontend:
+	$(DC) build frontend
+
+docker-up-frontend:
+	$(DC) up -d frontend
+
+docker-down-frontend:
+	$(DC) stop frontend
+	$(DC) rm -f frontend
+
+docker-logs-frontend:
+	$(DC) logs -f frontend
+
+shell-frontend:
+	docker compose exec frontend sh
 
 # Commandes Alembic (toutes dans Docker)
 alembic-init:

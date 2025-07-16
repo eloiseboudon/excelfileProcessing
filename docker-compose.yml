@@ -18,7 +18,7 @@ services:
   backend:
     build:
       context: ./
-      dockerfile: /backend/Dockerfile
+      dockerfile: ./backend/Dockerfile
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ajtpro
       FLASK_ENV: development
@@ -35,7 +35,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: /frontend/Dockerfile
+      dockerfile: ./frontend/Dockerfile
     container_name: ajt_frontend
     ports:
       - "3000:80"
