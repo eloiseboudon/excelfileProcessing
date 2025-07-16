@@ -35,7 +35,7 @@ def main():
         # Nettoyer les tables existantes
         cur.execute(
             """
-            TRUNCATE TABLE suppliers, brands, colors, memory_options, device_types, exclusions, color_translations RESTART IDENTITY CASCADE;
+            TRUNCATE TABLE suppliers, brands, colors, memory_options, device_types, exclusions, color_translations,graph_settings RESTART IDENTITY CASCADE;
         """
         )
         conn.commit()
@@ -53,12 +53,12 @@ def main():
         # Insérer les formats d'import
         cur.execute(
             """
-            INSERT INTO format_imports (supplier_id, column_name, column_type, column_order) VALUES 
-            (1, 'description', 'string', 2), 
-            (1, 'model', 'string', 2), 
-            (1, 'quantity', 'number', 3), 
-            (1, 'sellingprice', 'number', 4), 
-            (1, 'ean', 'number', 7);
+            INSERT INTO format_imports (supplier_id, column_name, column_order) VALUES
+            (1, 'description', 2),
+            (1, 'model', 2),
+            (1, 'quantity', 3),
+            (1, 'selling_price', 4),
+            (1, 'ean', 7);
         """
         )
 
@@ -151,6 +151,14 @@ def main():
         """
         )
 
+        print("📱Ajout produits")
+        cur.execute(
+            """
+            INSERT INTO products (model,description, brand_id, color_id, memory_id, type_id) VALUES
+            ('Apple 20W USB-C Adapter - White', 'Apple 20W USB-C Adapter - White', 2, 1, null,null);
+        """
+        )
+
         # Valider toutes les transactions
         conn.commit()
 
@@ -165,6 +173,7 @@ def main():
             ('exclusions', 'Exclusions'),
             ('color_translations', 'Traductions couleurs'),
             ('graph_settings', 'Paramètres graphiques'),
+            ('products', 'Produits'),
         ]
 
         for table, description in tables:

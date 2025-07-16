@@ -7,35 +7,48 @@ MSG := "Auto migration"
 DC := docker compose
 SERVICE ?=
 
-.PHONY: help docker-build docker-up docker-down docker-logs docker-build-% docker-up-% docker-down-% docker-logs-% shell shell-% alembic-init alembic-migrate alembic-upgrade alembic-current alembic-history clean-branches frontend-dev npm-fix npm-clean docker-build-fix implement-tables reset-database check-tables list-brands list-colors network-debug test-connectivity fix-network
+.PHONY: help docker-build docker-up docker-down docker-logs docker-build-% docker-up-% docker-down-% docker-logs-% shell shell-% alembic-init alembic-migrate alembic-upgrade alembic-current alembic-history clean-branches frontend-dev npm-fix npm-clean docker-build-fix implement-tables reset-database check-tables list-brands list-colors network-debug test-connectivity test-api test-frontend test-database test-all fix-network dev-start dev-stop dev-restart-backend dev-restart-frontend dev-logs dev-logs-backend dev-logs-frontend dev-status
 
 help:
 	@echo "Commandes disponibles:"
+	@echo ""
+	@echo "🚀 DÉVELOPPEMENT (Hot-Reload):"
+	@echo "  dev-start                 - Démarrer l'environnement de développement"
+	@echo "  dev-stop                  - Arrêter l'environnement de développement"
+	@echo "  dev-status                - Voir le statut du développement"
+	@echo "  dev-logs                  - Voir les logs en temps réel"
+	@echo "  dev-restart-backend       - Redémarrer seulement le backend"
+	@echo "  dev-restart-frontend      - Redémarrer seulement le frontend"
+	@echo ""
+	@echo "🐳 DOCKER:"
 	@echo "  docker-build [SERVICE=nom] - Construire les images Docker"
 	@echo "  docker-build-fix          - Construire avec correction des dépendances"
 	@echo "  docker-up [SERVICE=nom]    - Démarrer les services"
 	@echo "  docker-down [SERVICE=nom]  - Arrêter les services"
 	@echo "  docker-logs [SERVICE=nom]  - Voir les logs"
+	@echo ""
+	@echo "🌐 FRONTEND:"
 	@echo "  npm-fix                   - Corriger les dépendances npm"
 	@echo "  npm-clean                 - Nettoyage complet npm"
 	@echo "  frontend-dev              - Démarrer le frontend en mode développement"
 	@echo "  frontend-build            - Construire le frontend"
 	@echo "  frontend-logs             - Voir les logs du frontend"
-	@echo "  shell-<service>           - Ouvrir un shell dans un conteneur"
+	@echo ""
+	@echo "🗃️ BASE DE DONNÉES:"
 	@echo "  alembic-init              - Initialiser Alembic (une seule fois)"
 	@echo "  alembic-migrate           - Créer une nouvelle migration"
 	@echo "  alembic-upgrade           - Appliquer les migrations"
-	@echo "  alembic-current           - Voir la version actuelle"
-	@echo "  alembic-history           - Voir l'historique des migrations"
 	@echo "  implement-tables          - Implémenter les tables avec les données initiales"
 	@echo "  reset-database            - Réinitialiser complètement la base de données"
 	@echo "  check-tables              - Vérifier le contenu des tables"
-	@echo "  list-brands               - Lister les marques"
-	@echo "  list-colors               - Lister les couleurs"
-	@echo "  network-debug             - Diagnostiquer les problèmes réseau"
+	@echo ""
+	@echo "🧪 TESTS:"
 	@echo "  test-connectivity         - Tester la connectivité entre services"
-	@echo "  fix-network               - Corriger les problèmes réseau"
-	@echo "  clean-branches            - Supprimer les branches git locales"
+	@echo "  test-api                  - Tester toutes les APIs"
+	@echo "  test-all                  - Exécuter tous les tests"
+	@echo "  network-debug             - Diagnostiquer les problèmes réseau"
+	@echo ""
+	@echo "🏗️ SETUP:"
 	@echo "  dev-setup                 - Configuration complète pour le développement"
 	@echo "  prod-setup                - Configuration pour la production"
 
@@ -209,7 +222,7 @@ alembic-init:
 	@echo "Alembic initialisé. Pensez à configurer env.py"
 
 alembic-migrate:
-	docker compose run --rm backend alembic revision --autogenerate -m "$(MSG)"
+	docker compose run --rm backend alembic revision --autogenerate -m $(MSG)
 	@echo "Migration créée avec le message: $(MSG)"
 
 alembic-upgrade:
@@ -285,13 +298,45 @@ network-debug:
 test-connectivity:
 	@echo "=== Test de connectivité ==="
 	@echo "Frontend -> Backend:"
-	@docker compose exec frontend curl -I http://backend:5001 2>/dev/null || echo "❌ Échec"
+	@docker compose exec frontend curl -I http://backend:5001 2>/dev/null && echo "✅ Frontend -> Backend OK" || echo "❌ Frontend -> Backend KO"
 	@echo "Backend -> Database:"
-	@docker compose exec backend python -c "import psycopg2; import os; psycopg2.connect(os.getenv('DATABASE_URL')); print('✅ Connexion DB OK')" 2>/dev/null || echo "❌ Échec DB"
+	@docker compose exec backend python -c "import psycopg2; import os; psycopg2.connect(os.getenv('DATABASE_URL')); print('✅ Backend -> Database OK')" 2>/dev/null || echo "❌ Backend -> Database KO"
 	@echo "External -> Frontend:"
-	@curl -I http://localhost:3000 2>/dev/null && echo "✅ Frontend OK" || echo "❌ Frontend KO"
+	@curl -I http://localhost:3000 2>/dev/null && echo "✅ External -> Frontend OK" || echo "❌ External -> Frontend KO"
 	@echo "External -> Backend:"
-	@curl -I http://localhost:5001 2>/dev/null && echo "✅ Backend OK" || echo "❌ Backend KO"
+	@curl -I http://localhost:5001 2>/dev/null && echo "✅ External -> Backend OK" || echo "❌ External -> Backend KO"
+	@echo "Backend API endpoints:"
+	@curl -s http://localhost:5001/health 2>/dev/null | grep -q "healthy" && echo "✅ Health endpoint OK" || echo "❌ Health endpoint KO"
+	@curl -s http://localhost:5001/api/brands 2>/dev/null | grep -q "brands" && echo "✅ Brands API OK" || echo "❌ Brands API KO"
+	@curl -s http://localhost:5001/api/colors 2>/dev/null | grep -q "colors" && echo "✅ Colors API OK" || echo "❌ Colors API KO"
+
+test-api:
+	@echo "=== Test des APIs ==="
+	@echo "Health Check:"
+	@curl -s http://localhost:5001/health | python -m json.tool 2>/dev/null || echo "❌ Health API non disponible"
+	@echo -e "\nBrands API:"
+	@curl -s http://localhost:5001/api/brands | python -m json.tool 2>/dev/null || echo "❌ Brands API non disponible"
+	@echo -e "\nColors API:"
+	@curl -s http://localhost:5001/api/colors | python -m json.tool 2>/dev/null || echo "❌ Colors API non disponible"
+	@echo -e "\nSuppliers API:"
+	@curl -s http://localhost:5001/api/suppliers | python -m json.tool 2>/dev/null || echo "❌ Suppliers API non disponible"
+
+test-frontend:
+	@echo "=== Test du Frontend ==="
+	@echo "Accès au frontend:"
+	@curl -I http://localhost:3000 2>/dev/null && echo "✅ Frontend accessible" || echo "❌ Frontend non accessible"
+	@echo "Test JavaScript (si disponible):"
+	@curl -s http://localhost:3000 | grep -q "root" && echo "✅ Index.html chargé" || echo "❌ Index.html non chargé"
+
+test-database:
+	@echo "=== Test de la base de données ==="
+	@echo "Connexion à la base de données:"
+	@docker compose exec backend python -c "import psycopg2; import os; conn = psycopg2.connect(os.getenv('DATABASE_URL')); cur = conn.cursor(); cur.execute('SELECT 1'); print('✅ Database connection OK'); cur.close(); conn.close()" 2>/dev/null || echo "❌ Database connection failed"
+	@echo "Test des données:"
+	@docker compose exec backend python -c "import psycopg2; import os; conn = psycopg2.connect(os.getenv('DATABASE_URL')); cur = conn.cursor(); cur.execute('SELECT COUNT(*) FROM brands'); print(f'✅ Brands in DB: {cur.fetchone()[0]}'); cur.close(); conn.close()" 2>/dev/null || echo "❌ No brands data"
+
+test-all: test-connectivity test-api test-frontend test-database
+	@echo "=== Tous les tests terminés ==="
 
 fix-network:
 	@echo "=== Tentative de correction réseau ==="
@@ -317,8 +362,59 @@ dev-setup-quick: docker-up alembic-upgrade implement-tables
 prod-setup: docker-build docker-up alembic-upgrade implement-tables
 	@echo "Environnement de production prêt!"
 
-dev-frontend: frontend-dev
-	@echo "Frontend de développement avec hot-reload démarré"
+# Commandes spéciales pour le développement
+dev-start:
+	@echo "=== Démarrage environnement de développement ==="
+	@echo "🔧 Démarrage des services backend + database..."
+	@$(DC) up -d postgres backend
+	@echo "⏳ Attente du backend..."
+	@sleep 5
+	@echo "🎨 Démarrage du frontend avec hot-reload..."
+	@$(DC) --profile dev up -d frontend-dev
+	@echo "✅ Environnement de développement prêt:"
+	@echo "  - Backend (hot-reload): http://localhost:5001"
+	@echo "  - Frontend (hot-reload): http://localhost:5173"
+	@echo "  - Database: localhost:5432"
+	@echo ""
+	@echo "💡 Modifications automatiquement détectées:"
+	@echo "  - Backend: Toute modification .py dans backend/"
+	@echo "  - Frontend: Toute modification dans frontend/src/"
+
+dev-stop:
+	@echo "=== Arrêt environnement de développement ==="
+	@$(DC) stop backend postgres frontend-dev
+	@echo "✅ Environnement de développement arrêté"
+
+dev-restart-backend:
+	@echo "=== Redémarrage backend seulement ==="
+	@$(DC) restart backend
+	@echo "✅ Backend redémarré"
+
+dev-restart-frontend:
+	@echo "=== Redémarrage frontend seulement ==="
+	@$(DC) --profile dev restart frontend-dev
+	@echo "✅ Frontend redémarré"
+
+dev-logs:
+	@echo "=== Logs du développement ==="
+	@$(DC) logs -f backend frontend-dev
+
+dev-logs-backend:
+	@echo "=== Logs backend ==="
+	@$(DC) logs -f backend
+
+dev-logs-frontend:
+	@echo "=== Logs frontend ==="
+	@$(DC) logs -f frontend-dev
+
+dev-status:
+	@echo "=== Statut développement ==="
+	@echo "Services actifs:"
+	@$(DC) ps postgres backend frontend-dev
+	@echo ""
+	@echo "Test de connectivité:"
+	@curl -s http://localhost:5001/health >/dev/null 2>&1 && echo "✅ Backend: OK" || echo "❌ Backend: KO"
+	@curl -s http://localhost:5173 >/dev/null 2>&1 && echo "✅ Frontend: OK" || echo "❌ Frontend: KO"
 
 dev-reset: docker-down
 	docker volume rm $$(docker volume ls -q | grep postgres_data) 2>/dev/null || true

@@ -1,0 +1,38 @@
+# backend/Dockerfile.dev
+FROM python:3.13-slim
+
+# Installer les dépendances système
+RUN apt-get update && apt-get install -y \
+    gcc \
+    postgresql-client \
+    make \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Définir le répertoire de travail
+WORKDIR /app
+
+# Copier les requirements
+COPY backend/requirements.txt .
+
+# Installer les dépendances Python
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Installer watchdog pour un meilleur hot-reload
+RUN pip install watchdog
+
+# Copier le script de démarrage
+COPY backend/dev-start.sh .
+RUN chmod +x dev-start.sh
+
+# Variables d'environnement pour le développement
+ENV FLASK_ENV=development
+ENV FLASK_DEBUG=1
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+
+# Exposer le port
+EXPOSE 5001
+
+# Commande par défaut
+CMD ["./dev-start.sh"]

@@ -24,8 +24,11 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ajtpro
       FLASK_ENV: development
-      FRONTEND_URL: http://localhost:3000
-      CORS_ORIGINS: "http://localhost:3000,http://frontend:80"
+      FLASK_APP: app.py
+      FLASK_DEBUG: 1
+      PYTHONPATH: /app
+      FRONTEND_URL: http://localhost:5173,http://localhost:3000
+      CORS_ORIGINS: "http://localhost:3000,http://localhost:5173,http://frontend:80,http://frontend-dev:5173"
     volumes:
       - ./backend:/app
     container_name: ajt_backend
@@ -38,6 +41,7 @@ services:
     networks:
       - app-network
     restart: unless-stopped
+    command: python -m flask run --host=0.0.0.0 --port=5001 --reload
 
   frontend:
     build:

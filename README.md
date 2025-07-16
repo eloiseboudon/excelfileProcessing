@@ -145,6 +145,7 @@ L'application expose notamment les routes :
 - `POST /upload` : envoi d'un fichier Excel pour importer plusieurs produits.
 - `POST /import` : importe un fichier Excel dans `temp_imports` et crée les références
   correspondantes.
+- `POST /import_preview` : renvoie un aperçu des 5 premières lignes valides avant import.
 - `GET /product_calculations/count` : renvoie le nombre de résultats de calcul disponibles.
 
 Dans l'application React, le fichier traité est automatiquement transmis au backend via l'endpoint `/upload`. L'import du référentiel utilise quant à lui l'endpoint `/import`.

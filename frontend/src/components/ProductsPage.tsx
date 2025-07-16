@@ -1,5 +1,8 @@
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import * as XLSX from 'xlsx';
+import MultiSelectFilter from './MultiSelectFilter';
+import { getCurrentTimestamp } from '../utils/date';
 import { fetchProductCalculations } from '../api';
 import ProductReference from './ProductReference';
 import WeekToolbar from './WeekToolbar';
@@ -35,7 +38,8 @@ function ProductsPage({ onBack }: ProductsPageProps) {
   const [rawData, setRawData] = useState<ProductCalculation[]>([]);
   const [data, setData] = useState<AggregatedProduct[]>([]);
   const [suppliers, setSuppliers] = useState<string[]>([]);
-  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [filters, setFilters] = useState<Record<string, string | string[]>>({});
+  const [editedPrices, setEditedPrices] = useState<Record<number, number>>({});
   const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
   const [showColumnMenu, setShowColumnMenu] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -54,7 +58,7 @@ function ProductsPage({ onBack }: ProductsPageProps) {
     { key: 'memory', label: 'Mémoire' },
     { key: 'color', label: 'Couleur' },
     { key: 'type', label: 'Type' },
-    { key: 'averagePrice', label: 'Prix de vente (moy)' }
+    { key: 'averagePrice', label: 'Prix de vente conseillé' }
   ];
 
   const columns = [
@@ -195,17 +199,17 @@ function ProductsPage({ onBack }: ProductsPageProps) {
 
   const filteredData = data.filter((row) =>
     baseColumns.every((col) => {
-      if (!filters[col.key]) return true;
+      const filterVal = filters[col.key];
+      if (!filterVal || (Array.isArray(filterVal) && filterVal.length === 0)) {
+        return true;
+      }
       const value = (row as any)[col.key];
       if (['brand', 'memory', 'color', 'type'].includes(col.key)) {
-        return (
-          String(value ?? '').toLowerCase() ===
-          filters[col.key].toLowerCase()
-        );
+        return (filterVal as string[]).includes(String(value ?? ''));
       }
       return String(value ?? '')
         .toLowerCase()
-        .includes(filters[col.key].toLowerCase());
+        .includes((filterVal as string).toLowerCase());
     })
   );
 
@@ -225,6 +229,65 @@ function ProductsPage({ onBack }: ProductsPageProps) {
     setVisibleColumns((prev) =>
       prev.includes(key) ? prev.filter((c) => c !== key) : [...prev, key]
     );
+  };
+
+  const buildExportRows = () =>
+    filteredData.map((row) => {
+      const obj: Record<string, any> = {};
+      columns.forEach((c) => {
+        if (!visibleColumns.includes(c.key)) return;
+        let val: any = (row as any)[c.key];
+        if (c.key.startsWith('pv_')) {
+          const sup = c.key.slice(3);
+          val = row.supplierPrices[sup];
+        }
+        if (c.key === 'averagePrice' && editedPrices[row.id] !== undefined) {
+          val = editedPrices[row.id];
+        }
+        obj[c.label] = val;
+      });
+      return obj;
+    });
+
+  const handleExportExcel = () => {
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(buildExportRows());
+    XLSX.utils.book_append_sheet(wb, ws, 'Data');
+    XLSX.writeFile(wb, `tcp_marge_${getCurrentTimestamp()}.xlsx`);
+  };
+
+  const handleExportJSON = () => {
+    const dataStr = JSON.stringify(buildExportRows(), null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `tcp_marge_${getCurrentTimestamp()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportHtml = () => {
+    const rows = buildExportRows();
+    if (!rows.length) return;
+    const headers = Object.keys(rows[0]);
+    const tableHead = headers.map((h) => `<th>${h}</th>`).join('');
+    const tableRows = rows
+      .map(
+        (r) =>
+          `<tr>${headers
+            .map((h) => `<td>${r[h] ?? ''}</td>`)
+            .join('')}</tr>`
+      )
+      .join('');
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Export TCP/Marge</title></head><body><table border="1"><thead><tr>${tableHead}</tr></thead><tbody>${tableRows}</tbody></table></body></html>`;
+    const newWin = window.open('', '_blank');
+    if (newWin) {
+      newWin.document.write(html);
+      newWin.document.close();
+    }
   };
 
   const paginationControls = (
@@ -318,6 +381,17 @@ function ProductsPage({ onBack }: ProductsPageProps) {
             )}
           </div>
           {paginationControls}
+          <div className="flex space-x-2 my-4">
+            <button onClick={handleExportExcel} className="btn btn-secondary">
+              Export Excel
+            </button>
+            <button onClick={handleExportJSON} className="btn btn-secondary">
+              Export JSON
+            </button>
+            <button onClick={handleExportHtml} className="btn btn-secondary">
+              Voir HTML
+            </button>
+          </div>
           <div className="overflow-auto mt-4">
             <table className="table">
               <thead>
@@ -338,31 +412,25 @@ function ProductsPage({ onBack }: ProductsPageProps) {
                         <th key={col.key} className="px-3 py-1 border-b border-zinc-700">
                           {baseColumns.some((c) => c.key === col.key) ? (
                             ['brand', 'memory', 'color', 'type'].includes(col.key) ? (
-                              <select
-                                value={filters[col.key] || ''}
-                                onChange={(e) =>
-                                  setFilters({ ...filters, [col.key]: e.target.value })
-                                }
-                                className="w-full px-2 py-1 bg-zinc-900 border border-zinc-600 rounded"
-                              >
-                                <option value="">Tous</option>
-                                {(col.key === 'brand'
-                                  ? brandOptions
-                                  : col.key === 'memory'
+                              <MultiSelectFilter
+                                options={
+                                  col.key === 'brand'
+                                    ? brandOptions
+                                    : col.key === 'memory'
                                     ? memoryOptions
                                     : col.key === 'color'
-                                      ? colorOptions
-                                      : typeOptions
-                                ).map((opt) => (
-                                  <option key={opt} value={opt}>
-                                    {opt}
-                                  </option>
-                                ))}
-                              </select>
+                                    ? colorOptions
+                                    : typeOptions
+                                }
+                                selected={(filters[col.key] as string[]) || []}
+                                onChange={(selected) =>
+                                  setFilters({ ...filters, [col.key]: selected })
+                                }
+                              />
                             ) : (
                               <input
                                 type="text"
-                                value={filters[col.key] || ''}
+                                value={(filters[col.key] as string) || ''}
                                 onChange={(e) =>
                                   setFilters({ ...filters, [col.key]: e.target.value })
                                 }
@@ -398,7 +466,26 @@ function ProductsPage({ onBack }: ProductsPageProps) {
                             key={col.key}
                             className={`px-3 py-1 border-b border-zinc-700 ${isMin ? 'text-green-400' : ''}`}
                           >
-                            {value !== undefined ? String(value) : ''}
+                            {col.key === 'averagePrice' ? (
+                              <input
+                                type="number"
+                                value={editedPrices[row.id] ?? row.averagePrice}
+                                onChange={(e) => {
+                                  const v = Number(e.target.value);
+                                  setEditedPrices({ ...editedPrices, [row.id]: v });
+                                  setData((prev) =>
+                                    prev.map((p) =>
+                                      p.id === row.id ? { ...p, averagePrice: v } : p
+                                    )
+                                  );
+                                }}
+                                className="w-20 px-1 bg-zinc-700 rounded"
+                              />
+                            ) : value !== undefined ? (
+                              String(value)
+                            ) : (
+                              ''
+                            )}
                           </td>
                         );
                       })}
