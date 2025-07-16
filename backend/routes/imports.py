@@ -1,5 +1,5 @@
-from datetime import datetime
 import os
+from datetime import datetime
 
 import pandas as pd
 from flask import Blueprint, jsonify, request
@@ -105,7 +105,10 @@ def preview_import():
     if supplier_id:
         mappings = FormatImport.query.filter_by(supplier_id=supplier_id).all()
         if not mappings:
-            return jsonify({"error": "Format d'import non trouvé pour ce fournisseur"}), 400
+            return (
+                jsonify({"error": "Format d'import non trouvé pour ce fournisseur"}),
+                400,
+            )
 
     for m in mappings:
         if m.column_order is None or not m.column_name:
@@ -114,11 +117,18 @@ def preview_import():
         if 0 <= idx < len(df.columns):
             df[(m.column_name or "").lower()] = df.iloc[:, idx]
 
-    required_columns = [(m.column_name or "").lower() for m in mappings if m.column_name]
+    required_columns = [
+        (m.column_name or "").lower() for m in mappings if m.column_name
+    ]
     missing_columns = [c for c in required_columns if c not in df.columns]
     if missing_columns:
         return (
-            jsonify({"error": "Missing columns after mapping: " + ", ".join(missing_columns)}),
+            jsonify(
+                {
+                    "error": "Missing columns after mapping: "
+                    + ", ".join(missing_columns)
+                }
+            ),
             400,
         )
 
@@ -200,11 +210,6 @@ def create_import():
     df = pd.read_excel(file)
     df.columns = [str(c).lower().strip() for c in df.columns]
 
-    # Cast common numeric columns up front as everything is read as text
-    for col in ["quantity", "selling_price"]:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
-
     # Prepare invalid rows log
     log_dir = os.path.join(os.path.dirname(__file__), "..", "log")
     os.makedirs(log_dir, exist_ok=True)
@@ -213,18 +218,54 @@ def create_import():
     log_entries = ["line\tdescription\treason"]
 
     # Apply column mappings defined for the supplier if available
-    mappings = []
-    if supplier_id:
-        mappings = FormatImport.query.filter_by(supplier_id=supplier_id).all()
-        if not mappings:
-            current_app.logger.error("Aucun format d'import défini pour ce fournisseur")
-            return (
-                jsonify({"error": "Format d'import non trouvé pour ce fournisseur"}),
-                400,
-            )
+    mappings = FormatImport.query.filter_by(supplier_id=supplier_id).all()
+    if not mappings:
+        current_app.logger.error("Aucun format d'import défini pour ce fournisseur")
+        return (
+            jsonify({"error": "Format d'import non trouvé pour ce fournisseur"}),
+            400,
+        )
 
-    # Map Excel columns to standardized names. Duplicate column_order values
-    # are allowed and will copy data from the same source column.
+    # Find mappings for quantity, selling_price, description and model
+    quantity_mapping = next(
+        (m for m in mappings if m.column_name and m.column_name.lower() == "quantity"),
+        None,
+    )
+    selling_price_mapping = next(
+        (
+            m
+            for m in mappings
+            if m.column_name and m.column_name.lower() == "selling_price"
+        ),
+        None,
+    )
+    description_mapping = next(
+        (
+            m
+            for m in mappings
+            if m.column_name and m.column_name.lower() == "description"
+        ),
+        None,
+    )
+    model_mapping = next(
+        (m for m in mappings if m.column_name and m.column_name.lower() == "model"),
+        None,
+    )
+
+    if not quantity_mapping or not selling_price_mapping or not description_mapping:
+        current_app.logger.error(
+            "Les colonnes quantity, selling_price et description doivent être configurées dans le format d'import"
+        )
+        return (
+            jsonify(
+                {
+                    "error": "Les colonnes quantity, selling_price et description doivent être configurées dans le format d'import"
+                }
+            ),
+            400,
+        )
+
+    # Map Excel columns to standardized names
     for m in mappings:
         if m.column_order is None or not m.column_name:
             continue
@@ -235,6 +276,12 @@ def create_import():
     required_columns = [
         (m.column_name or "").lower() for m in mappings if m.column_name
     ]
+
+    # Process description column
+    if description_mapping:
+        description_col = description_mapping.column_name.lower()
+        if description_col in df.columns:
+            df[description_col] = df[description_col].astype(str).str.strip()
     missing_columns = [c for c in required_columns if c not in df.columns]
     if missing_columns:
         current_app.logger.error(
@@ -262,21 +309,29 @@ def create_import():
     invalid_rows = 0
 
     for idx, row in df.iterrows():
-        reason = ""
+        # Get quantity and selling_price using their mappings
+        quantity_col = quantity_mapping.column_name.lower()
+        selling_price_col = selling_price_mapping.column_name.lower()
+        description_col = description_mapping.column_name.lower()
+        model_col = model_mapping.column_name.lower() if model_mapping else None
+        quantity = row.get(quantity_col)
+        selling_price = row.get(selling_price_col)
 
-        quantity = row.get("quantity")
-        selling_price = row.get("selling_price")
         if pd.isna(quantity) or pd.isna(selling_price):
             invalid_rows += 1
             log_entries.append(
-                f"{idx + 2}\t{row.get('description', '')}\tinvalid quantity or selling_price"
+                f"{idx + 2}\t{row.get(description_col, '')}\tinvalid quantity or selling_price-{row.get(quantity_col, '')}-{row.get(selling_price_col, '')}"
             )
             continue
 
         count_new += 1
+        # Get description and model using their mappings
+        description = row.get(description_col)
+        model = row.get(model_col) if model_col else description
+
         temp = TemporaryImport(
-            description=row.get("description"),
-            model=row.get("model") or row.get("description"),
+            description=description,
+            model=model,
             quantity=int(quantity),
             selling_price=float(selling_price),
             supplier_id=supplier_id,

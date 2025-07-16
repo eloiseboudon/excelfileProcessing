@@ -57,7 +57,7 @@ def main():
             (1, 'description', 2),
             (1, 'model', 2),
             (1, 'quantity', 3),
-            (1, 'sellingprice', 4),
+            (1, 'selling_price', 4),
             (1, 'ean', 7);
         """
         )
