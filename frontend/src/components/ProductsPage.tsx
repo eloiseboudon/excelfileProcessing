@@ -46,6 +46,7 @@ function ProductsPage({ onBack }: ProductsPageProps) {
   const [typeOptions, setTypeOptions] = useState<string[]>([]);
   const [tab, setTab] = useState<'calculations' | 'reference'>('calculations');
   const notify = useNotification();
+  const hasEdits = Object.keys(editedPrices).length > 0;
 
   const baseColumns: { key: string; label: string }[] = [
     { key: 'id', label: 'ID' },
@@ -351,7 +352,11 @@ function ProductsPage({ onBack }: ProductsPageProps) {
           </div>
           {paginationControls}
           <div className="flex space-x-2 my-4">
-            <button onClick={handleSavePrices} className="btn btn-primary">
+            <button
+              onClick={handleSavePrices}
+              className="btn btn-primary"
+              disabled={!hasEdits}
+            >
               Enregistrer
             </button>
             <button onClick={handleExportExcel} className="btn btn-secondary">
