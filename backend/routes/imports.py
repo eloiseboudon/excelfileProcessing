@@ -117,11 +117,17 @@ def create_import():
     df_raw = df.copy()
 
     # Apply column mappings defined for the supplier if available
-    mappings = (
-        FormatImport.query.filter_by(supplier_id=supplier_id).all()
-        if supplier_id
-        else []
-    )
+    mappings = []
+    if supplier_id:
+        mappings = FormatImport.query.filter_by(supplier_id=supplier_id).all()
+        if not mappings:
+            current_app.logger.error(
+                "Aucun format d'import défini pour ce fournisseur"
+            )
+            return (
+                jsonify({"error": "Format d'import non trouvé pour ce fournisseur"}),
+                400,
+            )
     by_name = {
         (m.column_name or '').lower(): (m.column_type or '').lower()
         for m in mappings
@@ -187,32 +193,12 @@ def create_import():
             continue
 
         count_new += 1
-        ean_raw = row.get("ean")
-
-        # When column mappings are misconfigured pandas may return a Series
-        # instead of a scalar. In that case just grab the first value.
-        if isinstance(ean_raw, pd.Series):
-            ean_raw = ean_raw.iloc[0]
-
-        ean_str = str(ean_raw).strip()
-
-        # Consider empty strings and values like "unknown" as missing so we
-        # generate a unique placeholder. This prevents UNIQUE constraint
-        # violations when suppliers use repeated dummy values.
-        if pd.isna(ean_raw) or ean_str == "" or ean_str.lower() == "unknown":
-            # The database field is limited to 20 characters, so truncate the
-            # generated UUID accordingly.
-            ean_value = uuid.uuid4().hex[:20]
-        else:
-            # Truncate real EANs that exceed the column length to avoid errors.
-            ean_value = ean_str[:20]
-
         temp = TemporaryImport(
             description=row.get("description"),
             model=row.get("model") or row.get("description"),
             quantity=row.get("quantity"),
             selling_price=row.get("selling_price"),
-            ean=ean_value,
+            ean=uuid.uuid4().hex[:20],
             supplier_id=supplier_id,
         )
         db.session.add(temp)
