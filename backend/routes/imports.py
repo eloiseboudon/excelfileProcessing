@@ -134,7 +134,6 @@ def create_import():
         if 0 <= idx < len(df.columns):
             df[(m.column_name or "").lower()] = df.iloc[:, idx]
 
-
     required_columns = [
         (m.column_name or "").lower() for m in mappings if m.column_name
     ]
