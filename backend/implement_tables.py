@@ -35,7 +35,7 @@ def main():
         # Nettoyer les tables existantes
         cur.execute(
             """
-            TRUNCATE TABLE suppliers, brands, colors, memory_options, device_types, exclusions, color_translations RESTART IDENTITY CASCADE;
+            TRUNCATE TABLE suppliers, brands, colors, memory_options, device_types, exclusions, color_translations,graph_settings RESTART IDENTITY CASCADE;
         """
         )
         conn.commit()
