@@ -5,7 +5,6 @@ import pandas as pd
 from flask import Blueprint, jsonify, request
 from models import FormatImport, ImportHistory, TemporaryImport, db
 from sqlalchemy import extract
-
 from utils.calculations import recalculate_product_calculations
 
 bp = Blueprint("imports", __name__)
@@ -83,6 +82,22 @@ def create_import():
       200:
         description: Import result
     """
+
+    from flask import current_app
+
+    current_app.logger.debug(f"Headers: {request.headers}")
+    current_app.logger.debug(f"Content-Type: {request.content_type}")
+
+    if request.content_type == 'application/json':
+        data = request.get_json()
+        current_app.logger.debug(f"JSON reçu: {data}")
+    elif request.content_type.startswith('multipart/form-data'):
+        current_app.logger.debug(f"Fichiers: {request.files}")
+        current_app.logger.debug(f"Formulaire: {request.form}")
+    else:
+        raw_data = request.data
+        current_app.logger.debug(f"Raw data: {raw_data}")
+
     if "file" not in request.files:
         return jsonify({"error": "No file provided"}), 400
 
@@ -132,17 +147,25 @@ def create_import():
     if "description" in df.columns:
         df["description"] = df["description"].astype(str).str.strip()
 
+    current_app.logger.debug(f"Colonnes du DataFrame final : {df.columns.tolist()}")
+    current_app.logger.debug(
+        f"Premières lignes du DataFrame :\n{df.head().to_string()}"
+    )
+
     expected_types = {
-        (m.column_name or "").lower(): (m.column_type or "").lower()
-        for m in mappings
+        (m.column_name or "").lower(): (m.column_type or "").lower() for m in mappings
     }
 
     count_new = 0
     invalid_rows = 0
     count_update = 0
 
-    # The EAN column is unreliable and may be missing or empty.
-    # Do not use it to filter or deduplicate rows.
+    required_columns = ["description", "model", "quantity", "selling_price"]
+    missing = [col for col in required_columns if col not in df.columns]
+    if missing:
+        current_app.logger.warning(
+            f"Colonnes manquantes dans le fichier Excel : {missing}"
+        )
 
     for idx, row in df.iterrows():
         raw_row = df_raw.iloc[idx]
@@ -186,7 +209,7 @@ def create_import():
 
         temp = TemporaryImport(
             description=row.get("description"),
-            model=row.get("model", row.get("description")),
+            model=row.get("model") or row.get("description"),
             quantity=row.get("quantity"),
             selling_price=row.get("selling_price"),
             ean=ean_value,
@@ -202,7 +225,14 @@ def create_import():
     db.session.add(history)
     db.session.commit()
 
-    return jsonify({"status": "success", "new": count_new, "updated": count_update, "invalid": invalid_rows})
+    return jsonify(
+        {
+            "status": "success",
+            "new": count_new,
+            "updated": count_update,
+            "invalid": invalid_rows,
+        }
+    )
 
 
 @bp.route("/last_import/<int:supplier_id>", methods=["GET"])
