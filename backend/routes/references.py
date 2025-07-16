@@ -11,7 +11,6 @@ from models import (
     Supplier,
     db,
 )
-
 from utils.calculations import update_product_calculations_for_memory_option
 
 bp = Blueprint("references", __name__)
@@ -64,7 +63,7 @@ def get_reference_table(table):
     """
     model = _model_mapping().get(table)
     if not model:
-        return jsonify({"error": "Unknown table"}), 400
+        return jsonify({"error": "Table inconnue"}), 400
     items = model.query.all()
 
     def serialize(obj):
@@ -130,7 +129,7 @@ def update_reference_item(table, item_id):
     """
     model = _model_mapping().get(table)
     if not model:
-        return jsonify({"error": "Unknown table"}), 400
+        return jsonify({"error": "Table inconnue"}), 400
     item = model.query.get_or_404(item_id)
     data = request.json or {}
     old_source = None
@@ -171,7 +170,7 @@ def create_reference_item(table):
     """
     model = _model_mapping().get(table)
     if not model:
-        return jsonify({"error": "Unknown table"}), 400
+        return jsonify({"error": "Table inconnue"}), 400
     data = request.json or {}
     item = model(**data)
     db.session.add(item)
@@ -203,7 +202,7 @@ def delete_reference_item(table, item_id):
     """
     model = _model_mapping().get(table)
     if not model:
-        return jsonify({"error": "Unknown table"}), 400
+        return jsonify({"error": "Table inconnue"}), 400
     item = model.query.get_or_404(item_id)
     db.session.delete(item)
     db.session.commit()

@@ -99,6 +99,8 @@ docker-restart: docker-down docker-up
 docker-logs:
 	$(DC) logs -f $(SERVICE)
 
+docker-front: docker-down-frontend docker-build-frontend docker-up-frontend
+
 # Frontend specific commands
 frontend-build:
 	$(DC) build frontend

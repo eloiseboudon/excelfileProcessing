@@ -3,7 +3,6 @@ from io import BytesIO
 
 import pandas as pd
 from flask import Blueprint, jsonify, request, send_file
-from sqlalchemy import func
 from models import (
     Brand,
     ImportHistory,
@@ -12,7 +11,7 @@ from models import (
     TemporaryImport,
     db,
 )
-
+from sqlalchemy import func
 from utils.calculations import recalculate_product_calculations
 
 bp = Blueprint("products", __name__)
@@ -260,7 +259,7 @@ def refresh():
     """
     ProductCalculation.query.delete()
     TemporaryImport.query.delete()
-    return jsonify({"status": "success", "message": "Product calculations empty"})
+    return jsonify({"status": "success", "message": "Calculations produits vides"})
 
 
 @bp.route("/refresh_week", methods=["POST"])
@@ -287,12 +286,12 @@ def refresh_week():
     """
     data = request.get_json(silent=True)
     if not data or "dates" not in data:
-        return jsonify({"error": "No date provided"}), 400
+        return jsonify({"error": "Aucune date fournie"}), 400
 
     try:
         date_objs = [datetime.fromisoformat(d) for d in data["dates"]]
     except Exception:
-        return jsonify({"error": "Invalid date format"}), 400
+        return jsonify({"error": "Format de date invalide"}), 400
 
     week_ranges = {}
     for d in date_objs:
@@ -315,7 +314,7 @@ def refresh_week():
     return jsonify(
         {
             "status": "success",
-            "message": "Product calculations and import history empty for selected weeks",
+            "message": "Calculations produits et historique importations vides pour les semaines sélectionnées",
         }
     )
 
@@ -410,7 +409,7 @@ def bulk_update_products():
     """
     items = request.get_json(silent=True) or []
     if not isinstance(items, list):
-        return jsonify({"error": "Invalid payload"}), 400
+        return jsonify({"error": "Payload invalide"}), 400
 
     fields = [
         "ean",
