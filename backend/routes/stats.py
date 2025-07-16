@@ -21,7 +21,14 @@ def _parse_week(w):
 @bp.route("/price_stats", methods=["GET"])
 def price_stats():
     """Return average prices per week. If a product_id is supplied, results are
-    grouped by supplier, otherwise aggregated globally."""
+    grouped by supplier, otherwise aggregated globally.
+    ---
+    tags:
+      - Stats
+    responses:
+      200:
+        description: List of graph settings
+    """
 
     supplier_id = request.args.get("supplier_id", type=int)
     brand_id = request.args.get("brand_id", type=int)
@@ -104,6 +111,12 @@ def brand_supplier_average():
     - brand_id: filter on a specific brand
     - supplier_id: filter on a specific supplier
     - start_week / end_week: limit to a week range
+    ---
+    tags:
+      - Stats
+    responses:
+      200:
+        description: Average price grouped by brand and supplier
     """
 
     supplier_id = request.args.get("supplier_id", type=int)
@@ -160,6 +173,12 @@ def product_supplier_average():
     - product_id: filter on a specific product
     - supplier_id: filter on a specific supplier
     - start_week / end_week: limit to a week range
+    ---
+    tags:
+      - Stats
+    responses:
+      200:
+        description: Average price grouped by product and supplier
     """
 
     supplier_id = request.args.get("supplier_id", type=int)

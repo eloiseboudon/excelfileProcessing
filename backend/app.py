@@ -1,3 +1,4 @@
+import logging
 import os
 
 from dotenv import load_dotenv
@@ -48,6 +49,8 @@ def create_app():
 
 if __name__ == "__main__":
     app = create_app()
+    app.logger.setLevel(logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG)
     host = os.getenv("FLASK_HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "5001"))
     app.run(host=host, port=port)

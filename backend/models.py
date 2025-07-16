@@ -26,7 +26,7 @@ class TemporaryImport(db.Model):
     model = db.Column(db.String(200), nullable=True)
     quantity = db.Column(db.Integer)
     selling_price = db.Column(db.Float)
-    ean = db.Column(db.String(20), nullable=False)
+    ean = db.Column(db.String(20), nullable=True)
 
     # Champs pour stocker les valeurs extraites
     brand_id = db.Column(db.Integer, db.ForeignKey("brands.id"), nullable=True)
@@ -181,6 +181,18 @@ class ImportHistory(db.Model):
     )
     product_count = db.Column(db.Integer, nullable=False)
     import_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
+class FormatImport(db.Model):
+    __tablename__ = "format_imports"
+
+    id = db.Column(db.Integer, primary_key=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=True)
+    supplier = db.relationship(
+        "Supplier", backref=db.backref("format_imports", lazy=True)
+    )
+    column_name = db.Column(db.String(50), nullable=True)
+    column_order = db.Column(db.Integer, nullable=True)
 
 
 class GraphSetting(db.Model):

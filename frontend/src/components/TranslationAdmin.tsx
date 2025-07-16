@@ -7,6 +7,7 @@ import {
   deleteReferenceItem,
   fetchColors
 } from '../api';
+import { useNotification } from './NotificationProvider';
 
 interface TranslationAdminProps {
   onClose: () => void;
@@ -21,6 +22,7 @@ function TranslationAdmin({ isVisible, onClose }: TranslationAdminProps) {
   const [table, setTable] = useState<string | null>(null);
   const [data, setData] = useState<any[]>([]);
   const [colors, setColors] = useState<any[]>([]);
+  const notify = useNotification();
 
   useEffect(() => {
     if (isVisible && table) {
@@ -74,8 +76,10 @@ function TranslationAdmin({ isVisible, onClose }: TranslationAdminProps) {
     try {
       if (id < 0) {
         await createReferenceItem(table!, payload);
+        notify('Entrée créée', 'success');
       } else {
         await updateReferenceItem(table!, id, payload);
+        notify('Entrée mise à jour', 'success');
       }
       await load(table!);
     } catch {
@@ -89,6 +93,7 @@ function TranslationAdmin({ isVisible, onClose }: TranslationAdminProps) {
         setData((prev) => prev.filter((i) => i.id !== id));
       } else {
         await deleteReferenceItem(table!, id);
+        notify('Entrée supprimée', 'success');
         await load(table!);
       }
     } catch {

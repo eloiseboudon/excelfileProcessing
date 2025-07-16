@@ -1,4 +1,4 @@
-import { Calculator, LibraryBig, Palette, Settings, BarChart2 } from 'lucide-react';
+import { BarChart2, Calculator, LibraryBig, Settings } from 'lucide-react';
 import { useState } from 'react';
 import { fetchApitest } from './api';
 import AdminPage from './components/AdminPage';
@@ -17,7 +17,7 @@ function App() {
       await fetchApitest();
       setApiTestMessage('Connexion réussie !');
     } catch {
-      setApiTestMessage("Erreur lors de la connexion à l'API");
+      setApiTestMessage("Impossible de se connecter à l'API. Vérifiez la configuration du serveur.");
     }
   };
 
@@ -28,22 +28,14 @@ function App() {
       <div className="bg-black/50 backdrop-blur border-b border-[#B8860B]/20">
         <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap justify-center gap-2 sm:gap-4">
-              <button
-                onClick={() => setCurrentPage('processing')}
-                className={`btn px-6 py-3 ${currentPage === 'processing' ? 'btn-primary' : 'btn-secondary'}`}
-              >
-                <Calculator className="w-5 h-5" />
-                <span>Étape 1 - Calculs et Traitement</span>
-              </button>
-              <button
-                onClick={() => setCurrentPage('formatting')}
-                className={`btn px-6 py-3 ${currentPage === 'formatting' ? 'btn-primary' : 'btn-secondary'}`}
-              >
-                <Palette className="w-5 h-5" />
-                <span>Étape 2 - Mise en Forme</span>
-              </button>
-            </div>
+
+            <button
+              onClick={() => setCurrentPage('processing')}
+              className={`btn px-6 py-3 ${currentPage === 'processing' ? 'btn-primary' : 'btn-secondary'}`}
+            >
+              <Calculator className="w-5 h-5" />
+              <span>Calculs et Traitement</span>
+            </button>
             <button
               onClick={() => setCurrentPage('products')}
               className={`btn px-6 py-3 ${currentPage === 'products' ? 'btn-primary' : 'btn-secondary'}`}

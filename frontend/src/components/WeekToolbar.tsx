@@ -1,4 +1,3 @@
-import { Download } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { exportCalculations } from '../api';
 import { getCurrentTimestamp, getCurrentWeekYear } from '../utils/date';
@@ -18,7 +17,7 @@ function WeekToolbar() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } catch {
-      setMessage('Erreur lors du téléchargement');
+      setMessage('Le téléchargement du fichier a échoué. Veuillez réessayer.');
     }
   }, []);
 
@@ -27,13 +26,13 @@ function WeekToolbar() {
       <div className="flex flex-col sm:flex-row sm:justify-between items-center gap-4">
         <div className="flex items-center gap-4">
           <span className="text-zinc-400">Semaine en cours : {getCurrentWeekYear()}</span>
-          <button
+          {/* <button
             onClick={handleDownload}
             className="px-4 py-2 bg-[#B8860B] text-black rounded-lg flex items-center space-x-2 hover:bg-[#B8860B]/90 font-semibold"
           >
             <Download className="w-5 h-5" />
             <span>Télécharger</span>
-          </button>
+          </button> */}
         </div>
       </div>
       {message && (

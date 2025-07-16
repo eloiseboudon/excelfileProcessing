@@ -1,0 +1,36 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Installer les dépendances système
+RUN apk add --no-cache git curl
+
+# Copier les fichiers package
+COPY frontend/package*.json ./
+
+# Installer toutes les dépendances de manière robuste
+RUN npm install || (rm -f package-lock.json && npm install)
+
+# Copier le code source
+COPY frontend/ .
+
+# Créer le script de démarrage
+RUN echo '#!/bin/sh' > /app/start-dev.sh && \
+    echo 'echo "=== Démarrage du serveur de développement ==="' >> /app/start-dev.sh && \
+    echo 'echo "Répertoire: $(pwd)"' >> /app/start-dev.sh && \
+    echo 'echo "Contenu: $(ls -la)"' >> /app/start-dev.sh && \
+    echo 'echo "=== Vérification des dépendances ==="' >> /app/start-dev.sh && \
+    echo 'if [ ! -d "node_modules" ]; then npm install; fi' >> /app/start-dev.sh && \
+    echo 'echo "=== Démarrage Vite ==="' >> /app/start-dev.sh && \
+    echo 'exec npm run dev' >> /app/start-dev.sh && \
+    chmod +x /app/start-dev.sh
+
+# Exposer le port
+EXPOSE 5173
+
+# Utiliser l'utilisateur node pour la sécurité
+RUN chown -R node:node /app
+USER node
+
+# Commande de démarrage
+CMD ["/app/start-dev.sh"]

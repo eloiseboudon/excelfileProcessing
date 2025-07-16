@@ -1,7 +1,70 @@
-.git
+# Dossiers généraux
 node_modules
-dist
-dist-ssr
-backend/.venv
-**/__pycache__
-**/*.pyc
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Fichiers de build
+build/
+dist/
+.next/
+out/
+
+# Fichiers de développement
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Fichiers de test
+coverage/
+.nyc_output/
+
+# Fichiers de cache
+.cache/
+.parcel-cache/
+
+# Fichiers de logs
+*.log
+logs/
+
+# Fichiers temporaires
+tmp/
+temp/
+
+# Fichiers de l'IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+README.md
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Backend spécifique
+backend/__pycache__/
+backend/*.pyc
+backend/.venv/
+backend/alembic/
+backend/migrations/
+
+# Frontend spécifique (pour le build frontend)
+frontend/node_modules/
+frontend/build/
+frontend/coverage/
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local

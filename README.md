@@ -145,6 +145,7 @@ L'application expose notamment les routes :
 - `POST /upload` : envoi d'un fichier Excel pour importer plusieurs produits.
 - `POST /import` : importe un fichier Excel dans `temp_imports` et crée les références
   correspondantes.
+- `POST /import_preview` : renvoie un aperçu des 5 premières lignes valides avant import.
 - `GET /product_calculations/count` : renvoie le nombre de résultats de calcul disponibles.
 
 Dans l'application React, le fichier traité est automatiquement transmis au backend via l'endpoint `/upload`. L'import du référentiel utilise quant à lui l'endpoint `/import`.
@@ -166,17 +167,23 @@ Il n'existe pas encore de tests automatisés mais `pytest` est configuré pour u
 Une configuration Docker est fournie pour lancer rapidement l'API Flask et la base PostgreSQL.
 
 ```bash
-# Construire les images
+# Construire les images pour tous les services
 make docker-build
+# ou seulement pour le frontend
+make docker-build SERVICE=frontend
 
 # Démarrer l'environnement en arrière-plan
 make docker-up
+# ou uniquement le frontend
+make docker-up SERVICE=frontend
 
 # Consulter les logs
-make docker-logs
+make docker-logs SERVICE=frontend
 
 # Arrêter les conteneurs
 make docker-down
+# ou uniquement le frontend
+make docker-down SERVICE=frontend
 ```
 
 Par défaut l'image utilise **Python 3.12** et **PostgreSQL 16**. La base de données est accessible sur `localhost:5432` et l'API Flask sur `localhost:5001`.
