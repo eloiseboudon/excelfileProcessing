@@ -127,15 +127,50 @@ def create_import():
                 jsonify({"error": "Format d'import non trouvé pour ce fournisseur"}),
                 400,
             )
-    by_order = {
-        m.column_order: (m.column_name or '').lower()
-        for m in mappings
-        if m.column_order is not None
-    }
+    by_order = {}
+    duplicate_orders = []
+    for m in mappings:
+        if m.column_order is None:
+            continue
+        idx = m.column_order - 1
+        if idx in by_order:
+            duplicate_orders.append(m.column_order)
+        else:
+            by_order[idx] = (m.column_name or "").lower()
+    if duplicate_orders:
+        current_app.logger.error(
+            f"Duplicated column_order values for supplier {supplier_id}: {duplicate_orders}"
+        )
+        return (
+            jsonify(
+                {
+                    "error": "Duplicate column orders found for this supplier."
+                }
+            ),
+            400,
+        )
 
     for idx, col in enumerate(list(df.columns)):
         if idx in by_order:
             df.rename(columns={col: by_order[idx]}, inplace=True)
+
+    required_columns = [
+        (m.column_name or "").lower() for m in mappings if m.column_name
+    ]
+    missing_columns = [c for c in required_columns if c not in df.columns]
+    if missing_columns:
+        current_app.logger.error(
+            f"Required columns missing after renaming: {missing_columns}"
+        )
+        return (
+            jsonify(
+                {
+                    "error": "Missing columns after mapping: "
+                    + ", ".join(missing_columns)
+                }
+            ),
+            400,
+        )
 
 
     if "description" in df.columns:
