@@ -27,7 +27,7 @@ services:
       FLASK_APP: app.py
       FLASK_DEBUG: 1
       PYTHONPATH: /app
-      FRONTEND_URL: http://localhost:3000
+      FRONTEND_URL: http://localhost:5173,http://localhost:3000
       CORS_ORIGINS: "http://localhost:3000,http://localhost:5173,http://frontend:80,http://frontend-dev:5173"
     volumes:
       - ./backend:/app
@@ -56,8 +56,7 @@ services:
       - app-network
     restart: unless-stopped
     environment:
-      - REACT_APP_API_URL=http://localhost:5001
-      - VITE_API_URL=http://localhost:5001
+      - VITE_API_BASE=http://localhost:5001
 
   # Service optionnel pour le développement
   frontend-dev:
@@ -75,8 +74,7 @@ services:
     networks:
       - app-network
     environment:
-      - REACT_APP_API_URL=http://localhost:5001
-      - VITE_API_URL=http://localhost:5001
+      - VITE_API_BASE=http://localhost:5001
     profiles:
       - dev
 
