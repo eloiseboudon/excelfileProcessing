@@ -49,7 +49,9 @@ FROM nginx:stable-alpine
 RUN rm -rf /usr/share/nginx/html/*
 
 # Copier le build React vers nginx (Vite génère dans dist/ par défaut)
-COPY --from=builder /app/dist /usr/share/nginx/html
+# Vite place le résultat du build dans le dossier "build" (voir outDir de
+# vite.config.ts). On le copie donc vers le dossier servi par nginx.
+COPY --from=builder /app/build /usr/share/nginx/html
 
 # Copier la config nginx personnalisée
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
