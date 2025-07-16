@@ -220,12 +220,12 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
 
     } catch (err) {
       console.error('Error processing files:', err);
-      setError(
+      const message =
         err instanceof Error
           ? err.message
-          : 'Le traitement des fichiers a échoué. Veuillez vérifier les fichiers et réessayer.'
-      );
-      notify('Erreur lors du traitement des fichiers', 'error');
+          : 'Le traitement des fichiers a échoué. Veuillez vérifier les fichiers et réessayer.';
+      setError(message);
+      notify(message, 'error');
       setProcessedFile(null);
     } finally {
       setIsProcessing(false);
