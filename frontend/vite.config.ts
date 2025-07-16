@@ -1,5 +1,5 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -7,4 +7,24 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
-});
+  root: './',
+  build: {
+    outDir: 'build',
+    sourcemap: false,
+    minify: 'esbuild',
+    emptyOutDir: true
+  },
+  server: {
+    host: '0.0.0.0',
+    port: 5173,
+    strictPort: true,
+    watch: {
+      usePolling: true
+    }
+  },
+  preview: {
+    host: '0.0.0.0',
+    port: 4173,
+    strictPort: true
+  }
+})
