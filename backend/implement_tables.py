@@ -151,6 +151,14 @@ def main():
         """
         )
 
+        print("📱Ajout produits")
+        cur.execute(
+            """
+            INSERT INTO products (model,description, brand_id, color_id, memory_id, type_id) VALUES
+            ('Apple 20W USB-C Adapter - White', 'Apple 20W USB-C Adapter - White', 2, 1, null,null);
+        """
+        )
+
         # Valider toutes les transactions
         conn.commit()
 
@@ -165,6 +173,7 @@ def main():
             ('exclusions', 'Exclusions'),
             ('color_translations', 'Traductions couleurs'),
             ('graph_settings', 'Paramètres graphiques'),
+            ('products', 'Produits'),
         ]
 
         for table, description in tables:
