@@ -6,6 +6,7 @@ import {
   fetchMemoryOptions,
   fetchDeviceTypes,
   bulkUpdateProducts,
+  createProduct,
 } from '../api';
 import MultiSelectFilter from './MultiSelectFilter';
 
@@ -139,14 +140,59 @@ function ProductReference() {
     }));
   };
 
-  const saveAll = async () => {
-    const payload = Object.entries(edited).map(([id, changes]) => ({
-      id: Number(id),
-      ...changes,
+  const handleAdd = () => {
+    const id = Date.now() * -1;
+    setProducts((prev) => [
+      ...prev,
+      {
+        id,
+        ean: '',
+        model: '',
+        description: '',
+        brand_id: null,
+        brand: null,
+        memory_id: null,
+        memory: null,
+        color_id: null,
+        color: null,
+        type_id: null,
+        type: null,
+      },
+    ]);
+    setEdited((prev) => ({
+      ...prev,
+      [id]: {
+        ean: '',
+        model: '',
+        description: '',
+        brand_id: null,
+        memory_id: null,
+        color_id: null,
+        type_id: null,
+      },
     }));
-    if (!payload.length) return;
+  };
+
+  const saveAll = async () => {
+    const toCreate: any[] = [];
+    const toUpdate: any[] = [];
+    Object.entries(edited).forEach(([id, changes]) => {
+      const numId = Number(id);
+      if (numId < 0) {
+        const { brand, memory, color, type, ...rest } = {
+          ...(changes as any),
+        };
+        toCreate.push(rest);
+      } else {
+        toUpdate.push({ id: numId, ...(changes as any) });
+      }
+    });
+    if (!toCreate.length && !toUpdate.length) return;
     try {
-      await bulkUpdateProducts(payload);
+      await Promise.all(toCreate.map((p) => createProduct(p)));
+      if (toUpdate.length) {
+        await bulkUpdateProducts(toUpdate);
+      }
       setEdited({});
       const res = await fetchProducts();
       setProducts(res as ProductItem[]);
@@ -198,28 +244,36 @@ function ProductReference() {
   return (
     <div>
       <div className="flex justify-between mb-4">
-        <div className="relative">
+        <div className="flex space-x-2">
+          <div className="relative">
+            <button
+              onClick={() => setShowColumnMenu((s) => !s)}
+              className="px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700"
+            >
+              Colonnes
+            </button>
+            {showColumnMenu && (
+              <div className="absolute z-10 mt-2 p-4 bg-zinc-900 border border-zinc-700 rounded shadow-xl grid grid-cols-2 gap-2">
+                {columns.map((col) => (
+                  <label key={col.key} className="flex items-center space-x-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={visibleColumns.includes(col.key)}
+                      onChange={() => toggleColumn(col.key)}
+                      className="rounded"
+                    />
+                    <span>{col.label}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
           <button
-            onClick={() => setShowColumnMenu((s) => !s)}
-            className="px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700"
+            onClick={handleAdd}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
-            Colonnes
+            Ajouter
           </button>
-          {showColumnMenu && (
-            <div className="absolute z-10 mt-2 p-4 bg-zinc-900 border border-zinc-700 rounded shadow-xl grid grid-cols-2 gap-2">
-              {columns.map((col) => (
-                <label key={col.key} className="flex items-center space-x-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={visibleColumns.includes(col.key)}
-                    onChange={() => toggleColumn(col.key)}
-                    className="rounded"
-                  />
-                  <span>{col.label}</span>
-                </label>
-              ))}
-            </div>
-          )}
         </div>
         <button
           onClick={saveAll}
