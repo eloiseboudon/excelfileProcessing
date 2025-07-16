@@ -114,21 +114,21 @@ def create_import():
 
     df = pd.read_excel(file)
     df.columns = [str(c).lower().strip() for c in df.columns]
-    df_raw = df.copy()
 
     # Apply column mappings defined for the supplier if available
-    mappings = (
-        FormatImport.query.filter_by(supplier_id=supplier_id).all()
-        if supplier_id
-        else []
-    )
-    by_name = {
-        (m.column_name or '').lower(): (m.column_type or '').lower()
-        for m in mappings
-        if m.column_name
-    }
+    mappings = []
+    if supplier_id:
+        mappings = FormatImport.query.filter_by(supplier_id=supplier_id).all()
+        if not mappings:
+            current_app.logger.error(
+                "Aucun format d'import défini pour ce fournisseur"
+            )
+            return (
+                jsonify({"error": "Format d'import non trouvé pour ce fournisseur"}),
+                400,
+            )
     by_order = {
-        m.column_order: (m.column_type or '').lower()
+        m.column_order: (m.column_name or '').lower()
         for m in mappings
         if m.column_order is not None
     }
@@ -137,12 +137,6 @@ def create_import():
         if idx in by_order:
             df.rename(columns={col: by_order[idx]}, inplace=True)
 
-    for src, target in by_name.items():
-        if src in df.columns:
-            df.rename(columns={src: target}, inplace=True)
-
-    if "sellingprice" in df.columns and "selling_price" not in df.columns:
-        df.rename(columns={"sellingprice": "selling_price"}, inplace=True)
 
     if "description" in df.columns:
         df["description"] = df["description"].astype(str).str.strip()
@@ -160,20 +154,12 @@ def create_import():
     invalid_rows = 0
     count_update = 0
 
-    required_columns = ["description", "model", "quantity", "selling_price"]
-    missing = [col for col in required_columns if col not in df.columns]
-    if missing:
-        current_app.logger.warning(
-            f"Colonnes manquantes dans le fichier Excel : {missing}"
-        )
-
     for idx, row in df.iterrows():
-        raw_row = df_raw.iloc[idx]
         valid = True
         for col, typ in expected_types.items():
-            if col not in raw_row:
+            if col not in row:
                 continue
-            val = raw_row[col]
+            val = row[col]
             if typ == "number":
                 if pd.isna(pd.to_numeric(val, errors="coerce")):
                     valid = False
@@ -187,32 +173,12 @@ def create_import():
             continue
 
         count_new += 1
-        ean_raw = row.get("ean")
-
-        # When column mappings are misconfigured pandas may return a Series
-        # instead of a scalar. In that case just grab the first value.
-        if isinstance(ean_raw, pd.Series):
-            ean_raw = ean_raw.iloc[0]
-
-        ean_str = str(ean_raw).strip()
-
-        # Consider empty strings and values like "unknown" as missing so we
-        # generate a unique placeholder. This prevents UNIQUE constraint
-        # violations when suppliers use repeated dummy values.
-        if pd.isna(ean_raw) or ean_str == "" or ean_str.lower() == "unknown":
-            # The database field is limited to 20 characters, so truncate the
-            # generated UUID accordingly.
-            ean_value = uuid.uuid4().hex[:20]
-        else:
-            # Truncate real EANs that exceed the column length to avoid errors.
-            ean_value = ean_str[:20]
-
         temp = TemporaryImport(
             description=row.get("description"),
             model=row.get("model") or row.get("description"),
             quantity=row.get("quantity"),
             selling_price=row.get("selling_price"),
-            ean=ean_value,
+            ean=uuid.uuid4().hex[:20],
             supplier_id=supplier_id,
         )
         db.session.add(temp)
