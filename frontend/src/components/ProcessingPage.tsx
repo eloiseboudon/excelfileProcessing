@@ -67,7 +67,6 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZone
         droppedFile?.type === 'application/vnd.ms-excel'
       ) {
         onFileChange(supplier.id, droppedFile);
-        previewFile(droppedFile);
       }
     },
     [supplier.id, onFileChange]
@@ -78,7 +77,6 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZone
       const selectedFile = e.target.files?.[0];
       if (selectedFile) {
         onFileChange(supplier.id, selectedFile);
-        previewFile(selectedFile);
       }
     },
     [supplier.id, onFileChange]

@@ -13,10 +13,10 @@ function ImportPreviewModal({ rows, onClose }: ImportPreviewModalProps) {
   const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-      <div className="bg-zinc-900 p-6 rounded-lg border border-zinc-700 max-w-2xl w-full">
+      <div className="bg-zinc-900 p-6 rounded-lg border border-zinc-700 max-w-4xl w-5/6">
         <h2 className="text-xl font-semibold mb-4">Prévisualisation de l'import</h2>
         {rows.length > 0 ? (
-          <div className="overflow-auto max-h-96 mb-4">
+          <div className="overflow-auto max-h-[60vh] mb-4">
             <table className="table">
               <thead>
                 <tr>
