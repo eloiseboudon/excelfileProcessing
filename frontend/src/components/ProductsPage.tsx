@@ -54,7 +54,7 @@ function ProductsPage({ onBack }: ProductsPageProps) {
     { key: 'memory', label: 'Mémoire' },
     { key: 'color', label: 'Couleur' },
     { key: 'type', label: 'Type' },
-    { key: 'averagePrice', label: 'Prix de vente (moy)' }
+    { key: 'averagePrice', label: 'Prix de vente conseillé' }
   ];
 
   const columns = [
