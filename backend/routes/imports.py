@@ -115,6 +115,11 @@ def create_import():
     df = pd.read_excel(file)
     df.columns = [str(c).lower().strip() for c in df.columns]
 
+    # Cast common numeric columns up front as everything is read as text
+    for col in ["quantity", "selling_price"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+
     # Prepare invalid rows log
     log_dir = os.path.join(os.path.dirname(__file__), "..", "log")
     os.makedirs(log_dir, exist_ok=True)
@@ -199,8 +204,8 @@ def create_import():
             )
             continue
 
-        quantity = pd.to_numeric(row.get("quantity"), errors="coerce")
-        selling_price = pd.to_numeric(row.get("selling_price"), errors="coerce")
+        quantity = row.get("quantity")
+        selling_price = row.get("selling_price")
         if pd.isna(quantity) or pd.isna(selling_price):
             invalid_rows += 1
             log_entries.append(
@@ -212,8 +217,8 @@ def create_import():
         temp = TemporaryImport(
             description=row.get("description"),
             model=row.get("model") or row.get("description"),
-            quantity=row.get("quantity"),
-            selling_price=row.get("selling_price"),
+            quantity=int(quantity),
+            selling_price=float(selling_price),
             supplier_id=supplier_id,
         )
         db.session.add(temp)
