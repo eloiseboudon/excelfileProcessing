@@ -222,7 +222,7 @@ alembic-init:
 	@echo "Alembic initialisé. Pensez à configurer env.py"
 
 alembic-migrate:
-	docker compose run --rm backend alembic revision --autogenerate -m "$(MSG)"
+	docker compose run --rm backend alembic revision --autogenerate -m $(MSG)
 	@echo "Migration créée avec le message: $(MSG)"
 
 alembic-upgrade:

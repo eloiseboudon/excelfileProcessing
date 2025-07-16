@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime
 
 import pandas as pd
@@ -120,9 +119,7 @@ def create_import():
     if supplier_id:
         mappings = FormatImport.query.filter_by(supplier_id=supplier_id).all()
         if not mappings:
-            current_app.logger.error(
-                "Aucun format d'import défini pour ce fournisseur"
-            )
+            current_app.logger.error("Aucun format d'import défini pour ce fournisseur")
             return (
                 jsonify({"error": "Format d'import non trouvé pour ce fournisseur"}),
                 400,
@@ -136,7 +133,6 @@ def create_import():
     for idx, col in enumerate(list(df.columns)):
         if idx in by_order:
             df.rename(columns={col: by_order[idx]}, inplace=True)
-
 
     if "description" in df.columns:
         df["description"] = df["description"].astype(str).str.strip()
@@ -152,7 +148,6 @@ def create_import():
 
     count_new = 0
     invalid_rows = 0
-    count_update = 0
 
     for idx, row in df.iterrows():
         valid = True
@@ -178,7 +173,6 @@ def create_import():
             model=row.get("model") or row.get("description"),
             quantity=row.get("quantity"),
             selling_price=row.get("selling_price"),
-            ean=uuid.uuid4().hex[:20],
             supplier_id=supplier_id,
         )
         db.session.add(temp)
@@ -195,7 +189,6 @@ def create_import():
         {
             "status": "success",
             "new": count_new,
-            "updated": count_update,
             "invalid": invalid_rows,
         }
     )
