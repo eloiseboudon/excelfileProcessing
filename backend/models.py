@@ -192,7 +192,6 @@ class FormatImport(db.Model):
         "Supplier", backref=db.backref("format_imports", lazy=True)
     )
     column_name = db.Column(db.String(50), nullable=True)
-    column_type = db.Column(db.String(50), nullable=True)
     column_order = db.Column(db.Integer, nullable=True)
 
 
