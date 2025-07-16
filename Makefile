@@ -7,7 +7,7 @@ MSG := "Auto migration"
 DC := docker compose
 SERVICE ?=
 
-.PHONY: help docker-build docker-up docker-down docker-logs docker-build-% docker-up-% docker-down-% docker-logs-% shell shell-% alembic-init alembic-migrate alembic-upgrade alembic-current alembic-history clean-branches frontend-dev npm-fix npm-clean docker-build-fix
+.PHONY: help docker-build docker-up docker-down docker-logs docker-build-% docker-up-% docker-down-% docker-logs-% shell shell-% alembic-init alembic-migrate alembic-upgrade alembic-current alembic-history clean-branches frontend-dev npm-fix npm-clean docker-build-fix implement-tables reset-database check-tables list-brands list-colors
 
 help:
 	@echo "Commandes disponibles:"
@@ -27,6 +27,11 @@ help:
 	@echo "  alembic-upgrade           - Appliquer les migrations"
 	@echo "  alembic-current           - Voir la version actuelle"
 	@echo "  alembic-history           - Voir l'historique des migrations"
+	@echo "  implement-tables          - Implémenter les tables avec les données initiales"
+	@echo "  reset-database            - Réinitialiser complètement la base de données"
+	@echo "  check-tables              - Vérifier le contenu des tables"
+	@echo "  list-brands               - Lister les marques"
+	@echo "  list-colors               - Lister les couleurs"
 	@echo "  clean-branches            - Supprimer les branches git locales"
 	@echo "  dev-setup                 - Configuration complète pour le développement"
 	@echo "  prod-setup                - Configuration pour la production"
@@ -218,14 +223,62 @@ alembic-current:
 alembic-history:
 	docker compose exec backend alembic history --verbose
 
+# Commandes de gestion des données
+implement-tables:
+	@echo "=== Implémentation des tables avec les données initiales ==="
+	docker compose exec backend python implement_tables.py
+	@echo "Tables implémentées avec succès ✅"
+
+implement-tables-run:
+	@echo "=== Implémentation des tables (avec run si le conteneur n'est pas démarré) ==="
+	docker compose run --rm backend python implement_tables.py
+	@echo "Tables implémentées avec succès ✅"
+
+reset-database:
+	@echo "=== Réinitialisation complète de la base de données ==="
+	@echo "⚠️  ATTENTION: Ceci va supprimer toutes les données existantes!"
+	@read -p "Êtes-vous sûr de vouloir continuer? (y/N): " confirm && [ "$confirm" = "y" ] || exit 1
+	@make implement-tables
+	@echo "Base de données réinitialisée ✅"
+
+populate-db: implement-tables
+	@echo "Alias pour implement-tables"
+
+seed-database: implement-tables
+	@echo "Alias pour implement-tables"
+
+# Commandes de vérification des données
+check-tables:
+	@echo "=== Vérification des tables ==="
+	@echo "Suppliers:"
+	@docker compose exec backend python -c "import psycopg2; import os; conn = psycopg2.connect(os.getenv('DATABASE_URL')); cur = conn.cursor(); cur.execute('SELECT COUNT(*) FROM suppliers'); print(f'  - {cur.fetchone()[0]} suppliers'); cur.close(); conn.close()"
+	@echo "Brands:"
+	@docker compose exec backend python -c "import psycopg2; import os; conn = psycopg2.connect(os.getenv('DATABASE_URL')); cur = conn.cursor(); cur.execute('SELECT COUNT(*) FROM brands'); print(f'  - {cur.fetchone()[0]} brands'); cur.close(); conn.close()"
+	@echo "Colors:"
+	@docker compose exec backend python -c "import psycopg2; import os; conn = psycopg2.connect(os.getenv('DATABASE_URL')); cur = conn.cursor(); cur.execute('SELECT COUNT(*) FROM colors'); print(f'  - {cur.fetchone()[0]} colors'); cur.close(); conn.close()"
+	@echo "Device Types:"
+	@docker compose exec backend python -c "import psycopg2; import os; conn = psycopg2.connect(os.getenv('DATABASE_URL')); cur = conn.cursor(); cur.execute('SELECT COUNT(*) FROM device_types'); print(f'  - {cur.fetchone()[0]} device types'); cur.close(); conn.close()"
+
+list-brands:
+	@echo "=== Liste des marques ==="
+	@docker compose exec backend python -c "import psycopg2; import os; conn = psycopg2.connect(os.getenv('DATABASE_URL')); cur = conn.cursor(); cur.execute('SELECT brand FROM brands ORDER BY brand'); [print(f'  - {row[0]}') for row in cur.fetchall()]; cur.close(); conn.close()"
+
+list-colors:
+	@echo "=== Liste des couleurs ==="
+	@docker compose exec backend python -c "import psycopg2; import os; conn = psycopg2.connect(os.getenv('DATABASE_URL')); cur = conn.cursor(); cur.execute('SELECT color FROM colors ORDER BY color'); [print(f'  - {row[0]}') for row in cur.fetchall()]; cur.close(); conn.close()"
+
 # Commandes de développement
-dev-setup: docker-build docker-up alembic-upgrade
+dev-setup: docker-build docker-up alembic-upgrade implement-tables
 	@echo "Environnement de développement prêt!"
 	@echo "  - Frontend: http://localhost:3000"
 	@echo "  - Backend: http://localhost:5001"
 	@echo "  - Database: localhost:5432"
+	@echo "  - Tables initialisées avec les données de référence ✅"
 
-prod-setup: docker-build docker-up alembic-upgrade
+dev-setup-quick: docker-up alembic-upgrade implement-tables
+	@echo "Démarrage rapide (sans rebuild) terminé!"
+
+prod-setup: docker-build docker-up alembic-upgrade implement-tables
 	@echo "Environnement de production prêt!"
 
 dev-frontend: frontend-dev
