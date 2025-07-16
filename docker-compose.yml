@@ -18,13 +18,14 @@ services:
   backend:
     build:
       context: ./
-      dockerfile: Dockerfile
+      dockerfile: /backend/Dockerfile
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ajtpro
       FLASK_ENV: development
       FRONTEND_URL: http://localhost:5173
     volumes:
       - ./backend:/app
+    container_name: ajt_backend
     ports:
       - "5001:5001"
     depends_on:
@@ -32,13 +33,13 @@ services:
         condition: service_healthy
     working_dir: /app
   frontend:
-  build:
-    context: .
-    dockerfile: frontend/Dockerfile
-  container_name: ajt_frontend
-  ports:
-    - "3000:80"
-  restart: always
+    build:
+      context: .
+      dockerfile: /frontend/Dockerfile
+    container_name: ajt_frontend
+    ports:
+      - "3000:80"
+    restart: always
 
 volumes:
   postgres_data:
