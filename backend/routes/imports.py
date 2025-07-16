@@ -114,7 +114,6 @@ def create_import():
 
     df = pd.read_excel(file)
     df.columns = [str(c).lower().strip() for c in df.columns]
-    df_raw = df.copy()
 
     # Apply column mappings defined for the supplier if available
     mappings = []
@@ -139,9 +138,6 @@ def create_import():
             df.rename(columns={col: by_order[idx]}, inplace=True)
 
 
-    if "sellingprice" in df.columns and "selling_price" not in df.columns:
-        df.rename(columns={"sellingprice": "selling_price"}, inplace=True)
-
     if "description" in df.columns:
         df["description"] = df["description"].astype(str).str.strip()
 
@@ -158,20 +154,12 @@ def create_import():
     invalid_rows = 0
     count_update = 0
 
-    required_columns = ["description", "model", "quantity", "selling_price"]
-    missing = [col for col in required_columns if col not in df.columns]
-    if missing:
-        current_app.logger.warning(
-            f"Colonnes manquantes dans le fichier Excel : {missing}"
-        )
-
     for idx, row in df.iterrows():
-        raw_row = df_raw.iloc[idx]
         valid = True
         for col, typ in expected_types.items():
-            if col not in raw_row:
+            if col not in row:
                 continue
-            val = raw_row[col]
+            val = row[col]
             if typ == "number":
                 if pd.isna(pd.to_numeric(val, errors="coerce")):
                     valid = False
