@@ -48,9 +48,16 @@ def main():
         admin = User(username="admin", role="admin")
         admin.set_password("admin")
 
+        client = User(username="client", role="client")
+        client.set_password("client")
+
         cur.execute(
             "INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)",
             (admin.username, admin.password_hash, admin.role),
+        )
+        cur.execute(
+            "INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)",
+            (client.username, client.password_hash, client.role),
         )
 
         print("👥 Insertion des fournisseurs...")

@@ -1,13 +1,13 @@
 import { getCurrentTimestamp } from './utils/date';
 
-function fetchWithAuth(input: RequestInfo | URL, init: RequestInit = {}) {
-  const token = localStorage.getItem('ajtpro_token');
-  const headers = new Headers(init.headers || {});
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
-  return fetch(input, { ...init, headers });
-}
+// function fetchWithAuth(input: RequestInfo | URL, init: RequestInit = {}) {
+//   const token = localStorage.getItem('ajtpro_token');
+//   const headers = new Headers(init.headers || {});
+//   if (token) {
+//     headers.set('Authorization', `Bearer ${token}`);
+//   }
+//   return fetch(input, { ...init, headers });
+// }
 
 export const API_BASE = import.meta.env.VITE_API_BASE || '';
 

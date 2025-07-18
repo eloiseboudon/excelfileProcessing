@@ -255,7 +255,6 @@ implement-tables-run:
 reset-database:
 	@echo "=== Réinitialisation complète de la base de données ==="
 	@echo "⚠️  ATTENTION: Ceci va supprimer toutes les données existantes!"
-	@read -p "Êtes-vous sûr de vouloir continuer? (y/N): " confirm && [ "$confirm" = "y" ] || exit 1
 	@make implement-tables
 	@echo "Base de données réinitialisée ✅"
 
