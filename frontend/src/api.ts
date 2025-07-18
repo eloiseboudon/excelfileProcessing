@@ -2,6 +2,12 @@ import { getCurrentTimestamp } from './utils/date';
 
 export const API_BASE = import.meta.env.VITE_API_BASE || '';
 
+
+async function extractErrorMessage(res: Response): Promise<string> {
+  const data = await res.json().catch(() => ({}));
+  return data.message || data.error || 'Une erreur est survenue';
+}
+
 export async function fetchApitest() {
   const res = await fetch(`${API_BASE}/`);
   if (!res.ok) {
@@ -23,7 +29,24 @@ export async function createImport(file: File, supplierId?: number) {
     body: formData
   });
   if (!res.ok) {
-    throw new Error("Échec de l'ajout du produit. Veuillez réessayer.");
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function fetchImportPreview(file: File, supplierId?: number) {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (supplierId !== undefined) {
+    formData.append('supplier_id', String(supplierId));
+  }
+
+  const res = await fetch(`${API_BASE}/import_preview`, {
+    method: 'POST',
+    body: formData
+  });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
@@ -31,7 +54,7 @@ export async function createImport(file: File, supplierId?: number) {
 export async function fetchProducts() {
   const res = await fetch(`${API_BASE}/products`);
   if (!res.ok) {
-    throw new Error('Impossible de charger les produits depuis le serveur.');
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
@@ -43,7 +66,7 @@ export async function createProduct(data: any) {
     body: JSON.stringify(data)
   });
   if (!res.ok) {
-    throw new Error("Échec de la création du produit. Veuillez réessayer.");
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
@@ -55,7 +78,7 @@ export async function updateProduct(id: number, data: any) {
     body: JSON.stringify(data)
   });
   if (!res.ok) {
-    throw new Error("Échec de la mise à jour du produit. Veuillez réessayer.");
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
@@ -67,7 +90,7 @@ export async function bulkUpdateProducts(data: any[]) {
     body: JSON.stringify(data)
   });
   if (!res.ok) {
-    throw new Error("Échec de la mise à jour des produits. Veuillez réessayer.");
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
@@ -77,7 +100,7 @@ export async function deleteProduct(id: number) {
     method: 'DELETE'
   });
   if (!res.ok) {
-    throw new Error("Échec de la suppression du produit. Veuillez réessayer.");
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
@@ -86,7 +109,7 @@ export async function deleteProduct(id: number) {
 export async function fetchLastImport(id: number): Promise<{ import_date: string | null } | {}> {
   const res = await fetch(`${API_BASE}/last_import/${id}`);
   if (!res.ok) {
-    throw new Error("Impossible de récupérer la date d'import.");
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
@@ -94,7 +117,7 @@ export async function fetchLastImport(id: number): Promise<{ import_date: string
 export async function verifyImport(id: number) {
   const res = await fetch(`${API_BASE}/verify_import/${id}`);
   if (!res.ok) {
-    throw new Error("Impossible de vérifier l'import.");
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
@@ -106,7 +129,7 @@ export async function calculateProducts() {
     headers: { 'Content-Type': 'application/json' },
   });
   if (!res.ok) {
-    throw new Error('Le calcul des produits a échoué.');
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
@@ -131,7 +154,7 @@ export async function exportCalculations() {
 export async function fetchSuppliers() {
   const res = await fetch(`${API_BASE}/references/suppliers`);
   if (!res.ok) {
-    throw new Error('Erreur lors du chargement des fournisseurs.');
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
@@ -142,7 +165,7 @@ export async function refreshProduction() {
     headers: { 'Content-Type': 'application/json' },
   });
   if (!res.ok) {
-    throw new Error('Erreur lors du rafraîchissement des données de production.');
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
@@ -155,7 +178,7 @@ export async function refreshProductionByWeek(array_date: Array<Date>) {
     body: JSON.stringify({ dates: array_date.map(date => date.toISOString()) })
   });
   if (!res.ok) {
-    throw new Error('Erreur lors du rafraîchissement des données de production.');
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
@@ -163,7 +186,15 @@ export async function refreshProductionByWeek(array_date: Array<Date>) {
 export async function fetchProductCalculations() {
   const res = await fetch(`${API_BASE}/product_calculation`);
   if (!res.ok) {
-    throw new Error('Erreur lors du chargement des calculs des produits.');
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function fetchProductPriceSummary() {
+  const res = await fetch(`${API_BASE}/product_price_summary`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
@@ -171,7 +202,7 @@ export async function fetchProductCalculations() {
 export async function fetchReferenceTable(table: string) {
   const res = await fetch(`${API_BASE}/references/${table}`);
   if (!res.ok) {
-    throw new Error('Impossible de charger les références demandées.');
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
@@ -183,7 +214,7 @@ export async function updateReferenceItem(table: string, id: number, data: any) 
     body: JSON.stringify(data)
   });
   if (!res.ok) {
-    throw new Error("Impossible de mettre à jour cet élément.");
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
@@ -195,7 +226,7 @@ export async function createReferenceItem(table: string, data: any) {
     body: JSON.stringify(data)
   });
   if (!res.ok) {
-    throw new Error("Impossible de créer cet élément.");
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
@@ -207,7 +238,7 @@ export async function deleteReferenceItem(table: string, id: number) {
     method: 'DELETE'
   });
   if (!res.ok) {
-    throw new Error("Impossible de supprimer cet élément.");
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
@@ -215,7 +246,7 @@ export async function deleteReferenceItem(table: string, id: number) {
 export async function fetchBrands() {
   const res = await fetch(`${API_BASE}/references/brands`);
   if (!res.ok) {
-    throw new Error('Erreur lors du chargement des marques.');
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
@@ -224,7 +255,7 @@ export async function fetchBrands() {
 export async function fetchColors() {
   const res = await fetch(`${API_BASE}/references/colors`);
   if (!res.ok) {
-    throw new Error('Erreur lors du chargement des couleurs.');
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
@@ -232,7 +263,7 @@ export async function fetchColors() {
 export async function fetchMemoryOptions() {
   const res = await fetch(`${API_BASE}/references/memory_options`);
   if (!res.ok) {
-    throw new Error("Erreur lors du chargement des options mémoire.");
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
@@ -240,7 +271,7 @@ export async function fetchMemoryOptions() {
 export async function fetchDeviceTypes() {
   const res = await fetch(`${API_BASE}/references/device_types`);
   if (!res.ok) {
-    throw new Error("Erreur lors du chargement des types d'appareil.");
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
@@ -261,7 +292,7 @@ export async function fetchPriceStats(params?: {
   const query = search.toString();
   const res = await fetch(`${API_BASE}/price_stats${query ? `?${query}` : ''}`);
   if (!res.ok) {
-    throw new Error('Impossible de récupérer les statistiques.');
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
@@ -282,7 +313,7 @@ export async function fetchBrandSupplierAverage(params?: {
     `${API_BASE}/brand_supplier_average${query ? `?${query}` : ''}`
   );
   if (!res.ok) {
-    throw new Error('Impossible de récupérer les statistiques.');
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
@@ -305,7 +336,7 @@ export async function fetchProductSupplierAverage(params?: {
     `${API_BASE}/product_supplier_average${query ? `?${query}` : ''}`
   );
   if (!res.ok) {
-    throw new Error('Impossible de récupérer les statistiques.');
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
@@ -313,7 +344,7 @@ export async function fetchProductSupplierAverage(params?: {
 export async function fetchGraphSettings() {
   const res = await fetch(`${API_BASE}/graph_settings`);
   if (!res.ok) {
-    throw new Error('Erreur lors du chargement des paramètres graphiques.');
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
@@ -325,7 +356,7 @@ export async function updateGraphSetting(name: string, visible: boolean) {
     body: JSON.stringify({ visible })
   });
   if (!res.ok) {
-    throw new Error("Impossible de mettre à jour cet élément.");
+    throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }

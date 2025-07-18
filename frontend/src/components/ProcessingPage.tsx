@@ -10,12 +10,14 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   calculateProducts,
   createImport,
+  fetchImportPreview,
   fetchLastImport,
   fetchSuppliers,
   verifyImport
 } from '../api';
-import { useNotification } from './NotificationProvider';
 import { getCurrentTimestamp, getCurrentWeekYear, getWeekYear } from '../utils/date';
+import ImportPreviewModal from './ImportPreviewModal';
+import { useNotification } from './NotificationProvider';
 
 
 interface ProcessingPageProps {
@@ -39,6 +41,10 @@ interface ImportZoneProps {
 
 function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewRows, setPreviewRows] = useState<any[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const notify = useNotification();
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -76,43 +82,75 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZone
     [supplier.id, onFileChange]
   );
 
+  const previewFile = useCallback(
+    async (f: File) => {
+      setPreviewLoading(true);
+      try {
+        const res = await fetchImportPreview(f, supplier.id);
+        setPreviewRows(res.preview || []);
+        setShowPreview(true);
+      } catch (err) {
+        console.error('preview error', err);
+        const message =
+          err instanceof Error
+            ? err.message
+            : 'Le traitement des fichiers a échoué. Veuillez vérifier les fichiers et réessayer.';
+        notify(message, 'error');
+      } finally {
+        setPreviewLoading(false);
+      }
+    },
+    [supplier.id]
+  );
+
   return (
-    <div className="card p-8">
-      <h2 className="text-xl font-semibold mb-6">Import de {supplier.name}</h2>
-      {lastImportDate && (
-        <p className="text-sm text-zinc-400 mb-2">
-          Dernier import : {getWeekYear(new Date(lastImportDate))} -{' '}
-          {new Date(lastImportDate).toLocaleDateString('fr-FR',
-            {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-            }
-          )} </p>
-      )}
-      <div
-        className={`border-2 border-dashed rounded-xl p-8 transition-all duration-200 ${isDragging ? 'border-[#B8860B] bg-black/50' : 'border-zinc-700 hover:border-[#B8860B]/50'
-          }`}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        <div className="flex flex-col items-center justify-center space-y-4">
-          <FileUp className="w-12 h-12 text-[#B8860B]" />
-          <p className="text-lg text-zinc-300">Glissez votre fichier Excel ici ou</p>
-          <label className="btn btn-primary cursor-pointer">
-            Sélectionnez un fichier
-            <input type="file" className="hidden" accept=".xlsx,.xls" onChange={handleFileChange} />
-          </label>
+    <>
+      <div className="card p-8">
+        <h2 className="text-xl font-semibold mb-6">Import de {supplier.name}</h2>
+        {lastImportDate && (
+          <p className="text-sm text-zinc-400 mb-2">
+            Dernier import : {getWeekYear(new Date(lastImportDate))} -{' '}
+            {new Date(lastImportDate).toLocaleDateString('fr-FR',
+              {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+              }
+            )} </p>
+        )}
+        <div
+          className={`border-2 border-dashed rounded-xl p-8 transition-all duration-200 ${isDragging ? 'border-[#B8860B] bg-black/50' : 'border-zinc-700 hover:border-[#B8860B]/50'
+            }`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <div className="flex flex-col items-center justify-center space-y-4">
+            <FileUp className="w-12 h-12 text-[#B8860B]" />
+            <p className="text-lg text-zinc-300">Glissez votre fichier Excel ici ou</p>
+            <label className="btn btn-primary cursor-pointer">
+              Sélectionnez un fichier
+              <input type="file" className="hidden" accept=".xlsx,.xls" onChange={handleFileChange} />
+            </label>
+          </div>
         </div>
+        {file && (
+          <>
+            <div className="mt-4 flex items-center space-x-3 p-4 bg-zinc-800/50 rounded-lg border border-zinc-700">
+              <FileDown className="w-6 h-6 text-[#B8860B]" />
+              <span className="text-zinc-300 truncate flex-1">{file.name}</span>
+              <button onClick={() => previewFile(file)} className="btn btn-secondary ml-auto">Prévisualiser</button>
+            </div>
+            {previewLoading && (
+              <p className="text-sm text-zinc-400 mt-2">Chargement de la prévisualisation...</p>
+            )}
+          </>
+        )}
       </div>
-      {file && (
-        <div className="mt-4 flex items-center space-x-3 p-4 bg-zinc-800/50 rounded-lg border border-zinc-700">
-          <FileDown className="w-6 h-6 text-[#B8860B]" />
-          <span className="text-zinc-300 truncate">{file.name}</span>
-        </div>
+      {showPreview && (
+        <ImportPreviewModal rows={previewRows} onClose={() => setShowPreview(false)} />
       )}
-    </div>
+    </>
   );
 }
 
@@ -186,12 +224,12 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
 
     } catch (err) {
       console.error('Error processing files:', err);
-      setError(
+      const message =
         err instanceof Error
           ? err.message
-          : 'Le traitement des fichiers a échoué. Veuillez vérifier les fichiers et réessayer.'
-      );
-      notify('Erreur lors du traitement des fichiers', 'error');
+          : 'Le traitement des fichiers a échoué. Veuillez vérifier les fichiers et réessayer.';
+      setError(message);
+      notify(message, 'error');
       setProcessedFile(null);
     } finally {
       setIsProcessing(false);
