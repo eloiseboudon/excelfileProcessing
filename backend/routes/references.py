@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, request
+from utils.auth import token_required
 from models import (
     Brand,
     Color,
@@ -46,6 +47,7 @@ def _update_products_for_color_translation(sources, target_color_id):
 
 
 @bp.route("/references/<table>", methods=["GET"])
+@token_required("admin")
 def get_reference_table(table):
     """Retrieve a full reference table.
 
@@ -104,6 +106,7 @@ def get_reference_table(table):
 
 
 @bp.route("/references/<table>/<int:item_id>", methods=["PUT"])
+@token_required("admin")
 def update_reference_item(table, item_id):
     """Update an item in a reference table.
 
@@ -149,6 +152,7 @@ def update_reference_item(table, item_id):
 
 
 @bp.route("/references/<table>", methods=["POST"])
+@token_required("admin")
 def create_reference_item(table):
     """Create an item in a reference table.
 
@@ -181,6 +185,7 @@ def create_reference_item(table):
 
 
 @bp.route("/references/<table>/<int:item_id>", methods=["DELETE"])
+@token_required("admin")
 def delete_reference_item(table, item_id):
     """Delete an item from a reference table.
 

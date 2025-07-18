@@ -3,6 +3,7 @@ from io import BytesIO
 
 import pandas as pd
 from flask import Blueprint, jsonify, request, send_file
+from utils.auth import token_required
 from models import (
     Brand,
     ImportHistory,
@@ -18,6 +19,7 @@ bp = Blueprint("products", __name__)
 
 
 @bp.route("/product_calculation", methods=["GET"])
+@token_required("admin")
 def list_product_calculations():
     """List calculated product prices.
 
@@ -66,6 +68,7 @@ def list_product_calculations():
 
 
 @bp.route("/product_price_summary", methods=["GET"])
+@token_required()
 def product_price_summary():
     """Return latest supplier prices and average per product."""
 
@@ -120,6 +123,8 @@ def product_price_summary():
             prod = Product.query.get(item["id"])
             if prod:
                 prod.recommended_price = item["recommended_price"]
+        if request.user.role == "client":
+            item.pop("supplier_prices", None)
         result.append(item)
 
     db.session.commit()
@@ -127,6 +132,7 @@ def product_price_summary():
 
 
 @bp.route("/products", methods=["GET"])
+@token_required("admin")
 def list_products():
     """List all products.
 
@@ -160,6 +166,7 @@ def list_products():
 
 
 @bp.route("/product_calculations/count", methods=["GET"])
+@token_required("admin")
 def count_product_calculations():
     """Return the number of product calculations available.
 
@@ -180,6 +187,7 @@ def count_product_calculations():
 
 
 @bp.route("/calculate_products", methods=["POST"])
+@token_required("admin")
 def calculate_products():
     """Calculate pricing for all products in database.
 
@@ -196,6 +204,7 @@ def calculate_products():
 
 
 @bp.route("/export_calculates", methods=["GET"])
+@token_required("admin")
 def export_calculates():
     """Export product calculations to an Excel file.
 
@@ -247,6 +256,7 @@ def export_calculates():
 
 
 @bp.route("/refresh", methods=["POST"])
+@token_required("admin")
 def refresh():
     """Delete all product calculations.
 
@@ -263,6 +273,7 @@ def refresh():
 
 
 @bp.route("/refresh_week", methods=["POST"])
+@token_required("admin")
 def refresh_week():
     """Delete product calculations and import history for specified weeks.
 
@@ -320,6 +331,7 @@ def refresh_week():
 
 
 @bp.route("/products", methods=["POST"])
+@token_required("admin")
 def create_product():
     """Create a new product.
 
@@ -352,6 +364,7 @@ def create_product():
 
 
 @bp.route("/products/<int:product_id>", methods=["PUT"])
+@token_required("admin")
 def update_product(product_id):
     """Update an existing product.
 
@@ -390,6 +403,7 @@ def update_product(product_id):
 
 
 @bp.route("/products/bulk_update", methods=["PUT"])
+@token_required("admin")
 def bulk_update_products():
     """Update multiple products in a single request.
 
@@ -440,6 +454,7 @@ def bulk_update_products():
 
 
 @bp.route("/products/<int:product_id>", methods=["DELETE"])
+@token_required("admin")
 def delete_product(product_id):
     """Delete a product.
 

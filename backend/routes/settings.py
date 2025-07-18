@@ -1,10 +1,12 @@
 from flask import Blueprint, jsonify, request
 from models import GraphSetting, db
+from utils.auth import token_required
 
 bp = Blueprint("settings", __name__)
 
 
 @bp.route("/graph_settings", methods=["GET"])
+@token_required("admin")
 def list_graph_settings():
     """List graph settings.
 
@@ -20,6 +22,7 @@ def list_graph_settings():
 
 
 @bp.route("/graph_settings/<name>", methods=["PUT"])
+@token_required("admin")
 def update_graph_setting(name):
     """Update graph setting visibility.
 

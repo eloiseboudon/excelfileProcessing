@@ -29,9 +29,10 @@ interface AggregatedProduct {
 
 interface ProductsPageProps {
   onBack: () => void;
+  role?: string;
 }
 
-function ProductsPage({ onBack }: ProductsPageProps) {
+function ProductsPage({ onBack, role }: ProductsPageProps) {
   const [data, setData] = useState<AggregatedProduct[]>([]);
   const [suppliers, setSuppliers] = useState<string[]>([]);
   const [filters, setFilters] = useState<Record<string, string | string[]>>({});
@@ -61,13 +62,15 @@ function ProductsPage({ onBack }: ProductsPageProps) {
 
   const columns = [
     ...baseColumns,
-    ...suppliers.map((s) => ({ key: `pv_${s}`, label: `PV ${s}` })),
+    ...(role === 'client' ? [] : suppliers.map((s) => ({ key: `pv_${s}`, label: `PV ${s}` }))),
   ];
 
   useEffect(() => {
-    const allKeys = [...baseColumns.map((c) => c.key), ...suppliers.map((s) => `pv_${s}`)];
+    const allKeys = role === 'client'
+      ? baseColumns.map((c) => c.key)
+      : [...baseColumns.map((c) => c.key), ...suppliers.map((s) => `pv_${s}`)];
     setVisibleColumns(allKeys);
-  }, [suppliers]);
+  }, [suppliers, role]);
 
   useEffect(() => {
     fetchProductPriceSummary()
@@ -318,47 +321,53 @@ function ProductsPage({ onBack }: ProductsPageProps) {
         >
           TCP/Marges
         </button>
-        <button
-          onClick={() => setTab('reference')}
-          className={`btn ${tab === 'reference' ? 'btn-primary' : 'btn-secondary'}`}
-        >
-          Référentiel
-        </button>
+        {role !== 'client' && (
+          <button
+            onClick={() => setTab('reference')}
+            className={`btn ${tab === 'reference' ? 'btn-primary' : 'btn-secondary'}`}
+          >
+            Référentiel
+          </button>
+        )}
       </div>
       {tab === 'calculations' && (
         <>
-          <div className="relative mb-4">
-            <button
-              onClick={() => setShowColumnMenu((s) => !s)}
-              className="btn btn-secondary"
-            >
-              Colonnes
-            </button>
-            {showColumnMenu && (
-              <div className="absolute z-10 mt-2 p-4 bg-zinc-900 border border-zinc-700 rounded shadow-xl grid grid-cols-2 gap-2">
-                {columns.map((col) => (
-                  <label key={col.key} className="flex items-center space-x-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={visibleColumns.includes(col.key)}
-                      onChange={() => toggleColumn(col.key)}
-                      className="rounded"
-                    />
-                    <span>{col.label}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
+          {role !== 'client' && (
+            <div className="relative mb-4">
+              <button
+                onClick={() => setShowColumnMenu((s) => !s)}
+                className="btn btn-secondary"
+              >
+                Colonnes
+              </button>
+              {showColumnMenu && (
+                <div className="absolute z-10 mt-2 p-4 bg-zinc-900 border border-zinc-700 rounded shadow-xl grid grid-cols-2 gap-2">
+                  {columns.map((col) => (
+                    <label key={col.key} className="flex items-center space-x-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={visibleColumns.includes(col.key)}
+                        onChange={() => toggleColumn(col.key)}
+                        className="rounded"
+                      />
+                      <span>{col.label}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           {paginationControls}
           <div className="flex space-x-2 my-4">
-            <button
-              onClick={handleSavePrices}
-              className="btn btn-primary"
-              disabled={!hasEdits}
-            >
-              Enregistrer
-            </button>
+            {role !== 'client' && (
+              <button
+                onClick={handleSavePrices}
+                className="btn btn-primary"
+                disabled={!hasEdits}
+              >
+                Enregistrer
+              </button>
+            )}
             <button onClick={handleExportExcel} className="btn btn-secondary">
               Export Excel
             </button>
@@ -443,7 +452,7 @@ function ProductsPage({ onBack }: ProductsPageProps) {
                             key={col.key}
                             className={`px-3 py-1 border-b border-zinc-700 ${isMin ? 'text-green-400' : ''}`}
                           >
-                            {col.key === 'averagePrice' ? (
+                            {col.key === 'averagePrice' && role !== 'client' ? (
                               <input
                                 type="number"
                                 step="0.01"
@@ -459,6 +468,8 @@ function ProductsPage({ onBack }: ProductsPageProps) {
                                 }}
                                 className="w-20 px-1 bg-zinc-700 rounded"
                               />
+                            ) : col.key === 'averagePrice' ? (
+                              row.averagePrice
                             ) : value !== undefined ? (
                               String(value)
                             ) : (
