@@ -4,6 +4,7 @@ from datetime import datetime
 import pandas as pd
 from flask import Blueprint, jsonify, request
 from models import FormatImport, ImportHistory, TemporaryImport, db
+from utils.auth import token_required
 from sqlalchemy import extract
 from utils.calculations import recalculate_product_calculations
 
@@ -11,6 +12,7 @@ bp = Blueprint("imports", __name__)
 
 
 @bp.route("/import_history", methods=["GET"])
+@token_required("admin")
 def list_import_history():
     """List previous import operations.
 
@@ -36,6 +38,7 @@ def list_import_history():
 
 
 @bp.route("/verify_import/<int:supplier_id>", methods=["GET"])
+@token_required("admin")
 def verify_import(supplier_id):
     """Verify if an import already exists for the current week for a supplier.
 
@@ -61,6 +64,7 @@ def verify_import(supplier_id):
 
 
 @bp.route("/import_preview", methods=["POST"])
+@token_required("admin")
 def preview_import():
     """Return a preview of the first five valid rows from an Excel file.
 
@@ -156,6 +160,7 @@ def preview_import():
 
 
 @bp.route("/import", methods=["POST"])
+@token_required("admin")
 def create_import():
     """Import a new Excel file.
 
@@ -362,6 +367,7 @@ def create_import():
 
 
 @bp.route("/last_import/<int:supplier_id>", methods=["GET"])
+@token_required("admin")
 def last_import(supplier_id):
     """Retrieve the last import for a supplier.
 
