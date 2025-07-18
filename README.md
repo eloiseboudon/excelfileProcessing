@@ -130,6 +130,14 @@ make venv         # crée l'environnement virtuel et installe les dépendances
 make run          # démarre l'API Flask
 ```
 
+### Identifiants par défaut
+
+Le script `backend/implement_tables.py` crée automatiquement un utilisateur
+**admin** pour faciliter le développement local.
+
+- **Nom d'utilisateur** : `admin`
+- **Mot de passe** : `admin`
+
 Une documentation interactive est générée grâce à **Flasgger**. Une fois
 l'application lancée, ouvrez `http://localhost:5001/apidocs` pour consulter les
 endpoints disponibles. Le fichier `backend/swagger_template.yml` contient le
