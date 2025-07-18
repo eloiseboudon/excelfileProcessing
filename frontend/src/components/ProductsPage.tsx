@@ -1,5 +1,5 @@
 import { ArrowLeft } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import MultiSelectFilter from './MultiSelectFilter';
 import { getCurrentTimestamp } from '../utils/date';
@@ -59,15 +59,18 @@ function ProductsPage({ onBack }: ProductsPageProps) {
     { key: 'averagePrice', label: 'Prix de vente conseillé' }
   ];
 
-  const columns = [
-    ...baseColumns,
-    ...suppliers.map((s) => ({ key: `pv_${s}`, label: `PV ${s}` })),
-  ];
+  const columns = useMemo(
+    () =>
+      [
+        ...baseColumns,
+        ...suppliers.map((s) => ({ key: `pv_${s}`, label: `PV ${s}` })),
+      ].filter((c) => !c.label.includes('%')),
+    [suppliers]
+  );
 
   useEffect(() => {
-    const allKeys = [...baseColumns.map((c) => c.key), ...suppliers.map((s) => `pv_${s}`)];
-    setVisibleColumns(allKeys);
-  }, [suppliers]);
+    setVisibleColumns(columns.map((c) => c.key));
+  }, [columns]);
 
   useEffect(() => {
     fetchProductPriceSummary()
