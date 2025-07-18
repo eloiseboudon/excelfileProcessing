@@ -306,8 +306,8 @@ def refresh_week():
             ProductCalculation.date < end,
         ).delete(synchronize_session=False)
         ImportHistory.query.filter(
-            ImportHistory.date >= start,
-            ImportHistory.date < end,
+            ImportHistory.import_date >= start,
+            ImportHistory.import_date < end,
         ).delete(synchronize_session=False)
 
     db.session.commit()
