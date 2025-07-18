@@ -1,5 +1,14 @@
 import { getCurrentTimestamp } from './utils/date';
 
+function fetchWithAuth(input: RequestInfo | URL, init: RequestInit = {}) {
+  const token = localStorage.getItem('ajtpro_token');
+  const headers = new Headers(init.headers || {});
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  return fetch(input, { ...init, headers });
+}
+
 export const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 
@@ -309,7 +318,7 @@ export async function fetchBrandSupplierAverage(params?: {
   if (params?.startWeek) search.set('start_week', params.startWeek);
   if (params?.endWeek) search.set('end_week', params.endWeek);
   const query = search.toString();
-  const res = await fetch(
+  const res = await fetchWithAuth(
     `${API_BASE}/brand_supplier_average${query ? `?${query}` : ''}`
   );
   if (!res.ok) {
@@ -332,7 +341,7 @@ export async function fetchProductSupplierAverage(params?: {
   if (params?.startWeek) search.set('start_week', params.startWeek);
   if (params?.endWeek) search.set('end_week', params.endWeek);
   const query = search.toString();
-  const res = await fetch(
+  const res = await fetchWithAuth(
     `${API_BASE}/product_supplier_average${query ? `?${query}` : ''}`
   );
   if (!res.ok) {
