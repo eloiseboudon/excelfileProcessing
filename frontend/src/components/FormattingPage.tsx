@@ -319,12 +319,12 @@ function FormattingPage({ onBack }: FormattingPageProps) {
 
     } catch (error) {
       console.error('Error formatting file:', error);
-      setError(
+      const message =
         error instanceof Error
           ? error.message
-          : 'Impossible de formater le fichier. Veuillez vérifier le fichier et réessayer.'
-      );
-      notify('Erreur lors du formatage du fichier', 'error');
+          : 'Impossible de formater le fichier. Veuillez vérifier le fichier et réessayer.';
+      setError(message);
+      notify(message, 'error');
       setFormattedFile(null);
       setHtmlFile(null);
     } finally {

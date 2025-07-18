@@ -56,8 +56,8 @@ def verify_import(supplier_id):
         .first()
     )
     if verification:
-        return jsonify({"status": "error", "message": "Import already exists"}), 200
-    return jsonify({"status": "success", "message": "Import does not exist"}), 200
+        return jsonify({"status": "error", "message": "Import déjà existant"}), 200
+    return jsonify({"status": "success", "message": "Import non existant"}), 200
 
 
 @bp.route("/import_preview", methods=["POST"])
@@ -84,7 +84,7 @@ def preview_import():
     """
 
     if "file" not in request.files:
-        return jsonify({"error": "No file provided"}), 400
+        return jsonify({"error": "Pas de fichier fourni"}), 400
 
     file = request.files["file"]
     supplier_id = request.form.get("supplier_id")
@@ -125,7 +125,7 @@ def preview_import():
         return (
             jsonify(
                 {
-                    "error": "Missing columns after mapping: "
+                    "error": "Colonnes manquantes après le mapping: "
                     + ", ".join(missing_columns)
                 }
             ),
@@ -194,7 +194,7 @@ def create_import():
         current_app.logger.debug(f"Raw data: {raw_data}")
 
     if "file" not in request.files:
-        return jsonify({"error": "No file provided"}), 400
+        return jsonify({"error": "Pas de fichier fourni"}), 400
 
     file = request.files["file"]
     supplier_id = request.form.get("supplier_id")
@@ -290,7 +290,7 @@ def create_import():
         return (
             jsonify(
                 {
-                    "error": "Missing columns after mapping: "
+                    "error": "Colonnes manquantes après le mapping: "
                     + ", ".join(missing_columns)
                 }
             ),
