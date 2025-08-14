@@ -1,0 +1,21 @@
+services:
+  backend:
+    environment:
+      FLASK_ENV: production
+      FLASK_DEBUG: 0
+      FRONTEND_URL: https://ajtpro.tulip-saas.fr
+      CORS_ORIGINS: "https://ajtpro.tulip-saas.fr"
+    command: gunicorn -w 4 -b 0.0.0.0:5001 app:app
+
+  frontend:
+    build:
+      context: .
+      dockerfile: ./frontend/Dockerfile
+      args:
+        VITE_API_BASE: https://ajtpro.tulip-saas.fr/api
+    environment:
+      - VITE_API_BASE=https://ajtpro.tulip-saas.fr/api
+
+  frontend-dev:
+    profiles:
+      - never

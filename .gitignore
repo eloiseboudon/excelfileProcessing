@@ -24,6 +24,7 @@ dist-ssr
 *.sw?
 .venv
 .env
+.env.dev
 .flake8
 
 backend/instance/
