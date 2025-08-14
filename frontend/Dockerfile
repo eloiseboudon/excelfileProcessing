@@ -11,11 +11,11 @@ ARG VITE_API_BASE
 ENV VITE_API_BASE=${VITE_API_BASE}
 
 # Copier les fichiers package
-COPY frontend/package*.json ./
+COPY package*.json ./
 RUN npm install --omit=optional
 RUN npm uninstall esbuild && npm install esbuild
 
-COPY frontend/ .
+COPY . .
 
 RUN rm -rf node_modules package-lock.json
 RUN npm install
@@ -59,7 +59,7 @@ RUN rm -rf /usr/share/nginx/html/*
 COPY --from=builder /app/build /usr/share/nginx/html
 
 # Copier la config nginx personnalisée
-COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Créer un utilisateur non-root pour la sécurité
 RUN addgroup -g 1001 -S nodejs

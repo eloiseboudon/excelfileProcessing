@@ -1,61 +1,49 @@
-version: '3.8'
-
 services:
+  backend:
+    build:
+      context: ./backend
+    container_name: ajt_backend
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    networks:
+      - ajt-network
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: ajt_frontend
+    volumes:
+      - ./frontend:/app
+    ports:
+      - "3000:3000"
+    networks:
+      - ajt-network
+
   postgres:
     image: postgres:16
+    container_name: postgres
+    restart: always
     environment:
       POSTGRES_DB: ajt_db
       POSTGRES_USER: ajt_user
       POSTGRES_PASSWORD: ajt_password
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ajtpro_postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     networks:
-      - app-network
-    env_file:
-      - .env
-
-  backend:
-    build:
-      context: ./
-      dockerfile: ./backend/Dockerfile
-    container_name: ajt_backend
-    environment:
-      - DATABASE_URL=postgresql://ajt_user:ajt_password@postgres:5432/ajt_db
-    depends_on:
-      postgres:
-        condition: service_healthy
-    ports:
-      - "5001:5001"
-    networks:
-      - app-network
-    restart: unless-stopped
-    env_file:
-      - .env
-
-  frontend:
-    build:
-      context: .
-      dockerfile: ./frontend/Dockerfile
-    container_name: ajt_frontend
-    ports:
-      - "3000:80"
-    depends_on:
-      - backend
-    networks:
-      - app-network
-    restart: unless-stopped
+      - ajt-network
 
 volumes:
-  postgres_data:
+  ajtpro_postgres_data:
 
 
 networks:
-  app-network:
-    driver: bridge
+  ajt-network:
+    name: ajtpro_default # nom explicite pour toutes les commandes & scripts

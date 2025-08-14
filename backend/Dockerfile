@@ -12,12 +12,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Étape 4 : copie des dépendances et installation Python
-COPY backend/requirements.txt .
+COPY requirements.txt .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Étape 5 : copie du code de l'application
-COPY backend/ .
+COPY . .
 
 # Étape 6 : lancement via Gunicorn (expose l’objet app)
 CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:5001"]
