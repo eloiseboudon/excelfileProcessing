@@ -4,9 +4,9 @@ services:
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_DB: ajtpro
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ajt_db
+      POSTGRES_USER: ajt_user
+      POSTGRES_PASSWORD: ajt_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -26,6 +26,8 @@ services:
       context: ./
       dockerfile: ./backend/Dockerfile
     container_name: ajt_backend
+    environment:
+      - DATABASE_URL=postgresql://ajt_user:ajt_password@postgres:5432/ajt_db
     depends_on:
       postgres:
         condition: service_healthy

@@ -1,10 +1,10 @@
 # Étape 1 : Build React
-FROM node:20-alpine AS builder
+FROM node:20-bullseye AS builder
 
 WORKDIR /app
 
 # Installer les dépendances système pour le diagnostic
-RUN apk add --no-cache tree
+RUN apt-get update && apt-get install -y tree && rm -rf /var/lib/apt/lists/*
 
 # Variable de build pour l'URL de l'API
 ARG VITE_API_BASE
@@ -12,11 +12,15 @@ ENV VITE_API_BASE=${VITE_API_BASE}
 
 # Copier les fichiers package
 COPY frontend/package*.json ./
-RUN npm install
+RUN npm install --omit=optional
+RUN npm uninstall esbuild && npm install esbuild
 
 COPY frontend/ .
-RUN chmod +x ./node_modules/.bin/vite 
 
+RUN rm -rf node_modules package-lock.json
+RUN npm install
+
+RUN chmod +x ./node_modules/.bin/vite
 RUN npm run build
 
 
