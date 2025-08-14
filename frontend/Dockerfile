@@ -12,12 +12,13 @@ ENV VITE_API_BASE=${VITE_API_BASE}
 
 # Copier les fichiers package
 COPY frontend/package*.json ./
-
-# Installer les dépendances (toutes les dépendances pour pouvoir build)
 RUN npm install
 
-# Copier le code source
 COPY frontend/ .
+RUN chmod +x ./node_modules/.bin/vite 
+
+RUN npm run build
+
 
 # Diagnostic de la structure avant le build
 RUN echo "=== Structure du projet ===" && \

@@ -15,3 +15,7 @@ services:
         VITE_API_BASE: https://ajtpro.tulip-saas.fr/api
     environment:
       - VITE_API_BASE=https://ajtpro.tulip-saas.fr/api
+
+  frontend-dev:
+    profiles:
+      - never
