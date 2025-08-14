@@ -31,7 +31,6 @@ services:
       PYTHONPATH: /app
       FRONTEND_URL: http://localhost:5173,http://localhost:3000
       CORS_ORIGINS: "http://localhost:3000,http://localhost:5173,http://frontend:80,http://frontend-dev:5173"
-      JWT_SECRET: ${JWT_SECRET}
     volumes:
       - ./backend:/app
     container_name: ajt_backend
