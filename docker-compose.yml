@@ -8,7 +8,7 @@ services:
     volumes:
       - ./backend:/app
     ports:
-      - "8000:8000"
+      - "8000:5001"
     depends_on:
       - postgres
     networks:
@@ -47,3 +47,4 @@ volumes:
 networks:
   ajt-network:
     name: ajtpro_default # nom explicite pour toutes les commandes & scripts
+    external: true
