@@ -15,12 +15,8 @@ COPY package*.json ./
 RUN npm install --omit=optional
 RUN npm uninstall esbuild && npm install esbuild
 
-COPY . .
-
-RUN rm -rf node_modules package-lock.json
-RUN npm install
-
 RUN chmod +x ./node_modules/.bin/vite
+COPY . .
 RUN npm run build
 
 

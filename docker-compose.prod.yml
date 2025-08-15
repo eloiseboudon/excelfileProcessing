@@ -15,6 +15,6 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE: https://ajtpro.tulip-saas.fr/api
+        VITE_API_BASE: ${VITE_API_BASE}
     environment:
-      - VITE_API_BASE=https://ajtpro.tulip-saas.fr/api
+      - VITE_API_BASE=${VITE_API_BASE}

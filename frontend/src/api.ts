@@ -9,7 +9,7 @@ import { getCurrentTimestamp } from './utils/date';
 //   return fetch(input, { ...init, headers });
 // }
 
-export const API_BASE = import.meta.env.VITE_API_BASE || '';
+export const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
 export let authToken: string | null = localStorage.getItem('token');
 
@@ -39,6 +39,9 @@ export async function login(username: string, password: string) {
     body: JSON.stringify({ username, password })
   });
   if (!res.ok) {
+    console.log("🔧 API base URL =", import.meta.env.VITE_API_BASE);
+    console.log("🔧 import.meta.env =", import.meta.env);
+
     throw new Error(await extractErrorMessage(res));
   }
   return res.json();

@@ -1,36 +1,80 @@
-FROM node:20-alpine
+# Étape 1 : Build React
+FROM node:20-bullseye AS builder
 
 WORKDIR /app
 
-# Installer les dépendances système
-RUN apk add --no-cache git curl
+# Installer les dépendances système pour le diagnostic
+RUN apt-get update && apt-get install -y tree && rm -rf /var/lib/apt/lists/*
+
+# Variable de build pour l'URL de l'API
+ARG VITE_API_BASE
+ENV VITE_API_BASE=${VITE_API_BASE}
 
 # Copier les fichiers package
-COPY frontend/package*.json ./
+COPY package*.json ./
+RUN npm install --omit=optional
+RUN npm uninstall esbuild && npm install esbuild
 
-# Installer toutes les dépendances de manière robuste
-RUN npm install || (rm -f package-lock.json && npm install)
+COPY . .
 
-# Copier le code source
-COPY frontend/ .
+RUN rm -rf node_modules package-lock.json
+RUN npm install
 
-# Créer le script de démarrage
-RUN echo '#!/bin/sh' > /app/start-dev.sh && \
-    echo 'echo "=== Démarrage du serveur de développement ==="' >> /app/start-dev.sh && \
-    echo 'echo "Répertoire: $(pwd)"' >> /app/start-dev.sh && \
-    echo 'echo "Contenu: $(ls -la)"' >> /app/start-dev.sh && \
-    echo 'echo "=== Vérification des dépendances ==="' >> /app/start-dev.sh && \
-    echo 'if [ ! -d "node_modules" ]; then npm install; fi' >> /app/start-dev.sh && \
-    echo 'echo "=== Démarrage Vite ==="' >> /app/start-dev.sh && \
-    echo 'exec npm run dev' >> /app/start-dev.sh && \
-    chmod +x /app/start-dev.sh
+RUN chmod +x ./node_modules/.bin/vite
+RUN npm run build
 
-# Exposer le port
-EXPOSE 5173
 
-# Utiliser l'utilisateur node pour la sécurité
-RUN chown -R node:node /app
-USER node
+# Diagnostic de la structure avant le build
+RUN echo "=== Structure du projet ===" && \
+    ls -la && \
+    echo "=== Contenu du dossier src ===" && \
+    ls -la src/ 2>/dev/null || echo "Dossier src/ non trouvé" && \
+    echo "=== Recherche d'index.html ===" && \
+    find . -name "index.html" -type f || echo "index.html non trouvé" && \
+    echo "=== Contenu de index.html ===" && \
+    cat index.html 2>/dev/null || echo "index.html non lisible" && \
+    echo "=== Vérification de la config Vite ===" && \
+    cat vite.config.js 2>/dev/null || cat vite.config.ts 2>/dev/null || echo "vite.config non trouvé"
 
-# Commande de démarrage
-CMD ["/app/start-dev.sh"]
+# Build de l'application
+RUN npm run build
+
+# Diagnostic après le build
+RUN echo "=== Contenu après build ===" && \
+    ls -la && \
+    echo "=== Recherche des dossiers de build ===" && \
+    find . -type d -name "build" -o -name "dist" && \
+    echo "=== Contenu du dossier de sortie ===" && \
+    ls -la dist/ 2>/dev/null || ls -la build/ 2>/dev/null || echo "Aucun dossier de build trouvé"
+
+# Étape 2 : Serve statique avec NGINX
+FROM nginx:stable-alpine
+
+# Supprimer le site par défaut de nginx
+RUN rm -rf /usr/share/nginx/html/*
+
+# Copier le build React vers nginx (Vite génère dans dist/ par défaut)
+# Vite place le résultat du build dans le dossier "build" (voir outDir de
+# vite.config.ts). On le copie donc vers le dossier servi par nginx.
+COPY --from=builder /app/build /usr/share/nginx/html
+
+# Copier la config nginx personnalisée
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Créer un utilisateur non-root pour la sécurité
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nextjs -u 1001
+
+# Changer les permissions
+RUN chown -R nextjs:nodejs /usr/share/nginx/html
+RUN chown -R nextjs:nodejs /var/cache/nginx
+RUN chown -R nextjs:nodejs /var/log/nginx
+RUN chown -R nextjs:nodejs /etc/nginx/conf.d
+RUN touch /var/run/nginx.pid
+RUN chown -R nextjs:nodejs /var/run/nginx.pid
+
+USER nextjs
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
