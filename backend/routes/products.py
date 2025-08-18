@@ -3,7 +3,6 @@ from io import BytesIO
 
 import pandas as pd
 from flask import Blueprint, jsonify, request, send_file
-from utils.auth import token_required
 from models import (
     Brand,
     ImportHistory,
@@ -13,6 +12,7 @@ from models import (
     db,
 )
 from sqlalchemy import func
+from utils.auth import token_required
 from utils.calculations import recalculate_product_calculations
 
 bp = Blueprint("products", __name__)
@@ -109,9 +109,11 @@ def product_price_summary():
                 "type": p.type.type if p.type else None,
                 "supplier_prices": {},
                 "recommended_price": p.recommended_price,
+                "buy_price": {},
             }
         supplier = calc.supplier.name if calc.supplier else ""
         data[pid]["supplier_prices"][supplier] = calc.prixht_max
+        data[pid]["buy_price"][supplier] = calc.price
 
     result = []
     for item in data.values():

@@ -3,6 +3,8 @@ ssh ubuntu@51.77.231.101
 3k56b5iEhI0k
 curl http://51.77.231.101:8000
 
+http://51.77.231.101:81/nginx/proxy
+tanacode
 
 # 📘 Mémo Docker – Projet AJTPRO
 

@@ -27,12 +27,17 @@ dist-ssr
 .env.dev
 .flake8
 
+frontend/nginx.conf
+frontend/.env
+frontend/package-lock.json
+
 backend/instance/
 backend/instance/*
 backend/alembic/*
 
 **/__pycache__
 **/*.pyc
+
 
 todo.md
 backend/log
