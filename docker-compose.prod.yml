@@ -19,12 +19,14 @@ services:
     ports:
       - "8000:5001"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - ajt-network
     restart: unless-stopped
+    # Health check simple - vérifier que le processus gunicorn fonctionne
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:5001/health" ]
+      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5001/')\"" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -40,13 +42,13 @@ services:
     environment:
       - VITE_API_BASE=https://ajtpro.api.tulip-saas.fr
     ports:
-      - "3000:80" # Port 3000 pour éviter conflit avec nginx-proxy-manager
+      - "3000:80"
     networks:
       - ajt-network
     restart: unless-stopped
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
+    # Health check simplifié
     healthcheck:
       test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80" ]
       interval: 30s
@@ -62,12 +64,9 @@ services:
       POSTGRES_DB: ajt_db
       POSTGRES_USER: ajt_user
       POSTGRES_PASSWORD: ajt_password
-      # Optimisations pour la production
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C.UTF-8"
     volumes:
       - ajtpro_postgres_data:/var/lib/postgresql/data
-      # Configuration PostgreSQL pour la production
-      - ./postgres-prod.conf:/etc/postgresql/postgresql.conf:ro
     ports:
       - "5432:5432"
     networks:
@@ -78,8 +77,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-    # Commande pour utiliser le fichier de configuration personnalisé
-    # command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
 
 volumes:
   ajtpro_postgres_data:
@@ -88,7 +85,6 @@ volumes:
 networks:
   ajt-network:
     name: ajtpro_default
-    # Suppression de 'external: true' - le réseau sera créé par le script
     driver: bridge
     ipam:
       config:
