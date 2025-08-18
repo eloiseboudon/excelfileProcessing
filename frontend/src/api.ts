@@ -337,6 +337,16 @@ export async function createUser(data: any) {
   return res.json();
 }
 
+export async function deleteUser(id: number) {
+  const res = await fetchWithAuth(`${API_BASE}/users/${id}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
 export async function fetchBrands() {
   const res = await fetchWithAuth(`${API_BASE}/references/brands`);
   if (!res.ok) {
