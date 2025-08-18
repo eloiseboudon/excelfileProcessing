@@ -7,6 +7,9 @@ interface UserItem {
   id: number;
   username: string;
   role: string;
+  first_name: string;
+  last_name: string;
+  email: string;
 }
 
 interface UserAdminProps {
@@ -42,10 +45,10 @@ function UserAdmin({ isVisible, onClose }: UserAdminProps) {
     if (!item) return;
     try {
       if (id < 0) {
-        await createUser({ username: item.username, role: item.role });
+        await createUser({ username: item.username, role: item.role, first_name: item.first_name, last_name: item.last_name, email: item.email });
         notify('Utilisateur créé', 'success');
       } else {
-        await updateUser(id, { username: item.username, role: item.role });
+        await updateUser(id, { username: item.username, role: item.role, first_name: item.first_name, last_name: item.last_name, email: item.email });
         notify('Utilisateur mis à jour', 'success');
       }
       await load();
@@ -57,7 +60,7 @@ function UserAdmin({ isVisible, onClose }: UserAdminProps) {
   const handleAdd = () => {
     setUsers(prev => [
       ...prev,
-      { id: Date.now() * -1, username: '', role: 'client' }
+      { id: Date.now() * -1, username: '', role: 'client', first_name: '', last_name: '', email: '' }
     ]);
   };
 
@@ -76,6 +79,8 @@ function UserAdmin({ isVisible, onClose }: UserAdminProps) {
       <div className="space-y-2">
         <div className="flex items-center space-x-2 font-semibold px-2">
           <span className="w-10 text-zinc-400">ID</span>
+          <span className="flex-1">Nom</span>
+          <span className="flex-1">Prénom</span>
           <span className="flex-1">Email</span>
           <span className="w-40">Rôle</span>
           <span className="w-8" />
@@ -86,6 +91,24 @@ function UserAdmin({ isVisible, onClose }: UserAdminProps) {
             <input
               value={u.username}
               onChange={e => handleChange(u.id, 'username', e.target.value)}
+              placeholder="email"
+              className="flex-1 px-2 py-1 bg-zinc-700 text-white rounded"
+            />
+            <input
+              value={u.first_name}
+              onChange={e => handleChange(u.id, 'first_name', e.target.value)}
+              placeholder="prénom"
+              className="flex-1 px-2 py-1 bg-zinc-700 text-white rounded"
+            />
+            <input
+              value={u.last_name}
+              onChange={e => handleChange(u.id, 'last_name', e.target.value)}
+              placeholder="nom"
+              className="flex-1 px-2 py-1 bg-zinc-700 text-white rounded"
+            />
+            <input
+              value={u.email}
+              onChange={e => handleChange(u.id, 'email', e.target.value)}
               placeholder="email"
               className="flex-1 px-2 py-1 bg-zinc-700 text-white rounded"
             />
