@@ -27,6 +27,9 @@ dist-ssr
 .env.dev
 .flake8
 
+frontend/nginx.conf
+frontend/.env
+
 backend/instance/
 backend/instance/*
 backend/alembic/*
@@ -36,6 +39,4 @@ backend/alembic/*
 
 todo.md
 backend/log
-
-frontend/nginx.conf
 
