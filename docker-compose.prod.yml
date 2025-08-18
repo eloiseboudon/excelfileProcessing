@@ -12,10 +12,9 @@ services:
       POSTGRES_DB: ajt_db
       POSTGRES_USER: ajt_user
       POSTGRES_PASSWORD: ajt_password
-      POSTGRES_HOST: postgres
+      POSTGRES_HOST: postgres_prod
       POSTGRES_PORT: 5432
       DATABASE_URL: postgresql://ajt_user:ajt_password@postgres_prod:5432/ajt_db
-
     command: gunicorn -w 4 -b 0.0.0.0:5001 app:app
     ports:
       - "8000:5001"
@@ -24,6 +23,12 @@ services:
     networks:
       - ajt-network
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:5001/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   frontend:
     build:
@@ -40,7 +45,14 @@ services:
       - ajt-network
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
   postgres:
     image: postgres:16
@@ -50,18 +62,34 @@ services:
       POSTGRES_DB: ajt_db
       POSTGRES_USER: ajt_user
       POSTGRES_PASSWORD: ajt_password
+      # Optimisations pour la production
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C.UTF-8"
     volumes:
       - ajtpro_postgres_data:/var/lib/postgresql/data
+      # Configuration PostgreSQL pour la production
+      - ./postgres-prod.conf:/etc/postgresql/postgresql.conf:ro
     ports:
       - "5432:5432"
     networks:
       - ajt-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ajt_user -d ajt_db" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    # Commande pour utiliser le fichier de configuration personnalisé
+    # command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
 
 volumes:
   ajtpro_postgres_data:
-
+    driver: local
 
 networks:
   ajt-network:
     name: ajtpro_default
-    external: true
+    # Suppression de 'external: true' - le réseau sera créé par le script
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
