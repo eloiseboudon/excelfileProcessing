@@ -37,9 +37,9 @@ docker exec -it <nom_container> bash
 ### 📜 Logs
 ```bash
 docker logs -f <nom_container> 
-docker logs -f ajt_backend
-docker logs -f ajt_frontend
-docker logs -f postgres
+docker logs -f ajt_backend_prod
+docker logs -f ajt_frontend_prod
+docker logs -f postgres_prod
 ```
 
 ### 🔄 Redémarrer un container

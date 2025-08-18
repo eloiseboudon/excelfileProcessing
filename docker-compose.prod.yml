@@ -8,12 +8,14 @@ services:
       FLASK_ENV: production
       FLASK_DEBUG: 0
       FRONTEND_URL: https://ajtpro.tulip-saas.fr
-      CORS_ORIGINS: "https://ajtpro.tulip-saas.fr"
+      CORS_ORIGINS: "https://ajtpro.tulip-saas.fr,http://localhost:3000"
       POSTGRES_DB: ajt_db
       POSTGRES_USER: ajt_user
       POSTGRES_PASSWORD: ajt_password
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
+      DATABASE_URL: postgresql://ajt_user:ajt_password@postgres_prod:5432/ajt_db
+
     command: gunicorn -w 4 -b 0.0.0.0:5001 app:app
     ports:
       - "8000:5001"
