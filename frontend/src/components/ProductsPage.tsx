@@ -24,7 +24,7 @@ interface AggregatedProduct {
   color: string | null;
   type: string | null;
   averagePrice: number;
-  supplierPrices: Record<string, number | undefined>;
+  buyPrices: Record<string, number | undefined>;
 }
 
 interface ProductsPageProps {
@@ -64,9 +64,11 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
     () =>
       [
         ...baseColumns,
-        ...suppliers.map((s) => ({ key: `pv_${s}`, label: `PV ${s}` })),
+        ...(role !== 'client'
+          ? suppliers.map((s) => ({ key: `pa_${s}`, label: `PA ${s}` }))
+          : []),
       ].filter((c) => !c.label.includes('%')),
-    [suppliers]
+    [suppliers, role]
   );
 
   useEffect(() => {
@@ -80,7 +82,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
         const items = res as any[];
         const suppliersSet = new Set<string>();
         const aggregated: AggregatedProduct[] = items.map((it) => {
-          Object.keys(it.supplier_prices || {}).forEach((s) => suppliersSet.add(s));
+          Object.keys(it.buy_price || {}).forEach((s) => suppliersSet.add(s));
           return {
             id: it.id,
             model: it.model,
@@ -91,7 +93,6 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
             type: it.type,
             averagePrice:
               it.recommended_price ?? it.average_price ?? 0,
-            supplierPrices: it.supplier_prices || {},
             buyPrices: it.buy_price || {},
           } as AggregatedProduct;
         });
@@ -197,9 +198,9 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
       columns.forEach((c) => {
         if (!visibleColumns.includes(c.key)) return;
         let val: any = (row as any)[c.key];
-        if (c.key.startsWith('pv_')) {
+        if (c.key.startsWith('pa_')) {
           const sup = c.key.slice(3);
-          val = row.supplierPrices[sup];
+          val = row.buyPrices[sup];
         }
         if (c.key === 'averagePrice' && editedPrices[row.id] !== undefined) {
           val = editedPrices[row.id];
@@ -467,7 +468,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
               </thead>
               <tbody>
                 {paginatedData.map((row) => {
-                  const prices = suppliers.map((s) => row.supplierPrices[s]);
+                  const prices = suppliers.map((s) => row.buyPrices[s]);
                   const validPrices = prices.filter((p) => typeof p === 'number') as number[];
                   const minPrice = validPrices.length ? Math.min(...validPrices) : undefined;
                   return (
@@ -475,12 +476,12 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
                       {columns.map((col) => {
                         if (!visibleColumns.includes(col.key)) return null;
                         let value: any = (row as any)[col.key];
-                        if (col.key.startsWith('pv_')) {
+                        if (col.key.startsWith('pa_')) {
                           const supplierName = col.key.slice(3);
-                          value = row.supplierPrices[supplierName];
+                          value = row.buyPrices[supplierName];
                         }
                         const isMin =
-                          col.key.startsWith('pv_') &&
+                          col.key.startsWith('pa_') &&
                           typeof value === 'number' &&
                           value === minPrice;
                         return (
