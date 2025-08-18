@@ -6,7 +6,7 @@
 set -e  # Arrêt du script en cas d'erreur
 
 # Configuration
-CONTAINER_NAME="postgres"
+CONTAINER_NAME="postgres_prod"
 DB_NAME="ajt_db"
 DB_USER="ajt_user"
 DB_PASSWORD="ajt_password"
