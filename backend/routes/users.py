@@ -64,8 +64,8 @@ def create_user():
 def update_user(user_id):
     user = User.query.get_or_404(user_id)
     data = request.json or {}
-    if "email" in data:
-        user.email = data["email"]
+    if "username" in data:
+        user.username = data["username"]
     if "role" in data:
         user.role = data["role"]
     if "first_name" in data:
