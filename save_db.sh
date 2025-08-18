@@ -10,7 +10,7 @@ CONTAINER_NAME="postgres"
 DB_NAME="ajt_db"
 DB_USER="ajt_user"
 DB_PASSWORD="ajt_password"
-BACKUP_DIR="/home/ubuntu/backups/database"
+BACKUP_DIR="/home/ubuntu/backups_ajtpro/database"
 MAX_BACKUPS=10  # Nombre maximum de sauvegardes à conserver
 
 # Couleurs pour les logs

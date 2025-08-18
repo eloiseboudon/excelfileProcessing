@@ -11,7 +11,7 @@ APP_DIR="/home/ubuntu/ajtpro"  # Répertoire actuel de l'application
 BRANCH="${1:-main}"  # Branche par défaut ou celle passée en paramètre
 DOCKER_COMPOSE_FILE="docker-compose.yml"
 DOCKER_COMPOSE_PROD_FILE="docker-compose.prod.yml"
-BACKUP_DIR="/home/ubuntu/backups/deployments/$(date +%Y%m%d_%H%M%S)"
+BACKUP_DIR="/home/ubuntu/backups_ajtpro/deployments/$(date +%Y%m%d_%H%M%S)"
 
 # Couleurs pour les logs
 RED='\033[0;31m'
