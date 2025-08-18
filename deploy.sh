@@ -53,13 +53,21 @@ check_prerequisites() {
         error "Docker Compose n'est pas installé"
     fi
     
-    # Vérifier que le réseau Docker existe
-    if ! docker network ls | grep -q "ajtpro_default"; then
-        log "Création du réseau Docker ajtpro_default..."
-        docker network create ajtpro_default
-    fi
-    
     info "✅ Tous les prérequis sont satisfaits"
+}
+
+# Création/vérification du réseau Docker
+setup_docker_network() {
+    log "🌐 Configuration du réseau Docker..."
+    
+    # Vérifier si le réseau existe déjà
+    if docker network ls --format "table {{.Name}}" | grep -q "^ajtpro_default$"; then
+        info "✅ Le réseau ajtpro_default existe déjà"
+    else
+        log "📡 Création du réseau Docker ajtpro_default..."
+        docker network create ajtpro_default
+        info "✅ Réseau ajtpro_default créé avec succès"
+    fi
 }
 
 # Sauvegarde de la base de données avant déploiement
@@ -77,7 +85,7 @@ backup_database() {
 
 # Sauvegarde de l'application actuelle
 backup_current_version() {
-    log "📁 Sauvegarde de la version actuelle..."
+    log "📦 Sauvegarde de la version actuelle..."
     
     if [ -d "$APP_DIR" ]; then
         mkdir -p "$BACKUP_DIR"
@@ -125,7 +133,7 @@ fetch_code() {
 
 # Build du frontend avec gestion des erreurs et récupération
 build_frontend() {
-    log "🏗️  Build du frontend..."
+    log "🗃️ Build du frontend..."
     
     cd "$APP_DIR/frontend"
     
@@ -187,12 +195,6 @@ manage_docker_containers() {
     cd "$APP_DIR"
     
     # Déterminer la commande docker-compose
-    # if command -v "docker compose" &> /dev/null; then
-    #     DOCKER_COMPOSE_CMD="docker compose"
-    # else
-    #     DOCKER_COMPOSE_CMD="docker-compose"
-    # fi
-    
     DOCKER_COMPOSE_CMD="docker compose"
 
     # Choisir le bon fichier docker-compose
@@ -206,7 +208,7 @@ manage_docker_containers() {
     fi
     
     # Arrêt propre des containers existants
-    log "⏹️  Arrêt des containers..."
+    log "⏹️ Arrêt des containers..."
     $DOCKER_COMPOSE_CMD -f "$compose_file" down --remove-orphans || warn "Erreur lors de l'arrêt (non critique)"
     
     # Nettoyage des images non utilisées (optionnel)
@@ -236,7 +238,7 @@ health_check() {
     local backend_url="http://localhost:8000"
     
     # Test du frontend
-    log "🌐 Test du frontend..."
+    log "🌍 Test du frontend..."
     for i in {1..10}; do
         if curl -f -s "$frontend_url" > /dev/null; then
             info "✅ Frontend accessible !"
@@ -257,7 +259,7 @@ health_check() {
             break
         fi
         if [ $i -eq 10 ]; then
-            warn "⚠️  Backend inaccessible (vérifiez manuellement)"
+            warn "⚠️ Backend inaccessible (vérifiez manuellement)"
             break
         fi
         warn "Tentative $i/10 - Backend en cours de démarrage..."
@@ -265,11 +267,11 @@ health_check() {
     done
     
     # Vérification de la base de données
-    log "🗄️  Test de la base de données..."
-    if docker exec postgres pg_isready -U ajt_user -d ajt_db > /dev/null 2>&1; then
+    log "🗄️ Test de la base de données..."
+    if docker exec postgres_prod pg_isready -U ajt_user -d ajt_db > /dev/null 2>&1; then
         info "✅ Base de données accessible !"
     else
-        warn "⚠️  Base de données inaccessible (vérifiez manuellement)"
+        warn "⚠️ Base de données inaccessible (vérifiez manuellement)"
     fi
 }
 
@@ -287,7 +289,7 @@ rollback() {
         cd "$APP_DIR"
         manage_docker_containers
         
-        warn "⚠️  Rollback terminé - Vérifiez l'état de l'application"
+        warn "⚠️ Rollback terminé - Vérifiez l'état de l'application"
     else
         error "❌ Impossible de faire le rollback - Pas de sauvegarde disponible"
     fi
@@ -297,7 +299,7 @@ rollback() {
 cleanup_old_backups() {
     log "🧹 Nettoyage des anciennes sauvegardes de déploiement..."
     
-    local backup_base_dir="/home/ubuntu/backups/deployments"
+    local backup_base_dir="/home/ubuntu/backups_ajtpro/deployments"
     if [ -d "$backup_base_dir" ]; then
         find "$backup_base_dir" -maxdepth 1 -type d -name "20*" | sort -r | tail -n +6 | xargs rm -rf 2>/dev/null || true
         info "✅ Nettoyage terminé (conservation des 5 dernières)"
@@ -310,9 +312,9 @@ show_deployment_info() {
     echo "════════════════════════════════════════"
     echo "🌍 Frontend: http://$(hostname -I | awk '{print $1}'):3000"
     echo "🔧 Backend:  http://$(hostname -I | awk '{print $1}'):8000"
-    echo "🗄️  Database: PostgreSQL sur le port 5432"
-    echo "📁 Logs: docker-compose logs -f [service_name]"
-    echo "📊 Statut: docker-compose ps"
+    echo "🗄️ Database: PostgreSQL sur le port 5432"
+    echo "📝 Logs: docker compose logs -f [service_name]"
+    echo "📊 Statut: docker compose ps"
     echo "════════════════════════════════════════"
     
     # Informations Git
@@ -336,6 +338,7 @@ main() {
     trap rollback ERR
     
     check_prerequisites
+    setup_docker_network  # NOUVEAU : Configuration du réseau
     backup_database
     backup_current_version
     fetch_code
@@ -366,14 +369,14 @@ case "${1:-}" in
         exit 0
         ;;
     --version)
-        echo "AJT Pro Deploy Script v2.0"
+        echo "AJT Pro Deploy Script v2.1"
         exit 0
         ;;
     *)
         # Confirmation avant déploiement en production
         if [ "${1:-main}" = "main" ] || [ "${1:-main}" = "master" ]; then
             echo ""
-            warn "⚠️  Vous êtes sur le point de déployer en PRODUCTION"
+            warn "⚠️ Vous êtes sur le point de déployer en PRODUCTION"
             read -p "Êtes-vous sûr de vouloir continuer? (oui/non): " confirmation
             if [ "$confirmation" != "oui" ]; then
                 log "Déploiement annulé par l'utilisateur"
