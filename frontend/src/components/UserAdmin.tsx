@@ -79,6 +79,7 @@ function UserAdmin({ isVisible, onClose }: UserAdminProps) {
       <div className="space-y-2">
         <div className="flex items-center space-x-2 font-semibold px-2">
           <span className="w-10 text-zinc-400">ID</span>
+          <span className="flex-1">Username</span>
           <span className="flex-1">Nom</span>
           <span className="flex-1">Prénom</span>
           <span className="flex-1">Email</span>

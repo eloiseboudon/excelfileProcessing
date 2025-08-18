@@ -43,6 +43,7 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
     } else {
       setAuthToken(null);
       setRefreshToken(null);
+      window.dispatchEvent(new Event('auth:logout'));
     }
   }
   return res;
