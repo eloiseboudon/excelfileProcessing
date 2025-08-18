@@ -87,10 +87,10 @@ backup_database() {
     local sql_file="${BACKUP_DIR}/${backup_name}.sql"
     local tar_file="${BACKUP_DIR}/${backup_name}.tar.gz"
     
-    log "Début de la sauvegarde de la base de données '$DB_NAME'..."
+    log "Début de la sauvegarde de la base de données '$DB_NAME'..." >&2
     
     # Export de la base de données avec pg_dump
-    log "Création du dump SQL..."
+    log "Création du dump SQL..." >&2
     
     # Méthode alternative plus robuste
     if docker exec -e PGPASSWORD="$DB_PASSWORD" "$CONTAINER_NAME" \
@@ -98,7 +98,7 @@ backup_database() {
         --verbose --clean --no-owner --no-privileges \
         --format=custom --compress=9 > "${sql_file}.custom" 2>/dev/null; then
         
-        log "Dump custom créé avec succès"
+        log "Dump custom créé avec succès" >&2
         
         # Conversion en SQL standard pour compatibilité
         docker exec -e PGPASSWORD="$DB_PASSWORD" "$CONTAINER_NAME" \
@@ -108,7 +108,7 @@ backup_database() {
         docker exec "$CONTAINER_NAME" cat /tmp/dump.sql > "$sql_file" 2>/dev/null || {
             # Fallback: utiliser directement le dump custom comme fichier principal
             mv "${sql_file}.custom" "$sql_file"
-            log "Utilisation du format custom PostgreSQL"
+            log "Utilisation du format custom PostgreSQL" >&2
         }
         
         # Nettoyage
@@ -117,7 +117,7 @@ backup_database() {
         
     else
         # Méthode de fallback: dump SQL standard
-        log "Utilisation de la méthode de sauvegarde alternative..."
+        log "Utilisation de la méthode de sauvegarde alternative..." >&2
         docker exec -e PGPASSWORD="$DB_PASSWORD" "$CONTAINER_NAME" \
             pg_dump -h localhost -U "$DB_USER" -d "$DB_NAME" \
             --clean --no-owner --no-privileges > "$sql_file" 2>/dev/null
@@ -127,12 +127,12 @@ backup_database() {
         error "Échec de la création du dump SQL ou fichier vide"
     fi
     
-    log "Dump SQL créé: $(du -h "$sql_file" | cut -f1)"
+    log "Dump SQL créé: $(du -h "$sql_file" | cut -f1)" >&2
     
     # Compression en tar.gz avec vérification
-    log "Compression du dump en tar.gz..."
+    log "Compression du dump en tar.gz..." >&2
     if tar -czf "$tar_file" -C "$BACKUP_DIR" "$(basename "$sql_file")" 2>/dev/null; then
-        log "✅ Compression réussie"
+        log "✅ Compression réussie" >&2
     else
         error "❌ Échec de la compression tar.gz"
     fi
@@ -144,9 +144,10 @@ backup_database() {
     # Suppression du fichier SQL temporaire
     rm -f "$sql_file"
     
-    log "Sauvegarde terminée: $tar_file"
-    log "Taille de la sauvegarde: $(du -h "$tar_file" | cut -f1)"
+    log "Sauvegarde terminée: $tar_file" >&2
+    log "Taille de la sauvegarde: $(du -h "$tar_file" | cut -f1)" >&2
     
+    # IMPORTANT: Retourner SEULEMENT le chemin du fichier
     echo "$tar_file"
 }
 
@@ -289,31 +290,27 @@ main() {
     local backup_name=$(generate_backup_filename "$custom_name")
     log "📋 Nom de sauvegarde généré: $backup_name"
     
-    # Appel de la fonction de sauvegarde avec gestion d'erreur
-    local backup_file=""
-    if backup_file=$(backup_database "$backup_name"); then
-        log "📁 Fichier créé: $backup_file"
+    # Appel de la fonction de sauvegarde avec capture propre du résultat
+    local backup_file
+    backup_file=$(backup_database "$backup_name")
+    local backup_result=$?
+    
+    if [ $backup_result -eq 0 ] && [ -n "$backup_file" ] && [ -f "$backup_file" ]; then
+        log "📁 Fichier créé avec succès: $backup_file"
         
-        # Vérification de l'intégrité seulement si le fichier a été créé
-        if [ -n "$backup_file" ] && [ -f "$backup_file" ]; then
-            verify_backup "$backup_file"
-            
-            # Test de restauration (décommentez si souhaité)
-            # test_restore "$backup_file"
-            
-            log "✅ Sauvegarde terminée avec succès!"
-            log "📁 Fichier de sauvegarde: $backup_file"
-            
-            # Affichage du chemin pour faciliter la copie
-            echo ""
-            echo "Pour restaurer cette sauvegarde:"
-            echo "tar -xzf $backup_file"
-            echo "docker exec -i -e PGPASSWORD=\"$DB_PASSWORD\" $CONTAINER_NAME psql -h localhost -U $DB_USER -d $DB_NAME < nom_du_fichier.sql"
-        else
-            error "❌ La sauvegarde n'a pas pu être créée"
-        fi
+        # Vérification de l'intégrité
+        verify_backup "$backup_file"
+        
+        log "✅ Sauvegarde terminée avec succès!"
+        log "📁 Fichier de sauvegarde: $backup_file"
+        
+        # Affichage du chemin pour faciliter la copie
+        echo ""
+        echo "Pour restaurer cette sauvegarde:"
+        echo "tar -xzf $backup_file"
+        echo "docker exec -i -e PGPASSWORD=\"$DB_PASSWORD\" $CONTAINER_NAME psql -h localhost -U $DB_USER -d $DB_NAME < nom_du_fichier.sql"
     else
-        error "❌ Échec de la fonction de sauvegarde"
+        error "❌ La sauvegarde a échoué (code: $backup_result, fichier: $backup_file)"
     fi
     
     cleanup_old_backups
