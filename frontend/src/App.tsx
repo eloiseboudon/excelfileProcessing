@@ -1,6 +1,6 @@
 import { BarChart2, Calculator, LibraryBig, Settings } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { fetchApitest, setAuthToken } from './api';
+import { fetchApitest, setAuthToken, setRefreshToken } from './api';
 import AdminPage from './components/AdminPage';
 import FormattingPage from './components/FormattingPage';
 import ProcessingPage from './components/ProcessingPage';
@@ -20,17 +20,19 @@ function App() {
     }
   }, [token]);
 
-  const handleLogin = (userRole: string, newToken: string) => {
+  const handleLogin = (userRole: string, newToken: string, newRefresh: string) => {
     setRole(userRole);
     setToken(newToken);
     localStorage.setItem('role', userRole);
     setAuthToken(newToken);
+    setRefreshToken(newRefresh);
   };
 
   const handleLogout = () => {
     setRole('');
     setToken(null);
     setAuthToken(null);
+    setRefreshToken(null);
     localStorage.removeItem('role');
   };
 
