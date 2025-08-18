@@ -35,6 +35,9 @@ docker-logs:
 implement-tables:
 	docker compose exec backend python implement_tables.py
 
+update-users:
+	docker compose exec backend python update_users_table.py
+
 shell-postgres:
 	docker compose exec postgres psql -U postgres -d ajtpro
 

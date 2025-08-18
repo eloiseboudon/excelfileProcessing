@@ -60,7 +60,7 @@ check_prerequisites() {
 setup_docker_network() {
     log "🌐 Configuration du réseau Docker..."
     
-    # Vérifier si le réseau existe déjà
+    # Vérifier si le réseau existe déjà 
     if docker network ls --format "table {{.Name}}" | grep -q "^ajtpro_default$"; then
         info "✅ Le réseau ajtpro_default existe déjà"
     else
@@ -223,10 +223,86 @@ manage_docker_containers() {
     log "🚀 Démarrage des containers..."
     $DOCKER_COMPOSE_CMD -f "$compose_file" up -d
     
+    # Attendre que les services soient prêts
+    log "⏳ Attente que les services soient prêts..."
+    sleep 10
+    
+    # Stockage de la commande docker-compose pour les migrations
+    export DOCKER_COMPOSE_CMD="$DOCKER_COMPOSE_CMD"
+    export COMPOSE_FILE="$compose_file"
+    
     # Affichage du statut
-    sleep 5
     log "📊 Statut des containers:"
     $DOCKER_COMPOSE_CMD -f "$compose_file" ps
+}
+
+# Gestion des migrations Alembic
+run_database_migrations() {
+    log "🗃️ Gestion des migrations de base de données avec Alembic..."
+    
+    cd "$APP_DIR"
+    
+    # Vérification que les containers sont en cours d'exécution
+    if ! $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" ps backend | grep -q "Up"; then
+        error "Le container backend n'est pas en cours d'exécution"
+    fi
+    
+    # Attendre que la base de données soit prête
+    log "⏳ Attente que la base de données soit prête..."
+    local max_attempts=30
+    local attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend python -c "
+import sys
+from sqlalchemy import create_engine
+from app.core.config import settings
+try:
+    engine = create_engine(settings.DATABASE_URL)
+    connection = engine.connect()
+    connection.close()
+    print('Database is ready')
+    sys.exit(0)
+except Exception as e:
+    print(f'Database not ready: {e}')
+    sys.exit(1)
+" >/dev/null 2>&1; then
+            info "✅ Base de données prête"
+            break
+        fi
+        
+        if [ $attempt -eq $max_attempts ]; then
+            error "❌ Timeout: la base de données n'est pas accessible après $max_attempts tentatives"
+        fi
+        
+        warn "Tentative $attempt/$max_attempts - Base de données pas encore prête..."
+        sleep 5
+        ((attempt++))
+    done
+    
+    # Génération automatique d'une migration si des changements sont détectés
+    log "🔍 Vérification des changements de schéma et génération de migration..."
+    if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" run --rm backend alembic revision --autogenerate -m "auto migrate $(date +'%Y%m%d_%H%M%S')"; then
+        info "✅ Migration automatique générée avec succès"
+    else
+        warn "⚠️ Aucun changement détecté ou erreur lors de la génération de migration"
+    fi
+    
+    # Application des migrations
+    log "⬆️ Application des migrations..."
+    if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic upgrade head; then
+        info "✅ Migrations appliquées avec succès"
+        
+        # Affichage de l'état actuel des migrations
+        log "📋 État actuel des migrations:"
+        $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic current || warn "Impossible d'afficher l'état des migrations"
+        
+        # Historique des migrations
+        log "📜 Historique des migrations (dernières 5):"
+        $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic history -r -5 || warn "Impossible d'afficher l'historique"
+    else
+        error "❌ Échec de l'application des migrations"
+    fi
 }
 
 # Vérification de la santé de l'application
@@ -238,7 +314,7 @@ health_check() {
     local backend_url="http://localhost:8000"
     
     # Test du frontend
-    log "🌍 Test du frontend..."
+    log "🌐 Test du frontend..."
     for i in {1..10}; do
         if curl -f -s "$frontend_url" > /dev/null; then
             info "✅ Frontend accessible !"
@@ -290,6 +366,8 @@ rollback() {
         manage_docker_containers
         
         warn "⚠️ Rollback terminé - Vérifiez l'état de l'application"
+        warn "⚠️ ATTENTION: Les migrations de base de données ne peuvent pas être annulées automatiquement"
+        warn "⚠️ Vous devrez peut-être restaurer manuellement la base de données depuis une sauvegarde"
     else
         error "❌ Impossible de faire le rollback - Pas de sauvegarde disponible"
     fi
@@ -309,13 +387,14 @@ cleanup_old_backups() {
 # Affichage des informations post-déploiement
 show_deployment_info() {
     log "📋 Informations de déploiement:"
-    echo "════════════════════════════════════════"
-    echo "🌍 Frontend: http://$(hostname -I | awk '{print $1}'):3000"
+    echo "╔══════════════════════════════════════════════════╗"
+    echo "🌐 Frontend: http://$(hostname -I | awk '{print $1}'):3000"
     echo "🔧 Backend:  http://$(hostname -I | awk '{print $1}'):8000"
     echo "🗄️ Database: PostgreSQL sur le port 5432"
     echo "📝 Logs: docker compose logs -f [service_name]"
     echo "📊 Statut: docker compose ps"
-    echo "════════════════════════════════════════"
+    echo "🗃️ Migrations: docker compose exec backend alembic current"
+    echo "╚══════════════════════════════════════════════════╝"
     
     # Informations Git
     cd "$APP_DIR"
@@ -327,7 +406,14 @@ show_deployment_info() {
     echo "   Branche: $branch"
     echo "   Commit:  $commit_hash"
     echo "   Date:    $commit_date"
-    echo "════════════════════════════════════════"
+    
+    # Informations sur les migrations
+    log "🗃️ État des migrations:"
+    if [ -n "${DOCKER_COMPOSE_CMD:-}" ] && [ -n "${COMPOSE_FILE:-}" ]; then
+        $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic current 2>/dev/null || echo "   Impossible d'obtenir l'état des migrations"
+    fi
+    
+    echo "╚══════════════════════════════════════════════════╝"
 }
 
 # Fonction principale
@@ -338,12 +424,13 @@ main() {
     trap rollback ERR
     
     check_prerequisites
-    setup_docker_network  # NOUVEAU : Configuration du réseau
+    setup_docker_network
     backup_database
     backup_current_version
     fetch_code
     build_frontend
     manage_docker_containers
+    run_database_migrations  # NOUVEAU : Gestion des migrations Alembic
     health_check
     cleanup_old_backups
     show_deployment_info
@@ -366,10 +453,15 @@ case "${1:-}" in
         echo "  $0                # Déploie la branche main"
         echo "  $0 develop        # Déploie la branche develop"
         echo "  $0 feature/new    # Déploie une branche spécifique"
+        echo ""
+        echo "Le script inclut maintenant la gestion automatique des migrations Alembic:"
+        echo "  - Génération automatique de migrations si nécessaire"
+        echo "  - Application des migrations en attente"
+        echo "  - Vérification de l'état des migrations"
         exit 0
         ;;
     --version)
-        echo "AJT Pro Deploy Script v2.1"
+        echo "AJT Pro Deploy Script v2.2 (avec support Alembic)"
         exit 0
         ;;
     *)
@@ -377,6 +469,7 @@ case "${1:-}" in
         if [ "${1:-main}" = "main" ] || [ "${1:-main}" = "master" ]; then
             echo ""
             warn "⚠️ Vous êtes sur le point de déployer en PRODUCTION"
+            warn "⚠️ Les migrations de base de données seront appliquées automatiquement"
             read -p "Êtes-vous sûr de vouloir continuer? (oui/non): " confirmation
             if [ "$confirmation" != "oui" ]; then
                 log "Déploiement annulé par l'utilisateur"

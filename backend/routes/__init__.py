@@ -1,4 +1,4 @@
-from . import imports, products, references, main, stats, settings, auth
+from . import imports, products, references, main, stats, settings, auth, users
 
 
 def register_routes(app):
@@ -9,3 +9,4 @@ def register_routes(app):
     app.register_blueprint(stats.bp)
     app.register_blueprint(settings.bp)
     app.register_blueprint(auth.bp)
+    app.register_blueprint(users.bp)

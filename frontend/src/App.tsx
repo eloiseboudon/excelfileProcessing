@@ -36,6 +36,12 @@ function App() {
     localStorage.removeItem('role');
   };
 
+  useEffect(() => {
+    const onLogout = () => handleLogout();
+    window.addEventListener('auth:logout', onLogout);
+    return () => window.removeEventListener('auth:logout', onLogout);
+  }, []);
+
   const handleApiTest = async () => {
     setApiTestMessage(null);
     try {

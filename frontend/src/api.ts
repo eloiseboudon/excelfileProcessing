@@ -43,16 +43,17 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
     } else {
       setAuthToken(null);
       setRefreshToken(null);
+      window.dispatchEvent(new Event('auth:logout'));
     }
   }
   return res;
 }
 
-export async function login(username: string, password: string) {
+export async function login(email: string, password: string) {
   const res = await fetch(`${API_BASE}/login`, {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({ email, password })
   });
   if (!res.ok) {
     console.log("🔧 API base URL =", import.meta.env.VITE_API_BASE);
@@ -296,6 +297,48 @@ export async function createReferenceItem(table: string, data: any) {
 
 export async function deleteReferenceItem(table: string, id: number) {
   const res = await fetchWithAuth(`${API_BASE}/references/${table}/${id}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function fetchUsers() {
+  const res = await fetchWithAuth(`${API_BASE}/users`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function updateUser(id: number, data: any) {
+  const res = await fetchWithAuth(`${API_BASE}/users/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function createUser(data: any) {
+  const res = await fetchWithAuth(`${API_BASE}/users`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function deleteUser(id: number) {
+  const res = await fetchWithAuth(`${API_BASE}/users/${id}`, {
     method: 'DELETE'
   });
   if (!res.ok) {
