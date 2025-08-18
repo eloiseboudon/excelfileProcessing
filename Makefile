@@ -32,8 +32,8 @@ docker-down:
 docker-logs:
 	$(DC) logs -f $(SERVICE)
 
-shell-postgres:
-	$(DC) exec postgres bash
+implement-tables:
+	docker compose exec backend python implement_tables.py
 
 shell-postgres:
 	docker compose exec postgres psql -U postgres -d ajtpro

@@ -1,11 +1,12 @@
 import { ArrowLeft } from 'lucide-react';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
-import MultiSelectFilter from './MultiSelectFilter';
-import { getCurrentTimestamp } from '../utils/date';
 import { fetchProductPriceSummary, updateProduct } from '../api';
+import { getCurrentTimestamp } from '../utils/date';
+import MultiSelectFilter from './MultiSelectFilter';
 import ProductReference from './ProductReference';
 import WeekToolbar from './WeekToolbar';
+import SupplierPriceModal from './SupplierPriceModal';
 
 import {
   fetchBrands,
@@ -24,7 +25,8 @@ interface AggregatedProduct {
   color: string | null;
   type: string | null;
   averagePrice: number;
-  supplierPrices: Record<string, number | undefined>;
+  buyPrices: Record<string, number | undefined>;
+  salePrices: Record<string, number | undefined>;
 }
 
 interface ProductsPageProps {
@@ -46,6 +48,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
   const [memoryOptions, setMemoryOptions] = useState<string[]>([]);
   const [typeOptions, setTypeOptions] = useState<string[]>([]);
   const [tab, setTab] = useState<'calculations' | 'reference'>('calculations');
+  const [selectedProduct, setSelectedProduct] = useState<AggregatedProduct | null>(null);
   const notify = useNotification();
   const hasEdits = Object.keys(editedPrices).length > 0;
 
@@ -64,9 +67,11 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
     () =>
       [
         ...baseColumns,
-        ...suppliers.map((s) => ({ key: `pv_${s}`, label: `PV ${s}` })),
+        ...(role !== 'client'
+          ? suppliers.map((s) => ({ key: `pa_${s}`, label: `PA ${s}` }))
+          : []),
       ].filter((c) => !c.label.includes('%')),
-    [suppliers]
+    [suppliers, role]
   );
 
   useEffect(() => {
@@ -80,7 +85,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
         const items = res as any[];
         const suppliersSet = new Set<string>();
         const aggregated: AggregatedProduct[] = items.map((it) => {
-          Object.keys(it.supplier_prices || {}).forEach((s) => suppliersSet.add(s));
+          Object.keys(it.buy_price || {}).forEach((s) => suppliersSet.add(s));
           return {
             id: it.id,
             model: it.model,
@@ -91,7 +96,8 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
             type: it.type,
             averagePrice:
               it.recommended_price ?? it.average_price ?? 0,
-            supplierPrices: it.supplier_prices || {},
+            buyPrices: it.buy_price || {},
+            salePrices: it.supplier_prices || {},
           } as AggregatedProduct;
         });
         setSuppliers(Array.from(suppliersSet).sort());
@@ -196,9 +202,9 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
       columns.forEach((c) => {
         if (!visibleColumns.includes(c.key)) return;
         let val: any = (row as any)[c.key];
-        if (c.key.startsWith('pv_')) {
+        if (c.key.startsWith('pa_')) {
           const sup = c.key.slice(3);
-          val = row.supplierPrices[sup];
+          val = row.buyPrices[sup];
         }
         if (c.key === 'averagePrice' && editedPrices[row.id] !== undefined) {
           val = editedPrices[row.id];
@@ -438,10 +444,10 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
                                   col.key === 'brand'
                                     ? brandOptions
                                     : col.key === 'memory'
-                                    ? memoryOptions
-                                    : col.key === 'color'
-                                    ? colorOptions
-                                    : typeOptions
+                                      ? memoryOptions
+                                      : col.key === 'color'
+                                        ? colorOptions
+                                        : typeOptions
                                 }
                                 selected={(filters[col.key] as string[]) || []}
                                 onChange={(selected) =>
@@ -466,20 +472,24 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
               </thead>
               <tbody>
                 {paginatedData.map((row) => {
-                  const prices = suppliers.map((s) => row.supplierPrices[s]);
+                  const prices = suppliers.map((s) => row.buyPrices[s]);
                   const validPrices = prices.filter((p) => typeof p === 'number') as number[];
                   const minPrice = validPrices.length ? Math.min(...validPrices) : undefined;
                   return (
-                    <tr key={String(row.id)} className="odd:bg-zinc-900 even:bg-zinc-800">
+                    <tr
+                      key={String(row.id)}
+                      className={`odd:bg-zinc-900 even:bg-zinc-800 ${role !== 'client' ? 'cursor-pointer' : ''}`}
+                      onClick={() => role !== 'client' && setSelectedProduct(row)}
+                    >
                       {columns.map((col) => {
                         if (!visibleColumns.includes(col.key)) return null;
                         let value: any = (row as any)[col.key];
-                        if (col.key.startsWith('pv_')) {
+                        if (col.key.startsWith('pa_')) {
                           const supplierName = col.key.slice(3);
-                          value = row.supplierPrices[supplierName];
+                          value = row.buyPrices[supplierName];
                         }
                         const isMin =
-                          col.key.startsWith('pv_') &&
+                          col.key.startsWith('pa_') &&
                           typeof value === 'number' &&
                           value === minPrice;
                         return (
@@ -492,6 +502,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
                                 type="number"
                                 step="0.01"
                                 value={editedPrices[row.id] ?? row.averagePrice}
+                                onClick={(e) => e.stopPropagation()}
                                 onChange={(e) => {
                                   const v = Number(e.target.value);
                                   setEditedPrices({ ...editedPrices, [row.id]: v });
@@ -523,6 +534,12 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
         </>
       )}
       {tab === 'reference' && <ProductReference />}
+      {role !== 'client' && selectedProduct && (
+        <SupplierPriceModal
+          prices={selectedProduct.salePrices}
+          onClose={() => setSelectedProduct(null)}
+        />
+      )}
     </div>
   );
 }
