@@ -1,11 +1,17 @@
 #!/bin/bash
 
-# Script de configuration des sauvegardes automatiques
-# Usage: ./setup_backup_cron.sh
+# Script de sauvegarde de la base de données PostgreSQL
+# Usage: ./save_db.sh [nom_sauvegarde_optionnel]
+
+set -e  # Arrêt du script en cas d'erreur
 
 # Configuration
-SCRIPT_DIR="/opt/votre-app"  # Répertoire où se trouvent vos scripts
-LOG_DIR="/var/log/ajt-backups"
+CONTAINER_NAME="postgres"
+DB_NAME="ajt_db"
+DB_USER="ajt_user"
+DB_PASSWORD="ajt_password"
+BACKUP_DIR="/home/ubuntu/backups/database"
+MAX_BACKUPS=10  # Nombre maximum de sauvegardes à conserver
 
 # Couleurs pour les logs
 GREEN='\033[0;32m'
@@ -26,231 +32,218 @@ error() {
     exit 1
 }
 
-# Création du répertoire de logs
-create_log_directory() {
-    if [ ! -d "$LOG_DIR" ]; then
-        log "Création du répertoire de logs: $LOG_DIR"
-        sudo mkdir -p "$LOG_DIR"
-        sudo chown $(whoami):$(whoami) "$LOG_DIR"
+# Vérification des prérequis
+check_prerequisites() {
+    log "Vérification des prérequis..."
+    
+    if ! command -v docker &> /dev/null; then
+        error "Docker n'est pas installé"
+    fi
+    
+    # Vérifier que le container PostgreSQL est en cours d'exécution
+    if ! docker ps --format "table {{.Names}}" | grep -q "^$CONTAINER_NAME$"; then
+        error "Le container PostgreSQL '$CONTAINER_NAME' n'est pas en cours d'exécution"
+    fi
+    
+    log "Container PostgreSQL trouvé et actif"
+}
+
+# Création du répertoire de sauvegarde
+create_backup_directory() {
+    if [ ! -d "$BACKUP_DIR" ]; then
+        log "Création du répertoire de sauvegarde: $BACKUP_DIR"
+        mkdir -p "$BACKUP_DIR"
     fi
 }
 
-# Configuration des tâches cron
-setup_cron_jobs() {
-    log "Configuration des tâches cron pour les sauvegardes automatiques..."
+# Génération du nom de fichier de sauvegarde
+generate_backup_filename() {
+    local custom_name="$1"
+    local timestamp=$(date +%Y%m%d_%H%M%S)
     
-    # Sauvegarde du crontab actuel
-    crontab -l > /tmp/current_crontab 2>/dev/null || touch /tmp/current_crontab
-    
-    # Suppression des anciennes tâches AJT (si elles existent)
-    grep -v "ajt.*backup\|AJT.*backup" /tmp/current_crontab > /tmp/new_crontab || touch /tmp/new_crontab
-    
-    # Ajout des nouvelles tâches
-    cat >> /tmp/new_crontab << EOF
-
-# ============ AJT Database Backups ============
-# Sauvegarde quotidienne à 02:00
-0 2 * * * $SCRIPT_DIR/save_db.sh daily >> $LOG_DIR/backup_daily.log 2>&1
-
-# Sauvegarde hebdomadaire le dimanche à 03:00
-0 3 * * 0 $SCRIPT_DIR/save_db.sh weekly >> $LOG_DIR/backup_weekly.log 2>&1
-
-# Sauvegarde mensuelle le 1er de chaque mois à 04:00
-0 4 1 * * $SCRIPT_DIR/save_db.sh monthly >> $LOG_DIR/backup_monthly.log 2>&1
-
-# Nettoyage des logs tous les dimanche à 05:00
-0 5 * * 0 find $LOG_DIR -name "*.log" -mtime +30 -delete
-# ===============================================
-
-EOF
-    
-    # Installation du nouveau crontab
-    crontab /tmp/new_crontab
-    
-    # Nettoyage
-    rm -f /tmp/current_crontab /tmp/new_crontab
-    
-    log "✅ Tâches cron configurées avec succès!"
-}
-
-# Affichage des tâches configurées
-show_cron_jobs() {
-    log "📅 Tâches cron configurées:"
-    echo "----------------------------------------"
-    crontab -l | grep -A 10 -B 2 "AJT.*Backup\|ajt.*backup" || echo "Aucune tâche trouvée"
-    echo "----------------------------------------"
-}
-
-# Création d'un script wrapper pour les logs
-create_backup_wrapper() {
-    local wrapper_script="$SCRIPT_DIR/backup_wrapper.sh"
-    
-    log "Création du script wrapper: $wrapper_script"
-    
-    cat > "$wrapper_script" << 'EOF'
-#!/bin/bash
-
-# Wrapper pour les sauvegardes avec gestion des notifications
-
-SCRIPT_DIR="/opt/votre-app"
-LOG_DIR="/var/log/ajt-backups"
-BACKUP_TYPE="${1:-manual}"
-
-# Fonction pour envoyer des notifications (à adapter)
-send_notification() {
-    local status="$1"
-    local message="$2"
-    
-    # Exemple avec logger (syslog)
-    logger -t "ajt-backup" "$status: $message"
-    
-    # Exemple avec email (décommentez et adaptez)
-    # echo "$message" | mail -s "AJT Backup $status" admin@votre-domaine.com
-    
-    # Exemple avec webhook Slack (décommentez et adaptez)
-    # curl -X POST -H 'Content-type: application/json' \
-    #   --data "{\"text\":\"AJT Backup $status: $message\"}" \
-    #   YOUR_SLACK_WEBHOOK_URL
-}
-
-# Exécution de la sauvegarde
-start_time=$(date)
-if $SCRIPT_DIR/save_db.sh "$BACKUP_TYPE"; then
-    send_notification "SUCCESS" "Sauvegarde $BACKUP_TYPE terminée avec succès à $(date)"
-else
-    send_notification "FAILED" "Échec de la sauvegarde $BACKUP_TYPE à $(date)"
-fi
-EOF
-    
-    chmod +x "$wrapper_script"
-}
-
-# Test des sauvegardes
-test_backup() {
-    log "🧪 Test de sauvegarde..."
-    
-    if [ -f "$SCRIPT_DIR/save_db.sh" ]; then
-        log "Script de sauvegarde trouvé, test d'exécution..."
-        if $SCRIPT_DIR/save_db.sh test_setup; then
-            log "✅ Test de sauvegarde réussi!"
-        else
-            warn "⚠️  Test de sauvegarde échoué, vérifiez la configuration"
-        fi
+    if [ -n "$custom_name" ]; then
+        echo "${custom_name}_${timestamp}"
     else
-        error "Script save_db.sh introuvable dans $SCRIPT_DIR"
+        echo "ajt_db_backup_${timestamp}"
     fi
 }
 
-# Configuration des rotations de logs avec logrotate
-setup_logrotate() {
-    local logrotate_config="/etc/logrotate.d/ajt-backups"
+# Sauvegarde de la base de données
+backup_database() {
+    local backup_name="$1"
+    local sql_file="${BACKUP_DIR}/${backup_name}.sql"
+    local tar_file="${BACKUP_DIR}/${backup_name}.tar.gz"
     
-    log "Configuration de la rotation des logs..."
+    log "Début de la sauvegarde de la base de données '$DB_NAME'..."
     
-    sudo tee "$logrotate_config" > /dev/null << EOF
-$LOG_DIR/*.log {
-    daily
-    rotate 30
-    compress
-    delaycompress
-    missingok
-    notifempty
-    create 644 $(whoami) $(whoami)
-    postrotate
-        # Optionnel: restart d'un service si nécessaire
-    endscript
-}
-EOF
+    # Export de la base de données avec pg_dump
+    log "Création du dump SQL..."
+    docker exec -e PGPASSWORD="$DB_PASSWORD" "$CONTAINER_NAME" \
+        pg_dump -h localhost -U "$DB_USER" -d "$DB_NAME" \
+        --verbose --clean --no-owner --no-privileges \
+        > "$sql_file"
     
-    log "✅ Configuration logrotate créée: $logrotate_config"
-}
-
-# Menu interactif
-show_menu() {
-    echo ""
-    echo "=== Configuration des sauvegardes automatiques AJT ==="
-    echo "1. Configurer les sauvegardes automatiques (cron)"
-    echo "2. Afficher les tâches cron actuelles"
-    echo "3. Tester une sauvegarde manuelle"
-    echo "4. Configurer la rotation des logs"
-    echo "5. Installation complète (tout)"
-    echo "6. Désinstaller les tâches automatiques"
-    echo "0. Quitter"
-    echo ""
-    read -p "Choisissez une option (0-6): " choice
+    if [ ! -f "$sql_file" ] || [ ! -s "$sql_file" ]; then
+        error "Échec de la création du dump SQL ou fichier vide"
+    fi
     
-    case $choice in
-        1)
-            create_log_directory
-            setup_cron_jobs
-            create_backup_wrapper
-            show_cron_jobs
-            ;;
-        2)
-            show_cron_jobs
-            ;;
-        3)
-            test_backup
-            ;;
-        4)
-            setup_logrotate
-            ;;
-        5)
-            create_log_directory
-            setup_cron_jobs
-            create_backup_wrapper
-            setup_logrotate
-            test_backup
-            show_cron_jobs
-            log "🎉 Configuration complète terminée!"
-            ;;
-        6)
-            remove_cron_jobs
-            ;;
-        0)
-            log "Au revoir!"
-            exit 0
-            ;;
-        *)
-            warn "Option invalide"
-            show_menu
-            ;;
-    esac
+    log "Dump SQL créé: $(du -h "$sql_file" | cut -f1)"
+    
+    # Compression en tar.gz
+    log "Compression du dump en tar.gz..."
+    tar -czf "$tar_file" -C "$BACKUP_DIR" "$(basename "$sql_file")"
+    
+    if [ ! -f "$tar_file" ]; then
+        error "Échec de la compression tar.gz"
+    fi
+    
+    # Suppression du fichier SQL temporaire
+    rm -f "$sql_file"
+    
+    log "Sauvegarde terminée: $tar_file"
+    log "Taille de la sauvegarde: $(du -h "$tar_file" | cut -f1)"
+    
+    echo "$tar_file"
 }
 
-# Désinstallation des tâches cron
-remove_cron_jobs() {
-    log "Suppression des tâches cron AJT..."
+# Vérification de l'intégrité de la sauvegarde
+verify_backup() {
+    local tar_file="$1"
     
-    crontab -l > /tmp/current_crontab 2>/dev/null || touch /tmp/current_crontab
-    grep -v "ajt.*backup\|AJT.*backup" /tmp/current_crontab > /tmp/new_crontab || touch /tmp/new_crontab
-    crontab /tmp/new_crontab
-    rm -f /tmp/current_crontab /tmp/new_crontab
+    log "Vérification de l'intégrité de la sauvegarde..."
     
-    log "✅ Tâches cron supprimées"
+    if tar -tzf "$tar_file" >/dev/null 2>&1; then
+        log "✅ Sauvegarde valide et lisible"
+    else
+        error "❌ Sauvegarde corrompue ou illisible"
+    fi
+}
+
+# Nettoyage des anciennes sauvegardes
+cleanup_old_backups() {
+    log "Nettoyage des anciennes sauvegardes (conservation des $MAX_BACKUPS dernières)..."
+    
+    local backup_count=$(find "$BACKUP_DIR" -name "*.tar.gz" -type f | wc -l)
+    
+    if [ "$backup_count" -gt "$MAX_BACKUPS" ]; then
+        local files_to_delete=$((backup_count - MAX_BACKUPS))
+        log "Suppression de $files_to_delete ancienne(s) sauvegarde(s)..."
+        
+        find "$BACKUP_DIR" -name "*.tar.gz" -type f -printf '%T@ %p\n' | \
+        sort -n | \
+        head -n "$files_to_delete" | \
+        cut -d' ' -f2- | \
+        while read -r file; do
+            log "Suppression: $(basename "$file")"
+            rm -f "$file"
+        done
+    else
+        log "Aucune sauvegarde à supprimer ($backup_count/$MAX_BACKUPS)"
+    fi
+}
+
+# Affichage des statistiques
+show_backup_stats() {
+    log "📊 Statistiques des sauvegardes:"
+    echo "----------------------------------------"
+    echo "Répertoire: $BACKUP_DIR"
+    echo "Nombre total: $(find "$BACKUP_DIR" -name "*.tar.gz" -type f | wc -l)"
+    echo "Espace utilisé: $(du -sh "$BACKUP_DIR" 2>/dev/null | cut -f1 || echo "N/A")"
+    echo "----------------------------------------"
+    
+    log "📁 Dernières sauvegardes:"
+    find "$BACKUP_DIR" -name "*.tar.gz" -type f -printf '%TY-%Tm-%Td %TH:%TM - %f - %s bytes\n' | \
+    sort -r | head -5 | while read -r line; do
+        echo "  $line"
+    done
+}
+
+# Test de restauration (optionnel)
+test_restore() {
+    local tar_file="$1"
+    local test_db="${DB_NAME}_test_restore"
+    
+    log "🧪 Test de restauration (optionnel)..."
+    
+    # Extraction du dump
+    local temp_dir=$(mktemp -d)
+    tar -xzf "$tar_file" -C "$temp_dir"
+    local sql_file=$(find "$temp_dir" -name "*.sql" | head -1)
+    
+    if [ -n "$sql_file" ]; then
+        log "Test de restauration sur une base temporaire..."
+        
+        # Création d'une base de test
+        docker exec -e PGPASSWORD="$DB_PASSWORD" "$CONTAINER_NAME" \
+            createdb -h localhost -U "$DB_USER" "$test_db" 2>/dev/null || true
+        
+        # Test de restauration
+        if docker exec -i -e PGPASSWORD="$DB_PASSWORD" "$CONTAINER_NAME" \
+            psql -h localhost -U "$DB_USER" -d "$test_db" < "$sql_file" >/dev/null 2>&1; then
+            log "✅ Test de restauration réussi"
+        else
+            warn "⚠️  Test de restauration échoué (cela peut être normal selon la structure de la DB)"
+        fi
+        
+        # Nettoyage de la base de test
+        docker exec -e PGPASSWORD="$DB_PASSWORD" "$CONTAINER_NAME" \
+            dropdb -h localhost -U "$DB_USER" "$test_db" 2>/dev/null || true
+    fi
+    
+    # Nettoyage du répertoire temporaire
+    rm -rf "$temp_dir"
 }
 
 # Fonction principale
 main() {
-    log "🚀 Configuration des sauvegardes automatiques AJT"
+    local custom_name="$1"
     
-    # Vérifications
-    if [ ! -f "$SCRIPT_DIR/save_db.sh" ]; then
-        error "Script save_db.sh introuvable dans $SCRIPT_DIR"
-    fi
+    log "🚀 Début de la sauvegarde de la base de données AJT"
     
-    if [ "$1" = "--auto" ]; then
-        # Installation automatique
-        create_log_directory
-        setup_cron_jobs
-        create_backup_wrapper
-        setup_logrotate
-        log "🎉 Configuration automatique terminée!"
-    else
-        # Menu interactif
-        show_menu
-    fi
+    check_prerequisites
+    create_backup_directory
+    
+    local backup_name=$(generate_backup_filename "$custom_name")
+    local backup_file=$(backup_database "$backup_name")
+    
+    verify_backup "$backup_file"
+    
+    # Test de restauration (décommentez si souhaité)
+    # test_restore "$backup_file"
+    
+    cleanup_old_backups
+    show_backup_stats
+    
+    log "✅ Sauvegarde terminée avec succès!"
+    log "📁 Fichier de sauvegarde: $backup_file"
+    
+    # Affichage du chemin pour faciliter la copie
+    echo ""
+    echo "Pour restaurer cette sauvegarde:"
+    echo "tar -xzf $backup_file"
+    echo "docker exec -i -e PGPASSWORD=\"$DB_PASSWORD\" $CONTAINER_NAME psql -h localhost -U $DB_USER -d $DB_NAME < nom_du_fichier.sql"
 }
 
-# Exécution
-main "$@"
+# Gestion des arguments
+case "${1:-}" in
+    -h|--help)
+        echo "Usage: $0 [nom_sauvegarde_optionnel]"
+        echo ""
+        echo "Options:"
+        echo "  -h, --help    Affiche cette aide"
+        echo "  -s, --stats   Affiche uniquement les statistiques"
+        echo ""
+        echo "Exemples:"
+        echo "  $0                    # Sauvegarde avec nom automatique"
+        echo "  $0 migration_v2       # Sauvegarde avec nom personnalisé"
+        exit 0
+        ;;
+    -s|--stats)
+        create_backup_directory
+        show_backup_stats
+        exit 0
+        ;;
+    *)
+        main "$1"
+        ;;
+esac
