@@ -8,7 +8,7 @@ MSG ?= "Auto migration"
 help:
 	@echo "Available commands:"
 	@echo "  docker-build           Build backend and frontend images"
-	@echo "  docker-up              Start postgres, backend and frontend-dev"
+	@echo "  docker-up              Start postgres, backend and frontend"
 	@echo "  docker-down            Stop all services"
 	@echo "  docker-logs SERVICE=s  Tail logs of a service"
 	@echo "  shell-postgres         Open a shell in the postgres container"
@@ -21,12 +21,10 @@ help:
 	@echo "  clean-branches         Remove local Git branches except main/dev"
 
 docker-build:
-	$(DC) build backend
-	$(DC) --profile dev build frontend-dev
+	$(DC) build backend frontend
 
 docker-up:
-	$(DC) up -d postgres backend
-	$(DC) --profile dev up -d frontend-dev
+	$(DC) up -d
 
 docker-down:
 	$(DC) down
@@ -36,6 +34,9 @@ docker-logs:
 
 shell-postgres:
 	$(DC) exec postgres bash
+
+shell-postgres:
+	docker compose exec postgres psql -U postgres -d ajtpro
 
 alembic-init:
 	$(DC) run --rm backend alembic init alembic

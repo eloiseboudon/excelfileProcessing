@@ -16,7 +16,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - app-network
+      - ajt-network
     env_file:
       - .env.dev
 
@@ -34,7 +34,7 @@ services:
       CORS_ORIGINS: "http://localhost:3000,http://localhost:5173,http://frontend:80,http://frontend-dev:5173"
     volumes:
       - ./backend:/app
-    container_name: ajt_backend_dev
+    container_name: ajt_backend_prod
     ports:
       - "5001:5001"
     depends_on:
@@ -42,30 +42,13 @@ services:
         condition: service_healthy
     working_dir: /app
     networks:
-      - app-network
+      - ajt-network
     restart: unless-stopped
     command: python -m flask run --host=0.0.0.0 --port=5001 --reload
     env_file:
       - .env.dev
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        VITE_API_BASE: http://localhost:5001
-    container_name: ajt_frontend
-    ports:
-      - "3000:80"
-    depends_on:
-      - backend
-    networks:
-      - app-network
-    restart: unless-stopped
-    environment:
-      - VITE_API_BASE=http://localhost:5001
 
-  # Service optionnel pour le développement
-  frontend-dev:
+  frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
@@ -78,16 +61,16 @@ services:
     depends_on:
       - backend
     networks:
-      - app-network
+      - ajt-network
+    restart: unless-stopped
     environment:
       - VITE_API_BASE=http://localhost:5001
-    profiles:
-      - dev
 
 volumes:
   postgres_data:
 
 
 networks:
-  app-network:
-    driver: bridge
+  ajt-network:
+    name: ajtpro_default
+    external: true
