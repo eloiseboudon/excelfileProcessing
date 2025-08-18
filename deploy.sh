@@ -187,12 +187,14 @@ manage_docker_containers() {
     cd "$APP_DIR"
     
     # Déterminer la commande docker-compose
-    if command -v "docker compose" &> /dev/null; then
-        DOCKER_COMPOSE_CMD="docker compose"
-    else
-        DOCKER_COMPOSE_CMD="docker-compose"
-    fi
+    # if command -v "docker compose" &> /dev/null; then
+    #     DOCKER_COMPOSE_CMD="docker compose"
+    # else
+    #     DOCKER_COMPOSE_CMD="docker-compose"
+    # fi
     
+    DOCKER_COMPOSE_CMD="docker compose"
+
     # Choisir le bon fichier docker-compose
     local compose_file="$DOCKER_COMPOSE_FILE"
     if [ -f "$DOCKER_COMPOSE_PROD_FILE" ]; then

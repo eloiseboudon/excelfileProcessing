@@ -89,9 +89,7 @@ FROM nginx:stable-alpine
 RUN rm -rf /usr/share/nginx/html/*
 
 # Copier le build React vers nginx
-# Essayer d'abord build/, puis dist/ en fallback
-COPY --from=builder /app/build /usr/share/nginx/html/ 2>/dev/null || \
-    COPY --from=builder /app/dist /usr/share/nginx/html/
+COPY --from=builder /app/build /usr/share/nginx/html/
 
 # Copier la config nginx personnalisée
 COPY nginx.conf /etc/nginx/conf.d/default.conf
