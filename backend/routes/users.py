@@ -32,17 +32,25 @@ def create_user():
     last_name = data.get("last_name")
     email = data.get("email")
     role = data.get("role", "client")
+    username = data.get("username")
     if not email:
         return jsonify({"error": "email requis"}), 400
     if User.query.filter_by(email=email).first():
         return jsonify({"error": "Utilisateur existe"}), 400
-    user = User(email=email, role=role, first_name=first_name, last_name=last_name)
+    user = User(
+        email=email,
+        username=username,
+        role=role,
+        first_name=first_name,
+        last_name=last_name,
+    )
     user.set_password("changeme")
     db.session.add(user)
     db.session.commit()
     return jsonify(
         {
             "id": user.id,
+            "username": user.username,
             "email": user.email,
             "role": user.role,
             "first_name": user.first_name,

@@ -92,7 +92,7 @@ function UserAdmin({ isVisible, onClose }: UserAdminProps) {
             <input
               value={u.username}
               onChange={e => handleChange(u.id, 'username', e.target.value)}
-              placeholder="email"
+              placeholder="username"
               className="flex-1 px-2 py-1 bg-zinc-700 text-white rounded"
             />
             <input
