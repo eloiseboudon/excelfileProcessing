@@ -37,3 +37,5 @@ backend/alembic/*
 todo.md
 backend/log
 
+frontend/nginx.conf
+
