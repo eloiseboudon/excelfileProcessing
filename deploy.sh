@@ -6,9 +6,9 @@
 set -e  # Arrêt du script en cas d'erreur
 
 # Configuration
-REPO_URL="https://github.com/eloiseboudon/excelfileProcessing.git"  # À adapter
+REPO_URL="https://github.com/votre-username/ajtpro.git"  # À adapter
 APP_DIR="/home/ubuntu/ajtpro"  # Répertoire actuel de l'application
-BRANCH="${1:-install_prod}"  # Branche par défaut ou celle passée en paramètre
+BRANCH="${1:-main}"  # Branche par défaut ou celle passée en paramètre
 DOCKER_COMPOSE_FILE="docker-compose.yml"
 DOCKER_COMPOSE_PROD_FILE="docker-compose.prod.yml"
 BACKUP_DIR="/home/ubuntu/backups/deployments/$(date +%Y%m%d_%H%M%S)"
@@ -67,6 +67,8 @@ backup_database() {
     log "💾 Sauvegarde de la base de données avant déploiement..."
     
     if [ -f "./save_db.sh" ]; then
+        # S'assurer que le script est exécutable
+        chmod +x ./save_db.sh
         ./save_db.sh "before_deploy_$(date +%Y%m%d_%H%M%S)" || warn "Échec de la sauvegarde DB (non critique)"
     else
         warn "Script save_db.sh introuvable, pas de sauvegarde DB"
@@ -121,7 +123,7 @@ fetch_code() {
     info "📝 Message: $commit_msg"
 }
 
-# Build du frontend avec gestion des erreurs
+# Build du frontend avec gestion des erreurs et récupération
 build_frontend() {
     log "🏗️  Build du frontend..."
     
@@ -132,13 +134,40 @@ build_frontend() {
         error "package.json introuvable dans le répertoire frontend"
     fi
     
-    # Installation des dépendances
+    # Installation des dépendances avec gestion d'erreur
     log "📦 Installation des dépendances NPM..."
-    npm ci --production=false
+    if ! npm ci --production=false; then
+        warn "⚠️ npm ci a échoué, tentative de correction..."
+        
+        # Correction du problème Rollup/npm
+        log "🔧 Correction du problème de dépendances..."
+        rm -rf node_modules package-lock.json
+        npm cache clean --force
+        
+        if npm install --legacy-peer-deps; then
+            info "✅ Dépendances installées avec --legacy-peer-deps"
+        elif npm install --force; then
+            info "✅ Dépendances installées avec --force"
+        else
+            error "❌ Impossible d'installer les dépendances"
+        fi
+    fi
     
-    # Build de production
+    # Build de production avec récupération
     log "🔨 Build de production..."
-    npm run build
+    if ! npm run build; then
+        warn "⚠️ Premier build échoué, tentative de correction..."
+        
+        # Réinstaller Rollup spécifiquement
+        npm install rollup@latest --save-dev --legacy-peer-deps || true
+        
+        # Retry le build
+        if npm run build; then
+            info "✅ Build réussi après correction"
+        else
+            error "❌ Build définitivement échoué"
+        fi
+    fi
     
     # Vérification que le build a réussi
     if [ ! -d "dist" ] && [ ! -d "build" ]; then
