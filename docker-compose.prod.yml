@@ -3,18 +3,63 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    container_name: ajt_backend_prod
     environment:
       FLASK_ENV: production
       FLASK_DEBUG: 0
       FRONTEND_URL: https://ajtpro.tulip-saas.fr
       CORS_ORIGINS: "https://ajtpro.tulip-saas.fr"
+      POSTGRES_DB: ajt_db
+      POSTGRES_USER: ajt_user
+      POSTGRES_PASSWORD: ajt_password
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
     command: gunicorn -w 4 -b 0.0.0.0:5001 app:app
+    ports:
+      - "8000:5001"
+    depends_on:
+      - postgres
+    networks:
+      - ajt-network
+    restart: unless-stopped
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE: ${VITE_API_BASE}
+        VITE_API_BASE: "https://ajtpro.api.tulip-saas.fr"
+    container_name: ajt_frontend_prod
     environment:
-      - VITE_API_BASE=${VITE_API_BASE}
+      - VITE_API_BASE=https://ajtpro.api.tulip-saas.fr
+    ports:
+      - "3000:80" # Port 3000 pour éviter conflit avec nginx-proxy-manager
+    networks:
+      - ajt-network
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  postgres:
+    image: postgres:16
+    container_name: postgres_prod
+    restart: always
+    environment:
+      POSTGRES_DB: ajt_db
+      POSTGRES_USER: ajt_user
+      POSTGRES_PASSWORD: ajt_password
+    volumes:
+      - ajtpro_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - ajt-network
+
+volumes:
+  ajtpro_postgres_data:
+
+
+networks:
+  ajt-network:
+    name: ajtpro_default
+    external: true
