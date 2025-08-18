@@ -2,6 +2,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import ReferenceAdmin from './ReferenceAdmin';
 import TranslationAdmin from './TranslationAdmin';
+import UserAdmin from './UserAdmin';
 
 interface AdminPageProps {
   onBack: () => void;
@@ -10,6 +11,7 @@ interface AdminPageProps {
 function AdminPage({ onBack }: AdminPageProps) {
   const [showReferences, setShowReferences] = useState(false);
   const [showTranslations, setShowTranslations] = useState(false);
+  const [showUsers, setShowUsers] = useState(false);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
@@ -34,6 +36,12 @@ function AdminPage({ onBack }: AdminPageProps) {
         >
           Cohérence des tables de référence
         </button>
+        <button
+          onClick={() => setShowUsers(true)}
+          className="btn btn-primary px-6 py-3"
+        >
+          Gestion utilisateurs
+        </button>
       </div>
       <ReferenceAdmin
         isVisible={showReferences}
@@ -42,6 +50,10 @@ function AdminPage({ onBack }: AdminPageProps) {
       <TranslationAdmin
         isVisible={showTranslations}
         onClose={() => setShowTranslations(false)}
+      />
+      <UserAdmin
+        isVisible={showUsers}
+        onClose={() => setShowUsers(false)}
       />
     </div>
   );
