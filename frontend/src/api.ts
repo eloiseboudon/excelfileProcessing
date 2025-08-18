@@ -304,6 +304,38 @@ export async function deleteReferenceItem(table: string, id: number) {
   return res.json();
 }
 
+export async function fetchUsers() {
+  const res = await fetchWithAuth(`${API_BASE}/users`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function updateUser(id: number, data: any) {
+  const res = await fetchWithAuth(`${API_BASE}/users/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function createUser(data: any) {
+  const res = await fetchWithAuth(`${API_BASE}/users`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
 export async function fetchBrands() {
   const res = await fetchWithAuth(`${API_BASE}/references/brands`);
   if (!res.ok) {
