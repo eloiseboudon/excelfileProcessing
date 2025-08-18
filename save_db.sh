@@ -42,10 +42,23 @@ check_prerequisites() {
     
     # Vérifier que le container PostgreSQL est en cours d'exécution
     if ! docker ps --format "table {{.Names}}" | grep -q "^$CONTAINER_NAME$"; then
-        error "Le container PostgreSQL '$CONTAINER_NAME' n'est pas en cours d'exécution"
+        # Essayer avec le nom alternatif
+        if docker ps --format "table {{.Names}}" | grep -q "^postgres$"; then
+            CONTAINER_NAME="postgres"
+            log "Container PostgreSQL trouvé sous le nom 'postgres'"
+        else
+            error "Aucun container PostgreSQL trouvé (ni '$CONTAINER_NAME' ni 'postgres')"
+        fi
+    else
+        log "Container PostgreSQL trouvé: $CONTAINER_NAME"
     fi
     
-    log "Container PostgreSQL trouvé et actif"
+    # Test de connexion à la base de données
+    if docker exec "$CONTAINER_NAME" pg_isready -U "$DB_USER" -d "$DB_NAME" > /dev/null 2>&1; then
+        log "✅ Connexion à la base de données confirmée"
+    else
+        warn "⚠️ Impossible de vérifier la connexion à la base de données"
+    fi
 }
 
 # Création du répertoire de sauvegarde
@@ -78,10 +91,37 @@ backup_database() {
     
     # Export de la base de données avec pg_dump
     log "Création du dump SQL..."
-    docker exec -e PGPASSWORD="$DB_PASSWORD" "$CONTAINER_NAME" \
+    
+    # Méthode alternative plus robuste
+    if docker exec -e PGPASSWORD="$DB_PASSWORD" "$CONTAINER_NAME" \
         pg_dump -h localhost -U "$DB_USER" -d "$DB_NAME" \
         --verbose --clean --no-owner --no-privileges \
-        > "$sql_file"
+        --format=custom --compress=9 > "${sql_file}.custom" 2>/dev/null; then
+        
+        log "Dump custom créé avec succès"
+        
+        # Conversion en SQL standard pour compatibilité
+        docker exec -e PGPASSWORD="$DB_PASSWORD" "$CONTAINER_NAME" \
+            pg_restore --no-owner --no-privileges --format=custom \
+            --file=/tmp/dump.sql "${sql_file}.custom" 2>/dev/null || true
+        
+        docker exec "$CONTAINER_NAME" cat /tmp/dump.sql > "$sql_file" 2>/dev/null || {
+            # Fallback: utiliser directement le dump custom comme fichier principal
+            mv "${sql_file}.custom" "$sql_file"
+            log "Utilisation du format custom PostgreSQL"
+        }
+        
+        # Nettoyage
+        rm -f "${sql_file}.custom"
+        docker exec "$CONTAINER_NAME" rm -f /tmp/dump.sql 2>/dev/null || true
+        
+    else
+        # Méthode de fallback: dump SQL standard
+        log "Utilisation de la méthode de sauvegarde alternative..."
+        docker exec -e PGPASSWORD="$DB_PASSWORD" "$CONTAINER_NAME" \
+            pg_dump -h localhost -U "$DB_USER" -d "$DB_NAME" \
+            --clean --no-owner --no-privileges > "$sql_file" 2>/dev/null
+    fi
     
     if [ ! -f "$sql_file" ] || [ ! -s "$sql_file" ]; then
         error "Échec de la création du dump SQL ou fichier vide"
@@ -89,12 +129,16 @@ backup_database() {
     
     log "Dump SQL créé: $(du -h "$sql_file" | cut -f1)"
     
-    # Compression en tar.gz
+    # Compression en tar.gz avec vérification
     log "Compression du dump en tar.gz..."
-    tar -czf "$tar_file" -C "$BACKUP_DIR" "$(basename "$sql_file")"
+    if tar -czf "$tar_file" -C "$BACKUP_DIR" "$(basename "$sql_file")" 2>/dev/null; then
+        log "✅ Compression réussie"
+    else
+        error "❌ Échec de la compression tar.gz"
+    fi
     
-    if [ ! -f "$tar_file" ]; then
-        error "Échec de la compression tar.gz"
+    if [ ! -f "$tar_file" ] || [ ! -s "$tar_file" ]; then
+        error "Fichier tar.gz manquant ou vide"
     fi
     
     # Suppression du fichier SQL temporaire
@@ -112,10 +156,44 @@ verify_backup() {
     
     log "Vérification de l'intégrité de la sauvegarde..."
     
+    # Vérification de l'existence et de la taille
+    if [ ! -f "$tar_file" ]; then
+        error "❌ Fichier de sauvegarde introuvable"
+    fi
+    
+    if [ ! -s "$tar_file" ]; then
+        error "❌ Fichier de sauvegarde vide"
+    fi
+    
+    # Test de l'archive tar
     if tar -tzf "$tar_file" >/dev/null 2>&1; then
-        log "✅ Sauvegarde valide et lisible"
+        log "✅ Archive tar valide"
+        
+        # Vérification du contenu
+        local content_count=$(tar -tzf "$tar_file" | wc -l)
+        if [ "$content_count" -gt 0 ]; then
+            log "✅ Archive contient $content_count fichier(s)"
+            
+            # Test d'extraction dans un répertoire temporaire
+            local temp_dir=$(mktemp -d)
+            if tar -xzf "$tar_file" -C "$temp_dir" 2>/dev/null; then
+                local extracted_file=$(find "$temp_dir" -name "*.sql" | head -1)
+                if [ -n "$extracted_file" ] && [ -s "$extracted_file" ]; then
+                    log "✅ Extraction réussie, fichier SQL valide"
+                    rm -rf "$temp_dir"
+                    return 0
+                else
+                    warn "⚠️ Fichier SQL extrait semble vide ou invalide"
+                fi
+            else
+                warn "⚠️ Problème lors de l'extraction de test"
+            fi
+            rm -rf "$temp_dir"
+        else
+            error "❌ Archive vide"
+        fi
     else
-        error "❌ Sauvegarde corrompue ou illisible"
+        error "❌ Archive tar corrompue ou illisible"
     fi
 }
 
@@ -147,15 +225,15 @@ show_backup_stats() {
     log "📊 Statistiques des sauvegardes:"
     echo "----------------------------------------"
     echo "Répertoire: $BACKUP_DIR"
-    echo "Nombre total: $(find "$BACKUP_DIR" -name "*.tar.gz" -type f | wc -l)"
+    echo "Nombre total: $(find "$BACKUP_DIR" -name "*.tar.gz" -type f 2>/dev/null | wc -l)"
     echo "Espace utilisé: $(du -sh "$BACKUP_DIR" 2>/dev/null | cut -f1 || echo "N/A")"
     echo "----------------------------------------"
     
-    log "📁 Dernières sauvegardes:"
-    find "$BACKUP_DIR" -name "*.tar.gz" -type f -printf '%TY-%Tm-%Td %TH:%TM - %f - %s bytes\n' | \
+    log "📝 Dernières sauvegardes:"
+    find "$BACKUP_DIR" -name "*.tar.gz" -type f -printf '%TY-%Tm-%Td %TH:%TM - %f - %s bytes\n' 2>/dev/null | \
     sort -r | head -5 | while read -r line; do
         echo "  $line"
-    done
+    done || echo "  Aucune sauvegarde trouvée"
 }
 
 # Test de restauration (optionnel)
@@ -167,27 +245,32 @@ test_restore() {
     
     # Extraction du dump
     local temp_dir=$(mktemp -d)
-    tar -xzf "$tar_file" -C "$temp_dir"
-    local sql_file=$(find "$temp_dir" -name "*.sql" | head -1)
-    
-    if [ -n "$sql_file" ]; then
-        log "Test de restauration sur une base temporaire..."
+    if tar -xzf "$tar_file" -C "$temp_dir" 2>/dev/null; then
+        local sql_file=$(find "$temp_dir" -name "*.sql" | head -1)
         
-        # Création d'une base de test
-        docker exec -e PGPASSWORD="$DB_PASSWORD" "$CONTAINER_NAME" \
-            createdb -h localhost -U "$DB_USER" "$test_db" 2>/dev/null || true
-        
-        # Test de restauration
-        if docker exec -i -e PGPASSWORD="$DB_PASSWORD" "$CONTAINER_NAME" \
-            psql -h localhost -U "$DB_USER" -d "$test_db" < "$sql_file" >/dev/null 2>&1; then
-            log "✅ Test de restauration réussi"
+        if [ -n "$sql_file" ] && [ -s "$sql_file" ]; then
+            log "Test de restauration sur une base temporaire..."
+            
+            # Création d'une base de test
+            docker exec -e PGPASSWORD="$DB_PASSWORD" "$CONTAINER_NAME" \
+                createdb -h localhost -U "$DB_USER" "$test_db" 2>/dev/null || true
+            
+            # Test de restauration
+            if docker exec -i -e PGPASSWORD="$DB_PASSWORD" "$CONTAINER_NAME" \
+                psql -h localhost -U "$DB_USER" -d "$test_db" < "$sql_file" >/dev/null 2>&1; then
+                log "✅ Test de restauration réussi"
+            else
+                warn "⚠️ Test de restauration échoué (cela peut être normal selon la structure de la DB)"
+            fi
+            
+            # Nettoyage de la base de test
+            docker exec -e PGPASSWORD="$DB_PASSWORD" "$CONTAINER_NAME" \
+                dropdb -h localhost -U "$DB_USER" "$test_db" 2>/dev/null || true
         else
-            warn "⚠️  Test de restauration échoué (cela peut être normal selon la structure de la DB)"
+            warn "⚠️ Fichier SQL introuvable ou vide après extraction"
         fi
-        
-        # Nettoyage de la base de test
-        docker exec -e PGPASSWORD="$DB_PASSWORD" "$CONTAINER_NAME" \
-            dropdb -h localhost -U "$DB_USER" "$test_db" 2>/dev/null || true
+    else
+        warn "⚠️ Échec de l'extraction de l'archive"
     fi
     
     # Nettoyage du répertoire temporaire
@@ -204,24 +287,63 @@ main() {
     create_backup_directory
     
     local backup_name=$(generate_backup_filename "$custom_name")
-    local backup_file=$(backup_database "$backup_name")
+    log "📋 Nom de sauvegarde généré: $backup_name"
     
-    verify_backup "$backup_file"
-    
-    # Test de restauration (décommentez si souhaité)
-    # test_restore "$backup_file"
+    # Appel de la fonction de sauvegarde avec gestion d'erreur
+    local backup_file=""
+    if backup_file=$(backup_database "$backup_name"); then
+        log "📁 Fichier créé: $backup_file"
+        
+        # Vérification de l'intégrité seulement si le fichier a été créé
+        if [ -n "$backup_file" ] && [ -f "$backup_file" ]; then
+            verify_backup "$backup_file"
+            
+            # Test de restauration (décommentez si souhaité)
+            # test_restore "$backup_file"
+            
+            log "✅ Sauvegarde terminée avec succès!"
+            log "📁 Fichier de sauvegarde: $backup_file"
+            
+            # Affichage du chemin pour faciliter la copie
+            echo ""
+            echo "Pour restaurer cette sauvegarde:"
+            echo "tar -xzf $backup_file"
+            echo "docker exec -i -e PGPASSWORD=\"$DB_PASSWORD\" $CONTAINER_NAME psql -h localhost -U $DB_USER -d $DB_NAME < nom_du_fichier.sql"
+        else
+            error "❌ La sauvegarde n'a pas pu être créée"
+        fi
+    else
+        error "❌ Échec de la fonction de sauvegarde"
+    fi
     
     cleanup_old_backups
     show_backup_stats
+}
+
+# Fonction de diagnostic pour débugger les problèmes
+debug_backup() {
+    log "🔍 Mode diagnostic activé"
     
-    log "✅ Sauvegarde terminée avec succès!"
-    log "📁 Fichier de sauvegarde: $backup_file"
-    
-    # Affichage du chemin pour faciliter la copie
+    echo "=== INFORMATIONS SYSTÈME ==="
+    echo "Containers Docker actifs:"
+    docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
     echo ""
-    echo "Pour restaurer cette sauvegarde:"
-    echo "tar -xzf $backup_file"
-    echo "docker exec -i -e PGPASSWORD=\"$DB_PASSWORD\" $CONTAINER_NAME psql -h localhost -U $DB_USER -d $DB_NAME < nom_du_fichier.sql"
+    
+    echo "=== TEST DE CONNEXION DATABASE ==="
+    for container in "postgres_prod" "postgres"; do
+        if docker ps --format "{{.Names}}" | grep -q "^$container$"; then
+            echo "Test du container: $container"
+            docker exec "$container" pg_isready -U "$DB_USER" -d "$DB_NAME" 2>&1 || echo "  ❌ Échec de connexion"
+            echo ""
+        fi
+    done
+    
+    echo "=== ESPACE DISQUE ==="
+    df -h "$BACKUP_DIR" 2>/dev/null || echo "Répertoire de sauvegarde inexistant"
+    echo ""
+    
+    echo "=== PERMISSIONS ==="
+    ls -la "$BACKUP_DIR" 2>/dev/null || echo "Impossible de lister le répertoire de sauvegarde"
 }
 
 # Gestion des arguments
@@ -232,6 +354,7 @@ case "${1:-}" in
         echo "Options:"
         echo "  -h, --help    Affiche cette aide"
         echo "  -s, --stats   Affiche uniquement les statistiques"
+        echo "  -d, --debug   Mode diagnostic"
         echo ""
         echo "Exemples:"
         echo "  $0                    # Sauvegarde avec nom automatique"
@@ -241,6 +364,10 @@ case "${1:-}" in
     -s|--stats)
         create_backup_directory
         show_backup_stats
+        exit 0
+        ;;
+    -d|--debug)
+        debug_backup
         exit 0
         ;;
     *)
