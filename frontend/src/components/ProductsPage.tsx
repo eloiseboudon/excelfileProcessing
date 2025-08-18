@@ -1,5 +1,5 @@
 import { ArrowLeft } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import MultiSelectFilter from './MultiSelectFilter';
 import { getCurrentTimestamp } from '../utils/date';
@@ -29,9 +29,10 @@ interface AggregatedProduct {
 
 interface ProductsPageProps {
   onBack: () => void;
+  role?: string;
 }
 
-function ProductsPage({ onBack }: ProductsPageProps) {
+function ProductsPage({ onBack, role }: ProductsPageProps) {
   const [data, setData] = useState<AggregatedProduct[]>([]);
   const [suppliers, setSuppliers] = useState<string[]>([]);
   const [filters, setFilters] = useState<Record<string, string | string[]>>({});
@@ -59,15 +60,19 @@ function ProductsPage({ onBack }: ProductsPageProps) {
     { key: 'averagePrice', label: 'Prix de vente conseillé' }
   ];
 
-  const columns = [
-    ...baseColumns,
-    ...suppliers.map((s) => ({ key: `pv_${s}`, label: `PV ${s}` })),
-  ];
+  const columns = useMemo(
+    () =>
+      [
+        ...baseColumns,
+        ...suppliers.map((s) => ({ key: `pv_${s}`, label: `PV ${s}` })),
+      ].filter((c) => !c.label.includes('%')),
+    [suppliers]
+  );
 
   useEffect(() => {
-    const allKeys = [...baseColumns.map((c) => c.key), ...suppliers.map((s) => `pv_${s}`)];
-    setVisibleColumns(allKeys);
-  }, [suppliers]);
+    setVisibleColumns(columns.map((c) => c.key));
+  }, [columns]);
+
 
   useEffect(() => {
     fetchProductPriceSummary()
@@ -243,6 +248,7 @@ function ProductsPage({ onBack }: ProductsPageProps) {
     const rows = buildExportRows();
     if (!rows.length) return;
     const headers = Object.keys(rows[0]);
+
     const tableHead = headers.map((h) => `<th>${h}</th>`).join('');
     const tableRows = rows
       .map(
@@ -252,12 +258,44 @@ function ProductsPage({ onBack }: ProductsPageProps) {
             .join('')}</tr>`
       )
       .join('');
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Export TCP/Marge</title></head><body><table border="1"><thead><tr>${tableHead}</tr></thead><tbody>${tableRows}</tbody></table></body></html>`;
-    const newWin = window.open('', '_blank');
-    if (newWin) {
-      newWin.document.write(html);
-      newWin.document.close();
-    }
+
+    const style = `
+      body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+        color: white;
+        padding: 20px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      th, td {
+        border: 1px solid #3f3f46;
+        padding: 8px;
+      }
+      th { background: #27272a; }
+      tr:nth-child(odd) { background: #18181b; }
+      tr:nth-child(even) { background: #27272a; }
+    `;
+
+    const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Export TCP/Marge</title><style>${style}</style></head><body><table><thead><tr>${tableHead}</tr></thead><tbody>${tableRows}</tbody></table></body></html>`;
+
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const filename = `ajt_product_${getCurrentTimestamp()}.html`;
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    window.open(url, '_blank');
+
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const paginationControls = (
@@ -318,47 +356,53 @@ function ProductsPage({ onBack }: ProductsPageProps) {
         >
           TCP/Marges
         </button>
-        <button
-          onClick={() => setTab('reference')}
-          className={`btn ${tab === 'reference' ? 'btn-primary' : 'btn-secondary'}`}
-        >
-          Référentiel
-        </button>
+        {role !== 'client' && (
+          <button
+            onClick={() => setTab('reference')}
+            className={`btn ${tab === 'reference' ? 'btn-primary' : 'btn-secondary'}`}
+          >
+            Référentiel
+          </button>
+        )}
       </div>
       {tab === 'calculations' && (
         <>
-          <div className="relative mb-4">
-            <button
-              onClick={() => setShowColumnMenu((s) => !s)}
-              className="btn btn-secondary"
-            >
-              Colonnes
-            </button>
-            {showColumnMenu && (
-              <div className="absolute z-10 mt-2 p-4 bg-zinc-900 border border-zinc-700 rounded shadow-xl grid grid-cols-2 gap-2">
-                {columns.map((col) => (
-                  <label key={col.key} className="flex items-center space-x-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={visibleColumns.includes(col.key)}
-                      onChange={() => toggleColumn(col.key)}
-                      className="rounded"
-                    />
-                    <span>{col.label}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
+          {role !== 'client' && (
+            <div className="relative mb-4">
+              <button
+                onClick={() => setShowColumnMenu((s) => !s)}
+                className="btn btn-secondary"
+              >
+                Colonnes
+              </button>
+              {showColumnMenu && (
+                <div className="absolute z-10 mt-2 p-4 bg-zinc-900 border border-zinc-700 rounded shadow-xl grid grid-cols-2 gap-2">
+                  {columns.map((col) => (
+                    <label key={col.key} className="flex items-center space-x-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={visibleColumns.includes(col.key)}
+                        onChange={() => toggleColumn(col.key)}
+                        className="rounded"
+                      />
+                      <span>{col.label}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           {paginationControls}
           <div className="flex space-x-2 my-4">
-            <button
-              onClick={handleSavePrices}
-              className="btn btn-primary"
-              disabled={!hasEdits}
-            >
-              Enregistrer
-            </button>
+            {role !== 'client' && (
+              <button
+                onClick={handleSavePrices}
+                className="btn btn-primary"
+                disabled={!hasEdits}
+              >
+                Enregistrer
+              </button>
+            )}
             <button onClick={handleExportExcel} className="btn btn-secondary">
               Export Excel
             </button>
@@ -366,7 +410,7 @@ function ProductsPage({ onBack }: ProductsPageProps) {
               Export JSON
             </button>
             <button onClick={handleExportHtml} className="btn btn-secondary">
-              Voir HTML
+              Génère HTML
             </button>
           </div>
           <div className="overflow-auto mt-4">
@@ -443,7 +487,7 @@ function ProductsPage({ onBack }: ProductsPageProps) {
                             key={col.key}
                             className={`px-3 py-1 border-b border-zinc-700 ${isMin ? 'text-green-400' : ''}`}
                           >
-                            {col.key === 'averagePrice' ? (
+                            {col.key === 'averagePrice' && role !== 'client' ? (
                               <input
                                 type="number"
                                 step="0.01"
@@ -459,6 +503,8 @@ function ProductsPage({ onBack }: ProductsPageProps) {
                                 }}
                                 className="w-20 px-1 bg-zinc-700 rounded"
                               />
+                            ) : col.key === 'averagePrice' ? (
+                              row.averagePrice
                             ) : value !== undefined ? (
                               String(value)
                             ) : (

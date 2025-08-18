@@ -1,6 +1,76 @@
 import { getCurrentTimestamp } from './utils/date';
 
-export const API_BASE = import.meta.env.VITE_API_BASE || '';
+// function fetchWithAuth(input: RequestInfo | URL, init: RequestInit = {}) {
+//   const token = localStorage.getItem('ajtpro_token');
+//   const headers = new Headers(init.headers || {});
+//   if (token) {
+//     headers.set('Authorization', `Bearer ${token}`);
+//   }
+//   return fetch(input, { ...init, headers });
+// }
+
+export const API_BASE = import.meta.env.VITE_API_BASE || '/api';
+
+export let authToken: string | null = localStorage.getItem('token');
+export let refreshToken: string | null = localStorage.getItem('refresh_token');
+
+export function setAuthToken(token: string | null) {
+  authToken = token;
+  if (token) localStorage.setItem('token', token);
+  else localStorage.removeItem('token');
+}
+
+export function setRefreshToken(token: string | null) {
+  refreshToken = token;
+  if (token) localStorage.setItem('refresh_token', token);
+  else localStorage.removeItem('refresh_token');
+}
+
+function authHeaders(headers: Record<string, string> = {}) {
+  if (authToken) {
+    headers['Authorization'] = `Bearer ${authToken}`;
+  }
+  return headers;
+}
+
+async function fetchWithAuth(url: string, options: RequestInit = {}) {
+  const opts: RequestInit = { ...options };
+  opts.headers = authHeaders(options.headers as Record<string, string>);
+  let res = await fetch(url, opts);
+  if (res.status === 401 && refreshToken) {
+    const refreshRes = await fetch(`${API_BASE}/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken })
+    });
+    if (refreshRes.ok) {
+      const data = await refreshRes.json();
+      setAuthToken(data.token);
+      setRefreshToken(data.refresh_token);
+      opts.headers = authHeaders(options.headers as Record<string, string>);
+      res = await fetch(url, opts);
+    } else {
+      setAuthToken(null);
+      setRefreshToken(null);
+    }
+  }
+  return res;
+}
+
+export async function login(username: string, password: string) {
+  const res = await fetch(`${API_BASE}/login`, {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ username, password })
+  });
+  if (!res.ok) {
+    console.log("🔧 API base URL =", import.meta.env.VITE_API_BASE);
+    console.log("🔧 import.meta.env =", import.meta.env);
+
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
 
 
 async function extractErrorMessage(res: Response): Promise<string> {
@@ -9,7 +79,7 @@ async function extractErrorMessage(res: Response): Promise<string> {
 }
 
 export async function fetchApitest() {
-  const res = await fetch(`${API_BASE}/`);
+  const res = await fetchWithAuth(`${API_BASE}/`);
   if (!res.ok) {
     throw new Error("Impossible de communiquer avec l'API.");
   }
@@ -24,7 +94,7 @@ export async function createImport(file: File, supplierId?: number) {
     formData.append('supplier_id', String(supplierId));
   }
 
-  const res = await fetch(`${API_BASE}/import`, {
+  const res = await fetchWithAuth(`${API_BASE}/import`, {
     method: 'POST',
     body: formData
   });
@@ -41,7 +111,7 @@ export async function fetchImportPreview(file: File, supplierId?: number) {
     formData.append('supplier_id', String(supplierId));
   }
 
-  const res = await fetch(`${API_BASE}/import_preview`, {
+  const res = await fetchWithAuth(`${API_BASE}/import_preview`, {
     method: 'POST',
     body: formData
   });
@@ -52,7 +122,7 @@ export async function fetchImportPreview(file: File, supplierId?: number) {
 }
 
 export async function fetchProducts() {
-  const res = await fetch(`${API_BASE}/products`);
+  const res = await fetchWithAuth(`${API_BASE}/products`);
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
@@ -60,7 +130,7 @@ export async function fetchProducts() {
 }
 
 export async function createProduct(data: any) {
-  const res = await fetch(`${API_BASE}/products`, {
+  const res = await fetchWithAuth(`${API_BASE}/products`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -72,7 +142,7 @@ export async function createProduct(data: any) {
 }
 
 export async function updateProduct(id: number, data: any) {
-  const res = await fetch(`${API_BASE}/products/${id}`, {
+  const res = await fetchWithAuth(`${API_BASE}/products/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -84,7 +154,7 @@ export async function updateProduct(id: number, data: any) {
 }
 
 export async function bulkUpdateProducts(data: any[]) {
-  const res = await fetch(`${API_BASE}/products/bulk_update`, {
+  const res = await fetchWithAuth(`${API_BASE}/products/bulk_update`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -96,7 +166,7 @@ export async function bulkUpdateProducts(data: any[]) {
 }
 
 export async function deleteProduct(id: number) {
-  const res = await fetch(`${API_BASE}/products/${id}`, {
+  const res = await fetchWithAuth(`${API_BASE}/products/${id}`, {
     method: 'DELETE'
   });
   if (!res.ok) {
@@ -107,7 +177,7 @@ export async function deleteProduct(id: number) {
 
 
 export async function fetchLastImport(id: number): Promise<{ import_date: string | null } | {}> {
-  const res = await fetch(`${API_BASE}/last_import/${id}`);
+  const res = await fetchWithAuth(`${API_BASE}/last_import/${id}`);
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
@@ -115,7 +185,7 @@ export async function fetchLastImport(id: number): Promise<{ import_date: string
 }
 
 export async function verifyImport(id: number) {
-  const res = await fetch(`${API_BASE}/verify_import/${id}`);
+  const res = await fetchWithAuth(`${API_BASE}/verify_import/${id}`);
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
@@ -124,7 +194,7 @@ export async function verifyImport(id: number) {
 
 
 export async function calculateProducts() {
-  const res = await fetch(`${API_BASE}/calculate_products`, {
+  const res = await fetchWithAuth(`${API_BASE}/calculate_products`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   });
@@ -135,7 +205,7 @@ export async function calculateProducts() {
 }
 
 export async function exportCalculations() {
-  const res = await fetch(`${API_BASE}/export_calculates`);
+  const res = await fetchWithAuth(`${API_BASE}/export_calculates`);
   if (!res.ok) {
     throw new Error('La génération du fichier a échoué.');
   }
@@ -152,7 +222,7 @@ export async function exportCalculations() {
 }
 
 export async function fetchSuppliers() {
-  const res = await fetch(`${API_BASE}/references/suppliers`);
+  const res = await fetchWithAuth(`${API_BASE}/references/suppliers`);
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
@@ -160,7 +230,7 @@ export async function fetchSuppliers() {
 }
 
 export async function refreshProduction() {
-  const res = await fetch(`${API_BASE}/refresh`, {
+  const res = await fetchWithAuth(`${API_BASE}/refresh`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   });
@@ -172,7 +242,7 @@ export async function refreshProduction() {
 
 
 export async function refreshProductionByWeek(array_date: Array<Date>) {
-  const res = await fetch(`${API_BASE}/refresh_week`, {
+  const res = await fetchWithAuth(`${API_BASE}/refresh_week`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ dates: array_date.map(date => date.toISOString()) })
@@ -184,7 +254,7 @@ export async function refreshProductionByWeek(array_date: Array<Date>) {
 }
 
 export async function fetchProductCalculations() {
-  const res = await fetch(`${API_BASE}/product_calculation`);
+  const res = await fetchWithAuth(`${API_BASE}/product_calculation`);
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
@@ -192,7 +262,7 @@ export async function fetchProductCalculations() {
 }
 
 export async function fetchProductPriceSummary() {
-  const res = await fetch(`${API_BASE}/product_price_summary`);
+  const res = await fetchWithAuth(`${API_BASE}/product_price_summary`);
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
@@ -200,7 +270,7 @@ export async function fetchProductPriceSummary() {
 }
 
 export async function fetchReferenceTable(table: string) {
-  const res = await fetch(`${API_BASE}/references/${table}`);
+  const res = await fetchWithAuth(`${API_BASE}/references/${table}`);
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
@@ -208,7 +278,7 @@ export async function fetchReferenceTable(table: string) {
 }
 
 export async function updateReferenceItem(table: string, id: number, data: any) {
-  const res = await fetch(`${API_BASE}/references/${table}/${id}`, {
+  const res = await fetchWithAuth(`${API_BASE}/references/${table}/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -220,7 +290,7 @@ export async function updateReferenceItem(table: string, id: number, data: any) 
 }
 
 export async function createReferenceItem(table: string, data: any) {
-  const res = await fetch(`${API_BASE}/references/${table}`, {
+  const res = await fetchWithAuth(`${API_BASE}/references/${table}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -234,7 +304,7 @@ export async function createReferenceItem(table: string, data: any) {
 
 
 export async function deleteReferenceItem(table: string, id: number) {
-  const res = await fetch(`${API_BASE}/references/${table}/${id}`, {
+  const res = await fetchWithAuth(`${API_BASE}/references/${table}/${id}`, {
     method: 'DELETE'
   });
   if (!res.ok) {
@@ -244,7 +314,7 @@ export async function deleteReferenceItem(table: string, id: number) {
 }
 
 export async function fetchBrands() {
-  const res = await fetch(`${API_BASE}/references/brands`);
+  const res = await fetchWithAuth(`${API_BASE}/references/brands`);
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
@@ -253,7 +323,7 @@ export async function fetchBrands() {
 
 
 export async function fetchColors() {
-  const res = await fetch(`${API_BASE}/references/colors`);
+  const res = await fetchWithAuth(`${API_BASE}/references/colors`);
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
@@ -261,7 +331,7 @@ export async function fetchColors() {
 }
 
 export async function fetchMemoryOptions() {
-  const res = await fetch(`${API_BASE}/references/memory_options`);
+  const res = await fetchWithAuth(`${API_BASE}/references/memory_options`);
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
@@ -269,7 +339,7 @@ export async function fetchMemoryOptions() {
 }
 
 export async function fetchDeviceTypes() {
-  const res = await fetch(`${API_BASE}/references/device_types`);
+  const res = await fetchWithAuth(`${API_BASE}/references/device_types`);
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
@@ -290,7 +360,7 @@ export async function fetchPriceStats(params?: {
   if (params?.startWeek) search.set('start_week', params.startWeek);
   if (params?.endWeek) search.set('end_week', params.endWeek);
   const query = search.toString();
-  const res = await fetch(`${API_BASE}/price_stats${query ? `?${query}` : ''}`);
+  const res = await fetchWithAuth(`${API_BASE}/price_stats${query ? `?${query}` : ''}`);
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
@@ -309,7 +379,7 @@ export async function fetchBrandSupplierAverage(params?: {
   if (params?.startWeek) search.set('start_week', params.startWeek);
   if (params?.endWeek) search.set('end_week', params.endWeek);
   const query = search.toString();
-  const res = await fetch(
+  const res = await fetchWithAuth(
     `${API_BASE}/brand_supplier_average${query ? `?${query}` : ''}`
   );
   if (!res.ok) {
@@ -332,7 +402,7 @@ export async function fetchProductSupplierAverage(params?: {
   if (params?.startWeek) search.set('start_week', params.startWeek);
   if (params?.endWeek) search.set('end_week', params.endWeek);
   const query = search.toString();
-  const res = await fetch(
+  const res = await fetchWithAuth(
     `${API_BASE}/product_supplier_average${query ? `?${query}` : ''}`
   );
   if (!res.ok) {
@@ -342,7 +412,7 @@ export async function fetchProductSupplierAverage(params?: {
 }
 
 export async function fetchGraphSettings() {
-  const res = await fetch(`${API_BASE}/graph_settings`);
+  const res = await fetchWithAuth(`${API_BASE}/graph_settings`);
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
@@ -350,7 +420,7 @@ export async function fetchGraphSettings() {
 }
 
 export async function updateGraphSetting(name: string, visible: boolean) {
-  const res = await fetch(`${API_BASE}/graph_settings/${name}`, {
+  const res = await fetchWithAuth(`${API_BASE}/graph_settings/${name}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ visible })

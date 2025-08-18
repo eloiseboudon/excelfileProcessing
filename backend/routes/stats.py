@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 from models import Brand, Product, ProductCalculation, Supplier
+from utils.auth import token_required
 from sqlalchemy import extract, func
 
 bp = Blueprint("stats", __name__)
@@ -19,6 +20,7 @@ def _parse_week(w):
 
 
 @bp.route("/price_stats", methods=["GET"])
+@token_required("admin")
 def price_stats():
     """Return average prices per week. If a product_id is supplied, results are
     grouped by supplier, otherwise aggregated globally.
@@ -104,6 +106,7 @@ def price_stats():
 
 
 @bp.route("/brand_supplier_average", methods=["GET"])
+@token_required("admin")
 def brand_supplier_average():
     """Average price by brand and supplier.
 
@@ -165,6 +168,7 @@ def brand_supplier_average():
 
 
 @bp.route("/product_supplier_average", methods=["GET"])
+@token_required("admin")
 def product_supplier_average():
     """Average price by product and supplier.
 

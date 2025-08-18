@@ -24,6 +24,7 @@ Application de gestion des couts par fournisseurs et définition des prix de ven
 - Interface d'administration intuitive **(validée)**
 - Mise à jour en masse des produits **(validée)**
 - Ajout/modification/suppression de produits **(validée)**
+- Authentification par jeton avec rôles admin et client **(nouveau)**
 
 ### 📱 Produits
 - Affichage des produits **(validée)**
@@ -45,6 +46,7 @@ Créez un fichier `.env` à la racine du projet avec vos identifiants Supabase :
 VITE_SUPABASE_URL=<votre_url_supabase>
 VITE_SUPABASE_ANON_KEY=<votre_cle_anon>
 VITE_API_BASE=http://localhost:5001
+JWT_SECRET=change-me
 ```
 
 Ce fichier est ignoré par Git afin de protéger vos informations sensibles.
@@ -129,6 +131,14 @@ make venv         # crée l'environnement virtuel et installe les dépendances
 # Un fichier `.env.example` est fourni à titre d'exemple.
 make run          # démarre l'API Flask
 ```
+
+### Identifiants par défaut
+
+Le script `backend/implement_tables.py` crée automatiquement un utilisateur
+**admin** pour faciliter le développement local.
+
+- **Nom d'utilisateur** : `admin`
+- **Mot de passe** : `admin`
 
 Une documentation interactive est générée grâce à **Flasgger**. Une fois
 l'application lancée, ouvrez `http://localhost:5001/apidocs` pour consulter les

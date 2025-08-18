@@ -35,10 +35,30 @@ def main():
         # Nettoyer les tables existantes
         cur.execute(
             """
-            TRUNCATE TABLE suppliers, brands, colors, memory_options, device_types, exclusions, color_translations,graph_settings RESTART IDENTITY CASCADE;
+            TRUNCATE TABLE users, suppliers, brands, colors, memory_options,
+            device_types, exclusions, color_translations, graph_settings
+            RESTART IDENTITY CASCADE;
         """
         )
         conn.commit()
+
+        print("🔐 Création de l'utilisateur administrateur...")
+        from models import User
+
+        admin = User(username="admin", role="admin")
+        admin.set_password("admin")
+
+        client = User(username="client", role="client")
+        client.set_password("client")
+
+        cur.execute(
+            "INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)",
+            (admin.username, admin.password_hash, admin.role),
+        )
+        cur.execute(
+            "INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)",
+            (client.username, client.password_hash, client.role),
+        )
 
         print("👥 Insertion des fournisseurs...")
         # Insérer les fournisseurs
@@ -165,6 +185,7 @@ def main():
         # Afficher un résumé
         print("\n📈 Résumé des données insérées:")
         tables = [
+            ('users', 'Utilisateurs'),
             ('suppliers', 'Fournisseurs'),
             ('brands', 'Marques'),
             ('colors', 'Couleurs'),
