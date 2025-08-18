@@ -7,14 +7,14 @@ interface Props {
 }
 
 export default function LoginPage({ onLogin }: Props) {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const notify = useNotification();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const data = await login(username, password);
+      const data = await login(email, password);
       onLogin(data.role, data.token, data.refresh_token);
     } catch (err: any) {
       notify(err.message || 'Erreur de connexion', 'error');
@@ -26,10 +26,10 @@ export default function LoginPage({ onLogin }: Props) {
       <form onSubmit={handleSubmit} className="bg-zinc-800 p-6 rounded space-y-4 w-80">
         <h1 className="text-xl font-bold text-center">Connexion</h1>
         <input
-          type="text"
-          placeholder="Utilisateur"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           className="w-full px-3 py-2 bg-zinc-700 rounded"
         />
         <input

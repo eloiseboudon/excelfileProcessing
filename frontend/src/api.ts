@@ -49,11 +49,11 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
   return res;
 }
 
-export async function login(username: string, password: string) {
+export async function login(email: string, password: string) {
   const res = await fetch(`${API_BASE}/login`, {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({ email, password })
   });
   if (!res.ok) {
     console.log("🔧 API base URL =", import.meta.env.VITE_API_BASE);
