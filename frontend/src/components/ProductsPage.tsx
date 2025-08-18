@@ -6,6 +6,7 @@ import { getCurrentTimestamp } from '../utils/date';
 import MultiSelectFilter from './MultiSelectFilter';
 import ProductReference from './ProductReference';
 import WeekToolbar from './WeekToolbar';
+import SupplierPriceModal from './SupplierPriceModal';
 
 import {
   fetchBrands,
@@ -25,6 +26,7 @@ interface AggregatedProduct {
   type: string | null;
   averagePrice: number;
   buyPrices: Record<string, number | undefined>;
+  salePrices: Record<string, number | undefined>;
 }
 
 interface ProductsPageProps {
@@ -46,6 +48,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
   const [memoryOptions, setMemoryOptions] = useState<string[]>([]);
   const [typeOptions, setTypeOptions] = useState<string[]>([]);
   const [tab, setTab] = useState<'calculations' | 'reference'>('calculations');
+  const [selectedProduct, setSelectedProduct] = useState<AggregatedProduct | null>(null);
   const notify = useNotification();
   const hasEdits = Object.keys(editedPrices).length > 0;
 
@@ -94,6 +97,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
             averagePrice:
               it.recommended_price ?? it.average_price ?? 0,
             buyPrices: it.buy_price || {},
+            salePrices: it.supplier_prices || {},
           } as AggregatedProduct;
         });
         setSuppliers(Array.from(suppliersSet).sort());
@@ -472,7 +476,11 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
                   const validPrices = prices.filter((p) => typeof p === 'number') as number[];
                   const minPrice = validPrices.length ? Math.min(...validPrices) : undefined;
                   return (
-                    <tr key={String(row.id)} className="odd:bg-zinc-900 even:bg-zinc-800">
+                    <tr
+                      key={String(row.id)}
+                      className={`odd:bg-zinc-900 even:bg-zinc-800 ${role !== 'client' ? 'cursor-pointer' : ''}`}
+                      onClick={() => role !== 'client' && setSelectedProduct(row)}
+                    >
                       {columns.map((col) => {
                         if (!visibleColumns.includes(col.key)) return null;
                         let value: any = (row as any)[col.key];
@@ -494,6 +502,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
                                 type="number"
                                 step="0.01"
                                 value={editedPrices[row.id] ?? row.averagePrice}
+                                onClick={(e) => e.stopPropagation()}
                                 onChange={(e) => {
                                   const v = Number(e.target.value);
                                   setEditedPrices({ ...editedPrices, [row.id]: v });
@@ -525,6 +534,12 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
         </>
       )}
       {tab === 'reference' && <ProductReference />}
+      {role !== 'client' && selectedProduct && (
+        <SupplierPriceModal
+          prices={selectedProduct.salePrices}
+          onClose={() => setSelectedProduct(null)}
+        />
+      )}
     </div>
   );
 }
