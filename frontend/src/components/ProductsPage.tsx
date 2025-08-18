@@ -1,9 +1,9 @@
 import { ArrowLeft } from 'lucide-react';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
-import MultiSelectFilter from './MultiSelectFilter';
-import { getCurrentTimestamp } from '../utils/date';
 import { fetchProductPriceSummary, updateProduct } from '../api';
+import { getCurrentTimestamp } from '../utils/date';
+import MultiSelectFilter from './MultiSelectFilter';
 import ProductReference from './ProductReference';
 import WeekToolbar from './WeekToolbar';
 
@@ -92,6 +92,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
             averagePrice:
               it.recommended_price ?? it.average_price ?? 0,
             supplierPrices: it.supplier_prices || {},
+            buyPrices: it.buy_price || {},
           } as AggregatedProduct;
         });
         setSuppliers(Array.from(suppliersSet).sort());
@@ -438,10 +439,10 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
                                   col.key === 'brand'
                                     ? brandOptions
                                     : col.key === 'memory'
-                                    ? memoryOptions
-                                    : col.key === 'color'
-                                    ? colorOptions
-                                    : typeOptions
+                                      ? memoryOptions
+                                      : col.key === 'color'
+                                        ? colorOptions
+                                        : typeOptions
                                 }
                                 selected={(filters[col.key] as string[]) || []}
                                 onChange={(selected) =>
