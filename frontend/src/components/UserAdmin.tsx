@@ -1,6 +1,6 @@
-import { Plus, Save } from 'lucide-react';
+import { Plus, Save, Trash } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { createUser, fetchUsers, updateUser } from '../api';
+import { createUser, fetchUsers, updateUser, deleteUser } from '../api';
 import { useNotification } from './NotificationProvider';
 
 interface UserItem {
@@ -57,6 +57,21 @@ function UserAdmin({ isVisible, onClose }: UserAdminProps) {
     }
   };
 
+  const handleDelete = async (id: number) => {
+    if (id < 0) {
+      setUsers(prev => prev.filter(u => u.id !== id));
+      return;
+    }
+    if (!window.confirm('Supprimer cet utilisateur ?')) return;
+    try {
+      await deleteUser(id);
+      notify('Utilisateur supprimé', 'success');
+      await load();
+    } catch {
+      /* empty */
+    }
+  };
+
   const handleAdd = () => {
     setUsers(prev => [
       ...prev,
@@ -84,7 +99,7 @@ function UserAdmin({ isVisible, onClose }: UserAdminProps) {
           <span className="flex-1">Prénom</span>
           <span className="flex-1">Email</span>
           <span className="w-40">Rôle</span>
-          <span className="w-8" />
+          <span className="w-16" />
         </div>
         {users.map(u => (
           <div key={u.id} className="flex items-center space-x-2 bg-zinc-800 p-2 rounded">
@@ -126,6 +141,12 @@ function UserAdmin({ isVisible, onClose }: UserAdminProps) {
               className="p-2 bg-green-600 text-white rounded hover:bg-green-700"
             >
               <Save className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => handleDelete(u.id)}
+              className="p-2 bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              <Trash className="w-4 h-4" />
             </button>
           </div>
         ))}
