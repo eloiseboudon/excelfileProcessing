@@ -8,7 +8,7 @@ set -e  # Arrêt du script en cas d'erreur
 # Configuration
 REPO_URL="https://github.com/votre-username/ajtpro.git"  # À adapter
 APP_DIR="/home/ubuntu/ajtpro"  # Répertoire actuel de l'application
-BRANCH="${1:-main}"  # Branche par défaut ou celle passée en paramètre
+BRANCH="${1:-dev}"  # Branche par défaut ou celle passée en paramètre
 DOCKER_COMPOSE_FILE="docker-compose.yml"
 DOCKER_COMPOSE_PROD_FILE="docker-compose.prod.yml"
 BACKUP_DIR="/home/ubuntu/backups_ajtpro/deployments/$(date +%Y%m%d_%H%M%S)"
