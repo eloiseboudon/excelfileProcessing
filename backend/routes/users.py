@@ -76,3 +76,12 @@ def update_user(user_id):
         user.email = data["email"]
     db.session.commit()
     return jsonify({"status": "success"})
+
+
+@bp.route("/users/<int:user_id>", methods=["DELETE"])
+@token_required("admin")
+def delete_user(user_id):
+    user = User.query.get_or_404(user_id)
+    db.session.delete(user)
+    db.session.commit()
+    return jsonify({"status": "success"})
