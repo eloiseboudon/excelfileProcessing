@@ -1,6 +1,6 @@
 import { Plus, Save, Trash } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { createUser, fetchUsers, updateUser, deleteUser } from '../api';
+import { createUser, deleteUser, fetchUsers, updateUser } from '../api';
 import { useNotification } from './NotificationProvider';
 
 interface UserItem {
@@ -110,16 +110,16 @@ function UserAdmin({ isVisible, onClose }: UserAdminProps) {
               placeholder="username"
               className="flex-1 px-2 py-1 bg-zinc-700 text-white rounded"
             />
-            <input
-              value={u.first_name}
-              onChange={e => handleChange(u.id, 'first_name', e.target.value)}
-              placeholder="prénom"
-              className="flex-1 px-2 py-1 bg-zinc-700 text-white rounded"
-            />
+
             <input
               value={u.last_name}
               onChange={e => handleChange(u.id, 'last_name', e.target.value)}
               placeholder="nom"
+              className="flex-1 px-2 py-1 bg-zinc-700 text-white rounded"
+            /> <input
+              value={u.first_name}
+              onChange={e => handleChange(u.id, 'first_name', e.target.value)}
+              placeholder="prénom"
               className="flex-1 px-2 py-1 bg-zinc-700 text-white rounded"
             />
             <input
