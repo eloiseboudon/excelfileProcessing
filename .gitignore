@@ -27,6 +27,8 @@ dist-ssr
 .env.dev
 .flake8
 
+deploy.sh
+
 frontend/nginx.conf
 frontend/.env
 frontend/package-lock.json
@@ -38,7 +40,5 @@ backend/alembic/*
 **/__pycache__
 **/*.pyc
 
-
 todo.md
 backend/log
-
