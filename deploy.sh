@@ -242,58 +242,142 @@ run_database_migrations() {
     
     cd "$APP_DIR"
     
-    # Vérification que les containers sont en cours d'exécution
-    if ! $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" ps backend | grep -q "Up"; then
-        error "Le container backend n'est pas en cours d'exécution"
+    # Diagnostic initial des containers
+    log "📊 Vérification de l'état des containers..."
+    $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" ps
+    
+    # Vérification que les containers essentiels sont en cours d'exécution
+    if ! $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" ps | grep -E "(backend|postgres)" | grep -q "Up"; then
+        warn "⚠️ Les containers backend ou postgres ne semblent pas tous démarrés"
+        log "📋 Statut détaillé:"
+        $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" ps
+        
+        # Tentative de redémarrage des containers problématiques
+        log "🔄 Tentative de redémarrage des containers..."
+        $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" restart postgres backend || true
+        sleep 15
     fi
     
-    # Attendre que la base de données soit prête avec plusieurs méthodes
+    # Attendre que la base de données soit prête avec diagnostics améliorés
     log "⏳ Attente que la base de données soit prête..."
-    local max_attempts=30
+    local max_attempts=15  # Réduit à 15 mais avec de meilleurs tests
     local attempt=1
+    local db_ready=false
     
     while [ $attempt -le $max_attempts ]; do
-        # Test avec pg_isready depuis le container postgres
-        if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T postgres pg_isready -h localhost -p 5432 >/dev/null 2>&1; then
-            info "✅ Base de données PostgreSQL prête"
-            break
-        fi
-        
-        # Test de connexion simple avec psql
-        if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T postgres psql -h localhost -U "${POSTGRES_USER:-ajt_user}" -d "${POSTGRES_DB:-ajt_db}" -c "SELECT 1;" >/dev/null 2>&1; then
-            info "✅ Base de données accessible"
-            break
+        # Test 1: Vérifier que le container postgres existe et fonctionne
+        if ! $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" ps postgres | grep -q "Up"; then
+            warn "Container postgres pas en état 'Up' - tentative $attempt/$max_attempts"
+            if [ $attempt -le 3 ]; then
+                log "🔄 Redémarrage du container postgres..."
+                $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" restart postgres || true
+                sleep 10
+            fi
+        else
+            # Test 2: pg_isready depuis le container postgres
+            if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T postgres pg_isready -h localhost -p 5432 >/dev/null 2>&1; then
+                info "✅ PostgreSQL répond à pg_isready"
+                
+                # Test 3: Connexion réelle avec psql
+                if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T postgres psql -h localhost -U "${POSTGRES_USER:-ajt_user}" -d "${POSTGRES_DB:-ajt_db}" -c "SELECT 1;" >/dev/null 2>&1; then
+                    info "✅ Base de données accessible et fonctionnelle"
+                    db_ready=true
+                    break
+                else
+                    warn "PostgreSQL répond mais la DB spécifique n'est pas accessible"
+                fi
+            fi
         fi
         
         if [ $attempt -eq $max_attempts ]; then
-            # Diagnostic en cas d'échec
-            warn "🔍 Diagnostic de la base de données..."
+            # Diagnostic complet en cas d'échec
+            warn "🔍 Diagnostic approfondi de la base de données..."
             
-            log "📊 Statut des containers:"
+            log "📊 Statut final des containers:"
             $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" ps
             
-            log "📋 Logs PostgreSQL (dernières 10 lignes):"
-            $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" logs --tail=10 postgres || true
+            log "🐳 Inspection du container postgres:"
+            docker inspect $(docker ps -q --filter "name=postgres") 2>/dev/null | grep -E "(State|Health)" || true
             
-            log "📋 Logs Backend (dernières 10 lignes):"
-            $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" logs --tail=10 backend || true
+            log "🌐 Ports exposés:"
+            docker port $(docker ps -q --filter "name=postgres") 2>/dev/null || true
             
-            error "❌ Timeout: la base de données n'est pas accessible après $max_attempts tentatives"
+            log "📋 Logs PostgreSQL (dernières 20 lignes):"
+            $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" logs --tail=20 postgres || true
+            
+            log "📋 Logs Backend (dernières 15 lignes):"
+            $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" logs --tail=15 backend || true
+            
+            log "🔧 Variables d'environnement postgres:"
+            $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T postgres env | grep -E "(POSTGRES_|DB_)" 2>/dev/null || true
+            
+            # Proposer des options à l'utilisateur au lieu d'un arrêt brutal
+            echo ""
+            warn "❌ La base de données n'est pas accessible après $max_attempts tentatives"
+            echo ""
+            echo "Options disponibles :"
+            echo "  1. Continuer sans migrations (risqué)"
+            echo "  2. Redémarrer les containers et réessayer"
+            echo "  3. Arrêter le déploiement"
+            echo ""
+            
+            while true; do
+                read -p "Votre choix (1/2/3) [3] : " db_choice
+                db_choice=${db_choice:-3}
+                
+                case $db_choice in
+                    1)
+                        warn "⚠️ Poursuite sans migrations - ATTENTION aux incompatibilités!"
+                        return 1  # Indique qu'on skip les migrations
+                        ;;
+                    2)
+                        log "🔄 Redémarrage complet des containers..."
+                        $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" down
+                        sleep 5
+                        $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" up -d
+                        sleep 20
+                        # Relancer cette fonction récursivement
+                        run_database_migrations
+                        return $?
+                        ;;
+                    3)
+                        error "❌ Déploiement arrêté sur demande utilisateur"
+                        ;;
+                    *)
+                        warn "Choix invalide. Veuillez saisir 1, 2 ou 3"
+                        ;;
+                esac
+            done
         fi
         
         warn "Tentative $attempt/$max_attempts - Base de données pas encore prête..."
-        sleep 5
+        sleep 8  # Attente un peu plus longue
         ((attempt++))
     done
+    
+    if [ "$db_ready" = false ]; then
+        return 1  # La DB n'est pas prête mais on peut continuer
+    fi
+    
+    # === PHASE DE MIGRATION PROPREMENT DITE ===
+    log "🚀 Début des opérations de migration..."
     
     # 1. Vérifier l'état actuel des migrations AVANT de faire quoi que ce soit
     log "📋 Vérification de l'état actuel des migrations..."
     local current_migration=""
+    local alembic_initialized=false
+    
     if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic current >/dev/null 2>&1; then
         current_migration=$($DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic current 2>/dev/null | grep -E "^[a-f0-9]+" || echo "Aucune")
         info "Migration actuelle: $current_migration"
+        alembic_initialized=true
     else
-        warn "Impossible de déterminer l'état des migrations (première installation ?)"
+        warn "Alembic pas encore initialisé ou erreur de connexion"
+        # Vérifier s'il faut initialiser Alembic
+        if ! $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend test -f /app/alembic.ini >/dev/null 2>&1; then
+            warn "Fichier alembic.ini introuvable - Alembic non configuré"
+            return 1
+        fi
     fi
     
     # 2. Lister les migrations existantes
@@ -307,10 +391,13 @@ run_database_migrations() {
     fi
     
     # 3. Génération automatique d'une migration si des changements sont détectés
-    log "🔍 Vérification des changements de schéma et génération de migration..."
+    log "🔍 Vérification des changements de schéma..."
     local migration_name="auto_migrate_$(date +%Y%m%d_%H%M%S)"
+    local new_migration_created=false
     
-    if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic revision --autogenerate -m "$migration_name" >/dev/null 2>&1; then
+    # Capture de la sortie pour vérifier s'il y a vraiment des changements
+    local autogenerate_output
+    if autogenerate_output=$($DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic revision --autogenerate -m "$migration_name" 2>&1); then
         info "✅ Commande de génération de migration exécutée"
         
         # Vérifier si une nouvelle migration a vraiment été créée
@@ -318,13 +405,14 @@ run_database_migrations() {
         
         if [ "$new_migrations" -gt "$existing_migrations" ]; then
             log "🆕 Nouvelle migration générée!"
+            new_migration_created=true
             
             # Afficher la nouvelle migration créée
             log "📄 Nouvelle migration créée:"
             $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend ls -la /app/alembic/versions/ | tail -1 || true
             
             # Afficher le contenu de la nouvelle migration pour vérification
-            log "📝 Contenu de la nouvelle migration:"
+            log "📝 Contenu de la nouvelle migration (50 premières lignes):"
             local newest_migration=$($DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend find /app/alembic/versions -name "*.py" -type f -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2 || "")
             if [ -n "$newest_migration" ]; then
                 echo "----------------------------------------"
@@ -332,27 +420,34 @@ run_database_migrations() {
                 echo "----------------------------------------"
             fi
         else
-            info "ℹ️ Aucun changement de schéma détecté - pas de nouvelle migration"
+            # Vérifier dans la sortie s'il n'y avait vraiment aucun changement
+            if echo "$autogenerate_output" | grep -qi "no changes\|no change detected"; then
+                info "ℹ️ Aucun changement de schéma détecté - pas de nouvelle migration nécessaire"
+            else
+                warn "⚠️ Migration générée mais fichier non trouvé - vérifiez la sortie:"
+                echo "$autogenerate_output"
+            fi
         fi
     else
-        warn "⚠️ Erreur lors de la génération de migration (peut être normal si aucun changement)"
+        warn "⚠️ Erreur lors de la génération de migration:"
+        echo "$autogenerate_output"
     fi
     
-    # 4. Application des migrations en attente
+    # 4. Application des migrations en attente (même s'il n'y en a pas de nouvelles)
     log "⬆️ Application des migrations en attente..."
-    if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic upgrade head; then
+    if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic upgrade head 2>&1; then
         info "✅ Migrations appliquées avec succès"
         
         # Vérifier l'état après application
         local new_current_migration=""
         if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic current >/dev/null 2>&1; then
             new_current_migration=$($DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic current 2>/dev/null | grep -E "^[a-f0-9]+" || echo "Aucune")
-            info "Nouvelle migration actuelle: $new_current_migration"
+            info "Migration actuelle après upgrade: $new_current_migration"
             
             if [ "$current_migration" != "$new_current_migration" ]; then
                 info "🔄 Migration mise à jour de '$current_migration' vers '$new_current_migration'"
             else
-                info "📌 Aucune nouvelle migration appliquée"
+                info "📌 Aucune nouvelle migration appliquée (déjà à jour)"
             fi
         fi
         
@@ -360,7 +455,7 @@ run_database_migrations() {
         error "❌ Échec de l'application des migrations"
     fi
     
-    # 5. Vérification que les champs sont maintenant présents dans la table users
+    # 5. Vérification que les champs sont maintenant présents dans la table users (optionnel)
     log "🔍 Vérification de la structure de la table users..."
     if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T postgres psql -U "${POSTGRES_USER:-ajt_user}" -d "${POSTGRES_DB:-ajt_db}" -c "\d users" >/dev/null 2>&1; then
         info "📋 Structure actuelle de la table users:"
@@ -368,7 +463,7 @@ run_database_migrations() {
         $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T postgres psql -U "${POSTGRES_USER:-ajt_user}" -d "${POSTGRES_DB:-ajt_db}" -c "\d users" 2>/dev/null || true
         echo "----------------------------------------"
     else
-        warn "⚠️ Impossible d'afficher la structure de la table users"
+        warn "⚠️ Impossible d'afficher la structure de la table users (table n'existe peut-être pas encore)"
     fi
     
     # 6. Affichage de l'historique des migrations
@@ -384,6 +479,7 @@ run_database_migrations() {
     fi
     
     log "✅ Gestion des migrations Alembic terminée avec succès"
+    return 0
 }
 
 # Vérification de la santé de l'application
@@ -502,6 +598,81 @@ show_deployment_info() {
     echo "╚═══════════════════════════════════════════════════════╝"
 }
 
+# Demande de confirmation pour les migrations
+ask_migration_confirmation() {
+    log "🤔 Confirmation pour les migrations de base de données"
+    echo ""
+    echo "╔═══════════════════════════════════════════════════════╗"
+    echo "║                  ⚠️  ATTENTION  ⚠️                    ║"
+    echo "║                                                       ║"
+    echo "║  Le script va maintenant procéder aux migrations     ║"
+    echo "║  de base de données avec Alembic :                   ║"
+    echo "║                                                       ║"
+    echo "║  1. Génération automatique de nouvelles migrations   ║"
+    echo "║  2. Application de toutes les migrations en attente  ║"
+    echo "║  3. Modification du schéma de la base de données     ║"
+    echo "║                                                       ║"
+    echo "║  ⚠️  Ces changements sont IRRÉVERSIBLES  ⚠️           ║"
+    echo "║                                                       ║"
+    echo "╚═══════════════════════════════════════════════════════╝"
+    echo ""
+    
+    # Afficher l'état actuel si possible
+    if [ -n "${DOCKER_COMPOSE_CMD:-}" ] && [ -n "${COMPOSE_FILE:-}" ]; then
+        log "📋 État actuel de la base de données :"
+        
+        # Vérifier si les containers sont démarrés
+        if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" ps backend | grep -q "Up" 2>/dev/null; then
+            # Afficher la migration actuelle
+            local current_migration=$($DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic current 2>/dev/null | head -1 || echo "Informations non disponibles")
+            echo "   Migration actuelle : $current_migration"
+            
+            # Compter les migrations existantes
+            local migration_count=$($DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend find /app/alembic/versions -name "*.py" -type f 2>/dev/null | wc -l || echo "0")
+            echo "   Nombre de migrations : $migration_count"
+        else
+            warn "Containers pas encore démarrés - impossible d'afficher l'état actuel"
+        fi
+    fi
+    
+    echo ""
+    warn "🔄 Une sauvegarde de la base de données a été effectuée avant le déploiement"
+    
+    # Options disponibles
+    echo ""
+    echo "Options disponibles :"
+    echo "  1. Continuer avec les migrations automatiques (recommandé)"
+    echo "  2. Ignorer les migrations (déploiement sans migration DB)"
+    echo "  3. Annuler le déploiement"
+    echo ""
+    
+    while true; do
+        read -p "Votre choix (1/2/3) [1] : " migration_choice
+        
+        # Valeur par défaut
+        migration_choice=${migration_choice:-1}
+        
+        case $migration_choice in
+            1)
+                log "✅ Poursuite avec les migrations automatiques"
+                return 0
+                ;;
+            2)
+                warn "⚠️ Migrations ignorées - Le déploiement continue sans migration DB"
+                warn "⚠️ ATTENTION : Votre application pourrait ne pas fonctionner si le schéma DB a changé"
+                return 1
+                ;;
+            3)
+                log "❌ Déploiement annulé par l'utilisateur"
+                exit 0
+                ;;
+            *)
+                error "Choix invalide. Veuillez saisir 1, 2 ou 3"
+                ;;
+        esac
+    done
+}
+
 # Fonction principale
 main() {
     log "🚀 Début du déploiement automatisé AJT Pro"
@@ -516,7 +687,20 @@ main() {
     fetch_code
     build_frontend
     manage_docker_containers
-    run_database_migrations  # AMÉLIORÉ : Gestion robuste des migrations Alembic
+    
+    # Demander confirmation avant les migrations
+    if ask_migration_confirmation; then
+        if run_database_migrations; then
+            info "✅ Migrations de base de données terminées avec succès"
+        else
+            warn "⚠️ Migrations ignorées ou échouées - Le déploiement continue"
+            warn "🔍 Vérifiez manuellement que votre application fonctionne correctement"
+        fi
+    else
+        warn "🚫 Migrations de base de données ignorées"
+        warn "🔍 Vérifiez manuellement que votre application fonctionne correctement"
+    fi
+    
     health_check
     cleanup_old_backups
     show_deployment_info
@@ -541,15 +725,17 @@ case "${1:-}" in
         echo "  $0 feature/new    # Déploie une branche spécifique"
         echo ""
         echo "Le script inclut maintenant la gestion automatique des migrations Alembic:"
+        echo "  - Demande de confirmation avant les migrations"
         echo "  - Génération automatique de migrations si nécessaire"
         echo "  - Application des migrations en attente"
         echo "  - Vérification de l'état des migrations"
         echo "  - Affichage de la structure des tables"
         echo "  - Vérification robuste de la base de données"
+        echo "  - Possibilité d'ignorer les migrations"
         exit 0
         ;;
     --version)
-        echo "AJT Pro Deploy Script v2.3 (avec support Alembic amélioré)"
+        echo "AJT Pro Deploy Script v2.3 (avec support Alembic amélioré et confirmation utilisateur)"
         exit 0
         ;;
     *)
