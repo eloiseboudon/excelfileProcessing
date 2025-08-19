@@ -5,8 +5,8 @@ import { fetchProductPriceSummary, updateProduct } from '../api';
 import { getCurrentTimestamp } from '../utils/date';
 import MultiSelectFilter from './MultiSelectFilter';
 import ProductReference from './ProductReference';
-import WeekToolbar from './WeekToolbar';
 import SupplierPriceModal from './SupplierPriceModal';
+import WeekToolbar from './WeekToolbar';
 
 import {
   fetchBrands,
@@ -60,7 +60,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
     { key: 'memory', label: 'Mémoire' },
     { key: 'color', label: 'Couleur' },
     { key: 'type', label: 'Type' },
-    { key: 'averagePrice', label: 'Prix de vente conseillé' }
+    { key: 'averagePrice', label: 'Prix de vente' }
   ];
 
   const columns = useMemo(

@@ -9,10 +9,13 @@ import StatisticsPage from './components/StatisticsPage';
 import LoginPage from './components/LoginPage';
 
 function App() {
-  const [currentPage, setCurrentPage] = useState<'processing' | 'formatting' | 'admin' | 'products' | 'stats'>('processing');
+  const storedRole = localStorage.getItem('role');
+  const [currentPage, setCurrentPage] = useState<'processing' | 'formatting' | 'admin' | 'products' | 'stats'>(
+    storedRole === 'client' ? 'products' : 'processing'
+  );
   const [apiTestMessage, setApiTestMessage] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
-  const [role, setRole] = useState<string>(localStorage.getItem('role') || '');
+  const [role, setRole] = useState<string>(storedRole || '');
 
   useEffect(() => {
     if (token) {
@@ -26,6 +29,7 @@ function App() {
     localStorage.setItem('role', userRole);
     setAuthToken(newToken);
     setRefreshToken(newRefresh);
+    setCurrentPage(userRole === 'client' ? 'products' : 'processing');
   };
 
   const handleLogout = () => {

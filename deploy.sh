@@ -60,7 +60,7 @@ check_prerequisites() {
 setup_docker_network() {
     log "🌐 Configuration du réseau Docker..."
     
-    # Vérifier si le réseau existe déjà 
+    # Vérifier si le réseau existe déjà  
     if docker network ls --format "table {{.Name}}" | grep -q "^ajtpro_default$"; then
         info "✅ Le réseau ajtpro_default existe déjà"
     else
@@ -236,7 +236,7 @@ manage_docker_containers() {
     $DOCKER_COMPOSE_CMD -f "$compose_file" ps
 }
 
-# Gestion des migrations Alembic
+# Gestion des migrations Alembic - VERSION AMÉLIORÉE
 run_database_migrations() {
     log "🗃️ Gestion des migrations de base de données avec Alembic..."
     
@@ -247,31 +247,37 @@ run_database_migrations() {
         error "Le container backend n'est pas en cours d'exécution"
     fi
     
-    # Attendre que la base de données soit prête
+    # Attendre que la base de données soit prête avec plusieurs méthodes
     log "⏳ Attente que la base de données soit prête..."
     local max_attempts=30
     local attempt=1
     
     while [ $attempt -le $max_attempts ]; do
-        if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend python -c "
-import sys
-from sqlalchemy import create_engine
-from app.core.config import settings
-try:
-    engine = create_engine(settings.DATABASE_URL)
-    connection = engine.connect()
-    connection.close()
-    print('Database is ready')
-    sys.exit(0)
-except Exception as e:
-    print(f'Database not ready: {e}')
-    sys.exit(1)
-" >/dev/null 2>&1; then
-            info "✅ Base de données prête"
+        # Test avec pg_isready depuis le container postgres
+        if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T postgres pg_isready -h localhost -p 5432 >/dev/null 2>&1; then
+            info "✅ Base de données PostgreSQL prête"
+            break
+        fi
+        
+        # Test de connexion simple avec psql
+        if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T postgres psql -h localhost -U "${POSTGRES_USER:-ajt_user}" -d "${POSTGRES_DB:-ajt_db}" -c "SELECT 1;" >/dev/null 2>&1; then
+            info "✅ Base de données accessible"
             break
         fi
         
         if [ $attempt -eq $max_attempts ]; then
+            # Diagnostic en cas d'échec
+            warn "🔍 Diagnostic de la base de données..."
+            
+            log "📊 Statut des containers:"
+            $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" ps
+            
+            log "📋 Logs PostgreSQL (dernières 10 lignes):"
+            $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" logs --tail=10 postgres || true
+            
+            log "📋 Logs Backend (dernières 10 lignes):"
+            $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" logs --tail=10 backend || true
+            
             error "❌ Timeout: la base de données n'est pas accessible après $max_attempts tentatives"
         fi
         
@@ -280,29 +286,104 @@ except Exception as e:
         ((attempt++))
     done
     
-    # Génération automatique d'une migration si des changements sont détectés
-    log "🔍 Vérification des changements de schéma et génération de migration..."
-    if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" run --rm backend alembic revision --autogenerate -m "auto migrate $(date +'%Y%m%d_%H%M%S')"; then
-        info "✅ Migration automatique générée avec succès"
+    # 1. Vérifier l'état actuel des migrations AVANT de faire quoi que ce soit
+    log "📋 Vérification de l'état actuel des migrations..."
+    local current_migration=""
+    if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic current >/dev/null 2>&1; then
+        current_migration=$($DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic current 2>/dev/null | grep -E "^[a-f0-9]+" || echo "Aucune")
+        info "Migration actuelle: $current_migration"
     else
-        warn "⚠️ Aucun changement détecté ou erreur lors de la génération de migration"
+        warn "Impossible de déterminer l'état des migrations (première installation ?)"
     fi
     
-    # Application des migrations
-    log "⬆️ Application des migrations..."
+    # 2. Lister les migrations existantes
+    log "📜 Liste des fichiers de migration existants:"
+    local existing_migrations=$($DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend find /app/alembic/versions -name "*.py" -type f 2>/dev/null | wc -l || echo "0")
+    info "Nombre de fichiers de migration: $existing_migrations"
+    
+    if [ "$existing_migrations" -gt 0 ]; then
+        log "📄 Fichiers de migration présents:"
+        $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend ls -la /app/alembic/versions/ 2>/dev/null || true
+    fi
+    
+    # 3. Génération automatique d'une migration si des changements sont détectés
+    log "🔍 Vérification des changements de schéma et génération de migration..."
+    local migration_name="auto_migrate_$(date +%Y%m%d_%H%M%S)"
+    
+    if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic revision --autogenerate -m "$migration_name" >/dev/null 2>&1; then
+        info "✅ Commande de génération de migration exécutée"
+        
+        # Vérifier si une nouvelle migration a vraiment été créée
+        local new_migrations=$($DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend find /app/alembic/versions -name "*.py" -type f 2>/dev/null | wc -l || echo "0")
+        
+        if [ "$new_migrations" -gt "$existing_migrations" ]; then
+            log "🆕 Nouvelle migration générée!"
+            
+            # Afficher la nouvelle migration créée
+            log "📄 Nouvelle migration créée:"
+            $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend ls -la /app/alembic/versions/ | tail -1 || true
+            
+            # Afficher le contenu de la nouvelle migration pour vérification
+            log "📝 Contenu de la nouvelle migration:"
+            local newest_migration=$($DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend find /app/alembic/versions -name "*.py" -type f -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2 || "")
+            if [ -n "$newest_migration" ]; then
+                echo "----------------------------------------"
+                $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend cat "$newest_migration" 2>/dev/null | head -50 || true
+                echo "----------------------------------------"
+            fi
+        else
+            info "ℹ️ Aucun changement de schéma détecté - pas de nouvelle migration"
+        fi
+    else
+        warn "⚠️ Erreur lors de la génération de migration (peut être normal si aucun changement)"
+    fi
+    
+    # 4. Application des migrations en attente
+    log "⬆️ Application des migrations en attente..."
     if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic upgrade head; then
         info "✅ Migrations appliquées avec succès"
         
-        # Affichage de l'état actuel des migrations
-        log "📋 État actuel des migrations:"
-        $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic current || warn "Impossible d'afficher l'état des migrations"
+        # Vérifier l'état après application
+        local new_current_migration=""
+        if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic current >/dev/null 2>&1; then
+            new_current_migration=$($DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic current 2>/dev/null | grep -E "^[a-f0-9]+" || echo "Aucune")
+            info "Nouvelle migration actuelle: $new_current_migration"
+            
+            if [ "$current_migration" != "$new_current_migration" ]; then
+                info "🔄 Migration mise à jour de '$current_migration' vers '$new_current_migration'"
+            else
+                info "📌 Aucune nouvelle migration appliquée"
+            fi
+        fi
         
-        # Historique des migrations
-        log "📜 Historique des migrations (dernières 5):"
-        $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic history -r -5 || warn "Impossible d'afficher l'historique"
     else
         error "❌ Échec de l'application des migrations"
     fi
+    
+    # 5. Vérification que les champs sont maintenant présents dans la table users
+    log "🔍 Vérification de la structure de la table users..."
+    if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T postgres psql -U "${POSTGRES_USER:-ajt_user}" -d "${POSTGRES_DB:-ajt_db}" -c "\d users" >/dev/null 2>&1; then
+        info "📋 Structure actuelle de la table users:"
+        echo "----------------------------------------"
+        $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T postgres psql -U "${POSTGRES_USER:-ajt_user}" -d "${POSTGRES_DB:-ajt_db}" -c "\d users" 2>/dev/null || true
+        echo "----------------------------------------"
+    else
+        warn "⚠️ Impossible d'afficher la structure de la table users"
+    fi
+    
+    # 6. Affichage de l'historique des migrations
+    log "📜 Historique des migrations:"
+    if $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic history --indicate-current >/dev/null 2>&1; then
+        echo "----------------------------------------"
+        $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic history --indicate-current 2>/dev/null | head -20 || true
+        echo "----------------------------------------"
+    else
+        # Alternative si la commande précédente échoue
+        log "📜 Liste des migrations disponibles:"
+        $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend find /app/alembic/versions -name "*.py" -type f | head -10 2>/dev/null || warn "Impossible d'afficher les migrations"
+    fi
+    
+    log "✅ Gestion des migrations Alembic terminée avec succès"
 }
 
 # Vérification de la santé de l'application
@@ -387,14 +468,14 @@ cleanup_old_backups() {
 # Affichage des informations post-déploiement
 show_deployment_info() {
     log "📋 Informations de déploiement:"
-    echo "╔══════════════════════════════════════════════════╗"
+    echo "╔═══════════════════════════════════════════════════════╗"
     echo "🌐 Frontend: http://$(hostname -I | awk '{print $1}'):3000"
     echo "🔧 Backend:  http://$(hostname -I | awk '{print $1}'):8000"
     echo "🗄️ Database: PostgreSQL sur le port 5432"
     echo "📝 Logs: docker compose logs -f [service_name]"
     echo "📊 Statut: docker compose ps"
     echo "🗃️ Migrations: docker compose exec backend alembic current"
-    echo "╚══════════════════════════════════════════════════╝"
+    echo "╚═══════════════════════════════════════════════════════╝"
     
     # Informations Git
     cd "$APP_DIR"
@@ -410,10 +491,15 @@ show_deployment_info() {
     # Informations sur les migrations
     log "🗃️ État des migrations:"
     if [ -n "${DOCKER_COMPOSE_CMD:-}" ] && [ -n "${COMPOSE_FILE:-}" ]; then
-        $DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic current 2>/dev/null || echo "   Impossible d'obtenir l'état des migrations"
+        local migration_info=$($DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic current 2>/dev/null || echo "Informations non disponibles")
+        echo "   $migration_info"
+        
+        # Afficher le nombre total de migrations
+        local total_migrations=$($DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend find /app/alembic/versions -name "*.py" -type f | wc -l 2>/dev/null || echo "0")
+        echo "   Nombre total de fichiers de migration: $total_migrations"
     fi
     
-    echo "╚══════════════════════════════════════════════════╝"
+    echo "╚═══════════════════════════════════════════════════════╝"
 }
 
 # Fonction principale
@@ -430,7 +516,7 @@ main() {
     fetch_code
     build_frontend
     manage_docker_containers
-    run_database_migrations  # NOUVEAU : Gestion des migrations Alembic
+    run_database_migrations  # AMÉLIORÉ : Gestion robuste des migrations Alembic
     health_check
     cleanup_old_backups
     show_deployment_info
@@ -458,10 +544,12 @@ case "${1:-}" in
         echo "  - Génération automatique de migrations si nécessaire"
         echo "  - Application des migrations en attente"
         echo "  - Vérification de l'état des migrations"
+        echo "  - Affichage de la structure des tables"
+        echo "  - Vérification robuste de la base de données"
         exit 0
         ;;
     --version)
-        echo "AJT Pro Deploy Script v2.2 (avec support Alembic)"
+        echo "AJT Pro Deploy Script v2.3 (avec support Alembic amélioré)"
         exit 0
         ;;
     *)
