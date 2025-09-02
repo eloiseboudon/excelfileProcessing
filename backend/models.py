@@ -44,6 +44,12 @@ class TemporaryImport(db.Model):
     type = db.relationship(
         "DeviceType", backref=db.backref("temporary_imports", lazy=True)
     )
+    ram = db.relationship(
+        "RAMOption", backref=db.backref("temporary_imports", lazy=True)
+    )
+    norme = db.relationship(
+        "NormeOption", backref=db.backref("temporary_imports", lazy=True)
+    )
 
     supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=True)
     supplier = db.relationship(
@@ -85,6 +91,20 @@ class Exclusion(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     term = db.Column(db.String(100), nullable=False, unique=True)
+
+
+class RAMOption(db.Model):
+    __tablename__ = "ram_options"
+
+    id = db.Column(db.Integer, primary_key=True)
+    ram = db.Column(db.String(50), nullable=False)
+
+
+class NormeOption(db.Model):
+    __tablename__ = "norme_options"
+
+    id = db.Column(db.Integer, primary_key=True)
+    norme = db.Column(db.String(50), nullable=False)
 
 
 class ColorTranslation(db.Model):
@@ -135,6 +155,7 @@ class Product(db.Model):
     ean = db.Column(db.String(20), nullable=True)
 
     model = db.Column(db.String(120), nullable=True)
+    designation = db.Column(db.String(120), nullable=True)
     # name = db.Column(db.String(120), nullable=False)
     description = db.Column(db.String(120), nullable=False)
 
@@ -147,6 +168,12 @@ class Product(db.Model):
     color = db.relationship("Color", backref=db.backref("products", lazy=True))
     type_id = db.Column(db.Integer, db.ForeignKey("device_types.id"), nullable=True)
     type = db.relationship("DeviceType", backref=db.backref("products", lazy=True))
+
+    RAM_id = db.Column(db.Integer, db.ForeignKey("ram_options.id"), nullable=True)
+    RAM = db.relationship("RAMOption", backref=db.backref("products", lazy=True))
+
+    norme_id = db.Column(db.Integer, db.ForeignKey("norme_options.id"), nullable=True)
+    norme = db.relationship("NormeOption", backref=db.backref("products", lazy=True))
 
     recommended_price = db.Column(db.Float, nullable=True)
 
