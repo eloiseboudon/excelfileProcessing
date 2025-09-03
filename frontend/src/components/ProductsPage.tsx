@@ -13,6 +13,8 @@ import {
   fetchColors,
   fetchDeviceTypes,
   fetchMemoryOptions,
+  fetchRAMOptions,
+  fetchNormeOptions,
 } from '../api';
 import { useNotification } from './NotificationProvider';
 
@@ -24,6 +26,8 @@ interface AggregatedProduct {
   memory: string | null;
   color: string | null;
   type: string | null;
+  ram: string | null;
+  norme: string | null;
   averagePrice: number;
   buyPrices: Record<string, number | undefined>;
   salePrices: Record<string, number | undefined>;
@@ -47,6 +51,8 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
   const [colorOptions, setColorOptions] = useState<string[]>([]);
   const [memoryOptions, setMemoryOptions] = useState<string[]>([]);
   const [typeOptions, setTypeOptions] = useState<string[]>([]);
+  const [ramOptions, setRamOptions] = useState<string[]>([]);
+  const [normeOptions, setNormeOptions] = useState<string[]>([]);
   const [tab, setTab] = useState<'calculations' | 'reference'>('calculations');
   const [selectedProduct, setSelectedProduct] = useState<AggregatedProduct | null>(null);
   const notify = useNotification();
@@ -60,6 +66,8 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
     { key: 'memory', label: 'Mémoire' },
     { key: 'color', label: 'Couleur' },
     { key: 'type', label: 'Type' },
+    { key: 'ram', label: 'RAM' },
+    { key: 'norme', label: 'Norme' },
     { key: 'averagePrice', label: 'Prix de vente' }
   ];
 
@@ -94,6 +102,8 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
             memory: it.memory,
             color: it.color,
             type: it.type,
+            ram: it.ram,
+            norme: it.norme,
             averagePrice:
               it.recommended_price ?? it.average_price ?? 0,
             buyPrices: it.buy_price || {},
@@ -113,18 +123,24 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
       fetchColors(),
       fetchMemoryOptions(),
       fetchDeviceTypes(),
+      fetchRAMOptions(),
+      fetchNormeOptions(),
     ])
-      .then(([brands, colors, memories, types]) => {
+      .then(([brands, colors, memories, types, rams, normes]) => {
         setBrandOptions(brands.map((b: any) => b.brand));
         setColorOptions(colors.map((c: any) => c.color));
         setMemoryOptions(memories.map((m: any) => m.memory));
         setTypeOptions(types.map((t: any) => t.type));
+        setRamOptions(rams.map((r: any) => r.ram));
+        setNormeOptions(normes.map((n: any) => n.norme));
       })
       .catch(() => {
         setBrandOptions([]);
         setColorOptions([]);
         setMemoryOptions([]);
         setTypeOptions([]);
+        setRamOptions([]);
+        setNormeOptions([]);
       });
   }, []);
 
@@ -156,6 +172,20 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
     if (usedTypes.length) {
       setTypeOptions((prev) => Array.from(new Set([...prev, ...usedTypes])));
     }
+
+    const usedRams = Array.from(
+      new Set(data.map((d) => d.ram).filter((ram): ram is string => typeof ram === 'string'))
+    );
+    if (usedRams.length) {
+      setRamOptions((prev) => Array.from(new Set([...prev, ...usedRams])));
+    }
+
+    const usedNormes = Array.from(
+      new Set(data.map((d) => d.norme).filter((n): n is string => typeof n === 'string'))
+    );
+    if (usedNormes.length) {
+      setNormeOptions((prev) => Array.from(new Set([...prev, ...usedNormes])));
+    }
   }, [data]);
 
   useEffect(() => {
@@ -169,7 +199,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
         return true;
       }
       const value = (row as any)[col.key];
-      if (['brand', 'memory', 'color', 'type'].includes(col.key)) {
+      if (['brand', 'memory', 'color', 'type', 'ram', 'norme'].includes(col.key)) {
         return (filterVal as string[]).includes(String(value ?? ''));
       }
       return String(value ?? '')
@@ -438,16 +468,22 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
                       visibleColumns.includes(col.key) && (
                         <th key={col.key} className="px-3 py-1 border-b border-zinc-700">
                           {baseColumns.some((c) => c.key === col.key) ? (
-                            ['brand', 'memory', 'color', 'type'].includes(col.key) ? (
+                            ['brand', 'memory', 'color', 'type', 'ram', 'norme'].includes(
+                              col.key
+                            ) ? (
                               <MultiSelectFilter
                                 options={
                                   col.key === 'brand'
                                     ? brandOptions
                                     : col.key === 'memory'
-                                      ? memoryOptions
-                                      : col.key === 'color'
-                                        ? colorOptions
-                                        : typeOptions
+                                    ? memoryOptions
+                                    : col.key === 'color'
+                                    ? colorOptions
+                                    : col.key === 'type'
+                                    ? typeOptions
+                                    : col.key === 'ram'
+                                    ? ramOptions
+                                    : normeOptions
                                 }
                                 selected={(filters[col.key] as string[]) || []}
                                 onChange={(selected) =>

@@ -8,6 +8,8 @@ from models import (
     Exclusion,
     FormatImport,
     MemoryOption,
+    RAMOption,
+    NormeOption,
     Product,
     Supplier,
     db,
@@ -23,6 +25,8 @@ def _model_mapping():
         "brands": Brand,
         "colors": Color,
         "memory_options": MemoryOption,
+        "ram_options": RAMOption,
+        "norme_options": NormeOption,
         "device_types": DeviceType,
         "exclusions": Exclusion,
         "color_translations": ColorTranslation,
@@ -83,6 +87,10 @@ def get_reference_table(table):
             return {"id": obj.id, "color": obj.color}
         if isinstance(obj, MemoryOption):
             return {"id": obj.id, "memory": obj.memory, "tcp_value": obj.tcp_value}
+        if isinstance(obj, RAMOption):
+            return {"id": obj.id, "ram": obj.ram}
+        if isinstance(obj, NormeOption):
+            return {"id": obj.id, "norme": obj.norme}
         if isinstance(obj, DeviceType):
             return {"id": obj.id, "type": obj.type}
         if isinstance(obj, Exclusion):
