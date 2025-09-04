@@ -75,8 +75,9 @@ function ReferenceAdmin({ isVisible, onClose }: ReferenceAdminProps) {
         notify('Entrée mise à jour', 'success');
       }
       await load(table!);
-    } catch {
-      /* empty */
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur';
+      notify(message, 'error');
     }
   };
 
