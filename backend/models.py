@@ -126,9 +126,7 @@ class Product(db.Model):
     ean = db.Column(db.String(20), nullable=True)
 
     model = db.Column(db.String(120), nullable=True)
-    designation = db.Column(db.String(120), nullable=True)
-    # name = db.Column(db.String(120), nullable=False)
-    description = db.Column(db.String(120), nullable=False)
+    description = db.Column(db.String(120), nullable=True)
 
     brand_id = db.Column(db.Integer, db.ForeignKey("brands.id"), nullable=True)
     brand = db.relationship("Brand", backref=db.backref("products", lazy=True))
@@ -165,6 +163,7 @@ class ProductCalculation(db.Model):
     price = db.Column(db.Float, nullable=False)
     tcp = db.Column(db.Float, nullable=False)
     marge4_5 = db.Column(db.Float, nullable=False)
+    marge = db.Column(db.Float, nullable=True)
     prixht_tcp_marge4_5 = db.Column(db.Float, nullable=False)
     prixht_marge4_5 = db.Column(db.Float, nullable=False)
     prixht_max = db.Column(db.Float, nullable=False)

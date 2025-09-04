@@ -138,6 +138,7 @@ def recalculate_product_calculations():
             prixht_marge4_5=round(price_with_margin, 2),
             prixht_max=max_price,
             date=datetime.now(timezone.utc),
+            marge=round(max_price - tcp, 2),
         )
         db.session.add(calc)
 
@@ -195,6 +196,7 @@ def update_product_calculations_for_memory_option(memory_option_id: int) -> None
         calc.prixht_tcp_marge4_5 = round(price_with_tcp, 2)
         calc.prixht_marge4_5 = round(price_with_margin, 2)
         calc.prixht_max = max_price
+        calc.marge = round(max_price - tcp, 2)
 
     if calcs:
         db.session.commit()

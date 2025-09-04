@@ -13,8 +13,8 @@ import {
   fetchColors,
   fetchDeviceTypes,
   fetchMemoryOptions,
-  fetchRAMOptions,
   fetchNormeOptions,
+  fetchRAMOptions,
 } from '../api';
 import { useNotification } from './NotificationProvider';
 
@@ -68,7 +68,8 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
     { key: 'type', label: 'Type' },
     { key: 'ram', label: 'RAM' },
     { key: 'norme', label: 'Norme' },
-    { key: 'averagePrice', label: 'Prix de vente' }
+    { key: 'averagePrice', label: 'Prix de vente' },
+    { key: 'marge', label: 'Marge' },
   ];
 
   const columns = useMemo(
@@ -104,6 +105,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
             type: it.type,
             ram: it.ram,
             norme: it.norme,
+            marge: it.marge ?? 0,
             averagePrice:
               it.recommended_price ?? it.average_price ?? 0,
             buyPrices: it.buy_price || {},
@@ -476,14 +478,14 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
                                   col.key === 'brand'
                                     ? brandOptions
                                     : col.key === 'memory'
-                                    ? memoryOptions
-                                    : col.key === 'color'
-                                    ? colorOptions
-                                    : col.key === 'type'
-                                    ? typeOptions
-                                    : col.key === 'ram'
-                                    ? ramOptions
-                                    : normeOptions
+                                      ? memoryOptions
+                                      : col.key === 'color'
+                                        ? colorOptions
+                                        : col.key === 'type'
+                                          ? typeOptions
+                                          : col.key === 'ram'
+                                            ? ramOptions
+                                            : normeOptions
                                 }
                                 selected={(filters[col.key] as string[]) || []}
                                 onChange={(selected) =>
