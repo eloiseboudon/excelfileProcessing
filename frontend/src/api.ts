@@ -372,6 +372,22 @@ export async function fetchMemoryOptions() {
   return res.json();
 }
 
+export async function fetchRAMOptions() {
+  const res = await fetchWithAuth(`${API_BASE}/references/ram_options`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function fetchNormeOptions() {
+  const res = await fetchWithAuth(`${API_BASE}/references/norme_options`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
 export async function fetchDeviceTypes() {
   const res = await fetchWithAuth(`${API_BASE}/references/device_types`);
   if (!res.ok) {

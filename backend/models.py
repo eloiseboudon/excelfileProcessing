@@ -34,6 +34,8 @@ class TemporaryImport(db.Model):
     memory_id = db.Column(db.Integer, db.ForeignKey("memory_options.id"), nullable=True)
     color_id = db.Column(db.Integer, db.ForeignKey("colors.id"), nullable=True)
     type_id = db.Column(db.Integer, db.ForeignKey("device_types.id"), nullable=True)
+    ram_id = db.Column(db.Integer, db.ForeignKey("ram_options.id"), nullable=True)
+    norme_id = db.Column(db.Integer, db.ForeignKey("norme_options.id"), nullable=True)
 
     # Relations
     brand = db.relationship("Brand", backref=db.backref("temporary_imports", lazy=True))

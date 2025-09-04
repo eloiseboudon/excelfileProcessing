@@ -7,6 +7,8 @@ import {
   fetchDeviceTypes,
   bulkUpdateProducts,
   createProduct,
+  fetchRAMOptions,
+  fetchNormeOptions,
 } from '../api';
 import MultiSelectFilter from './MultiSelectFilter';
 import { useNotification } from './NotificationProvider';
@@ -24,6 +26,10 @@ interface ProductItem {
   color: string | null;
   type_id: number | null;
   type: string | null;
+  ram_id: number | null;
+  ram: string | null;
+  norme_id: number | null;
+  norme: string | null;
 }
 
 function ProductReference() {
@@ -38,11 +44,15 @@ function ProductReference() {
   const [colors, setColors] = useState<any[]>([]);
   const [memories, setMemories] = useState<any[]>([]);
   const [types, setTypes] = useState<any[]>([]);
+  const [rams, setRams] = useState<any[]>([]);
+  const [normes, setNormes] = useState<any[]>([]);
   const notify = useNotification();
   const [brandOptions, setBrandOptions] = useState<string[]>([]);
   const [colorOptions, setColorOptions] = useState<string[]>([]);
   const [memoryOptions, setMemoryOptions] = useState<string[]>([]);
   const [typeOptions, setTypeOptions] = useState<string[]>([]);
+  const [ramOptions, setRamOptions] = useState<string[]>([]);
+  const [normeOptions, setNormeOptions] = useState<string[]>([]);
 
   const columns: { key: string; label: string }[] = [
     { key: 'id', label: 'ID' },
@@ -52,6 +62,8 @@ function ProductReference() {
     { key: 'memory', label: 'Mémoire' },
     { key: 'color', label: 'Couleur' },
     { key: 'type', label: 'Type' },
+    { key: 'ram', label: 'RAM' },
+    { key: 'norme', label: 'Norme' },
     { key: 'ean', label: 'EAN' },
   ];
 
@@ -68,26 +80,36 @@ function ProductReference() {
       fetchColors(),
       fetchMemoryOptions(),
       fetchDeviceTypes(),
+      fetchRAMOptions(),
+      fetchNormeOptions(),
     ])
-      .then(([b, c, m, t]) => {
+      .then(([b, c, m, t, r, n]) => {
         setBrands(b as any[]);
         setColors(c as any[]);
         setMemories(m as any[]);
         setTypes(t as any[]);
+        setRams(r as any[]);
+        setNormes(n as any[]);
         setBrandOptions((b as any[]).map((br) => br.brand));
         setColorOptions((c as any[]).map((co) => co.color));
         setMemoryOptions((m as any[]).map((me) => me.memory));
         setTypeOptions((t as any[]).map((ty) => ty.type));
+        setRamOptions((r as any[]).map((ra) => ra.ram));
+        setNormeOptions((n as any[]).map((no) => no.norme));
       })
       .catch(() => {
         setBrands([]);
         setColors([]);
         setMemories([]);
         setTypes([]);
+        setRams([]);
+        setNormes([]);
         setBrandOptions([]);
         setColorOptions([]);
         setMemoryOptions([]);
         setTypeOptions([]);
+        setRamOptions([]);
+        setNormeOptions([]);
       });
   }, []);
 
@@ -101,7 +123,7 @@ function ProductReference() {
       if (!filterValue || (Array.isArray(filterValue) && filterValue.length === 0))
         return true;
       const value = (row as any)[col.key];
-      if (['brand', 'memory', 'color', 'type'].includes(col.key)) {
+      if (['brand', 'memory', 'color', 'type', 'ram', 'norme'].includes(col.key)) {
         return (filterValue as string[]).includes(String(value ?? ''));
       }
       return String(value ?? '')
@@ -159,6 +181,10 @@ function ProductReference() {
         color: null,
         type_id: null,
         type: null,
+        ram_id: null,
+        ram: null,
+        norme_id: null,
+        norme: null,
       },
     ]);
     setEdited((prev) => ({
@@ -171,6 +197,8 @@ function ProductReference() {
         memory_id: null,
         color_id: null,
         type_id: null,
+        ram_id: null,
+        norme_id: null,
       },
     }));
   };
@@ -181,7 +209,7 @@ function ProductReference() {
     Object.entries(edited).forEach(([id, changes]) => {
       const numId = Number(id);
       if (numId < 0) {
-        const { brand, memory, color, type, ...rest } = {
+        const { brand, memory, color, type, ram, norme, ...rest } = {
           ...(changes as any),
         };
         toCreate.push(rest);
@@ -308,7 +336,7 @@ function ProductReference() {
                 (col) =>
                   visibleColumns.includes(col.key) && (
                     <th key={col.key} className="px-3 py-1 border-b border-zinc-700">
-                      {['brand', 'memory', 'color', 'type'].includes(col.key) ? (
+                      {['brand', 'memory', 'color', 'type', 'ram', 'norme'].includes(col.key) ? (
                         <MultiSelectFilter
                           options={
                             col.key === 'brand'
@@ -317,7 +345,11 @@ function ProductReference() {
                               ? memoryOptions
                               : col.key === 'color'
                               ? colorOptions
-                              : typeOptions
+                              : col.key === 'type'
+                              ? typeOptions
+                              : col.key === 'ram'
+                              ? ramOptions
+                              : normeOptions
                           }
                           selected={(filters[col.key] as string[]) || []}
                           onChange={(selected) =>
@@ -419,6 +451,44 @@ function ProductReference() {
                             {types.map((t) => (
                               <option key={t.id} value={t.id}>
                                 {t.type}
+                              </option>
+                            ))}
+                          </select>
+                        ) : col.key === 'ram' ? (
+                          <select
+                            value={row.ram_id ?? ''}
+                            onChange={(e) =>
+                              handleChange(
+                                row.id,
+                                'ram_id',
+                                e.target.value === '' ? null : Number(e.target.value)
+                              )
+                            }
+                            className="px-2 py-1 bg-zinc-700 rounded"
+                          >
+                            <option value="">null</option>
+                            {rams.map((r) => (
+                              <option key={r.id} value={r.id}>
+                                {r.ram}
+                              </option>
+                            ))}
+                          </select>
+                        ) : col.key === 'norme' ? (
+                          <select
+                            value={row.norme_id ?? ''}
+                            onChange={(e) =>
+                              handleChange(
+                                row.id,
+                                'norme_id',
+                                e.target.value === '' ? null : Number(e.target.value)
+                              )
+                            }
+                            className="px-2 py-1 bg-zinc-700 rounded"
+                          >
+                            <option value="">null</option>
+                            {normes.map((n) => (
+                              <option key={n.id} value={n.id}>
+                                {n.norme}
                               </option>
                             ))}
                           </select>
