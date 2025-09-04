@@ -14,6 +14,7 @@ from models import (
     Supplier,
     db,
 )
+from sqlalchemy.exc import IntegrityError
 from utils.calculations import update_product_calculations_for_memory_option
 
 bp = Blueprint("references", __name__)
@@ -149,7 +150,11 @@ def update_reference_item(table, item_id):
     for key, value in data.items():
         if hasattr(item, key):
             setattr(item, key, value)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"error": "champ existant"}), 400
     if table == "color_translations":
         _update_products_for_color_translation(
             [old_source, item.color_source], item.color_target_id
@@ -186,7 +191,11 @@ def create_reference_item(table):
     data = request.json or {}
     item = model(**data)
     db.session.add(item)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"error": "champ existant"}), 400
     if table == "color_translations":
         _update_products_for_color_translation(item.color_source, item.color_target_id)
     return jsonify({"id": item.id})
