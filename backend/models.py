@@ -118,37 +118,6 @@ class ColorTranslation(db.Model):
     color_target_id = db.Column(db.Integer, db.ForeignKey("colors.id"), nullable=False)
 
 
-class BrandTranslation(db.Model):
-    __tablename__ = "brand_translations"
-
-    id = db.Column(db.Integer, primary_key=True)
-    brand_source = db.Column(db.String(50), nullable=False, unique=True)
-    brand_target = db.Column(db.String(50), nullable=False)
-    brand_target_id = db.Column(db.Integer, db.ForeignKey("brands.id"), nullable=False)
-
-
-class MemoryTranslation(db.Model):
-    __tablename__ = "memory_translations"
-
-    id = db.Column(db.Integer, primary_key=True)
-    memory_source = db.Column(db.String(50), nullable=False, unique=True)
-    memory_target = db.Column(db.String(50), nullable=False)
-    memory_target_id = db.Column(
-        db.Integer, db.ForeignKey("memory_options.id"), nullable=False
-    )
-
-
-class TypeTranslation(db.Model):
-    __tablename__ = "type_translations"
-
-    id = db.Column(db.Integer, primary_key=True)
-    type_source = db.Column(db.String(50), nullable=False, unique=True)
-    type_target = db.Column(db.String(50), nullable=False)
-    type_target_id = db.Column(
-        db.Integer, db.ForeignKey("device_types.id"), nullable=False
-    )
-
-
 class Product(db.Model):
     __tablename__ = "products"
 

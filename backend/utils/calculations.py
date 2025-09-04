@@ -1,17 +1,14 @@
 import math
-import pandas as pd
 from datetime import datetime, timezone
 from typing import Dict, Iterable, Tuple
 
+import pandas as pd
 from models import (
-    BrandTranslation,
     ColorTranslation,
     MemoryOption,
-    MemoryTranslation,
     Product,
     ProductCalculation,
     TemporaryImport,
-    TypeTranslation,
     db,
 )
 
@@ -19,22 +16,10 @@ from models import (
 def _load_mappings() -> Dict[str, Iterable[Tuple[str, int]]]:
     """Load translation mappings into memory for faster lookups."""
     return {
-        "brand": [
-            (t.brand_source.lower(), t.brand_target_id)
-            for t in BrandTranslation.query.all()
-        ],
-        "memory": [
-            (t.memory_source.lower(), t.memory_target_id)
-            for t in MemoryTranslation.query.all()
-        ],
         "color": [
             (t.color_source.lower(), t.color_target_id)
             for t in ColorTranslation.query.all()
-        ],
-        "type": [
-            (t.type_source.lower(), t.type_target_id)
-            for t in TypeTranslation.query.all()
-        ],
+        ]
     }
 
 
