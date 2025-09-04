@@ -63,21 +63,21 @@ class Brand(db.Model):
     __tablename__ = "brands"
 
     id = db.Column(db.Integer, primary_key=True)
-    brand = db.Column(db.String(50), nullable=False)
+    brand = db.Column(db.String(50), nullable=False, unique=True)
 
 
 class Color(db.Model):
     __tablename__ = "colors"
 
     id = db.Column(db.Integer, primary_key=True)
-    color = db.Column(db.String(50), nullable=False)
+    color = db.Column(db.String(50), nullable=False, unique=True)
 
 
 class MemoryOption(db.Model):
     __tablename__ = "memory_options"
 
     id = db.Column(db.Integer, primary_key=True)
-    memory = db.Column(db.String(50), nullable=False)
+    memory = db.Column(db.String(50), nullable=False, unique=True)
     tcp_value = db.Column(db.Integer, nullable=False)
 
 
@@ -85,7 +85,7 @@ class DeviceType(db.Model):
     __tablename__ = "device_types"
 
     id = db.Column(db.Integer, primary_key=True)
-    type = db.Column(db.String(50), nullable=False)
+    type = db.Column(db.String(50), nullable=False, unique=True)
 
 
 class Exclusion(db.Model):
@@ -99,21 +99,21 @@ class RAMOption(db.Model):
     __tablename__ = "ram_options"
 
     id = db.Column(db.Integer, primary_key=True)
-    ram = db.Column(db.String(50), nullable=False)
+    ram = db.Column(db.String(50), nullable=False, unique=True)
 
 
 class NormeOption(db.Model):
     __tablename__ = "norme_options"
 
     id = db.Column(db.Integer, primary_key=True)
-    norme = db.Column(db.String(50), nullable=False)
+    norme = db.Column(db.String(50), nullable=False, unique=True)
 
 
 class ColorTranslation(db.Model):
     __tablename__ = "color_translations"
 
     id = db.Column(db.Integer, primary_key=True)
-    color_source = db.Column(db.String(50), nullable=False)
+    color_source = db.Column(db.String(50), nullable=False, unique=True)
     color_target = db.Column(db.String(50), nullable=False)
     color_target_id = db.Column(db.Integer, db.ForeignKey("colors.id"), nullable=False)
 
@@ -122,7 +122,7 @@ class BrandTranslation(db.Model):
     __tablename__ = "brand_translations"
 
     id = db.Column(db.Integer, primary_key=True)
-    brand_source = db.Column(db.String(50), nullable=False)
+    brand_source = db.Column(db.String(50), nullable=False, unique=True)
     brand_target = db.Column(db.String(50), nullable=False)
     brand_target_id = db.Column(db.Integer, db.ForeignKey("brands.id"), nullable=False)
 
@@ -131,7 +131,7 @@ class MemoryTranslation(db.Model):
     __tablename__ = "memory_translations"
 
     id = db.Column(db.Integer, primary_key=True)
-    memory_source = db.Column(db.String(50), nullable=False)
+    memory_source = db.Column(db.String(50), nullable=False, unique=True)
     memory_target = db.Column(db.String(50), nullable=False)
     memory_target_id = db.Column(
         db.Integer, db.ForeignKey("memory_options.id"), nullable=False
@@ -142,7 +142,7 @@ class TypeTranslation(db.Model):
     __tablename__ = "type_translations"
 
     id = db.Column(db.Integer, primary_key=True)
-    type_source = db.Column(db.String(50), nullable=False)
+    type_source = db.Column(db.String(50), nullable=False, unique=True)
     type_target = db.Column(db.String(50), nullable=False)
     type_target_id = db.Column(
         db.Integer, db.ForeignKey("device_types.id"), nullable=False
