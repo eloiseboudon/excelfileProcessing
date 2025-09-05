@@ -115,6 +115,7 @@ def product_price_summary():
                 "supplier_prices": {},
                 "recommended_price": p.recommended_price,
                 "buy_price": {},
+                "tcp": calc.tcp,
             }
         supplier = calc.supplier.name if calc.supplier else ""
         data[pid]["supplier_prices"][supplier] = calc.prixht_max
@@ -130,6 +131,10 @@ def product_price_summary():
             prod = Product.query.get(item["id"])
             if prod:
                 prod.recommended_price = item["recommended_price"]
+        item["marge"] = round(
+            (item["recommended_price"] or 0) - item.get("tcp", 0), 2
+        )
+        item.pop("tcp", None)
         if request.user.role == "client":
             item.pop("supplier_prices", None)
         result.append(item)
@@ -412,6 +417,28 @@ def update_product(product_id):
     ]:
         if field in data:
             setattr(product, field, data[field])
+
+    if "marge" in data:
+        try:
+            new_margin = float(data["marge"])
+        except (TypeError, ValueError):
+            new_margin = None
+        if new_margin is not None:
+            latest_calc = (
+                ProductCalculation.query.filter_by(product_id=product_id)
+                .order_by(ProductCalculation.date.desc())
+                .first()
+            )
+            if latest_calc:
+                product.recommended_price = round(latest_calc.tcp + new_margin, 2)
+                latest_date = latest_calc.date
+                calcs = ProductCalculation.query.filter(
+                    ProductCalculation.product_id == product_id,
+                    ProductCalculation.date == latest_date,
+                ).all()
+                for c in calcs:
+                    c.marge = round(new_margin, 2)
+                    c.prixht_max = round(c.tcp + new_margin, 2)
     db.session.commit()
     return jsonify({"status": "updated"})
 

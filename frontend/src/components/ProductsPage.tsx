@@ -28,6 +28,7 @@ interface AggregatedProduct {
   type: string | null;
   ram: string | null;
   norme: string | null;
+  marge: number;
   averagePrice: number;
   buyPrices: Record<string, number | undefined>;
   salePrices: Record<string, number | undefined>;
@@ -258,9 +259,13 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
     if (!entries.length) return;
     try {
       await Promise.all(
-        entries.map(([id, price]) =>
-          updateProduct(Number(id), { recommended_price: price })
-        )
+        entries.map(([id, price]) => {
+          const prod = data.find((p) => p.id === Number(id));
+          return updateProduct(Number(id), {
+            recommended_price: price,
+            marge: prod?.marge,
+          });
+        })
       );
       notify(`${entries.length} prix mis à jour`, 'success');
       setEditedPrices({});
@@ -554,6 +559,29 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
                               />
                             ) : col.key === 'averagePrice' ? (
                               row.averagePrice
+                            ) : col.key === 'marge' && role !== 'client' ? (
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={row.marge}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => {
+                                  const v = Number(e.target.value);
+                                  const tcp = row.averagePrice - row.marge;
+                                  const newPrice = tcp + v;
+                                  setEditedPrices({ ...editedPrices, [row.id]: newPrice });
+                                  setData((prev) =>
+                                    prev.map((p) =>
+                                      p.id === row.id
+                                        ? { ...p, marge: v, averagePrice: newPrice }
+                                        : p
+                                    )
+                                  );
+                                }}
+                                className="w-20 px-1 bg-zinc-700 rounded"
+                              />
+                            ) : col.key === 'marge' ? (
+                              row.marge
                             ) : value !== undefined ? (
                               String(value)
                             ) : (
