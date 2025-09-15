@@ -46,7 +46,6 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
   const [suppliers, setSuppliers] = useState<string[]>([]);
   const [filters, setFilters] = useState<Record<string, string | string[]>>({});
   const [editedPrices, setEditedPrices] = useState<Record<number, number>>({});
-  const [savingRows, setSavingRows] = useState<Record<number, boolean>>({});
   const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
   const [showColumnMenu, setShowColumnMenu] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -59,8 +58,27 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
   const [normeOptions, setNormeOptions] = useState<string[]>([]);
   const [tab, setTab] = useState<'calculations' | 'reference'>('calculations');
   const [selectedProduct, setSelectedProduct] = useState<AggregatedProduct | null>(null);
+  const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
+  const [showBulkMarginModal, setShowBulkMarginModal] = useState(false);
+  const [bulkMarginValue, setBulkMarginValue] = useState('');
   const notify = useNotification();
-  const hasEdits = Object.keys(editedPrices).length > 0;
+  const modifiedCount = Object.keys(editedPrices).length;
+  const hasEdits = modifiedCount > 0;
+  const selectedCount = selectedProducts.length;
+  const selectedSet = useMemo(() => new Set(selectedProducts), [selectedProducts]);
+
+  const getBaseBuyPrice = (product: AggregatedProduct) => {
+    const buyValues = Object.values(product.buyPrices || {}).filter(
+      (value): value is number => typeof value === 'number' && !Number.isNaN(value)
+    );
+    if (typeof product.minBuyPrice === 'number' && !Number.isNaN(product.minBuyPrice)) {
+      return product.minBuyPrice;
+    }
+    if (buyValues.length) {
+      return Math.min(...buyValues);
+    }
+    return 0;
+  };
 
   const baseColumns: { key: string; label: string }[] = [
     { key: 'id', label: 'ID' },
@@ -154,6 +172,14 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
   }, []);
 
   useEffect(() => {
+    const existingIds = new Set(data.map((item) => item.id));
+    setSelectedProducts((prev) => {
+      const filtered = prev.filter((id) => existingIds.has(id));
+      return filtered.length === prev.length ? prev : filtered;
+    });
+  }, [data]);
+
+  useEffect(() => {
     const usedBrands = Array.from(
       new Set(data.map((d) => d.brand).filter((brand): brand is string => typeof brand === 'string'))
     );
@@ -229,6 +255,82 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
     }
   }, [totalPages, currentPage]);
 
+  const toggleProductSelection = (productId: number) => {
+    setSelectedProducts((prev) => {
+      const updated = new Set(prev);
+      if (updated.has(productId)) {
+        updated.delete(productId);
+      } else {
+        updated.add(productId);
+      }
+      return Array.from(updated);
+    });
+  };
+
+  const toggleSelectAllCurrentPage = () => {
+    const pageIds = paginatedData.map((row) => row.id);
+    const allSelected = pageIds.every((id) => selectedSet.has(id));
+    setSelectedProducts((prev) => {
+      const updated = new Set(prev);
+      if (allSelected) {
+        pageIds.forEach((id) => updated.delete(id));
+      } else {
+        pageIds.forEach((id) => updated.add(id));
+      }
+      return Array.from(updated);
+    });
+  };
+
+  const openBulkMarginModal = () => {
+    setBulkMarginValue('');
+    setShowBulkMarginModal(true);
+  };
+
+  const closeBulkMarginModal = () => {
+    setShowBulkMarginModal(false);
+    setBulkMarginValue('');
+  };
+
+  const applyBulkMargin = () => {
+    const trimmed = bulkMarginValue.trim();
+    if (!trimmed) {
+      notify('Veuillez indiquer une marge', 'error');
+      return;
+    }
+    const normalized = trimmed.replace(/,/g, '.');
+    const parsed = Number(normalized);
+    if (Number.isNaN(parsed)) {
+      notify('Marge invalide', 'error');
+      return;
+    }
+    const normalizedMargin = Number(parsed.toFixed(2));
+    if (!selectedProducts.length) {
+      closeBulkMarginModal();
+      return;
+    }
+
+    const selectedIds = new Set(selectedProducts);
+    const updatedPrices: Record<number, number> = {};
+    setData((prev) =>
+      prev.map((product) => {
+        if (!selectedIds.has(product.id)) {
+          return product;
+        }
+        const tcpValue = Number.isFinite(product.tcp) ? product.tcp : 0;
+        const baseBuyPrice = getBaseBuyPrice(product);
+        const newPrice = Number((tcpValue + baseBuyPrice + normalizedMargin).toFixed(2));
+        updatedPrices[product.id] = newPrice;
+        return { ...product, marge: normalizedMargin, averagePrice: newPrice };
+      })
+    );
+    setEditedPrices((prev) => ({ ...prev, ...updatedPrices }));
+    notify(
+      `${selectedIds.size} produit${selectedIds.size === 1 ? '' : 's'} mis à jour (en attente d'enregistrement)`,
+      'success'
+    );
+    closeBulkMarginModal();
+  };
+
   const toggleColumn = (key: string) => {
     setVisibleColumns((prev) =>
       prev.includes(key) ? prev.filter((c) => c !== key) : [...prev, key]
@@ -277,38 +379,6 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
       setEditedPrices({});
     } catch {
       notify("Erreur lors de l'enregistrement", 'error');
-    }
-  };
-
-  const handleSaveRow = async (productId: number) => {
-    const prod = data.find((p) => p.id === productId);
-    if (!prod) return;
-    const price = Object.prototype.hasOwnProperty.call(editedPrices, productId)
-      ? editedPrices[productId]
-      : prod.averagePrice;
-    if (!Number.isFinite(price)) {
-      notify('Prix invalide', 'error');
-      return;
-    }
-
-    setSavingRows((prev) => ({ ...prev, [productId]: true }));
-    try {
-      await updateProduct(productId, {
-        recommended_price: price,
-        marge: prod.marge,
-      });
-      setEditedPrices((prev) => {
-        const { [productId]: _discarded, ...rest } = prev;
-        return rest;
-      });
-      notify('Produit mis à jour', 'success');
-    } catch {
-      notify("Erreur lors de l'enregistrement", 'error');
-    } finally {
-      setSavingRows((prev) => {
-        const { [productId]: _discarded, ...rest } = prev;
-        return rest;
-      });
     }
   };
 
@@ -474,30 +544,66 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
             </div>
           )}
           {paginationControls}
-          <div className="flex space-x-2 my-4">
-            {role !== 'client' && (
-              <button
-                onClick={handleSavePrices}
-                className="btn btn-primary"
-                disabled={!hasEdits}
-              >
-                Enregistrer
+          <div className="flex flex-col gap-4 my-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-wrap gap-2">
+              <button onClick={handleExportExcel} className="btn btn-secondary">
+                Export Excel
               </button>
+              <button onClick={handleExportJSON} className="btn btn-secondary">
+                Export JSON
+              </button>
+              <button onClick={handleExportHtml} className="btn btn-secondary">
+                Génère HTML
+              </button>
+            </div>
+            {role !== 'client' && (
+              <div className="flex flex-col items-end gap-2 md:items-center md:flex-row md:gap-4">
+                {selectedCount > 0 && (
+                  <button
+                    onClick={openBulkMarginModal}
+                    className="btn btn-secondary"
+                  >
+                    Mise à jour marge ({selectedCount})
+                  </button>
+                )}
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-zinc-300">
+                    {modifiedCount} produit{modifiedCount === 1 ? '' : 's'} modifié{modifiedCount === 1 ? '' : 's'}
+                  </span>
+                  <button
+                    onClick={handleSavePrices}
+                    className="btn btn-primary"
+                    disabled={!hasEdits}
+                  >
+                    Enregistrer ({modifiedCount})
+                  </button>
+                </div>
+              </div>
             )}
-            <button onClick={handleExportExcel} className="btn btn-secondary">
-              Export Excel
-            </button>
-            <button onClick={handleExportJSON} className="btn btn-secondary">
-              Export JSON
-            </button>
-            <button onClick={handleExportHtml} className="btn btn-secondary">
-              Génère HTML
-            </button>
           </div>
           <div className="overflow-auto mt-4">
             <table className="table">
               <thead>
                 <tr className="bg-zinc-800">
+                  {role !== 'client' && (
+                    <th className="px-3 py-2 border-b border-zinc-700 w-12">
+                      <input
+                        type="checkbox"
+                        onChange={toggleSelectAllCurrentPage}
+                        checked={
+                          paginatedData.length > 0 &&
+                          paginatedData.every((row) => selectedSet.has(row.id))
+                        }
+                        aria-checked={
+                          paginatedData.some((row) => selectedSet.has(row.id)) &&
+                          !paginatedData.every((row) => selectedSet.has(row.id))
+                            ? 'mixed'
+                            : undefined
+                        }
+                        className="rounded"
+                      />
+                    </th>
+                  )}
                   {columns.map(
                     (col) =>
                       visibleColumns.includes(col.key) && (
@@ -508,6 +614,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
                   )}
                 </tr>
                 <tr>
+                  {role !== 'client' && <th className="px-3 py-1 border-b border-zinc-700"></th>}
                   {columns.map(
                     (col) =>
                       visibleColumns.includes(col.key) && (
@@ -556,20 +663,27 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
                   const prices = suppliers.map((s) => row.buyPrices[s]);
                   const validPrices = prices.filter((p) => typeof p === 'number') as number[];
                   const minPrice = validPrices.length ? Math.min(...validPrices) : undefined;
-                  const baseBuyPrice =
-                    typeof row.minBuyPrice === 'number' && !Number.isNaN(row.minBuyPrice)
-                      ? row.minBuyPrice
-                      : minPrice ?? 0;
-                  const hasPendingEdit = Object.prototype.hasOwnProperty.call(
-                    editedPrices,
-                    row.id
-                  );
+                  const baseBuyPrice = getBaseBuyPrice(row);
+                  const isSelected = selectedSet.has(row.id);
                   return (
                     <tr
                       key={String(row.id)}
-                      className={`odd:bg-zinc-900 even:bg-zinc-800 ${role !== 'client' ? 'cursor-pointer' : ''}`}
+                      className={`odd:bg-zinc-900 even:bg-zinc-800 ${
+                        role !== 'client' ? 'cursor-pointer' : ''
+                      } ${isSelected ? 'bg-indigo-900/40 ring-1 ring-indigo-500' : ''}`}
                       onClick={() => role !== 'client' && setSelectedProduct(row)}
                     >
+                      {role !== 'client' && (
+                        <td className="px-3 py-1 border-b border-zinc-700">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={() => toggleProductSelection(row.id)}
+                            className="rounded"
+                          />
+                        </td>
+                      )}
                       {columns.map((col) => {
                         if (!visibleColumns.includes(col.key)) return null;
                         let value: any = (row as any)[col.key];
@@ -606,49 +720,36 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
                             ) : col.key === 'averagePrice' ? (
                               row.averagePrice
                             ) : col.key === 'marge' && role !== 'client' ? (
-                              <div className="flex items-center space-x-2">
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={row.marge}
-                                  onClick={(e) => e.stopPropagation()}
-                                  onChange={(e) => {
-                                    const v = Number(e.target.value);
-                                    if (Number.isNaN(v)) {
-                                      return;
-                                    }
-                                    const tcpValue = Number.isFinite(row.tcp)
-                                      ? row.tcp
-                                      : row.averagePrice - row.marge - baseBuyPrice;
-                                    const newPrice = Number(
-                                      (tcpValue + baseBuyPrice + v).toFixed(2)
-                                    );
-                                    setEditedPrices((prev) => ({
-                                      ...prev,
-                                      [row.id]: newPrice,
-                                    }));
-                                    setData((prev) =>
-                                      prev.map((p) =>
-                                        p.id === row.id
-                                          ? { ...p, marge: v, averagePrice: newPrice }
-                                          : p
-                                      )
-                                    );
-                                  }}
-                                  className="w-20 px-1 bg-zinc-700 rounded"
-                                />
-                                <button
-                                  type="button"
-                                  className="btn btn-secondary px-2 py-1 text-xs"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleSaveRow(row.id);
-                                  }}
-                                  disabled={!hasPendingEdit || savingRows[row.id]}
-                                >
-                                  Enregistrer
-                                </button>
-                              </div>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={row.marge}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => {
+                                  const v = Number(e.target.value);
+                                  if (Number.isNaN(v)) {
+                                    return;
+                                  }
+                                  const tcpValue = Number.isFinite(row.tcp)
+                                    ? row.tcp
+                                    : row.averagePrice - row.marge - baseBuyPrice;
+                                  const newPrice = Number(
+                                    (tcpValue + baseBuyPrice + v).toFixed(2)
+                                  );
+                                  setEditedPrices((prev) => ({
+                                    ...prev,
+                                    [row.id]: newPrice,
+                                  }));
+                                  setData((prev) =>
+                                    prev.map((p) =>
+                                      p.id === row.id
+                                        ? { ...p, marge: v, averagePrice: newPrice }
+                                        : p
+                                    )
+                                  );
+                                }}
+                                className="w-20 px-1 bg-zinc-700 rounded"
+                              />
                             ) : col.key === 'marge' ? (
                               row.marge
                             ) : value !== undefined ? (
@@ -674,6 +775,37 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
           prices={selectedProduct.salePrices}
           onClose={() => setSelectedProduct(null)}
         />
+      )}
+      {showBulkMarginModal && (
+        <div className="fixed inset-0 z-20 flex items-center justify-center bg-black bg-opacity-70 px-4">
+          <div className="w-full max-w-sm rounded-lg border border-zinc-700 bg-zinc-900 p-6 shadow-xl">
+            <h2 className="text-lg font-semibold mb-2">Mise à jour de la marge</h2>
+            <p className="text-sm text-zinc-300 mb-4">
+              Appliquer une marge unique à {selectedCount}{' '}
+              produit{selectedCount === 1 ? '' : 's'} sélectionné{selectedCount === 1 ? '' : 's'}.
+            </p>
+            <label htmlFor="bulkMarginInput" className="block text-sm mb-2">
+              Nouvelle marge
+            </label>
+            <input
+              id="bulkMarginInput"
+              type="number"
+              step="0.01"
+              value={bulkMarginValue}
+              onChange={(e) => setBulkMarginValue(e.target.value)}
+              className="w-full rounded border border-zinc-600 bg-zinc-800 px-3 py-2"
+              autoFocus
+            />
+            <div className="mt-6 flex justify-end gap-2">
+              <button className="btn btn-secondary" onClick={closeBulkMarginModal}>
+                Annuler
+              </button>
+              <button className="btn btn-primary" onClick={applyBulkMargin}>
+                Appliquer
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
