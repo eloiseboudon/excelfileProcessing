@@ -116,10 +116,23 @@ def product_price_summary():
                 "recommended_price": p.recommended_price,
                 "buy_price": {},
                 "tcp": calc.tcp,
+                "min_buy_price": None,
+                "min_buy_price_value": None,
+                "min_buy_margin": None,
+                "marge_samples": [],
             }
         supplier = calc.supplier.name if calc.supplier else ""
         data[pid]["supplier_prices"][supplier] = calc.prixht_max
         data[pid]["buy_price"][supplier] = calc.price
+        if calc.marge is not None:
+            data[pid]["marge_samples"].append(calc.marge)
+        if data[pid]["tcp"] is None and calc.tcp is not None:
+            data[pid]["tcp"] = calc.tcp
+        if calc.price is not None:
+            current_min = data[pid]["min_buy_price_value"]
+            if current_min is None or calc.price < current_min:
+                data[pid]["min_buy_price_value"] = calc.price
+                data[pid]["min_buy_margin"] = calc.marge
 
     result = []
     for item in data.values():
@@ -131,12 +144,31 @@ def product_price_summary():
             prod = Product.query.get(item["id"])
             if prod:
                 prod.recommended_price = item["recommended_price"]
-        item["marge"] = round(
-            (item["recommended_price"] or 0) - item.get("tcp", 0), 2
-        )
-        item.pop("tcp", None)
+        buy_prices = [
+            price for price in item["buy_price"].values() if price is not None
+        ]
+        min_buy_price_value = item.pop("min_buy_price_value", None)
+        if min_buy_price_value is None:
+            min_buy_price_value = min(buy_prices) if buy_prices else 0
+        item["min_buy_price"] = round(min_buy_price_value, 2)
+
+        margin_from_calc = item.pop("min_buy_margin", None)
+        margin_samples = [m for m in item.pop("marge_samples", []) if m is not None]
+        if margin_from_calc is None and margin_samples:
+            margin_from_calc = margin_samples[0]
+
+        tcp_value = item.get("tcp", 0) or 0
+        if margin_from_calc is None:
+            margin_from_calc = (
+                (item["recommended_price"] or 0)
+                - tcp_value
+                - min_buy_price_value
+            )
+        item["marge"] = round(margin_from_calc, 2)
+        item["tcp"] = round(tcp_value, 2)
         if request.user.role == "client":
             item.pop("supplier_prices", None)
+            item.pop("tcp", None)
         result.append(item)
 
     db.session.commit()
@@ -430,15 +462,32 @@ def update_product(product_id):
                 .first()
             )
             if latest_calc:
-                product.recommended_price = round(latest_calc.tcp + new_margin, 2)
                 latest_date = latest_calc.date
                 calcs = ProductCalculation.query.filter(
                     ProductCalculation.product_id == product_id,
                     ProductCalculation.date == latest_date,
                 ).all()
+                min_price_calc = None
+                if calcs:
+                    min_price_calc = min(
+                        (c for c in calcs if c.price is not None),
+                        key=lambda c: c.price,
+                        default=None,
+                    )
+                base_price = 0.0
+                if min_price_calc and min_price_calc.price is not None:
+                    base_price = min_price_calc.price
+                elif latest_calc.price is not None:
+                    base_price = latest_calc.price
+                product.recommended_price = round(
+                    (latest_calc.tcp or 0) + base_price + new_margin,
+                    2,
+                )
                 for c in calcs:
                     c.marge = round(new_margin, 2)
-                    c.prixht_max = round(c.tcp + new_margin, 2)
+                    price_value = c.price or 0
+                    tcp_value = c.tcp or 0
+                    c.prixht_max = round(tcp_value + price_value + new_margin, 2)
     db.session.commit()
     return jsonify({"status": "updated"})
 

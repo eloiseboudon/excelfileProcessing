@@ -32,6 +32,8 @@ interface AggregatedProduct {
   averagePrice: number;
   buyPrices: Record<string, number | undefined>;
   salePrices: Record<string, number | undefined>;
+  minBuyPrice: number;
+  tcp: number;
 }
 
 interface ProductsPageProps {
@@ -111,6 +113,9 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
               it.recommended_price ?? it.average_price ?? 0,
             buyPrices: it.buy_price || {},
             salePrices: it.supplier_prices || {},
+            minBuyPrice:
+              typeof it.min_buy_price === 'number' ? it.min_buy_price : 0,
+            tcp: typeof it.tcp === 'number' ? it.tcp : 0,
           } as AggregatedProduct;
         });
         setSuppliers(Array.from(suppliersSet).sort());
@@ -518,6 +523,10 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
                   const prices = suppliers.map((s) => row.buyPrices[s]);
                   const validPrices = prices.filter((p) => typeof p === 'number') as number[];
                   const minPrice = validPrices.length ? Math.min(...validPrices) : undefined;
+                  const baseBuyPrice =
+                    typeof row.minBuyPrice === 'number' && !Number.isNaN(row.minBuyPrice)
+                      ? row.minBuyPrice
+                      : minPrice ?? 0;
                   return (
                     <tr
                       key={String(row.id)}
@@ -567,8 +576,15 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
                                 onClick={(e) => e.stopPropagation()}
                                 onChange={(e) => {
                                   const v = Number(e.target.value);
-                                  const tcp = row.averagePrice - row.marge;
-                                  const newPrice = tcp + v;
+                                  if (Number.isNaN(v)) {
+                                    return;
+                                  }
+                                  const tcpValue = Number.isFinite(row.tcp)
+                                    ? row.tcp
+                                    : row.averagePrice - row.marge - baseBuyPrice;
+                                  const newPrice = Number(
+                                    (tcpValue + baseBuyPrice + v).toFixed(2)
+                                  );
                                   setEditedPrices({ ...editedPrices, [row.id]: newPrice });
                                   setData((prev) =>
                                     prev.map((p) =>
