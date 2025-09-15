@@ -46,6 +46,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
   const [suppliers, setSuppliers] = useState<string[]>([]);
   const [filters, setFilters] = useState<Record<string, string | string[]>>({});
   const [editedPrices, setEditedPrices] = useState<Record<number, number>>({});
+  const [savingRows, setSavingRows] = useState<Record<number, boolean>>({});
   const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
   const [showColumnMenu, setShowColumnMenu] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -276,6 +277,38 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
       setEditedPrices({});
     } catch {
       notify("Erreur lors de l'enregistrement", 'error');
+    }
+  };
+
+  const handleSaveRow = async (productId: number) => {
+    const prod = data.find((p) => p.id === productId);
+    if (!prod) return;
+    const price = Object.prototype.hasOwnProperty.call(editedPrices, productId)
+      ? editedPrices[productId]
+      : prod.averagePrice;
+    if (!Number.isFinite(price)) {
+      notify('Prix invalide', 'error');
+      return;
+    }
+
+    setSavingRows((prev) => ({ ...prev, [productId]: true }));
+    try {
+      await updateProduct(productId, {
+        recommended_price: price,
+        marge: prod.marge,
+      });
+      setEditedPrices((prev) => {
+        const { [productId]: _discarded, ...rest } = prev;
+        return rest;
+      });
+      notify('Produit mis à jour', 'success');
+    } catch {
+      notify("Erreur lors de l'enregistrement", 'error');
+    } finally {
+      setSavingRows((prev) => {
+        const { [productId]: _discarded, ...rest } = prev;
+        return rest;
+      });
     }
   };
 
@@ -527,6 +560,10 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
                     typeof row.minBuyPrice === 'number' && !Number.isNaN(row.minBuyPrice)
                       ? row.minBuyPrice
                       : minPrice ?? 0;
+                  const hasPendingEdit = Object.prototype.hasOwnProperty.call(
+                    editedPrices,
+                    row.id
+                  );
                   return (
                     <tr
                       key={String(row.id)}
@@ -557,7 +594,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
                                 onClick={(e) => e.stopPropagation()}
                                 onChange={(e) => {
                                   const v = Number(e.target.value);
-                                  setEditedPrices({ ...editedPrices, [row.id]: v });
+                                  setEditedPrices((prev) => ({ ...prev, [row.id]: v }));
                                   setData((prev) =>
                                     prev.map((p) =>
                                       p.id === row.id ? { ...p, averagePrice: v } : p
@@ -569,33 +606,49 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
                             ) : col.key === 'averagePrice' ? (
                               row.averagePrice
                             ) : col.key === 'marge' && role !== 'client' ? (
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={row.marge}
-                                onClick={(e) => e.stopPropagation()}
-                                onChange={(e) => {
-                                  const v = Number(e.target.value);
-                                  if (Number.isNaN(v)) {
-                                    return;
-                                  }
-                                  const tcpValue = Number.isFinite(row.tcp)
-                                    ? row.tcp
-                                    : row.averagePrice - row.marge - baseBuyPrice;
-                                  const newPrice = Number(
-                                    (tcpValue + baseBuyPrice + v).toFixed(2)
-                                  );
-                                  setEditedPrices({ ...editedPrices, [row.id]: newPrice });
-                                  setData((prev) =>
-                                    prev.map((p) =>
-                                      p.id === row.id
-                                        ? { ...p, marge: v, averagePrice: newPrice }
-                                        : p
-                                    )
-                                  );
-                                }}
-                                className="w-20 px-1 bg-zinc-700 rounded"
-                              />
+                              <div className="flex items-center space-x-2">
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={row.marge}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onChange={(e) => {
+                                    const v = Number(e.target.value);
+                                    if (Number.isNaN(v)) {
+                                      return;
+                                    }
+                                    const tcpValue = Number.isFinite(row.tcp)
+                                      ? row.tcp
+                                      : row.averagePrice - row.marge - baseBuyPrice;
+                                    const newPrice = Number(
+                                      (tcpValue + baseBuyPrice + v).toFixed(2)
+                                    );
+                                    setEditedPrices((prev) => ({
+                                      ...prev,
+                                      [row.id]: newPrice,
+                                    }));
+                                    setData((prev) =>
+                                      prev.map((p) =>
+                                        p.id === row.id
+                                          ? { ...p, marge: v, averagePrice: newPrice }
+                                          : p
+                                      )
+                                    );
+                                  }}
+                                  className="w-20 px-1 bg-zinc-700 rounded"
+                                />
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary px-2 py-1 text-xs"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSaveRow(row.id);
+                                  }}
+                                  disabled={!hasPendingEdit || savingRows[row.id]}
+                                >
+                                  Enregistrer
+                                </button>
+                              </div>
                             ) : col.key === 'marge' ? (
                               row.marge
                             ) : value !== undefined ? (
