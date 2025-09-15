@@ -49,8 +49,11 @@ def list_product_calculations():
             ),
             "color": c.product.color.color if c.product and c.product.color else None,
             "type": c.product.type.type if c.product and c.product.type else None,
+            "ram": c.product.RAM.ram if c.product and c.product.RAM else None,
+            "norme": c.product.norme.norme if c.product and c.product.norme else None,
             "tcp": c.tcp,
             "marge4_5": c.marge4_5,
+            "marge": c.marge,
             "prixht_tcp_marge4_5": c.prixht_tcp_marge4_5,
             "prixht_marge4_5": c.prixht_marge4_5,
             "prixht_max": c.prixht_max,
@@ -107,13 +110,29 @@ def product_price_summary():
                 "memory": p.memory.memory if p.memory else None,
                 "color": p.color.color if p.color else None,
                 "type": p.type.type if p.type else None,
+                "ram": p.RAM.ram if p.RAM else None,
+                "norme": p.norme.norme if p.norme else None,
                 "supplier_prices": {},
                 "recommended_price": p.recommended_price,
                 "buy_price": {},
+                "tcp": calc.tcp,
+                "min_buy_price": None,
+                "min_buy_price_value": None,
+                "min_buy_margin": None,
+                "marge_samples": [],
             }
         supplier = calc.supplier.name if calc.supplier else ""
         data[pid]["supplier_prices"][supplier] = calc.prixht_max
         data[pid]["buy_price"][supplier] = calc.price
+        if calc.marge is not None:
+            data[pid]["marge_samples"].append(calc.marge)
+        if data[pid]["tcp"] is None and calc.tcp is not None:
+            data[pid]["tcp"] = calc.tcp
+        if calc.price is not None:
+            current_min = data[pid]["min_buy_price_value"]
+            if current_min is None or calc.price < current_min:
+                data[pid]["min_buy_price_value"] = calc.price
+                data[pid]["min_buy_margin"] = calc.marge
 
     result = []
     for item in data.values():
@@ -125,8 +144,31 @@ def product_price_summary():
             prod = Product.query.get(item["id"])
             if prod:
                 prod.recommended_price = item["recommended_price"]
+        buy_prices = [
+            price for price in item["buy_price"].values() if price is not None
+        ]
+        min_buy_price_value = item.pop("min_buy_price_value", None)
+        if min_buy_price_value is None:
+            min_buy_price_value = min(buy_prices) if buy_prices else 0
+        item["min_buy_price"] = round(min_buy_price_value, 2)
+
+        margin_from_calc = item.pop("min_buy_margin", None)
+        margin_samples = [m for m in item.pop("marge_samples", []) if m is not None]
+        if margin_from_calc is None and margin_samples:
+            margin_from_calc = margin_samples[0]
+
+        tcp_value = item.get("tcp", 0) or 0
+        if margin_from_calc is None:
+            margin_from_calc = (
+                (item["recommended_price"] or 0)
+                - tcp_value
+                - min_buy_price_value
+            )
+        item["marge"] = round(margin_from_calc, 2)
+        item["tcp"] = round(tcp_value, 2)
         if request.user.role == "client":
             item.pop("supplier_prices", None)
+            item.pop("tcp", None)
         result.append(item)
 
     db.session.commit()
@@ -159,6 +201,10 @@ def list_products():
             "color_id": p.color_id,
             "type": p.type.type if p.type else None,
             "type_id": p.type_id,
+            "ram": p.RAM.ram if p.RAM else None,
+            "ram_id": p.RAM_id,
+            "norme": p.norme.norme if p.norme else None,
+            "norme_id": p.norme_id,
             "ean": p.ean,
             "recommended_price": p.recommended_price,
         }
@@ -233,9 +279,12 @@ def export_calculates():
                 "memory": p.memory.memory if p.memory else None,
                 "color": p.color.color if p.color else None,
                 "type": p.type.type if p.type else None,
+                "ram": p.RAM.ram if p.RAM else None,
+                "norme": p.norme.norme if p.norme else None,
                 "supplier": c.supplier.name if c.supplier else None,
                 "TCP": c.tcp,
                 "Marge de 4,5%": c.marge4_5,
+                "Marge": c.marge,
                 "Prix HT avec TCP et marge": c.prixht_tcp_marge4_5,
                 "Prix HT avec Marge": c.prixht_marge4_5,
                 "Prix HT Maximum": c.prixht_max,
@@ -400,6 +449,45 @@ def update_product(product_id):
     ]:
         if field in data:
             setattr(product, field, data[field])
+
+    if "marge" in data:
+        try:
+            new_margin = float(data["marge"])
+        except (TypeError, ValueError):
+            new_margin = None
+        if new_margin is not None:
+            latest_calc = (
+                ProductCalculation.query.filter_by(product_id=product_id)
+                .order_by(ProductCalculation.date.desc())
+                .first()
+            )
+            if latest_calc:
+                latest_date = latest_calc.date
+                calcs = ProductCalculation.query.filter(
+                    ProductCalculation.product_id == product_id,
+                    ProductCalculation.date == latest_date,
+                ).all()
+                min_price_calc = None
+                if calcs:
+                    min_price_calc = min(
+                        (c for c in calcs if c.price is not None),
+                        key=lambda c: c.price,
+                        default=None,
+                    )
+                base_price = 0.0
+                if min_price_calc and min_price_calc.price is not None:
+                    base_price = min_price_calc.price
+                elif latest_calc.price is not None:
+                    base_price = latest_calc.price
+                product.recommended_price = round(
+                    (latest_calc.tcp or 0) + base_price + new_margin,
+                    2,
+                )
+                for c in calcs:
+                    c.marge = round(new_margin, 2)
+                    price_value = c.price or 0
+                    tcp_value = c.tcp or 0
+                    c.prixht_max = round(tcp_value + price_value + new_margin, 2)
     db.session.commit()
     return jsonify({"status": "updated"})
 

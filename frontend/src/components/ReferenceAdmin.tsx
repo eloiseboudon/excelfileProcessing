@@ -19,6 +19,8 @@ const TABLES = [
   { key: 'colors', label: 'Couleurs' },
   { key: 'memory_options', label: 'Options mémoire' },
   { key: 'device_types', label: "Types d'appareil" },
+  { key: 'ram_options', label: 'Options RAM' },
+  { key: 'norme_options', label: 'Normes' },
   { key: 'exclusions', label: 'Exclusions' },
   { key: 'suppliers', label: 'Fournisseurs' },
   { key: 'format_imports', label: 'Format import' },
@@ -73,8 +75,9 @@ function ReferenceAdmin({ isVisible, onClose }: ReferenceAdminProps) {
         notify('Entrée mise à jour', 'success');
       }
       await load(table!);
-    } catch {
-      /* empty */
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur';
+      notify(message, 'error');
     }
   };
 

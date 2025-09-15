@@ -34,6 +34,8 @@ class TemporaryImport(db.Model):
     memory_id = db.Column(db.Integer, db.ForeignKey("memory_options.id"), nullable=True)
     color_id = db.Column(db.Integer, db.ForeignKey("colors.id"), nullable=True)
     type_id = db.Column(db.Integer, db.ForeignKey("device_types.id"), nullable=True)
+    ram_id = db.Column(db.Integer, db.ForeignKey("ram_options.id"), nullable=True)
+    norme_id = db.Column(db.Integer, db.ForeignKey("norme_options.id"), nullable=True)
 
     # Relations
     brand = db.relationship("Brand", backref=db.backref("temporary_imports", lazy=True))
@@ -43,6 +45,12 @@ class TemporaryImport(db.Model):
     color = db.relationship("Color", backref=db.backref("temporary_imports", lazy=True))
     type = db.relationship(
         "DeviceType", backref=db.backref("temporary_imports", lazy=True)
+    )
+    ram = db.relationship(
+        "RAMOption", backref=db.backref("temporary_imports", lazy=True)
+    )
+    norme = db.relationship(
+        "NormeOption", backref=db.backref("temporary_imports", lazy=True)
     )
 
     supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=True)
@@ -55,21 +63,21 @@ class Brand(db.Model):
     __tablename__ = "brands"
 
     id = db.Column(db.Integer, primary_key=True)
-    brand = db.Column(db.String(50), nullable=False)
+    brand = db.Column(db.String(50), nullable=False, unique=True)
 
 
 class Color(db.Model):
     __tablename__ = "colors"
 
     id = db.Column(db.Integer, primary_key=True)
-    color = db.Column(db.String(50), nullable=False)
+    color = db.Column(db.String(50), nullable=False, unique=True)
 
 
 class MemoryOption(db.Model):
     __tablename__ = "memory_options"
 
     id = db.Column(db.Integer, primary_key=True)
-    memory = db.Column(db.String(50), nullable=False)
+    memory = db.Column(db.String(50), nullable=False, unique=True)
     tcp_value = db.Column(db.Integer, nullable=False)
 
 
@@ -77,7 +85,7 @@ class DeviceType(db.Model):
     __tablename__ = "device_types"
 
     id = db.Column(db.Integer, primary_key=True)
-    type = db.Column(db.String(50), nullable=False)
+    type = db.Column(db.String(50), nullable=False, unique=True)
 
 
 class Exclusion(db.Model):
@@ -87,44 +95,27 @@ class Exclusion(db.Model):
     term = db.Column(db.String(100), nullable=False, unique=True)
 
 
+class RAMOption(db.Model):
+    __tablename__ = "ram_options"
+
+    id = db.Column(db.Integer, primary_key=True)
+    ram = db.Column(db.String(50), nullable=False, unique=True)
+
+
+class NormeOption(db.Model):
+    __tablename__ = "norme_options"
+
+    id = db.Column(db.Integer, primary_key=True)
+    norme = db.Column(db.String(50), nullable=False, unique=True)
+
+
 class ColorTranslation(db.Model):
     __tablename__ = "color_translations"
 
     id = db.Column(db.Integer, primary_key=True)
-    color_source = db.Column(db.String(50), nullable=False)
+    color_source = db.Column(db.String(50), nullable=False, unique=True)
     color_target = db.Column(db.String(50), nullable=False)
     color_target_id = db.Column(db.Integer, db.ForeignKey("colors.id"), nullable=False)
-
-
-class BrandTranslation(db.Model):
-    __tablename__ = "brand_translations"
-
-    id = db.Column(db.Integer, primary_key=True)
-    brand_source = db.Column(db.String(50), nullable=False)
-    brand_target = db.Column(db.String(50), nullable=False)
-    brand_target_id = db.Column(db.Integer, db.ForeignKey("brands.id"), nullable=False)
-
-
-class MemoryTranslation(db.Model):
-    __tablename__ = "memory_translations"
-
-    id = db.Column(db.Integer, primary_key=True)
-    memory_source = db.Column(db.String(50), nullable=False)
-    memory_target = db.Column(db.String(50), nullable=False)
-    memory_target_id = db.Column(
-        db.Integer, db.ForeignKey("memory_options.id"), nullable=False
-    )
-
-
-class TypeTranslation(db.Model):
-    __tablename__ = "type_translations"
-
-    id = db.Column(db.Integer, primary_key=True)
-    type_source = db.Column(db.String(50), nullable=False)
-    type_target = db.Column(db.String(50), nullable=False)
-    type_target_id = db.Column(
-        db.Integer, db.ForeignKey("device_types.id"), nullable=False
-    )
 
 
 class Product(db.Model):
@@ -135,8 +126,7 @@ class Product(db.Model):
     ean = db.Column(db.String(20), nullable=True)
 
     model = db.Column(db.String(120), nullable=True)
-    # name = db.Column(db.String(120), nullable=False)
-    description = db.Column(db.String(120), nullable=False)
+    description = db.Column(db.String(120), nullable=True)
 
     brand_id = db.Column(db.Integer, db.ForeignKey("brands.id"), nullable=True)
     brand = db.relationship("Brand", backref=db.backref("products", lazy=True))
@@ -147,6 +137,12 @@ class Product(db.Model):
     color = db.relationship("Color", backref=db.backref("products", lazy=True))
     type_id = db.Column(db.Integer, db.ForeignKey("device_types.id"), nullable=True)
     type = db.relationship("DeviceType", backref=db.backref("products", lazy=True))
+
+    RAM_id = db.Column(db.Integer, db.ForeignKey("ram_options.id"), nullable=True)
+    RAM = db.relationship("RAMOption", backref=db.backref("products", lazy=True))
+
+    norme_id = db.Column(db.Integer, db.ForeignKey("norme_options.id"), nullable=True)
+    norme = db.relationship("NormeOption", backref=db.backref("products", lazy=True))
 
     recommended_price = db.Column(db.Float, nullable=True)
 
@@ -167,6 +163,7 @@ class ProductCalculation(db.Model):
     price = db.Column(db.Float, nullable=False)
     tcp = db.Column(db.Float, nullable=False)
     marge4_5 = db.Column(db.Float, nullable=False)
+    marge = db.Column(db.Float, nullable=True)
     prixht_tcp_marge4_5 = db.Column(db.Float, nullable=False)
     prixht_marge4_5 = db.Column(db.Float, nullable=False)
     prixht_max = db.Column(db.Float, nullable=False)

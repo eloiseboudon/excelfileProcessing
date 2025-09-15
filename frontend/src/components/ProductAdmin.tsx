@@ -7,6 +7,8 @@ import {
   fetchColors,
   fetchDeviceTypes,
   fetchMemoryOptions,
+  fetchRAMOptions,
+  fetchNormeOptions,
   fetchProducts,
   updateProduct
 } from '../api';
@@ -21,6 +23,8 @@ interface ProductItem {
   memory_id: number | null;
   color_id: number | null;
   type_id: number | null;
+  ram_id: number | null;
+  norme_id: number | null;
 }
 
 function ProductAdmin() {
@@ -29,6 +33,8 @@ function ProductAdmin() {
   const [colors, setColors] = useState<any[]>([]);
   const [memories, setMemories] = useState<any[]>([]);
   const [types, setTypes] = useState<any[]>([]);
+  const [rams, setRams] = useState<any[]>([]);
+  const [normes, setNormes] = useState<any[]>([]);
   const notify = useNotification();
 
   useEffect(() => {
@@ -38,18 +44,24 @@ function ProductAdmin() {
       fetchColors(),
       fetchMemoryOptions(),
       fetchDeviceTypes(),
+      fetchRAMOptions(),
+      fetchNormeOptions(),
     ])
-      .then(([b, c, m, t]) => {
+      .then(([b, c, m, t, r, n]) => {
         setBrands(b as any[]);
         setColors(c as any[]);
         setMemories(m as any[]);
         setTypes(t as any[]);
+        setRams(r as any[]);
+        setNormes(n as any[]);
       })
       .catch(() => {
         setBrands([]);
         setColors([]);
         setMemories([]);
         setTypes([]);
+        setRams([]);
+        setNormes([]);
       });
   }, []);
 
@@ -66,6 +78,8 @@ function ProductAdmin() {
           memory_id: p.memory_id ?? null,
           color_id: p.color_id ?? null,
           type_id: p.type_id ?? null,
+          ram_id: p.ram_id ?? null,
+          norme_id: p.norme_id ?? null,
         }))
       );
     } catch {
@@ -94,6 +108,8 @@ function ProductAdmin() {
       memory_id: item.memory_id,
       color_id: item.color_id,
       type_id: item.type_id,
+      ram_id: item.ram_id,
+      norme_id: item.norme_id,
     };
     try {
       if (id < 0) {
@@ -135,6 +151,8 @@ function ProductAdmin() {
         memory_id: null,
         color_id: null,
         type_id: null,
+        ram_id: null,
+        norme_id: null,
       },
     ]);
   };
@@ -240,6 +258,38 @@ function ProductAdmin() {
               <option value="">null</option>
               {types.map((t) => (
                 <option key={t.id} value={t.id}>{t.type}</option>
+              ))}
+            </select>
+            <select
+              value={p.ram_id ?? ''}
+              onChange={(e) =>
+                handleChange(
+                  p.id,
+                  'ram_id',
+                  e.target.value === '' ? null : Number(e.target.value)
+                )
+              }
+              className="px-2 py-1 bg-zinc-700 rounded"
+            >
+              <option value="">null</option>
+              {rams.map((r) => (
+                <option key={r.id} value={r.id}>{r.ram}</option>
+              ))}
+            </select>
+            <select
+              value={p.norme_id ?? ''}
+              onChange={(e) =>
+                handleChange(
+                  p.id,
+                  'norme_id',
+                  e.target.value === '' ? null : Number(e.target.value)
+                )
+              }
+              className="px-2 py-1 bg-zinc-700 rounded"
+            >
+              <option value="">null</option>
+              {normes.map((n) => (
+                <option key={n.id} value={n.id}>{n.norme}</option>
               ))}
             </select>
             <button onClick={() => handleSave(p.id)} className="p-2 bg-green-600 text-white rounded hover:bg-green-700">

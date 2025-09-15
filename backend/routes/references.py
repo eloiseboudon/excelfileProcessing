@@ -1,5 +1,4 @@
 from flask import Blueprint, jsonify, request
-from utils.auth import token_required
 from models import (
     Brand,
     Color,
@@ -8,10 +7,14 @@ from models import (
     Exclusion,
     FormatImport,
     MemoryOption,
+    NormeOption,
     Product,
+    RAMOption,
     Supplier,
     db,
 )
+from sqlalchemy.exc import IntegrityError
+from utils.auth import token_required
 from utils.calculations import update_product_calculations_for_memory_option
 
 bp = Blueprint("references", __name__)
@@ -23,6 +26,8 @@ def _model_mapping():
         "brands": Brand,
         "colors": Color,
         "memory_options": MemoryOption,
+        "ram_options": RAMOption,
+        "norme_options": NormeOption,
         "device_types": DeviceType,
         "exclusions": Exclusion,
         "color_translations": ColorTranslation,
@@ -83,6 +88,10 @@ def get_reference_table(table):
             return {"id": obj.id, "color": obj.color}
         if isinstance(obj, MemoryOption):
             return {"id": obj.id, "memory": obj.memory, "tcp_value": obj.tcp_value}
+        if isinstance(obj, RAMOption):
+            return {"id": obj.id, "ram": obj.ram}
+        if isinstance(obj, NormeOption):
+            return {"id": obj.id, "norme": obj.norme}
         if isinstance(obj, DeviceType):
             return {"id": obj.id, "type": obj.type}
         if isinstance(obj, Exclusion):
@@ -141,7 +150,11 @@ def update_reference_item(table, item_id):
     for key, value in data.items():
         if hasattr(item, key):
             setattr(item, key, value)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"error": "Données existantes"}), 400
     if table == "color_translations":
         _update_products_for_color_translation(
             [old_source, item.color_source], item.color_target_id
@@ -178,7 +191,11 @@ def create_reference_item(table):
     data = request.json or {}
     item = model(**data)
     db.session.add(item)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"error": "Données existantes"}), 400
     if table == "color_translations":
         _update_products_for_color_translation(item.color_source, item.color_target_id)
     return jsonify({"id": item.id})

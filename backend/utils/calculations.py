@@ -1,17 +1,14 @@
 import math
-import pandas as pd
 from datetime import datetime, timezone
 from typing import Dict, Iterable, Tuple
 
+import pandas as pd
 from models import (
-    BrandTranslation,
     ColorTranslation,
     MemoryOption,
-    MemoryTranslation,
     Product,
     ProductCalculation,
     TemporaryImport,
-    TypeTranslation,
     db,
 )
 
@@ -19,22 +16,10 @@ from models import (
 def _load_mappings() -> Dict[str, Iterable[Tuple[str, int]]]:
     """Load translation mappings into memory for faster lookups."""
     return {
-        "brand": [
-            (t.brand_source.lower(), t.brand_target_id)
-            for t in BrandTranslation.query.all()
-        ],
-        "memory": [
-            (t.memory_source.lower(), t.memory_target_id)
-            for t in MemoryTranslation.query.all()
-        ],
         "color": [
             (t.color_source.lower(), t.color_target_id)
             for t in ColorTranslation.query.all()
-        ],
-        "type": [
-            (t.type_source.lower(), t.type_target_id)
-            for t in TypeTranslation.query.all()
-        ],
+        ]
     }
 
 
@@ -153,6 +138,7 @@ def recalculate_product_calculations():
             prixht_marge4_5=round(price_with_margin, 2),
             prixht_max=max_price,
             date=datetime.now(timezone.utc),
+            marge=round(max_price - tcp - price, 2),
         )
         db.session.add(calc)
 
@@ -172,7 +158,7 @@ def update_product_calculations_for_memory_option(memory_option_id: int) -> None
     )
 
     for calc in calcs:
-        price = calc.price
+        price = calc.price or 0
         tcp = option.tcp_value
         margin45 = price * 0.045
         price_with_tcp = price + tcp + margin45
@@ -210,6 +196,7 @@ def update_product_calculations_for_memory_option(memory_option_id: int) -> None
         calc.prixht_tcp_marge4_5 = round(price_with_tcp, 2)
         calc.prixht_marge4_5 = round(price_with_margin, 2)
         calc.prixht_max = max_price
+        calc.marge = round(max_price - tcp - price, 2)
 
     if calcs:
         db.session.commit()
