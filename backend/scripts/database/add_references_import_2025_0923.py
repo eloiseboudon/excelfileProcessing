@@ -46,6 +46,10 @@ def main():
         colors = cur.fetchall()
         print("Colors actuelles:", colors)
 
+        color_lookup = {
+            color.lower(): color_id for color_id, color in colors if isinstance(color, str)
+        }
+
         cur.execute("SELECT * FROM ram_options")
         ram_options = cur.fetchall()
         print("RAM options actuelles:", ram_options)
@@ -83,13 +87,83 @@ def main():
 
         # colors_values = ['Alpine Loop L Indigo', 'Black', 'Black Titanium', 'Blue', 'Blue Titanium', 'Bronze', 'Brown', 'Chalk', 'Copper', 'Cream', 'Desert', 'Desert Titanium', 'Gold', 'Graphite', 'Gray', 'Green', 'Grey', 'Ice Blue', 'Indigo', 'Lavender', 'Lavender Purple', 'Midnight', 'Mint', 'Natural Titanium', 'Navy', 'Ocean', 'Olive', 'Phantom Black', 'Pink', 'Porcelain', 'Porcelaine', 'Purple', 'Red', 'Rose Gold', 'Silver', 'Space Gray', 'Space Grey', 'Starlight', 'Teal', 'Titanium', 'Trail Loop M/L Green/Grey', 'Trail Loop S/M Green/Grey', 'Ultramarine', 'White', 'White Titanium', 'Yellow']
 
-        # for color in colors_values:
-        #     try:
-        #         cur.execute("INSERT INTO color_translations (name) VALUES (%s)", (color,))
-        #         print(f"✅ Ajouté Color: {color}")
-        #     except psycopg2.IntegrityError:
-        #         print(f"⚠️  Color {color} existe déjà")
-        #         conn.rollback()  # Rollback pour cette insertion seulement
+        color_translations = {
+            "alpine loop l indigo": "Bleu",
+            "black": "Noir",
+            "black titanium": "Noir",
+            "blue": "Bleu",
+            "blue titanium": "Bleu",
+            "bronze": "Orange",
+            "brown": "Orange",
+            "chalk": "Blanc",
+            "copper": "Orange",
+            "cream": "Blanc",
+            "desert": "Blanc",
+            "desert titanium": "Blanc",
+            "gold": "Blanc",
+            "graphite": "Noir",
+            "gray": "Noir",
+            "green": "Vert",
+            "grey": "Noir",
+            "ice blue": "Bleu",
+            "indigo": "Bleu",
+            "lavender": "Violet",
+            "lavender purple": "Violet",
+            "midnight": "Bleu",
+            "mint": "Vert",
+            "natural titanium": "Blanc",
+            "navy": "Bleu",
+            "ocean": "Bleu",
+            "olive": "Vert",
+            "phantom black": "Noir",
+            "pink": "Rose",
+            "porcelain": "Blanc",
+            "porcelaine": "Blanc",
+            "purple": "Violet",
+            "red": "Rouge",
+            "rose gold": "Rose",
+            "silver": "Blanc",
+            "space gray": "Noir",
+            "space grey": "Noir",
+            "starlight": "Blanc",
+            "teal": "Bleu",
+            "titanium": "Blanc",
+            "trail loop m/l green/grey": "Vert",
+            "trail loop s/m green/grey": "Vert",
+            "ultramarine": "Bleu",
+            "white": "Blanc",
+            "white titanium": "Blanc",
+            "yellow": "Jaune",
+        }
+
+        for source, target in color_translations.items():
+            color_source = source.lower()
+            target_id = color_lookup.get(target.lower())
+            if target_id is None:
+                print(
+                    f"⚠️  Impossible d'associer la couleur cible '{target}' pour '{color_source}'"
+                )
+                continue
+
+            try:
+                cur.execute(
+                    """
+                    INSERT INTO color_translations (color_source, color_target, color_target_id)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (color_source) DO UPDATE
+                    SET color_target = EXCLUDED.color_target,
+                        color_target_id = EXCLUDED.color_target_id
+                    """,
+                    (color_source, target, target_id),
+                )
+                print(
+                    f"✅ Traduction couleur: {color_source} -> {target} (ID cible: {target_id})"
+                )
+            except psycopg2.Error as error:
+                print(
+                    f"❌ Erreur lors de l'insertion de la couleur {color_source}: {error}"
+                )
+                conn.rollback()
 
         conn.commit()
 
