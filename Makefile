@@ -2,8 +2,14 @@
 DC := docker compose
 SERVICE ?=
 MSG ?= "Auto migration"
+CSV ?=
+DELIMITER ?= ;
+DEFAULT_TCP ?= 0
 
-.PHONY: help docker-build docker-up docker-down docker-logs         alembic-init alembic-migrate alembic-upgrade alembic-downgrade         alembic-current alembic-history clean-branches shell-postgres
+.PHONY: help docker-build docker-up docker-down docker-logs \
+        alembic-init alembic-migrate alembic-upgrade alembic-downgrade \
+        alembic-current alembic-history clean-branches shell-postgres \
+        import-reference-products
 
 help:
 	@echo "Available commands:"
@@ -11,6 +17,7 @@ help:
 	@echo "  docker-up              Start postgres, backend and frontend"
 	@echo "  docker-down            Stop all services"
 	@echo "  docker-logs SERVICE=s  Tail logs of a service"
+	@echo "  import-reference-products CSV=path/to/file.csv [DELIMITER=';'] [DEFAULT_TCP=0]"
 	@echo "  shell-postgres         Open a shell in the postgres container"
 	@echo "  alembic-init           Initialise Alembic configuration"
 	@echo "  alembic-migrate        Create a new Alembic migration"
@@ -61,3 +68,11 @@ alembic-history:
 
 clean-branches:
 	git branch | grep -v -E "(main|dev|\*)" | xargs git branch -D
+
+import-reference-products:
+	if [ -z "$(CSV)" ]; then \
+		echo "Usage: make import-reference-products CSV=backend/scripts/files/Produits_final_unique_20250923.csv [DELIMITER=';'] [DEFAULT_TCP=0]"; \
+		exit 1; \
+	fi
+	docker compose exec backend python backend/scripts/database/import_reference_products.py \
+		"$(CSV)" --delimiter "$(DELIMITER)" --default-tcp "$(DEFAULT_TCP)"

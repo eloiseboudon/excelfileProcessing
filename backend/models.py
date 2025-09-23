@@ -28,6 +28,7 @@ class TemporaryImport(db.Model):
     quantity = db.Column(db.Integer)
     selling_price = db.Column(db.Float)
     ean = db.Column(db.String(20), nullable=True)
+    part_number = db.Column(db.String(120), nullable=True)
 
     # Champs pour stocker les valeurs extraites
     brand_id = db.Column(db.Integer, db.ForeignKey("brands.id"), nullable=True)
@@ -124,6 +125,7 @@ class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
     ean = db.Column(db.String(20), nullable=True)
+    part_number = db.Column(db.String(120), nullable=True)
 
     model = db.Column(db.String(120), nullable=True)
     description = db.Column(db.String(120), nullable=True)

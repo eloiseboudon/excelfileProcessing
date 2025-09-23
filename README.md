@@ -160,6 +160,35 @@ L'application expose notamment les routes :
 
 Dans l'application React, le fichier traité est automatiquement transmis au backend via l'endpoint `/upload`. L'import du référentiel utilise quant à lui l'endpoint `/import`.
 
+### Importer un référentiel produit depuis un CSV
+
+Un script dédié permet d'insérer ou de mettre à jour massivement les produits de
+référence à partir d'un fichier CSV (par exemple le format `Nom;Modèle;Marque;…`
+fourni par vos partenaires).
+
+```bash
+python backend/scripts/database/import_reference_products.py \
+    /chemin/vers/produits.csv \
+    --default-tcp 0
+```
+
+Une cible Makefile est également disponible pour simplifier l'appel :
+
+```bash
+make import-reference-products CSV=/chemin/vers/produits.csv \
+    DELIMITER=';' DEFAULT_TCP=0
+```
+
+- Le délimiteur utilisé est `;` par défaut (modifiable avec `--delimiter`).
+- La valeur `--default-tcp` définit la valeur TCP attribuée aux nouvelles
+  capacités mémoire qui n'existent pas encore dans la table `memory_options`.
+- Le script crée automatiquement les entrées manquantes dans les tables de
+  référence (marques, couleurs, capacités, RAM, normes, types d'appareil).
+
+Les lignes comportant un EAN existant sont mises à jour ; sinon, la correspondance
+se fait sur le couple Modèle/Marque. Un résumé des opérations est affiché en fin
+d'exécution.
+
 ## Vérifications locales
 
 Le projet fournit quelques commandes pour garder une base de code cohérente.

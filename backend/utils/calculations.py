@@ -62,16 +62,22 @@ def recalculate_product_calculations():
     db.session.commit()
 
     for temp in temps:
-        query = Product.query
-        if temp.model is not None:
-            if temp.brand_id is not None:
-                query = query.filter(Product.brand_id == temp.brand_id)
-            if temp.memory_id is not None:
-                query = query.filter(Product.memory_id == temp.memory_id)
-            if temp.color_id is not None:
-                query = query.filter(Product.color_id == temp.color_id)
-            query = query.filter(Product.model.ilike(f"%{temp.model}%"))
-        product = query.first()
+        product = None
+        ean = (temp.ean or "").strip() if temp.ean else ""
+        if ean:
+            product = Product.query.filter(Product.ean == ean).first()
+
+        if not product:
+            query = Product.query
+            if temp.model is not None:
+                if temp.brand_id is not None:
+                    query = query.filter(Product.brand_id == temp.brand_id)
+                if temp.memory_id is not None:
+                    query = query.filter(Product.memory_id == temp.memory_id)
+                if temp.color_id is not None:
+                    query = query.filter(Product.color_id == temp.color_id)
+                query = query.filter(Product.model.ilike(f"%{temp.model}%"))
+            product = query.first()
 
         # if not product and temp.type_id is not None:
         #     query_type = query.filter(Product.type_id == temp.type_id)
