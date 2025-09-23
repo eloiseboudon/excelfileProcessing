@@ -250,7 +250,43 @@ class ReferenceCache:
         return self._ensure("brands", "brand", value)
 
     def color_id(self, value: Optional[str]) -> Optional[int]:
-        return self._ensure("colors", "color", value)
+        if value is None:
+            return None
+
+        key = value.lower()
+        colors_cache = self.cache.setdefault("colors", {})
+        if key in colors_cache:
+            return colors_cache[key]
+
+        self.cursor.execute(
+            "SELECT id FROM colors WHERE LOWER(color) = LOWER(%s)",
+            (value,),
+        )
+        row = self.cursor.fetchone()
+        if row:
+            colors_cache[key] = row["id"]
+            return row["id"]
+
+        translations_cache = self.cache.setdefault("color_translations", {})
+        if key in translations_cache:
+            return translations_cache[key]
+
+        self.cursor.execute(
+            """
+            SELECT color_target_id
+              FROM color_translations
+             WHERE LOWER(color_source) = LOWER(%s)
+            """,
+            (value,),
+        )
+        row = self.cursor.fetchone()
+        if row:
+            translations_cache[key] = row["color_target_id"]
+            colors_cache[key] = row["color_target_id"]
+            return row["color_target_id"]
+
+        self.missing.setdefault("colors", set()).add(value)
+        return None
 
     def memory_id(
         self, value: Optional[str], product_name: Optional[str]
