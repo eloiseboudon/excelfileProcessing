@@ -71,8 +71,12 @@ clean-branches:
 
 import-reference-products:
 	if [ -z "$(CSV)" ]; then \
-		echo "Usage: make import-reference-products CSV=backend/scripts/files/Produits_final_unique_20250923.csv [DELIMITER=';'] [DEFAULT_TCP=0]"; \
+		echo "Usage: make import-reference-products CSV=scripts/files/Produits_final_unique_20250923.csv [DELIMITER=';'] [DEFAULT_TCP=0]"; \
 		exit 1; \
 	fi
-	docker compose exec backend python backend/scripts/database/import_reference_products.py \
-		"$(CSV)" --delimiter "$(DELIMITER)" --default-tcp "$(DEFAULT_TCP)"
+	CSV_IN_CONTAINER="$(CSV)"; \
+	case "$$CSV_IN_CONTAINER" in \
+		backend/*) CSV_IN_CONTAINER="$${CSV_IN_CONTAINER#backend/}" ;; \
+	esac; \
+	docker compose exec backend python scripts/database/import_reference_products.py \
+		"$$CSV_IN_CONTAINER" --delimiter "$(DELIMITER)" --default-tcp "$(DEFAULT_TCP)"
