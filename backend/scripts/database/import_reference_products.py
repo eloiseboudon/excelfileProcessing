@@ -28,16 +28,10 @@ class ImportStats:
 COLUMN_MAP: Dict[str, str] = {
     "nom": "name",
     "modele": "model",
-    "modle": "model",
     "marque": "brand",
     "capacite": "memory",
-    "capacit": "memory",
     "ram": "ram",
-    "connectivite": "device_type",
-    "connectivit": "device_type",
     "couleur": "color",
-    "norm": "norme",
-    "tokens": "tokens",
     "ean": "ean",
     "partnumber": "part_number",
 }
@@ -61,9 +55,7 @@ def _normalize_header(header: str) -> str:
     """Normaliser un nom de colonne (suppression des accents et de la ponctuation)."""
 
     normalized = unicodedata.normalize("NFKD", header)
-    without_accents = "".join(
-        ch for ch in normalized if not unicodedata.combining(ch)
-    )
+    without_accents = "".join(ch for ch in normalized if not unicodedata.combining(ch))
     return "".join(ch for ch in without_accents.lower() if ch.isalnum())
 
 
@@ -119,7 +111,15 @@ class ReferenceCache:
         }
         self.default_tcp = default_tcp
 
-    def _ensure(self, table: str, column_sql: str, value: Optional[str], *, insert_sql: str, params: tuple = ()) -> Optional[int]:
+    def _ensure(
+        self,
+        table: str,
+        column_sql: str,
+        value: Optional[str],
+        *,
+        insert_sql: str,
+        params: tuple = (),
+    ) -> Optional[int]:
         if value is None:
             return None
         key = value.lower()
@@ -192,7 +192,9 @@ class ReferenceCache:
         )
 
 
-def _find_product_id(cursor, ean: Optional[str], model: Optional[str], brand_id: Optional[int]) -> Optional[int]:
+def _find_product_id(
+    cursor, ean: Optional[str], model: Optional[str], brand_id: Optional[int]
+) -> Optional[int]:
     """Tenter de retrouver un produit existant."""
 
     if ean:
@@ -218,7 +220,9 @@ def _find_product_id(cursor, ean: Optional[str], model: Optional[str], brand_id:
     return None
 
 
-def process_csv(conn: connection, csv_path: str, delimiter: str, default_tcp: int) -> ImportStats:
+def process_csv(
+    conn: connection, csv_path: str, delimiter: str, default_tcp: int
+) -> ImportStats:
     stats = ImportStats()
     errors: list[str] = []
 
@@ -236,12 +240,16 @@ def process_csv(conn: connection, csv_path: str, delimiter: str, default_tcp: in
 
         missing_core = {"name", "model"} - set(recognized.values())
         if missing_core == {"name", "model"}:
-            print("⚠️  AVERTISSEMENT: les colonnes Nom ou Modèle sont absentes, les produits risquent d'être ignorés")
+            print(
+                "⚠️  AVERTISSEMENT: les colonnes Nom ou Modèle sont absentes, les produits risquent d'être ignorés"
+            )
 
         with conn.cursor() as cursor:
             ref_cache = ReferenceCache(cursor, default_tcp=default_tcp)
 
-            for index, row in enumerate(reader, start=2):  # Start at 2 to tenir compte de l'en-tête
+            for index, row in enumerate(
+                reader, start=2
+            ):  # Start at 2 to tenir compte de l'en-tête
                 normalized: Dict[str, Optional[str]] = {}
                 for raw_key, value in row.items():
                     mapped = header_map.get(raw_key)
@@ -349,7 +357,9 @@ def process_csv(conn: connection, csv_path: str, delimiter: str, default_tcp: in
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Importer des produits de référence en base")
+    parser = argparse.ArgumentParser(
+        description="Importer des produits de référence en base"
+    )
     parser.add_argument("csv", help="Chemin du fichier CSV à importer")
     parser.add_argument(
         "--delimiter",
