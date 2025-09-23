@@ -8,8 +8,8 @@ import csv
 import os
 import sys
 import unicodedata
-from dataclasses import dataclass
-from typing import Dict, Iterable, Optional
+from dataclasses import dataclass, field
+from typing import Dict, Iterable, Optional, Set
 
 import psycopg2
 from dotenv import load_dotenv
@@ -23,6 +23,8 @@ class ImportStats:
     updated: int = 0
     skipped: int = 0
     errors: int = 0
+    missing_references: Dict[str, list[str]] = field(default_factory=dict)
+    unresolved_by_name: Dict[str, list[str]] = field(default_factory=dict)
 
 
 COLUMN_MAP: Dict[str, str] = {
@@ -73,6 +75,13 @@ def _clean(value: Optional[str]) -> Optional[str]:
     return cleaned
 
 
+def _strip_accents_lower(text: str) -> str:
+    """Retirer les accents et convertir en minuscules."""
+
+    normalized = unicodedata.normalize("NFKD", text)
+    return "".join(ch for ch in normalized if not unicodedata.combining(ch)).lower()
+
+
 def _build_header_mapping(headers: Iterable[str]) -> Dict[str, Optional[str]]:
     """Créer un mapping entre les en-têtes du fichier et les clés internes."""
 
@@ -101,15 +110,102 @@ class ReferenceCache:
     def __init__(self, cursor, default_tcp: int):
         self.cursor = cursor
         self.cache: Dict[str, Dict[str, int]] = {}
-        self.created: Dict[str, int] = {
-            "brands": 0,
-            "colors": 0,
-            "memory_options": 0,
-            "device_types": 0,
-            "ram_options": 0,
-            "norme_options": 0,
+        self.missing: Dict[str, Set[str]] = {
+            "brands": set(),
+            "colors": set(),
+            "memory_options": set(),
+            "device_types": set(),
+            "ram_options": set(),
+            "norme_options": set(),
         }
+        self.unresolved_from_name: Dict[str, Set[str]] = {
+            "device_types": set(),
+            "ram_options": set(),
+            "memory_options": set(),
+            "norme_options": set(),
+        }
+        self.table_values_cache: Dict[tuple[str, str], list[tuple[int, list[str]]]] = {}
+        self.table_columns_cache: Dict[str, Set[str]] = {}
         self.default_tcp = default_tcp
+
+    def _column_name(self, column_sql: str) -> str:
+        return column_sql.replace('"', "").strip()
+
+    def _get_table_columns(self, table: str) -> Set[str]:
+        if table not in self.table_columns_cache:
+            self.cursor.execute(
+                """
+                SELECT column_name
+                  FROM information_schema.columns
+                 WHERE table_schema = 'public' AND table_name = %s
+                """,
+                (table,),
+            )
+            self.table_columns_cache[table] = {
+                row["column_name"] for row in self.cursor.fetchall()
+            }
+        return self.table_columns_cache[table]
+
+    def _load_table_values(self, table: str, column_sql: str) -> list[tuple[int, list[str]]]:
+        key = (table, column_sql)
+        if key in self.table_values_cache:
+            return self.table_values_cache[key]
+
+        columns = self._get_table_columns(table)
+        primary_column = self._column_name(column_sql)
+        extras = [
+            col
+            for col in ("name", "nom")
+            if col in columns and col != primary_column
+        ]
+        select_parts = [f"{column_sql} AS primary_value"]
+        for extra in extras:
+            select_parts.append(f"{extra} AS {extra}")
+
+        self.cursor.execute(
+            f"SELECT id, {', '.join(select_parts)} FROM {table}"
+        )
+        rows: list[tuple[int, list[str]]] = []
+        for row in self.cursor.fetchall():
+            values: list[str] = []
+            primary_value = row.get("primary_value")
+            if primary_value:
+                normalized = _strip_accents_lower(str(primary_value))
+                if normalized:
+                    values.append(normalized)
+            for extra in extras:
+                extra_value = row.get(extra)
+                if extra_value:
+                    normalized_extra = _strip_accents_lower(str(extra_value))
+                    if normalized_extra:
+                        values.append(normalized_extra)
+            if values:
+                rows.append((row["id"], values))
+
+        self.table_values_cache[key] = rows
+        return rows
+
+    def _match_by_product_name(
+        self, table: str, column_sql: str, product_name: Optional[str]
+    ) -> Optional[int]:
+        if not product_name:
+            return None
+        normalized_name = _strip_accents_lower(product_name)
+        if not normalized_name:
+            return None
+
+        matches: list[tuple[int, int]] = []
+        for item_id, values in self._load_table_values(table, column_sql):
+            for value in values:
+                if value and value in normalized_name:
+                    matches.append((len(value), item_id))
+                    break
+
+        if not matches:
+            return None
+
+        matches.sort(reverse=True)
+        return matches[0][1]
 
     def _ensure(
         self,
@@ -117,78 +213,83 @@ class ReferenceCache:
         column_sql: str,
         value: Optional[str],
         *,
-        insert_sql: str,
-        params: tuple = (),
+        search_in_name: bool = False,
+        product_name: Optional[str] = None,
     ) -> Optional[int]:
-        if value is None:
-            return None
-        key = value.lower()
-        table_cache = self.cache.setdefault(table, {})
-        if key in table_cache:
-            return table_cache[key]
+        candidate_id: Optional[int] = None
+        if value is not None:
+            key = value.lower()
+            table_cache = self.cache.setdefault(table, {})
+            if key in table_cache:
+                return table_cache[key]
 
-        self.cursor.execute(
-            f"SELECT id FROM {table} WHERE LOWER({column_sql}) = LOWER(%s)",
-            (value,),
-        )
-        row = self.cursor.fetchone()
-        if row:
-            table_cache[key] = row["id"]
-            return row["id"]
+            self.cursor.execute(
+                f"SELECT id FROM {table} WHERE LOWER({column_sql}) = LOWER(%s)",
+                (value,),
+            )
+            row = self.cursor.fetchone()
+            if row:
+                table_cache[key] = row["id"]
+                return row["id"]
 
-        self.cursor.execute(insert_sql, (value, *params))
-        new_id = self.cursor.fetchone()["id"]
-        table_cache[key] = new_id
-        self.created[table] += 1
-        return new_id
+        if search_in_name:
+            candidate_id = self._match_by_product_name(table, column_sql, product_name)
+            if candidate_id:
+                if value:
+                    key = value.lower()
+                    self.cache.setdefault(table, {})[key] = candidate_id
+                return candidate_id
+            if value is None and product_name:
+                self.unresolved_from_name.setdefault(table, set()).add(product_name)
+
+        if value:
+            self.missing.setdefault(table, set()).add(value)
+        return candidate_id
 
     def brand_id(self, value: Optional[str]) -> Optional[int]:
-        return self._ensure(
-            "brands",
-            "brand",
-            value,
-            insert_sql="INSERT INTO brands (brand) VALUES (%s) RETURNING id",
-        )
+        return self._ensure("brands", "brand", value)
 
     def color_id(self, value: Optional[str]) -> Optional[int]:
-        return self._ensure(
-            "colors",
-            "color",
-            value,
-            insert_sql="INSERT INTO colors (color) VALUES (%s) RETURNING id",
-        )
+        return self._ensure("colors", "color", value)
 
-    def memory_id(self, value: Optional[str]) -> Optional[int]:
+    def memory_id(
+        self, value: Optional[str], product_name: Optional[str]
+    ) -> Optional[int]:
         return self._ensure(
             "memory_options",
             "memory",
             value,
-            insert_sql="INSERT INTO memory_options (memory, tcp_value) VALUES (%s, %s) RETURNING id",
-            params=(self.default_tcp,),
+            search_in_name=True,
+            product_name=product_name,
         )
 
-    def device_type_id(self, value: Optional[str]) -> Optional[int]:
+    def device_type_id(
+        self, value: Optional[str], product_name: Optional[str]
+    ) -> Optional[int]:
         return self._ensure(
             "device_types",
             '"type"',
             value,
-            insert_sql='INSERT INTO device_types ("type") VALUES (%s) RETURNING id',
+            search_in_name=True,
+            product_name=product_name,
         )
 
-    def ram_id(self, value: Optional[str]) -> Optional[int]:
+    def ram_id(self, value: Optional[str], product_name: Optional[str]) -> Optional[int]:
         return self._ensure(
             "ram_options",
             "ram",
             value,
-            insert_sql="INSERT INTO ram_options (ram) VALUES (%s) RETURNING id",
+            search_in_name=True,
+            product_name=product_name,
         )
 
-    def norme_id(self, value: Optional[str]) -> Optional[int]:
+    def norme_id(self, value: Optional[str], product_name: Optional[str]) -> Optional[int]:
         return self._ensure(
             "norme_options",
             "norme",
             value,
-            insert_sql="INSERT INTO norme_options (norme) VALUES (%s) RETURNING id",
+            search_in_name=True,
+            product_name=product_name,
         )
 
 
@@ -264,12 +365,18 @@ def process_csv(
                     stats.skipped += 1
                     continue
 
+                name_hint = description or model
+
                 brand_id = ref_cache.brand_id(normalized.get("brand"))
-                memory_id = ref_cache.memory_id(normalized.get("memory"))
+                memory_id = ref_cache.memory_id(
+                    normalized.get("memory"), name_hint
+                )
                 color_id = ref_cache.color_id(normalized.get("color"))
-                type_id = ref_cache.device_type_id(normalized.get("device_type"))
-                ram_id = ref_cache.ram_id(normalized.get("ram"))
-                norme_id = ref_cache.norme_id(normalized.get("norme"))
+                type_id = ref_cache.device_type_id(
+                    normalized.get("device_type"), name_hint
+                )
+                ram_id = ref_cache.ram_id(normalized.get("ram"), name_hint)
+                norme_id = ref_cache.norme_id(normalized.get("norme"), name_hint)
 
                 ean = normalized.get("ean")
                 part_number = normalized.get("part_number")
@@ -349,9 +456,27 @@ def process_csv(
             print(f"   ⏭️  Produits ignorés : {stats.skipped}")
             print(f"   ⚠️  Lignes en erreur : {stats.errors}")
 
-            print("\n🗃️  Nouvelles entrées dans les tables de références :")
-            for table, count in ref_cache.created.items():
-                print(f"   - {table}: {count}")
+            stats.missing_references = {
+                table: sorted(values)
+                for table, values in ref_cache.missing.items()
+                if values
+            }
+            stats.unresolved_by_name = {
+                table: sorted(values)
+                for table, values in ref_cache.unresolved_from_name.items()
+                if values
+            }
+
+            if stats.missing_references or stats.unresolved_by_name:
+                print("\n⚠️  Références manquantes ou non résolues :")
+                for table, values in stats.missing_references.items():
+                    joined = ", ".join(values)
+                    print(f"   - {table}: {joined}")
+                for table, names in stats.unresolved_by_name.items():
+                    joined = "; ".join(names)
+                    print(f"   - {table} (d'après le nom): {joined}")
+            else:
+                print("\n✅ Toutes les références nécessaires ont été trouvées.")
 
     return stats
 
