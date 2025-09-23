@@ -74,5 +74,5 @@ import-reference-products:
 		echo "Usage: make import-reference-products CSV=backend/scripts/files/Produits_final_unique_20250923.csv [DELIMITER=';'] [DEFAULT_TCP=0]"; \
 		exit 1; \
 	fi
-	python backend/scripts/database/import_reference_products.py \
+	docker compose exec backend python backend/scripts/database/import_reference_products.py \
 		"$(CSV)" --delimiter "$(DELIMITER)" --default-tcp "$(DEFAULT_TCP)"
