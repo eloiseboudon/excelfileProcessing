@@ -1,3 +1,4 @@
+import { Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import {
   fetchProducts,
@@ -9,6 +10,8 @@ import {
   createProduct,
   fetchRAMOptions,
   fetchNormeOptions,
+  deleteProduct,
+  bulkDeleteProducts,
 } from '../api';
 import MultiSelectFilter from './MultiSelectFilter';
 import { useNotification } from './NotificationProvider';
@@ -46,6 +49,8 @@ function ProductReference() {
   const [types, setTypes] = useState<any[]>([]);
   const [rams, setRams] = useState<any[]>([]);
   const [normes, setNormes] = useState<any[]>([]);
+  const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const notify = useNotification();
   const [brandOptions, setBrandOptions] = useState<string[]>([]);
   const [colorOptions, setColorOptions] = useState<string[]>([]);
@@ -53,6 +58,7 @@ function ProductReference() {
   const [typeOptions, setTypeOptions] = useState<string[]>([]);
   const [ramOptions, setRamOptions] = useState<string[]>([]);
   const [normeOptions, setNormeOptions] = useState<string[]>([]);
+  const selectedCount = selectedProducts.length;
 
   const columns: { key: string; label: string }[] = [
     { key: 'id', label: 'ID' },
@@ -116,6 +122,12 @@ function ProductReference() {
   useEffect(() => {
     setCurrentPage(1);
   }, [filters, rowsPerPage]);
+
+  useEffect(() => {
+    setSelectedProducts((prev) =>
+      prev.filter((id) => products.some((product) => product.id === id))
+    );
+  }, [products]);
 
   const filteredData = products.filter((row) =>
     columns.every((col) => {
@@ -201,6 +213,86 @@ function ProductReference() {
         norme_id: null,
       },
     }));
+  };
+
+  const removeEditedEntries = (ids: number[]) => {
+    if (!ids.length) return;
+    setEdited((prev) => {
+      const updated = { ...prev };
+      ids.forEach((pid) => {
+        delete updated[pid];
+      });
+      return updated;
+    });
+  };
+
+  const toggleSelectProduct = (id: number) => {
+    setSelectedProducts((prev) =>
+      prev.includes(id) ? prev.filter((pid) => pid !== id) : [...prev, id]
+    );
+  };
+
+  const handleDelete = async (id: number) => {
+    if (id < 0) {
+      setProducts((prev) => prev.filter((product) => product.id !== id));
+      removeEditedEntries([id]);
+      setSelectedProducts((prev) => prev.filter((pid) => pid !== id));
+      notify('Produit supprimé', 'success');
+      return;
+    }
+    if (!window.confirm('Supprimer ce produit ?')) return;
+    try {
+      await deleteProduct(id);
+      setProducts((prev) => prev.filter((product) => product.id !== id));
+      removeEditedEntries([id]);
+      setSelectedProducts((prev) => prev.filter((pid) => pid !== id));
+      notify('Produit supprimé', 'success');
+    } catch {
+      notify('Erreur lors de la suppression', 'error');
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedCount || isBulkDeleting) return;
+    if (
+      !window.confirm(
+        `Confirmez-vous la suppression de ${selectedCount} produit(s) ?`
+      )
+    )
+      return;
+
+    setIsBulkDeleting(true);
+    const localIds = selectedProducts.filter((id) => id < 0);
+    const remoteIds = selectedProducts.filter((id) => id > 0);
+    let deletedRemoteIds: number[] = [];
+
+    if (remoteIds.length) {
+      try {
+        const response = await bulkDeleteProducts(remoteIds);
+        deletedRemoteIds = Array.isArray(response?.deleted)
+          ? (response.deleted as number[])
+          : remoteIds;
+      } catch {
+        notify('Erreur lors de la suppression', 'error');
+      }
+    }
+
+    const idsToRemove = Array.from(
+      new Set<number>([...localIds, ...deletedRemoteIds])
+    );
+
+    if (idsToRemove.length) {
+      setProducts((prev) =>
+        prev.filter((product) => !idsToRemove.includes(product.id))
+      );
+      removeEditedEntries(idsToRemove);
+      setSelectedProducts((prev) =>
+        prev.filter((pid) => !idsToRemove.includes(pid))
+      );
+      notify(`${idsToRemove.length} produit(s) supprimé(s)`, 'success');
+    }
+
+    setIsBulkDeleting(false);
   };
 
   const saveAll = async () => {
@@ -309,19 +401,31 @@ function ProductReference() {
             Ajouter
           </button>
         </div>
-        <button
-          onClick={saveAll}
-          disabled={!Object.keys(edited).length}
-          className="px-4 py-2 bg-green-600 text-white rounded disabled:opacity-50 hover:bg-green-700"
-        >
-          Enregistrer
-        </button>
+        <div className="flex space-x-2">
+          {selectedCount > 0 && (
+            <button
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Supprimer produit(s)
+            </button>
+          )}
+          <button
+            onClick={saveAll}
+            disabled={!Object.keys(edited).length}
+            className="px-4 py-2 bg-green-600 text-white rounded disabled:opacity-50 hover:bg-green-700"
+          >
+            Enregistrer
+          </button>
+        </div>
       </div>
       {paginationControls}
       <div className="overflow-auto mt-4">
         <table className="min-w-full text-sm text-left border border-zinc-700">
           <thead>
             <tr className="bg-zinc-800">
+              <th className="px-3 py-2 border-b border-zinc-700 w-12" />
               {columns.map(
                 (col) =>
                   visibleColumns.includes(col.key) && (
@@ -330,8 +434,12 @@ function ProductReference() {
                     </th>
                   )
               )}
+              <th className="px-3 py-2 border-b border-zinc-700 w-20 text-center">
+                Actions
+              </th>
             </tr>
             <tr>
+              <th className="px-3 py-1 border-b border-zinc-700" />
               {columns.map(
                 (col) =>
                   visibleColumns.includes(col.key) && (
@@ -369,11 +477,20 @@ function ProductReference() {
                     </th>
                   )
               )}
+              <th className="px-3 py-1 border-b border-zinc-700" />
             </tr>
           </thead>
           <tbody>
             {paginatedData.map((row) => (
               <tr key={String(row.id)} className="odd:bg-zinc-900 even:bg-zinc-800">
+                <td className="px-3 py-1 border-b border-zinc-700">
+                  <input
+                    type="checkbox"
+                    checked={selectedProducts.includes(row.id)}
+                    onChange={() => toggleSelectProduct(row.id)}
+                    className="rounded"
+                  />
+                </td>
                 {columns.map(
                   (col) =>
                     visibleColumns.includes(col.key) && (
@@ -510,12 +627,21 @@ function ProductReference() {
                             onChange={(e) => handleChange(row.id, 'ean', e.target.value)}
                             className="w-full px-2 py-1 bg-zinc-700 rounded"
                           />
-                        ) : (
+                      ) : (
                           String((row as any)[col.key] ?? '')
                         )}
                       </td>
                     )
                 )}
+                <td className="px-3 py-1 border-b border-zinc-700 text-center">
+                  <button
+                    onClick={() => handleDelete(row.id)}
+                    className="inline-flex items-center justify-center w-8 h-8 rounded bg-red-600 text-white hover:bg-red-700"
+                    title="Supprimer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
