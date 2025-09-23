@@ -67,12 +67,12 @@ alembic-history:
 	$(DC) exec backend alembic history --verbose
 
 clean-branches:
-        git branch | grep -v -E "(main|dev|\*)" | xargs git branch -D
+	git branch | grep -v -E "(main|dev|\*)" | xargs git branch -D
 
 import-reference-products:
->if [ -z "$(CSV)" ]; then \
->        echo "Usage: make import-reference-products CSV=path/to/file.csv [DELIMITER=';'] [DEFAULT_TCP=0]"; \
->        exit 1; \
->fi
->python backend/scripts/database/import_reference_products.py \
->        "$(CSV)" --delimiter "$(DELIMITER)" --default-tcp "$(DEFAULT_TCP)"
+	if [ -z "$(CSV)" ]; then \
+		echo "Usage: make import-reference-products CSV=backend/scripts/files/Produits_final_unique_20250923.csv [DELIMITER=';'] [DEFAULT_TCP=0]"; \
+		exit 1; \
+	fi
+	python backend/scripts/database/import_reference_products.py \
+		"$(CSV)" --delimiter "$(DELIMITER)" --default-tcp "$(DEFAULT_TCP)"
