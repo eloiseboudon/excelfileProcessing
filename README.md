@@ -172,6 +172,13 @@ python backend/scripts/database/import_reference_products.py \
     --default-tcp 0
 ```
 
+Une cible Makefile est également disponible pour simplifier l'appel :
+
+```bash
+make import-reference-products CSV=/chemin/vers/produits.csv \
+    DELIMITER=';' DEFAULT_TCP=0
+```
+
 - Le délimiteur utilisé est `;` par défaut (modifiable avec `--delimiter`).
 - La valeur `--default-tcp` définit la valeur TCP attribuée aux nouvelles
   capacités mémoire qui n'existent pas encore dans la table `memory_options`.
