@@ -4,7 +4,10 @@ from typing import Dict, Iterable, Tuple
 
 import pandas as pd
 from models import (
+    Brand,
+    Color,
     ColorTranslation,
+    DeviceType,
     MemoryOption,
     Product,
     ProductCalculation,
@@ -15,12 +18,31 @@ from models import (
 
 def _load_mappings() -> Dict[str, Iterable[Tuple[str, int]]]:
     """Load translation mappings into memory for faster lookups."""
-    return {
-        "color": [
-            (t.color_source.lower(), t.color_target_id)
-            for t in ColorTranslation.query.all()
-        ]
+    def _build_pairs(queryset, attr: str) -> list[Tuple[str, int]]:
+        pairs: list[Tuple[str, int]] = []
+        for item in queryset:
+            value = getattr(item, attr, None)
+            if value:
+                pairs.append((value.lower(), item.id))
+        return pairs
+
+    mappings: Dict[str, Iterable[Tuple[str, int]]] = {
+        "brand": _build_pairs(Brand.query.all(), "brand"),
+        "memory": _build_pairs(MemoryOption.query.all(), "memory"),
+        "color": _build_pairs(Color.query.all(), "color"),
+        "type": _build_pairs(DeviceType.query.all(), "type"),
     }
+
+    # Include additional color translations (e.g. synonyms) if available.
+    color_translations = [
+        (t.color_source.lower(), t.color_target_id)
+        for t in ColorTranslation.query.all()
+        if t.color_source
+    ]
+    if color_translations:
+        mappings["color"] = list(mappings["color"]) + color_translations
+
+    return mappings
 
 
 def process_description(
@@ -31,18 +53,22 @@ def process_description(
     """Extract identifiers from the product description using cached mappings."""
     desc = (description or "").lower()
     model = (model or description or "").lower()
+    texts = [desc, model]
 
     def find_id(items: Iterable[Tuple[str, int]]):
         for src, target in items:
-            if src and src in desc:
-                return target
+            if not src:
+                continue
+            for text in texts:
+                if src in text:
+                    return target
         return None
 
     return {
-        "brand_id": find_id(mappings["brand"]),
-        "memory_id": find_id(mappings["memory"]),
-        "color_id": find_id(mappings["color"]),
-        "type_id": find_id(mappings["type"]),
+        "brand_id": find_id(mappings.get("brand", [])),
+        "memory_id": find_id(mappings.get("memory", [])),
+        "color_id": find_id(mappings.get("color", [])),
+        "type_id": find_id(mappings.get("type", [])),
     }
 
 
