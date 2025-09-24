@@ -77,6 +77,7 @@ psql -U <utilisateur> -d <base>
 # Exemple :
 psql -U ajt_user -d ajt_db
 ```
+docker exec -it postgres_prod psql -U ajt_user -d ajt_db
 
 ### 🔧 Création manuelle
 ```sql
