@@ -59,14 +59,25 @@ def main():
         memory_values = ["100GB", "10GB", "1GB", "1TB", "20GB", "320GB", "50GB"]
         for memory in memory_values:
             try:
+                memory_sql = "INSERT INTO memory_options (memory, tcp_value) VALUES (%s, %s)"
+                print(
+                    "📝 SQL memory_options:",
+                    cur.mogrify(memory_sql, (memory, 0)).decode("utf-8"),
+                )
                 cur.execute(
-                    "INSERT INTO memory_options (memory, tcp_value) VALUES (%s, %s)",
+                    memory_sql,
                     (memory, 0),
                 )
                 print(f"✅ Ajouté Memory: {memory} (tcp_value=0)")
             except psycopg2.IntegrityError:
                 print(f"⚠️  Memory {memory} existe déjà")
                 conn.rollback()  # Rollback pour cette insertion seulement
+            except psycopg2.Error as error:
+                print(
+                    "❌ Erreur lors de l'insertion SQL memory_options:",
+                    error,
+                )
+                conn.rollback()
 
         ram_values = ["12", "16", "2", "3", "4", "6", "8"]
         for ram in ram_values:
