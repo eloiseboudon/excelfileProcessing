@@ -63,10 +63,6 @@ def main():
         )
         for memory in memory_values:
             try:
-                print(
-                    "📝 SQL memory_options:",
-                    cur.mogrify(memory_sql, (memory, 0)).decode("utf-8"),
-                )
                 cur.execute(memory_sql, (memory, 0))
                 print(f"✅ Ajouté/Mis à jour Memory: {memory} (tcp_value=0)")
             except psycopg2.Error as error:
@@ -78,7 +74,9 @@ def main():
                 raise
 
         ram_values = ["12", "16", "2", "3", "4", "6", "8"]
-        ram_sql = "INSERT INTO ram_options (ram) VALUES (%s) ON CONFLICT (ram) DO NOTHING"
+        ram_sql = (
+            "INSERT INTO ram_options (ram) VALUES (%s) ON CONFLICT (ram) DO NOTHING"
+        )
         for ram in ram_values:
             cur.execute(ram_sql, (ram,))
             if cur.rowcount:
@@ -87,7 +85,9 @@ def main():
                 print(f"⚠️  RAM {ram} existe déjà")
 
         brand_values = ['Essential', 'Hotwav', 'Nothing', 'Redmi']
-        brand_sql = "INSERT INTO brands (brand) VALUES (%s) ON CONFLICT (brand) DO NOTHING"
+        brand_sql = (
+            "INSERT INTO brands (brand) VALUES (%s) ON CONFLICT (brand) DO NOTHING"
+        )
         for brand in brand_values:
             cur.execute(brand_sql, (brand,))
             if cur.rowcount:
