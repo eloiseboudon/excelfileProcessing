@@ -57,45 +57,43 @@ def main():
         print("RAM options actuelles:", ram_options)
 
         memory_values = ["100GB", "10GB", "1GB", "1TB", "20GB", "320GB", "50GB"]
+        memory_sql = (
+            "INSERT INTO memory_options (memory, tcp_value) VALUES (%s, %s) "
+            "ON CONFLICT (memory) DO UPDATE SET tcp_value = EXCLUDED.tcp_value"
+        )
         for memory in memory_values:
             try:
-                memory_sql = "INSERT INTO memory_options (memory, tcp_value) VALUES (%s, %s)"
                 print(
                     "📝 SQL memory_options:",
                     cur.mogrify(memory_sql, (memory, 0)).decode("utf-8"),
                 )
-                cur.execute(
-                    memory_sql,
-                    (memory, 0),
-                )
-                print(f"✅ Ajouté Memory: {memory} (tcp_value=0)")
-            except psycopg2.IntegrityError:
-                print(f"⚠️  Memory {memory} existe déjà")
-                conn.rollback()  # Rollback pour cette insertion seulement
+                cur.execute(memory_sql, (memory, 0))
+                print(f"✅ Ajouté/Mis à jour Memory: {memory} (tcp_value=0)")
             except psycopg2.Error as error:
                 print(
                     "❌ Erreur lors de l'insertion SQL memory_options:",
                     error,
                 )
                 conn.rollback()
+                raise
 
         ram_values = ["12", "16", "2", "3", "4", "6", "8"]
+        ram_sql = "INSERT INTO ram_options (ram) VALUES (%s) ON CONFLICT (ram) DO NOTHING"
         for ram in ram_values:
-            try:
-                cur.execute("INSERT INTO ram_options (ram) VALUES (%s)", (ram,))
+            cur.execute(ram_sql, (ram,))
+            if cur.rowcount:
                 print(f"✅ Ajouté RAM: {ram}")
-            except psycopg2.IntegrityError:
+            else:
                 print(f"⚠️  RAM {ram} existe déjà")
-                conn.rollback()  # Rollback pour cette insertion seulement
 
         brand_values = ['Essential', 'Hotwav', 'Nothing', 'Redmi']
+        brand_sql = "INSERT INTO brands (brand) VALUES (%s) ON CONFLICT (brand) DO NOTHING"
         for brand in brand_values:
-            try:
-                cur.execute("INSERT INTO brands (brand) VALUES (%s)", (brand,))
+            cur.execute(brand_sql, (brand,))
+            if cur.rowcount:
                 print(f"✅ Ajouté Brand: {brand}")
-            except psycopg2.IntegrityError:
+            else:
                 print(f"⚠️  Brand {brand} existe déjà")
-                conn.rollback()  # Rollback pour cette insertion seulement
 
         color_translations = {
             "alpine loop l indigo": "Bleu",
