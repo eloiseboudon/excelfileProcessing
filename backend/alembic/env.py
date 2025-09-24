@@ -7,8 +7,12 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-sys.path.append(os.path.dirname(__file__))
-
+# Ajoute le dossier parent (``backend``) au PYTHONPATH pour permettre
+# l'importation du module ``models`` lorsque ce script est exécuté depuis Alembic.
+CURRENT_DIR = os.path.dirname(__file__)
+PARENT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir))
+if PARENT_DIR not in sys.path:
+    sys.path.insert(0, PARENT_DIR)
 # Importez vos modèles
 from models import db
 
