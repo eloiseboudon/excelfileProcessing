@@ -543,6 +543,44 @@ def bulk_update_products():
     return jsonify({"status": "success", "updated": updated_ids})
 
 
+@bp.route("/products/bulk_delete", methods=["POST"])
+@token_required("admin")
+def bulk_delete_products():
+    """Delete multiple products in a single request."""
+
+    payload = request.get_json(silent=True) or {}
+    ids = payload.get("ids")
+    if not isinstance(ids, list):
+        return jsonify({"error": "Payload invalide"}), 400
+
+    valid_ids = []
+    for value in ids:
+        try:
+            num = int(value)
+        except (TypeError, ValueError):
+            continue
+        if num <= 0:
+            continue
+        valid_ids.append(num)
+
+    if not valid_ids:
+        return jsonify({"status": "success", "deleted": []})
+
+    products = Product.query.filter(Product.id.in_(valid_ids)).all()
+    deleted_ids = []
+    for product in products:
+        deleted_ids.append(product.id)
+        ProductCalculation.query.filter_by(product_id=product.id).delete(
+            synchronize_session=False
+        )
+        db.session.delete(product)
+
+    if deleted_ids:
+        db.session.commit()
+
+    return jsonify({"status": "success", "deleted": deleted_ids})
+
+
 @bp.route("/products/<int:product_id>", methods=["DELETE"])
 @token_required("admin")
 def delete_product(product_id):
@@ -561,6 +599,14 @@ def delete_product(product_id):
         description: Deletion status
     """
     product = Product.query.get_or_404(product_id)
+
+    # Supprimer explicitement les calculs associés afin d'éviter
+    # que SQLAlchemy ne tente de remettre leur clé étrangère à NULL,
+    # ce qui viole la contrainte NOT NULL de product_id.
+    ProductCalculation.query.filter_by(product_id=product_id).delete(
+        synchronize_session=False
+    )
+
     db.session.delete(product)
     db.session.commit()
     return jsonify({"status": "deleted"})

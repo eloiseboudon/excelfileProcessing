@@ -167,6 +167,18 @@ export async function deleteProduct(id: number) {
   return res.json();
 }
 
+export async function bulkDeleteProducts(ids: number[]) {
+  const res = await fetchWithAuth(`${API_BASE}/products/bulk_delete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids })
+  });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
 
 export async function fetchLastImport(id: number): Promise<{ import_date: string | null } | {}> {
   const res = await fetchWithAuth(`${API_BASE}/last_import/${id}`);

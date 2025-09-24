@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+from typing import Any
 
 import pandas as pd
 from flask import Blueprint, jsonify, request
@@ -7,6 +8,33 @@ from models import FormatImport, ImportHistory, TemporaryImport, db
 from utils.auth import token_required
 from sqlalchemy import extract
 from utils.calculations import recalculate_product_calculations
+
+
+def _normalize_column_key(name: str | None) -> str:
+    """Return a normalized identifier for a mapped column name."""
+
+    return "".join(ch for ch in (name or "").lower() if ch.isalnum())
+
+
+def _clean_cell(value: Any) -> str | None:
+    """Convert a raw dataframe cell to a clean string value."""
+
+    if value is None:
+        return None
+    if isinstance(value, str):
+        cleaned = value.strip()
+        if not cleaned or cleaned.lower() == "nan":
+            return None
+        return cleaned
+    if pd.isna(value):
+        return None
+    if isinstance(value, float):
+        if value.is_integer():
+            return str(int(value))
+        return str(value).strip()
+    if isinstance(value, int):
+        return str(value)
+    return str(value).strip()
 
 bp = Blueprint("imports", __name__)
 
@@ -232,30 +260,23 @@ def create_import():
         )
 
     # Find mappings for quantity, selling_price, description and model
-    quantity_mapping = next(
-        (m for m in mappings if m.column_name and m.column_name.lower() == "quantity"),
-        None,
-    )
-    selling_price_mapping = next(
-        (
-            m
-            for m in mappings
-            if m.column_name and m.column_name.lower() == "selling_price"
-        ),
-        None,
-    )
-    description_mapping = next(
-        (
-            m
-            for m in mappings
-            if m.column_name and m.column_name.lower() == "description"
-        ),
-        None,
-    )
-    model_mapping = next(
-        (m for m in mappings if m.column_name and m.column_name.lower() == "model"),
-        None,
-    )
+    def find_mapping(target: str):
+        return next(
+            (
+                m
+                for m in mappings
+                if m.column_name
+                and _normalize_column_key(m.column_name) == target
+            ),
+            None,
+        )
+
+    quantity_mapping = find_mapping("quantity")
+    selling_price_mapping = find_mapping("sellingprice")
+    description_mapping = find_mapping("description")
+    model_mapping = find_mapping("model")
+    ean_mapping = find_mapping("ean")
+    part_number_mapping = find_mapping("partnumber")
 
     if not quantity_mapping or not selling_price_mapping or not description_mapping:
         current_app.logger.error(
@@ -319,6 +340,12 @@ def create_import():
         selling_price_col = selling_price_mapping.column_name.lower()
         description_col = description_mapping.column_name.lower()
         model_col = model_mapping.column_name.lower() if model_mapping else None
+        ean_col = ean_mapping.column_name.lower() if ean_mapping else None
+        part_number_col = (
+            part_number_mapping.column_name.lower()
+            if part_number_mapping
+            else None
+        )
         quantity = row.get(quantity_col)
         selling_price = row.get(selling_price_col)
 
@@ -333,6 +360,10 @@ def create_import():
         # Get description and model using their mappings
         description = row.get(description_col)
         model = row.get(model_col) if model_col else description
+        ean_value = _clean_cell(row.get(ean_col)) if ean_col else None
+        part_number_value = (
+            _clean_cell(row.get(part_number_col)) if part_number_col else None
+        )
 
         temp = TemporaryImport(
             description=description,
@@ -340,6 +371,8 @@ def create_import():
             quantity=int(quantity),
             selling_price=float(selling_price),
             supplier_id=supplier_id,
+            ean=ean_value,
+            part_number=part_number_value,
         )
         db.session.add(temp)
 
