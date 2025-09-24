@@ -59,9 +59,10 @@ def main():
         for memory in memory_values:
             try:
                 cur.execute(
-                    "INSERT INTO memory_options (memory) VALUES (%s)", (memory,)
+                    "INSERT INTO memory_options (memory, tcp_value) VALUES (%s, %s)",
+                    (memory, 0),
                 )
-                print(f"✅ Ajouté Memory: {memory}")
+                print(f"✅ Ajouté Memory: {memory} (tcp_value=0)")
             except psycopg2.IntegrityError:
                 print(f"⚠️  Memory {memory} existe déjà")
                 conn.rollback()  # Rollback pour cette insertion seulement
