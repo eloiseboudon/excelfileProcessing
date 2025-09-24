@@ -47,26 +47,27 @@ def main():
         print("Colors actuelles:", colors)
 
         color_lookup = {
-            color.lower(): color_id for color_id, color in colors if isinstance(color, str)
+            color.lower(): color_id
+            for color_id, color in colors
+            if isinstance(color, str)
         }
 
         cur.execute("SELECT * FROM ram_options")
         ram_options = cur.fetchall()
         print("RAM options actuelles:", ram_options)
 
-        # Insérer les options RAM (méthode 1 : une requête par valeur)
         memory_values = ["100GB", "10GB", "1GB", "1TB", "20GB", "320GB", "50GB"]
         for memory in memory_values:
             try:
                 cur.execute(
-                    "INSERT INTO memory_options (memory) VALUES (%s)", (memory,)
+                    "INSERT INTO memory_options (memory,tcp_value) VALUES (%s,'0')",
+                    (memory, 0),
                 )
                 print(f"✅ Ajouté Memory: {memory}")
             except psycopg2.IntegrityError:
                 print(f"⚠️  Memory {memory} existe déjà")
                 conn.rollback()  # Rollback pour cette insertion seulement
 
-        # Insérer les options de norme (méthode 1 : une requête par valeur)
         ram_values = ["12", "16", "2", "3", "4", "6", "8"]
         for ram in ram_values:
             try:
@@ -84,8 +85,6 @@ def main():
             except psycopg2.IntegrityError:
                 print(f"⚠️  Brand {brand} existe déjà")
                 conn.rollback()  # Rollback pour cette insertion seulement
-
-        # colors_values = ['Alpine Loop L Indigo', 'Black', 'Black Titanium', 'Blue', 'Blue Titanium', 'Bronze', 'Brown', 'Chalk', 'Copper', 'Cream', 'Desert', 'Desert Titanium', 'Gold', 'Graphite', 'Gray', 'Green', 'Grey', 'Ice Blue', 'Indigo', 'Lavender', 'Lavender Purple', 'Midnight', 'Mint', 'Natural Titanium', 'Navy', 'Ocean', 'Olive', 'Phantom Black', 'Pink', 'Porcelain', 'Porcelaine', 'Purple', 'Red', 'Rose Gold', 'Silver', 'Space Gray', 'Space Grey', 'Starlight', 'Teal', 'Titanium', 'Trail Loop M/L Green/Grey', 'Trail Loop S/M Green/Grey', 'Ultramarine', 'White', 'White Titanium', 'Yellow']
 
         color_translations = {
             "alpine loop l indigo": "Bleu",
@@ -176,7 +175,9 @@ def main():
         ram_options = cur.fetchall()
         print("RAM options finales:", ram_options)
 
-        print("\n🎉 Modification norme_options et ram_options ok !")
+        print(
+            "\n🎉 Modification memory_options,color_translations, brands et ram_options ok !"
+        )
 
     except psycopg2.Error as e:
         print(f"❌ Erreur de base de données: {e}")

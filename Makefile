@@ -39,12 +39,6 @@ docker-down:
 docker-logs:
 	$(DC) logs -f $(SERVICE)
 
-implement-tables:
-	docker compose exec backend python implement_tables.py
-
-update-users:
-	docker compose exec backend python update_users_table.py
-
 shell-postgres:
 	docker compose exec postgres psql -U postgres -d ajtpro
 
@@ -80,3 +74,6 @@ import-reference-products:
 	esac; \
 	docker compose exec backend python scripts/database/import_reference_products.py \
 		"$$CSV_IN_CONTAINER" --delimiter "$(DELIMITER)" --default-tcp "$(DEFAULT_TCP)"
+
+add_references_import_2025_0923:
+	docker compose exec backend python scripts/database/add_references_import_2025_0923.py
