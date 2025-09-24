@@ -35,7 +35,8 @@ frontend/package-lock.json
 
 backend/instance/
 backend/instance/*
-backend/alembic/*
+backend/alembic/versions/__pycache__/
+backend/alembic/versions/*.pyc
 
 **/__pycache__
 **/*.pyc
