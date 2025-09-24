@@ -570,6 +570,9 @@ def bulk_delete_products():
     deleted_ids = []
     for product in products:
         deleted_ids.append(product.id)
+        ProductCalculation.query.filter_by(product_id=product.id).delete(
+            synchronize_session=False
+        )
         db.session.delete(product)
 
     if deleted_ids:
@@ -596,6 +599,14 @@ def delete_product(product_id):
         description: Deletion status
     """
     product = Product.query.get_or_404(product_id)
+
+    # Supprimer explicitement les calculs associés afin d'éviter
+    # que SQLAlchemy ne tente de remettre leur clé étrangère à NULL,
+    # ce qui viole la contrainte NOT NULL de product_id.
+    ProductCalculation.query.filter_by(product_id=product_id).delete(
+        synchronize_session=False
+    )
+
     db.session.delete(product)
     db.session.commit()
     return jsonify({"status": "deleted"})
