@@ -236,6 +236,72 @@ manage_docker_containers() {
     $DOCKER_COMPOSE_CMD -f "$compose_file" ps
 }
 
+# Fonction améliorée pour détecter si des migrations sont vraiment nécessaires
+check_migration_needed() {
+    log "🔍 Vérification si des migrations sont réellement nécessaires..."
+    
+    # Vérifier l'état actuel
+    local current_migration=$($DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic current 2>/dev/null | grep -E "^[a-f0-9]+" || echo "")
+    
+    # Vérifier s'il y a des migrations en attente
+    local pending_migrations=$($DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic show head 2>/dev/null | grep -E "^[a-f0-9]+" || echo "")
+    
+    if [ "$current_migration" = "$pending_migrations" ]; then
+        info "✅ Base de données déjà à jour (version: $current_migration)"
+        
+        # Test supplémentaire : générer une migration dry-run pour voir s'il y a vraiment des changements
+        local dry_run_output=$($DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" exec -T backend alembic revision --autogenerate --dry-run 2>/dev/null || echo "")
+        
+        if echo "$dry_run_output" | grep -q "No changes in schema detected"; then
+            info "✅ Aucun changement de schéma détecté"
+            return 1  # Pas de migration nécessaire
+        fi
+    fi
+    
+    return 0  # Migration nécessaire
+}
+
+# Fonction de confirmation améliorée
+ask_migration_confirmation() {
+    # D'abord vérifier si une migration est vraiment nécessaire
+    if ! check_migration_needed; then
+        log "🎯 Base de données déjà à jour - aucune migration nécessaire"
+        echo ""
+        echo "Options disponibles :"
+        echo "  1. Forcer une vérification des migrations (non recommandé)"
+        echo "  2. Continuer sans migration (recommandé)"
+        echo "  3. Annuler le déploiement"
+        echo ""
+        
+        while true; do
+            read -p "Votre choix (1/2/3) [2] : " migration_choice
+            migration_choice=${migration_choice:-2}
+            
+            case $migration_choice in
+                1)
+                    warn "⚠️ Forçage de la vérification des migrations"
+                    return 0
+                    ;;
+                2)
+                    log "✅ Poursuite sans migration - base déjà à jour"
+                    return 1
+                    ;;
+                3)
+                    log "❌ Déploiement annulé par l'utilisateur"
+                    exit 0
+                    ;;
+                *)
+                    error "Choix invalide. Veuillez saisir 1, 2 ou 3"
+                    ;;
+            esac
+        done
+    fi
+    
+    # Si on arrive ici, des migrations sont probablement nécessaires
+    log "🤔 Confirmation pour les migrations de base de données"
+    # ... rest of your existing function
+}
+
 # Gestion des migrations Alembic - VERSION AMÉLIORÉE
 run_database_migrations() {
     log "🗃️ Gestion des migrations de base de données avec Alembic..."
