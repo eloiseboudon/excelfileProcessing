@@ -9,6 +9,10 @@ sshpass -p '3k56b5iEhI0k' ssh ubuntu@51.77.231.101
 http://51.77.231.101:81/nginx/proxy
 tanacode
 
+
+chmod  +x deploy.sh
+./deploy.sh
+
 # 📘 Mémo Docker – Projet AJTPRO
 
 ## 🛠️ Build et démarrage des containers
