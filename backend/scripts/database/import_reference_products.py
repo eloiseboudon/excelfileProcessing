@@ -9,7 +9,7 @@ import os
 import sys
 import unicodedata
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, Optional, Set
+from typing import Dict, Iterable, Optional, Set, Tuple
 
 import psycopg2
 from dotenv import load_dotenv
@@ -21,10 +21,13 @@ from psycopg2.extras import DictCursor
 class ImportStats:
     inserted: int = 0
     updated: int = 0
+    updated_by_ean: int = 0
+    updated_by_model: int = 0
     skipped: int = 0
     errors: int = 0
     missing_references: Dict[str, list[str]] = field(default_factory=dict)
     unresolved_by_name: Dict[str, list[str]] = field(default_factory=dict)
+    update_reasons: Dict[str, list[int]] = field(default_factory=dict)
 
 
 COLUMN_MAP: Dict[str, str] = {
@@ -331,14 +334,14 @@ class ReferenceCache:
 
 def _find_product_id(
     cursor, ean: Optional[str], model: Optional[str], brand_id: Optional[int]
-) -> Optional[int]:
-    """Tenter de retrouver un produit existant."""
+) -> Tuple[Optional[int], Optional[str]]:
+    """Tenter de retrouver un produit existant et indiquer la logique utilisée."""
 
     if ean:
         cursor.execute("SELECT id FROM products WHERE ean = %s", (ean,))
         row = cursor.fetchone()
         if row:
-            return row["id"]
+            return row["id"], "ean"
 
     if model:
         if brand_id:
@@ -346,15 +349,17 @@ def _find_product_id(
                 "SELECT id FROM products WHERE LOWER(model) = LOWER(%s) AND brand_id = %s",
                 (model, brand_id),
             )
+            reason = "model+brand"
         else:
             cursor.execute(
                 "SELECT id FROM products WHERE LOWER(model) = LOWER(%s)",
                 (model,),
             )
+            reason = "model"
         row = cursor.fetchone()
         if row:
-            return row["id"]
-    return None
+            return row["id"], reason
+    return None, None
 
 
 def process_csv(
@@ -417,7 +422,9 @@ def process_csv(
                 ean = normalized.get("ean")
                 part_number = normalized.get("part_number")
 
-                product_id = _find_product_id(cursor, ean, model, brand_id)
+                product_id, match_reason = _find_product_id(
+                    cursor, ean, model, brand_id
+                )
 
                 try:
                     if product_id:
@@ -451,6 +458,12 @@ def process_csv(
                             ),
                         )
                         stats.updated += 1
+                        if match_reason == "ean":
+                            stats.updated_by_ean += 1
+                        elif match_reason in {"model", "model+brand"}:
+                            stats.updated_by_model += 1
+                        if match_reason:
+                            stats.update_reasons.setdefault(match_reason, []).append(index)
                     else:
                         cursor.execute(
                             """
@@ -489,6 +502,10 @@ def process_csv(
             print("\n📊 Résumé de l'import :")
             print(f"   ➕ Produits insérés : {stats.inserted}")
             print(f"   🔁 Produits mis à jour : {stats.updated}")
+            if stats.updated:
+                print(
+                    f"      ↳ dont {stats.updated_by_ean} par EAN et {stats.updated_by_model} par modèle"
+                )
             print(f"   ⏭️  Produits ignorés : {stats.skipped}")
             print(f"   ⚠️  Lignes en erreur : {stats.errors}")
 
@@ -513,6 +530,12 @@ def process_csv(
                     print(f"   - {table} (d'après le nom): {joined}")
             else:
                 print("\n✅ Toutes les références nécessaires ont été trouvées.")
+
+            if stats.update_reasons:
+                print("\nℹ️  Détails des mises à jour :")
+                for reason, lines in stats.update_reasons.items():
+                    joined = ", ".join(str(line) for line in lines)
+                    print(f"   - {reason}: lignes {joined}")
 
     return stats
 
