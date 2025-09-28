@@ -261,47 +261,6 @@ check_migration_needed() {
     return 0  # Migration nécessaire
 }
 
-# Fonction de confirmation améliorée
-ask_migration_confirmation() {
-    # D'abord vérifier si une migration est vraiment nécessaire
-    if ! check_migration_needed; then
-        log "🎯 Base de données déjà à jour - aucune migration nécessaire"
-        echo ""
-        echo "Options disponibles :"
-        echo "  1. Forcer une vérification des migrations (non recommandé)"
-        echo "  2. Continuer sans migration (recommandé)"
-        echo "  3. Annuler le déploiement"
-        echo ""
-        
-        while true; do
-            read -p "Votre choix (1/2/3) [2] : " migration_choice
-            migration_choice=${migration_choice:-2}
-            
-            case $migration_choice in
-                1)
-                    warn "⚠️ Forçage de la vérification des migrations"
-                    return 0
-                    ;;
-                2)
-                    log "✅ Poursuite sans migration - base déjà à jour"
-                    return 1
-                    ;;
-                3)
-                    log "❌ Déploiement annulé par l'utilisateur"
-                    exit 0
-                    ;;
-                *)
-                    error "Choix invalide. Veuillez saisir 1, 2 ou 3"
-                    ;;
-            esac
-        done
-    fi
-    
-    # Si on arrive ici, des migrations sont probablement nécessaires
-    log "🤔 Confirmation pour les migrations de base de données"
-    # ... rest of your existing function
-}
-
 # Gestion des migrations Alembic - VERSION AMÉLIORÉE
 run_database_migrations() {
     log "🗃️ Gestion des migrations de base de données avec Alembic..."
@@ -666,6 +625,41 @@ show_deployment_info() {
 
 # Demande de confirmation pour les migrations
 ask_migration_confirmation() {
+    # D'abord vérifier si une migration est vraiment nécessaire
+    if ! check_migration_needed; then
+        log "🎯 Base de données déjà à jour - aucune migration nécessaire"
+        echo ""
+        echo "Options disponibles :"
+        echo "  1. Forcer une vérification des migrations (non recommandé)"
+        echo "  2. Continuer sans migration (recommandé)"
+        echo "  3. Annuler le déploiement"
+        echo ""
+        
+        while true; do
+            read -p "Votre choix (1/2/3) [2] : " migration_choice
+            migration_choice=${migration_choice:-2}
+            
+            case $migration_choice in
+                1)
+                    warn "⚠️ Forçage de la vérification des migrations"
+                    break  # Sortir de la boucle pour continuer avec le processus normal
+                    ;;
+                2)
+                    log "✅ Poursuite sans migration - base déjà à jour"
+                    return 1
+                    ;;
+                3)
+                    log "❌ Déploiement annulé par l'utilisateur"
+                    exit 0
+                    ;;
+                *)
+                    error "Choix invalide. Veuillez saisir 1, 2 ou 3"
+                    ;;
+            esac
+        done
+    fi
+    
+    # Si on arrive ici, des migrations sont probablement nécessaires OU forçage demandé
     log "🤔 Confirmation pour les migrations de base de données"
     echo ""
     echo "╔═══════════════════════════════════════════════════════╗"
