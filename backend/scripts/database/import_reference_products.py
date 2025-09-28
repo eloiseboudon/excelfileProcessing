@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import os
 import sys
 import unicodedata
@@ -22,7 +23,7 @@ class ImportStats:
     inserted: int = 0
     updated: int = 0
     updated_by_ean: int = 0
-    updated_by_model: int = 0
+    updated_by_name: int = 0
     skipped: int = 0
     errors: int = 0
     missing_references: Dict[str, list[str]] = field(default_factory=dict)
@@ -391,7 +392,11 @@ class ProductValueSanitizer:
 
 
 def _find_product_id(
-    cursor, ean: Optional[str], model: Optional[str], brand_id: Optional[int]
+    cursor,
+    ean: Optional[str],
+    name: Optional[str],
+    model: Optional[str],
+    brand_id: Optional[int],
 ) -> Tuple[Optional[int], Optional[str]]:
     """Tenter de retrouver un produit existant et indiquer la logique utilisée."""
 
@@ -401,27 +406,50 @@ def _find_product_id(
         if row:
             return row["id"], "ean"
 
-    if model:
+    search_label = name or model
+    if search_label:
+        if brand_id:
+            cursor.execute(
+                """
+                SELECT id FROM products
+                 WHERE LOWER(description) = LOWER(%s) AND brand_id = %s
+                """,
+                (search_label, brand_id),
+            )
+            reason = "name+brand"
+        else:
+            cursor.execute(
+                "SELECT id FROM products WHERE LOWER(description) = LOWER(%s)",
+                (search_label,),
+            )
+            reason = "name"
+        row = cursor.fetchone()
+        if row:
+            return row["id"], reason
+
+    if model and not name:
         if brand_id:
             cursor.execute(
                 "SELECT id FROM products WHERE LOWER(model) = LOWER(%s) AND brand_id = %s",
                 (model, brand_id),
             )
-            reason = "model+brand"
         else:
             cursor.execute(
                 "SELECT id FROM products WHERE LOWER(model) = LOWER(%s)",
                 (model,),
             )
-            reason = "model"
         row = cursor.fetchone()
         if row:
-            return row["id"], reason
+            return row["id"], "model"
     return None, None
 
 
 def process_csv(
-    conn: connection, csv_path: str, delimiter: str, default_tcp: int
+    conn: connection,
+    csv_path: str,
+    delimiter: str,
+    default_tcp: int,
+    missing_report_path: Optional[str] = None,
 ) -> ImportStats:
     stats = ImportStats()
     errors: list[str] = []
@@ -502,7 +530,7 @@ def process_csv(
                     stats.truncations[index] = truncations
 
                 product_id, match_reason = _find_product_id(
-                    cursor, ean, model, brand_id
+                    cursor, ean, description, model, brand_id
                 )
 
                 try:
@@ -539,8 +567,12 @@ def process_csv(
                         stats.updated += 1
                         if match_reason == "ean":
                             stats.updated_by_ean += 1
-                        elif match_reason in {"model", "model+brand"}:
-                            stats.updated_by_model += 1
+                        elif match_reason in {
+                            "name",
+                            "name+brand",
+                            "model",
+                        }:
+                            stats.updated_by_name += 1
                         if match_reason:
                             stats.update_reasons.setdefault(match_reason, []).append(index)
                     else:
@@ -588,7 +620,7 @@ def process_csv(
             print(f"   🔁 Produits mis à jour : {stats.updated}")
             if stats.updated:
                 print(
-                    f"      ↳ dont {stats.updated_by_ean} par EAN et {stats.updated_by_model} par modèle"
+                    f"      ↳ dont {stats.updated_by_ean} par EAN et {stats.updated_by_name} par nom"
                 )
             print(f"   ⏭️  Produits ignorés : {stats.skipped}")
             print(f"   ⚠️  Lignes en erreur : {stats.errors}")
@@ -604,7 +636,9 @@ def process_csv(
                 if values
             }
 
-            if stats.missing_references or stats.unresolved_by_name:
+            has_missing = bool(stats.missing_references or stats.unresolved_by_name)
+
+            if has_missing:
                 print("\n⚠️  Références manquantes ou non résolues :")
                 for table, values in stats.missing_references.items():
                     joined = ", ".join(values)
@@ -614,6 +648,9 @@ def process_csv(
                     print(f"   - {table} (d'après le nom): {joined}")
             else:
                 print("\n✅ Toutes les références nécessaires ont été trouvées.")
+
+            if missing_report_path:
+                _write_missing_report(missing_report_path, stats, has_missing)
 
             if stats.update_reasons:
                 print("\nℹ️  Détails des mises à jour :")
@@ -641,6 +678,25 @@ def process_csv(
     return stats
 
 
+def _write_missing_report(path: str, stats: ImportStats, has_missing: bool) -> None:
+    """Sauvegarder les références manquantes ou confirmées dans un fichier JSON."""
+
+    directory = os.path.dirname(path)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+
+    payload = {
+        "missing_references": stats.missing_references,
+        "unresolved_by_name": stats.unresolved_by_name,
+    }
+
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, ensure_ascii=False, indent=2, sort_keys=True)
+
+    status = "enregistré" if has_missing else "créé (aucune référence manquante)"
+    print(f"   → Rapport {status} dans : {os.path.abspath(path)}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Importer des produits de référence en base"
@@ -657,6 +713,10 @@ def main() -> None:
         default=0,
         help="Valeur TCP par défaut pour les nouvelles capacités mémoire",
     )
+    parser.add_argument(
+        "--missing-report",
+        help="Chemin du fichier JSON où enregistrer les références manquantes",
+    )
     args = parser.parse_args()
 
     csv_path = os.path.abspath(args.csv)
@@ -669,7 +729,13 @@ def main() -> None:
     print("🚀 Début de l'import des produits de référence...")
     conn = _connect()
     try:
-        process_csv(conn, csv_path, args.delimiter, args.default_tcp)
+        process_csv(
+            conn,
+            csv_path,
+            args.delimiter,
+            args.default_tcp,
+            args.missing_report,
+        )
     finally:
         conn.close()
         print("✅ Import terminé")
