@@ -147,7 +147,12 @@ def preview_import():
             continue
         idx = m.column_order - 1
         if 0 <= idx < len(df.columns):
-            df[(m.column_name or "").lower()] = df.iloc[:, idx]
+            normalized_name = (m.column_name or "").lower()
+            df[normalized_name] = df.iloc[:, idx]
+            if normalized_name in {"quantity", "selling_price"}:
+                df[normalized_name] = pd.to_numeric(
+                    df[normalized_name], errors="coerce"
+                )
 
     required_columns = [
         (m.column_name or "").lower() for m in mappings if m.column_name
@@ -173,12 +178,17 @@ def preview_import():
         selling_price = row.get("selling_price")
         if pd.isna(quantity) or pd.isna(selling_price):
             continue
+        try:
+            quantity_value = int(float(quantity))
+            selling_price_value = float(selling_price)
+        except (TypeError, ValueError):
+            continue
         preview_rows.append(
             {
                 "description": row.get("description"),
                 "model": row.get("model") or row.get("description"),
-                "quantity": int(quantity),
-                "selling_price": float(selling_price),
+                "quantity": quantity_value,
+                "selling_price": selling_price_value,
             }
         )
         if len(preview_rows) >= 5:
@@ -297,7 +307,12 @@ def create_import():
             continue
         idx = m.column_order - 1
         if 0 <= idx < len(df.columns):
-            df[(m.column_name or "").lower()] = df.iloc[:, idx]
+            normalized_name = (m.column_name or "").lower()
+            df[normalized_name] = df.iloc[:, idx]
+            if normalized_name in {"quantity", "selling_price"}:
+                df[normalized_name] = pd.to_numeric(
+                    df[normalized_name], errors="coerce"
+                )
 
     required_columns = [
         (m.column_name or "").lower() for m in mappings if m.column_name
@@ -333,6 +348,7 @@ def create_import():
 
     count_new = 0
     invalid_rows = 0
+    existing_eans: set[tuple[str, int]] = set()
 
     for idx, row in df.iterrows():
         # Get quantity and selling_price using their mappings
@@ -356,7 +372,16 @@ def create_import():
             )
             continue
 
-        count_new += 1
+        try:
+            quantity_int = int(float(quantity))
+            selling_price_float = float(selling_price)
+        except (TypeError, ValueError):
+            invalid_rows += 1
+            log_entries.append(
+                f"{idx + 2}\t{row.get(description_col, '')}\tunable to convert quantity/selling_price-{row.get(quantity_col, '')}-{row.get(selling_price_col, '')}"
+            )
+            continue
+
         # Get description and model using their mappings
         description = row.get(description_col)
         model = row.get(model_col) if model_col else description
@@ -365,11 +390,23 @@ def create_import():
             _clean_cell(row.get(part_number_col)) if part_number_col else None
         )
 
+        if ean_value and supplier_id:
+            key = (ean_value, supplier_id)
+            if key in existing_eans:
+                invalid_rows += 1
+                log_entries.append(
+                    f"{idx + 2}\t{row.get(description_col, '')}\tduplicate ean {ean_value}"
+                )
+                continue
+            existing_eans.add(key)
+
+        count_new += 1
+
         temp = TemporaryImport(
             description=description,
             model=model,
-            quantity=int(quantity),
-            selling_price=float(selling_price),
+            quantity=quantity_int,
+            selling_price=selling_price_float,
             supplier_id=supplier_id,
             ean=ean_value,
             part_number=part_number_value,
