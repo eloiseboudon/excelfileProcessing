@@ -227,5 +227,12 @@ def delete_reference_item(table, item_id):
         return jsonify({"error": "Table inconnue"}), 400
     item = model.query.get_or_404(item_id)
     db.session.delete(item)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return (
+            jsonify({"error": "Impossible de supprimer l'élément car il est utilisé"}),
+            400,
+        )
     return jsonify({"status": "deleted"})
