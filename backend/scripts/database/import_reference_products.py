@@ -5,11 +5,12 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import os
 import sys
 import unicodedata
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, Optional, Set
+from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 import psycopg2
 from dotenv import load_dotenv
@@ -21,10 +22,31 @@ from psycopg2.extras import DictCursor
 class ImportStats:
     inserted: int = 0
     updated: int = 0
+    updated_by_ean: int = 0
+    updated_by_name: int = 0
     skipped: int = 0
     errors: int = 0
     missing_references: Dict[str, list[str]] = field(default_factory=dict)
     unresolved_by_name: Dict[str, list[str]] = field(default_factory=dict)
+    update_reasons: Dict[str, list[int]] = field(default_factory=dict)
+    truncations: Dict[int, List["TruncationInfo"]] = field(default_factory=dict)
+
+    not_imported: Dict[int, "NotImportedInfo"] = field(default_factory=dict)
+
+
+
+@dataclass
+class TruncationInfo:
+    column: str
+    max_length: int
+    original_length: int
+
+
+@dataclass
+class NotImportedInfo:
+    label: str
+    reason: str
+
 
 
 COLUMN_MAP: Dict[str, str] = {
@@ -329,18 +351,83 @@ class ReferenceCache:
         )
 
 
+class ProductValueSanitizer:
+    """S'assure que les valeurs texte respectent les contraintes de longueur."""
+
+    def __init__(self, cursor):
+        self.max_lengths = self._load_column_lengths(cursor)
+
+    def _load_column_lengths(self, cursor) -> Dict[str, Optional[int]]:
+        cursor.execute(
+            """
+            SELECT column_name, character_maximum_length
+              FROM information_schema.columns
+             WHERE table_schema = 'public' AND table_name = 'products'
+            """
+        )
+        lengths: Dict[str, Optional[int]] = {}
+        for row in cursor.fetchall():
+            lengths[row["column_name"]] = row["character_maximum_length"]
+        return lengths
+
+    def sanitize(
+        self, values: Dict[str, Optional[str]]
+    ) -> Tuple[Dict[str, Optional[str]], List[TruncationInfo]]:
+        sanitized = dict(values)
+        truncations: List[TruncationInfo] = []
+        for column, value in values.items():
+            if value is None:
+                continue
+            max_length = self.max_lengths.get(column)
+            if max_length and len(value) > max_length:
+                sanitized[column] = value[:max_length].rstrip()
+                truncations.append(
+                    TruncationInfo(
+                        column=column,
+                        max_length=max_length,
+                        original_length=len(value),
+                    )
+                )
+        return sanitized, truncations
+
+
 def _find_product_id(
-    cursor, ean: Optional[str], model: Optional[str], brand_id: Optional[int]
-) -> Optional[int]:
-    """Tenter de retrouver un produit existant."""
+    cursor,
+    ean: Optional[str],
+    name: Optional[str],
+    model: Optional[str],
+    brand_id: Optional[int],
+) -> Tuple[Optional[int], Optional[str]]:
+    """Tenter de retrouver un produit existant et indiquer la logique utilisée."""
 
     if ean:
         cursor.execute("SELECT id FROM products WHERE ean = %s", (ean,))
         row = cursor.fetchone()
         if row:
-            return row["id"]
+            return row["id"], "ean"
 
-    if model:
+    search_label = name or model
+    if search_label:
+        if brand_id:
+            cursor.execute(
+                """
+                SELECT id FROM products
+                 WHERE LOWER(description) = LOWER(%s) AND brand_id = %s
+                """,
+                (search_label, brand_id),
+            )
+            reason = "name+brand"
+        else:
+            cursor.execute(
+                "SELECT id FROM products WHERE LOWER(description) = LOWER(%s)",
+                (search_label,),
+            )
+            reason = "name"
+        row = cursor.fetchone()
+        if row:
+            return row["id"], reason
+
+    if model and not name:
         if brand_id:
             cursor.execute(
                 "SELECT id FROM products WHERE LOWER(model) = LOWER(%s) AND brand_id = %s",
@@ -353,12 +440,16 @@ def _find_product_id(
             )
         row = cursor.fetchone()
         if row:
-            return row["id"]
-    return None
+            return row["id"], "model"
+    return None, None
 
 
 def process_csv(
-    conn: connection, csv_path: str, delimiter: str, default_tcp: int
+    conn: connection,
+    csv_path: str,
+    delimiter: str,
+    default_tcp: int,
+    missing_report_path: Optional[str] = None,
 ) -> ImportStats:
     stats = ImportStats()
     errors: list[str] = []
@@ -383,6 +474,7 @@ def process_csv(
 
         with conn.cursor() as cursor:
             ref_cache = ReferenceCache(cursor, default_tcp=default_tcp)
+            sanitizer = ProductValueSanitizer(cursor)
 
             for index, row in enumerate(
                 reader, start=2
@@ -398,7 +490,12 @@ def process_csv(
                 model = normalized.get("model") or description
 
                 if not description and not model:
+                    product_label = normalized.get("name") or normalized.get("model") or "(inconnu)"
                     stats.skipped += 1
+                    stats.not_imported[index] = NotImportedInfo(
+                        label=product_label,
+                        reason="Nom et modèle absents après nettoyage",
+                    )
                     continue
 
                 name_hint = description or model
@@ -417,7 +514,24 @@ def process_csv(
                 ean = normalized.get("ean")
                 part_number = normalized.get("part_number")
 
-                product_id = _find_product_id(cursor, ean, model, brand_id)
+                sanitized_strings, truncations = sanitizer.sanitize(
+                    {
+                        "description": description,
+                        "model": model,
+                        "ean": ean,
+                        "part_number": part_number,
+                    }
+                )
+                description = sanitized_strings.get("description")
+                model = sanitized_strings.get("model") or description
+                ean = sanitized_strings.get("ean")
+                part_number = sanitized_strings.get("part_number")
+                if truncations:
+                    stats.truncations[index] = truncations
+
+                product_id, match_reason = _find_product_id(
+                    cursor, ean, description, model, brand_id
+                )
 
                 try:
                     if product_id:
@@ -451,6 +565,16 @@ def process_csv(
                             ),
                         )
                         stats.updated += 1
+                        if match_reason == "ean":
+                            stats.updated_by_ean += 1
+                        elif match_reason in {
+                            "name",
+                            "name+brand",
+                            "model",
+                        }:
+                            stats.updated_by_name += 1
+                        if match_reason:
+                            stats.update_reasons.setdefault(match_reason, []).append(index)
                     else:
                         cursor.execute(
                             """
@@ -480,6 +604,11 @@ def process_csv(
                     conn.rollback()
                     stats.errors += 1
                     errors.append(f"Ligne {index}: {exc}")
+                    product_label = description or model or "(inconnu)"
+                    stats.not_imported[index] = NotImportedInfo(
+                        label=product_label,
+                        reason=f"Erreur lors de l'écriture en base: {exc}",
+                    )
 
             if stats.errors:
                 print("\n❌ Des erreurs ont été rencontrées lors de l'import :")
@@ -489,6 +618,10 @@ def process_csv(
             print("\n📊 Résumé de l'import :")
             print(f"   ➕ Produits insérés : {stats.inserted}")
             print(f"   🔁 Produits mis à jour : {stats.updated}")
+            if stats.updated:
+                print(
+                    f"      ↳ dont {stats.updated_by_ean} par EAN et {stats.updated_by_name} par nom"
+                )
             print(f"   ⏭️  Produits ignorés : {stats.skipped}")
             print(f"   ⚠️  Lignes en erreur : {stats.errors}")
 
@@ -503,7 +636,9 @@ def process_csv(
                 if values
             }
 
-            if stats.missing_references or stats.unresolved_by_name:
+            has_missing = bool(stats.missing_references or stats.unresolved_by_name)
+
+            if has_missing:
                 print("\n⚠️  Références manquantes ou non résolues :")
                 for table, values in stats.missing_references.items():
                     joined = ", ".join(values)
@@ -514,7 +649,52 @@ def process_csv(
             else:
                 print("\n✅ Toutes les références nécessaires ont été trouvées.")
 
+            if missing_report_path:
+                _write_missing_report(missing_report_path, stats, has_missing)
+
+            if stats.update_reasons:
+                print("\nℹ️  Détails des mises à jour :")
+                for reason, lines in stats.update_reasons.items():
+                    joined = ", ".join(str(line) for line in lines)
+                    print(f"   - {reason}: lignes {joined}")
+
+            if stats.truncations:
+                print("\n✂️  Valeurs tronquées pour respecter les contraintes :")
+                for line, infos in sorted(stats.truncations.items()):
+                    details = ", ".join(
+                        f"{info.column} (max {info.max_length}, initiale {info.original_length} caractères)"
+                        for info in infos
+                    )
+                    print(f"   - Ligne {line}: {details}")
+
+            if stats.not_imported:
+                print("\n🚫 Produits non importés :")
+                for line, info in sorted(stats.not_imported.items()):
+                    label = info.label.strip()
+                    display = f" ({label})" if label and label != "(inconnu)" else ""
+                    print(f"   - Ligne {line}{display}: {info.reason}")
+
+
     return stats
+
+
+def _write_missing_report(path: str, stats: ImportStats, has_missing: bool) -> None:
+    """Sauvegarder les références manquantes ou confirmées dans un fichier JSON."""
+
+    directory = os.path.dirname(path)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+
+    payload = {
+        "missing_references": stats.missing_references,
+        "unresolved_by_name": stats.unresolved_by_name,
+    }
+
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, ensure_ascii=False, indent=2, sort_keys=True)
+
+    status = "enregistré" if has_missing else "créé (aucune référence manquante)"
+    print(f"   → Rapport {status} dans : {os.path.abspath(path)}")
 
 
 def main() -> None:
@@ -533,6 +713,10 @@ def main() -> None:
         default=0,
         help="Valeur TCP par défaut pour les nouvelles capacités mémoire",
     )
+    parser.add_argument(
+        "--missing-report",
+        help="Chemin du fichier JSON où enregistrer les références manquantes",
+    )
     args = parser.parse_args()
 
     csv_path = os.path.abspath(args.csv)
@@ -545,7 +729,13 @@ def main() -> None:
     print("🚀 Début de l'import des produits de référence...")
     conn = _connect()
     try:
-        process_csv(conn, csv_path, args.delimiter, args.default_tcp)
+        process_csv(
+            conn,
+            csv_path,
+            args.delimiter,
+            args.default_tcp,
+            args.missing_report,
+        )
     finally:
         conn.close()
         print("✅ Import terminé")

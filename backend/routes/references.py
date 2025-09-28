@@ -35,6 +35,19 @@ def _model_mapping():
     }
 
 
+def _sanitize_supplier_data(data):
+    sanitized = {}
+    for key, value in data.items():
+        if isinstance(value, str):
+            value = value.strip()
+            if key in {"email", "phone", "address"} and value == "":
+                value = None
+            if key == "name" and value == "":
+                value = None
+        sanitized[key] = value
+    return sanitized
+
+
 def _update_products_for_color_translation(sources, target_color_id):
     if not target_color_id:
         return
@@ -144,6 +157,8 @@ def update_reference_item(table, item_id):
         return jsonify({"error": "Table inconnue"}), 400
     item = model.query.get_or_404(item_id)
     data = request.json or {}
+    if table == "suppliers":
+        data = _sanitize_supplier_data(data)
     old_source = None
     if isinstance(item, ColorTranslation):
         old_source = item.color_source
@@ -189,6 +204,8 @@ def create_reference_item(table):
     if not model:
         return jsonify({"error": "Table inconnue"}), 400
     data = request.json or {}
+    if table == "suppliers":
+        data = _sanitize_supplier_data(data)
     item = model(**data)
     db.session.add(item)
     try:
