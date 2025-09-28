@@ -406,42 +406,41 @@ def _find_product_id(
         if row:
             return row["id"], "ean"
 
-    if name:
+    search_label = name or model
+    if search_label:
         if brand_id:
             cursor.execute(
                 """
                 SELECT id FROM products
                  WHERE LOWER(description) = LOWER(%s) AND brand_id = %s
                 """,
-                (name, brand_id),
+                (search_label, brand_id),
             )
             reason = "name+brand"
         else:
             cursor.execute(
                 "SELECT id FROM products WHERE LOWER(description) = LOWER(%s)",
-                (name,),
+                (search_label,),
             )
             reason = "name"
         row = cursor.fetchone()
         if row:
             return row["id"], reason
 
-    if model:
+    if model and not name:
         if brand_id:
             cursor.execute(
                 "SELECT id FROM products WHERE LOWER(model) = LOWER(%s) AND brand_id = %s",
                 (model, brand_id),
             )
-            reason = "model+brand"
         else:
             cursor.execute(
                 "SELECT id FROM products WHERE LOWER(model) = LOWER(%s)",
                 (model,),
             )
-            reason = "model"
         row = cursor.fetchone()
         if row:
-            return row["id"], reason
+            return row["id"], "model"
     return None, None
 
 
@@ -572,7 +571,6 @@ def process_csv(
                             "name",
                             "name+brand",
                             "model",
-                            "model+brand",
                         }:
                             stats.updated_by_name += 1
                         if match_reason:
