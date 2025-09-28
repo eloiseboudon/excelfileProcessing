@@ -30,12 +30,22 @@ class ImportStats:
     update_reasons: Dict[str, list[int]] = field(default_factory=dict)
     truncations: Dict[int, List["TruncationInfo"]] = field(default_factory=dict)
 
+    not_imported: Dict[int, "NotImportedInfo"] = field(default_factory=dict)
+
+
 
 @dataclass
 class TruncationInfo:
     column: str
     max_length: int
     original_length: int
+
+
+@dataclass
+class NotImportedInfo:
+    label: str
+    reason: str
+
 
 
 COLUMN_MAP: Dict[str, str] = {
@@ -452,7 +462,12 @@ def process_csv(
                 model = normalized.get("model") or description
 
                 if not description and not model:
+                    product_label = normalized.get("name") or normalized.get("model") or "(inconnu)"
                     stats.skipped += 1
+                    stats.not_imported[index] = NotImportedInfo(
+                        label=product_label,
+                        reason="Nom et modèle absents après nettoyage",
+                    )
                     continue
 
                 name_hint = description or model
@@ -557,6 +572,11 @@ def process_csv(
                     conn.rollback()
                     stats.errors += 1
                     errors.append(f"Ligne {index}: {exc}")
+                    product_label = description or model or "(inconnu)"
+                    stats.not_imported[index] = NotImportedInfo(
+                        label=product_label,
+                        reason=f"Erreur lors de l'écriture en base: {exc}",
+                    )
 
             if stats.errors:
                 print("\n❌ Des erreurs ont été rencontrées lors de l'import :")
@@ -609,6 +629,14 @@ def process_csv(
                         for info in infos
                     )
                     print(f"   - Ligne {line}: {details}")
+
+            if stats.not_imported:
+                print("\n🚫 Produits non importés :")
+                for line, info in sorted(stats.not_imported.items()):
+                    label = info.label.strip()
+                    display = f" ({label})" if label and label != "(inconnu)" else ""
+                    print(f"   - Ligne {line}{display}: {info.reason}")
+
 
     return stats
 
