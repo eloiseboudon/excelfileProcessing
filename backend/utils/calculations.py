@@ -1,4 +1,5 @@
 import math
+import re
 from datetime import datetime, timezone
 from typing import Dict, Iterable, Tuple
 
@@ -14,6 +15,7 @@ from models import (
     TemporaryImport,
     db,
 )
+from sqlalchemy import or_
 
 
 def _load_mappings() -> Dict[str, Iterable[Tuple[str, int]]]:
@@ -102,7 +104,25 @@ def recalculate_product_calculations():
                     query = query.filter(Product.memory_id == temp.memory_id)
                 if temp.color_id is not None:
                     query = query.filter(Product.color_id == temp.color_id)
-                query = query.filter(Product.model.ilike(f"%{temp.model}%"))
+
+                terms: set[str] = set()
+                for value in (temp.model, temp.description):
+                    if not value:
+                        continue
+                    for part in re.split(r"[\s,;:/\\-]+", value):
+                        normalized = part.strip()
+                        if len(normalized) < 3:
+                            continue
+                        terms.add(normalized)
+
+                if terms:
+                    like_filters = []
+                    for term in terms:
+                        pattern = f"%{term}%"
+                        like_filters.append(Product.model.ilike(pattern))
+                        like_filters.append(Product.description.ilike(pattern))
+                    query = query.filter(or_(*like_filters))
+
             product = query.first()
 
         # if not product and temp.type_id is not None:
