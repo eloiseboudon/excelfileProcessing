@@ -29,7 +29,9 @@ class ImportStats:
     unresolved_by_name: Dict[str, list[str]] = field(default_factory=dict)
     update_reasons: Dict[str, list[int]] = field(default_factory=dict)
     truncations: Dict[int, List["TruncationInfo"]] = field(default_factory=dict)
+
     not_imported: Dict[int, "NotImportedInfo"] = field(default_factory=dict)
+
 
 
 @dataclass
@@ -43,6 +45,7 @@ class TruncationInfo:
 class NotImportedInfo:
     label: str
     reason: str
+
 
 
 COLUMN_MAP: Dict[str, str] = {
@@ -633,6 +636,7 @@ def process_csv(
                     label = info.label.strip()
                     display = f" ({label})" if label and label != "(inconnu)" else ""
                     print(f"   - Ligne {line}{display}: {info.reason}")
+
 
     return stats
 
