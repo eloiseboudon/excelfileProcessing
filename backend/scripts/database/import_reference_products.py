@@ -23,7 +23,7 @@ class ImportStats:
     inserted: int = 0
     updated: int = 0
     updated_by_ean: int = 0
-    updated_by_model: int = 0
+    updated_by_name: int = 0
     skipped: int = 0
     errors: int = 0
     missing_references: Dict[str, list[str]] = field(default_factory=dict)
@@ -392,7 +392,11 @@ class ProductValueSanitizer:
 
 
 def _find_product_id(
-    cursor, ean: Optional[str], model: Optional[str], brand_id: Optional[int]
+    cursor,
+    ean: Optional[str],
+    name: Optional[str],
+    model: Optional[str],
+    brand_id: Optional[int],
 ) -> Tuple[Optional[int], Optional[str]]:
     """Tenter de retrouver un produit existant et indiquer la logique utilisée."""
 
@@ -401,6 +405,26 @@ def _find_product_id(
         row = cursor.fetchone()
         if row:
             return row["id"], "ean"
+
+    if name:
+        if brand_id:
+            cursor.execute(
+                """
+                SELECT id FROM products
+                 WHERE LOWER(description) = LOWER(%s) AND brand_id = %s
+                """,
+                (name, brand_id),
+            )
+            reason = "name+brand"
+        else:
+            cursor.execute(
+                "SELECT id FROM products WHERE LOWER(description) = LOWER(%s)",
+                (name,),
+            )
+            reason = "name"
+        row = cursor.fetchone()
+        if row:
+            return row["id"], reason
 
     if model:
         if brand_id:
@@ -507,7 +531,7 @@ def process_csv(
                     stats.truncations[index] = truncations
 
                 product_id, match_reason = _find_product_id(
-                    cursor, ean, model, brand_id
+                    cursor, ean, description, model, brand_id
                 )
 
                 try:
@@ -544,8 +568,13 @@ def process_csv(
                         stats.updated += 1
                         if match_reason == "ean":
                             stats.updated_by_ean += 1
-                        elif match_reason in {"model", "model+brand"}:
-                            stats.updated_by_model += 1
+                        elif match_reason in {
+                            "name",
+                            "name+brand",
+                            "model",
+                            "model+brand",
+                        }:
+                            stats.updated_by_name += 1
                         if match_reason:
                             stats.update_reasons.setdefault(match_reason, []).append(index)
                     else:
@@ -593,7 +622,7 @@ def process_csv(
             print(f"   🔁 Produits mis à jour : {stats.updated}")
             if stats.updated:
                 print(
-                    f"      ↳ dont {stats.updated_by_ean} par EAN et {stats.updated_by_model} par modèle"
+                    f"      ↳ dont {stats.updated_by_ean} par EAN et {stats.updated_by_name} par nom"
                 )
             print(f"   ⏭️  Produits ignorés : {stats.skipped}")
             print(f"   ⚠️  Lignes en erreur : {stats.errors}")
