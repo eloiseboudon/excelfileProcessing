@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import os
 import sys
 import unicodedata
@@ -421,7 +422,11 @@ def _find_product_id(
 
 
 def process_csv(
-    conn: connection, csv_path: str, delimiter: str, default_tcp: int
+    conn: connection,
+    csv_path: str,
+    delimiter: str,
+    default_tcp: int,
+    missing_report_path: Optional[str] = None,
 ) -> ImportStats:
     stats = ImportStats()
     errors: list[str] = []
@@ -604,7 +609,9 @@ def process_csv(
                 if values
             }
 
-            if stats.missing_references or stats.unresolved_by_name:
+            has_missing = bool(stats.missing_references or stats.unresolved_by_name)
+
+            if has_missing:
                 print("\n⚠️  Références manquantes ou non résolues :")
                 for table, values in stats.missing_references.items():
                     joined = ", ".join(values)
@@ -614,6 +621,9 @@ def process_csv(
                     print(f"   - {table} (d'après le nom): {joined}")
             else:
                 print("\n✅ Toutes les références nécessaires ont été trouvées.")
+
+            if missing_report_path:
+                _write_missing_report(missing_report_path, stats, has_missing)
 
             if stats.update_reasons:
                 print("\nℹ️  Détails des mises à jour :")
@@ -641,6 +651,25 @@ def process_csv(
     return stats
 
 
+def _write_missing_report(path: str, stats: ImportStats, has_missing: bool) -> None:
+    """Sauvegarder les références manquantes ou confirmées dans un fichier JSON."""
+
+    directory = os.path.dirname(path)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+
+    payload = {
+        "missing_references": stats.missing_references,
+        "unresolved_by_name": stats.unresolved_by_name,
+    }
+
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, ensure_ascii=False, indent=2, sort_keys=True)
+
+    status = "enregistré" if has_missing else "créé (aucune référence manquante)"
+    print(f"   → Rapport {status} dans : {os.path.abspath(path)}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Importer des produits de référence en base"
@@ -657,6 +686,10 @@ def main() -> None:
         default=0,
         help="Valeur TCP par défaut pour les nouvelles capacités mémoire",
     )
+    parser.add_argument(
+        "--missing-report",
+        help="Chemin du fichier JSON où enregistrer les références manquantes",
+    )
     args = parser.parse_args()
 
     csv_path = os.path.abspath(args.csv)
@@ -669,7 +702,13 @@ def main() -> None:
     print("🚀 Début de l'import des produits de référence...")
     conn = _connect()
     try:
-        process_csv(conn, csv_path, args.delimiter, args.default_tcp)
+        process_csv(
+            conn,
+            csv_path,
+            args.delimiter,
+            args.default_tcp,
+            args.missing_report,
+        )
     finally:
         conn.close()
         print("✅ Import terminé")
