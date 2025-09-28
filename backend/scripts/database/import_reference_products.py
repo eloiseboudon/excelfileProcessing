@@ -9,7 +9,7 @@ import os
 import sys
 import unicodedata
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, Optional, Set, Tuple
+from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 import psycopg2
 from dotenv import load_dotenv
@@ -28,6 +28,14 @@ class ImportStats:
     missing_references: Dict[str, list[str]] = field(default_factory=dict)
     unresolved_by_name: Dict[str, list[str]] = field(default_factory=dict)
     update_reasons: Dict[str, list[int]] = field(default_factory=dict)
+    truncations: Dict[int, List["TruncationInfo"]] = field(default_factory=dict)
+
+
+@dataclass
+class TruncationInfo:
+    column: str
+    max_length: int
+    original_length: int
 
 
 COLUMN_MAP: Dict[str, str] = {
@@ -332,6 +340,46 @@ class ReferenceCache:
         )
 
 
+class ProductValueSanitizer:
+    """S'assure que les valeurs texte respectent les contraintes de longueur."""
+
+    def __init__(self, cursor):
+        self.max_lengths = self._load_column_lengths(cursor)
+
+    def _load_column_lengths(self, cursor) -> Dict[str, Optional[int]]:
+        cursor.execute(
+            """
+            SELECT column_name, character_maximum_length
+              FROM information_schema.columns
+             WHERE table_schema = 'public' AND table_name = 'products'
+            """
+        )
+        lengths: Dict[str, Optional[int]] = {}
+        for row in cursor.fetchall():
+            lengths[row["column_name"]] = row["character_maximum_length"]
+        return lengths
+
+    def sanitize(
+        self, values: Dict[str, Optional[str]]
+    ) -> Tuple[Dict[str, Optional[str]], List[TruncationInfo]]:
+        sanitized = dict(values)
+        truncations: List[TruncationInfo] = []
+        for column, value in values.items():
+            if value is None:
+                continue
+            max_length = self.max_lengths.get(column)
+            if max_length and len(value) > max_length:
+                sanitized[column] = value[:max_length].rstrip()
+                truncations.append(
+                    TruncationInfo(
+                        column=column,
+                        max_length=max_length,
+                        original_length=len(value),
+                    )
+                )
+        return sanitized, truncations
+
+
 def _find_product_id(
     cursor, ean: Optional[str], model: Optional[str], brand_id: Optional[int]
 ) -> Tuple[Optional[int], Optional[str]]:
@@ -388,6 +436,7 @@ def process_csv(
 
         with conn.cursor() as cursor:
             ref_cache = ReferenceCache(cursor, default_tcp=default_tcp)
+            sanitizer = ProductValueSanitizer(cursor)
 
             for index, row in enumerate(
                 reader, start=2
@@ -421,6 +470,21 @@ def process_csv(
 
                 ean = normalized.get("ean")
                 part_number = normalized.get("part_number")
+
+                sanitized_strings, truncations = sanitizer.sanitize(
+                    {
+                        "description": description,
+                        "model": model,
+                        "ean": ean,
+                        "part_number": part_number,
+                    }
+                )
+                description = sanitized_strings.get("description")
+                model = sanitized_strings.get("model") or description
+                ean = sanitized_strings.get("ean")
+                part_number = sanitized_strings.get("part_number")
+                if truncations:
+                    stats.truncations[index] = truncations
 
                 product_id, match_reason = _find_product_id(
                     cursor, ean, model, brand_id
@@ -536,6 +600,15 @@ def process_csv(
                 for reason, lines in stats.update_reasons.items():
                     joined = ", ".join(str(line) for line in lines)
                     print(f"   - {reason}: lignes {joined}")
+
+            if stats.truncations:
+                print("\n✂️  Valeurs tronquées pour respecter les contraintes :")
+                for line, infos in sorted(stats.truncations.items()):
+                    details = ", ".join(
+                        f"{info.column} (max {info.max_length}, initiale {info.original_length} caractères)"
+                        for info in infos
+                    )
+                    print(f"   - Ligne {line}: {details}")
 
     return stats
 
