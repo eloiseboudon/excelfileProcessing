@@ -79,6 +79,13 @@ psql -U ajt_user -d ajt_db
 ```
 docker exec -it postgres_prod psql -U ajt_user -d ajt_db
 
+
+### 📚 Ajout des données initiales
+docker exec -it ajt_backend_prod python scripts/database/users.py
+#### Import produits à partir d'un fichier
+docker exec -it ajt_backend_prod python scripts/database/import_reference_products.py scripts/files/Produits_final_unique_20250923.csv --delimiter ";" --default-tcp 0
+
+
 ### 🔧 Création manuelle
 ```sql
 CREATE ROLE ajt_user WITH LOGIN PASSWORD 'ajt_password';
