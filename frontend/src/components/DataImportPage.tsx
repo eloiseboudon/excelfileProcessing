@@ -4,7 +4,7 @@ import ProcessingPage from './ProcessingPage';
 import StatisticsPage from './StatisticsPage';
 import SupplierApiSyncPanel from './SupplierApiSyncPanel';
 
-type DataImportSection = 'update' | 'reports';
+type DataImportSection = 'update' | 'statistics';
 type UpdateStep = 'processing' | 'formatting';
 
 function DataImportPage() {
@@ -25,10 +25,10 @@ function DataImportPage() {
               Mise à jour des données
             </button>
             <button
-              onClick={() => setActiveSection('reports')}
-              className={`btn px-5 py-2 ${activeSection === 'reports' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveSection('statistics')}
+              className={`btn px-5 py-2 ${activeSection === 'statistics' ? 'btn-primary' : 'btn-secondary'}`}
             >
-              Rapports
+              Statistiques
             </button>
           </div>
         </div>
