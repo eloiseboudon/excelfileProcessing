@@ -1,14 +1,24 @@
 import os
 from datetime import datetime
-from typing import Any, Iterable
+from typing import Any
 
 import pandas as pd
-import requests
 from flask import Blueprint, current_app, jsonify, request
-from models import FormatImport, ImportHistory, Supplier, TemporaryImport, db
-from sqlalchemy import extract
+from models import (
+    ApiEndpoint,
+    ApiFetchJob,
+    FormatImport,
+    ImportHistory,
+    MappingVersion,
+    Supplier,
+    SupplierAPI,
+    TemporaryImport,
+    db,
+)
+from sqlalchemy import extract, func
 from utils.auth import token_required
 from utils.calculations import recalculate_product_calculations
+from utils.etl import run_fetch_job
 
 
 def _normalize_column_key(name: str | None) -> str:
@@ -17,45 +27,49 @@ def _normalize_column_key(name: str | None) -> str:
     return "".join(ch for ch in (name or "").lower() if ch.isalnum())
 
 
-def _resolve_supplier_api_endpoint(supplier: Supplier, override: str | None = None) -> str | None:
-    """Return the configured endpoint for a supplier API call."""
-
-    if override:
-        return override
-
-    base_key = f"SUPPLIER_API_URL_{supplier.id}"
-    name_key = "SUPPLIER_API_URL_" + "".join(
-        ch if ch.isalnum() else "_" for ch in (supplier.name or "").upper()
+def _select_endpoint(
+    supplier_id: int,
+    endpoint_id: int | None,
+    endpoint_name: str | None,
+) -> ApiEndpoint | None:
+    base_query = (
+        ApiEndpoint.query.join(SupplierAPI).filter(SupplierAPI.supplier_id == supplier_id)
     )
 
-    return os.environ.get(base_key) or os.environ.get(name_key)
+    if endpoint_id is not None:
+        endpoint = base_query.filter(ApiEndpoint.id == endpoint_id).first()
+        if endpoint:
+            return endpoint
+
+    if endpoint_name:
+        endpoint = (
+            base_query.filter(
+                func.lower(ApiEndpoint.name) == endpoint_name.strip().lower()
+            )
+            .order_by(ApiEndpoint.id.asc())
+            .first()
+        )
+        if endpoint:
+            return endpoint
+
+    endpoints = base_query.all()
+    if len(endpoints) == 1:
+        return endpoints[0]
+    return None
 
 
-def _coerce_int(value: Any) -> int | None:
-    try:
-        if value is None:
-            return None
-        return int(float(value))
-    except (TypeError, ValueError):
-        return None
+def _select_mapping(endpoint: ApiEndpoint, mapping_version_id: int | None) -> MappingVersion | None:
+    query = MappingVersion.query.filter_by(supplier_api_id=endpoint.supplier_api_id)
+    if mapping_version_id is not None:
+        mapping = query.filter_by(id=mapping_version_id).first()
+        if mapping:
+            return mapping
 
-
-def _coerce_float(value: Any) -> float | None:
-    try:
-        if value is None:
-            return None
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _extract_rows(payload: Any) -> Iterable[dict[str, Any]]:
-    if isinstance(payload, dict):
-        yield payload
-    elif isinstance(payload, list):
-        for item in payload:
-            if isinstance(item, dict):
-                yield item
+    return (
+        query.filter_by(is_active=True)
+        .order_by(MappingVersion.version.desc(), MappingVersion.id.desc())
+        .first()
+    )
 
 
 
@@ -144,82 +158,73 @@ def fetch_supplier_api(supplier_id: int):
         return jsonify({"error": "Fournisseur introuvable"}), 404
 
     body = request.get_json(silent=True) or {}
-    endpoint = _resolve_supplier_api_endpoint(supplier, body.get("endpoint"))
-    if not endpoint:
-        return jsonify({"error": "Aucun endpoint API configuré pour ce fournisseur"}), 400
 
-    try:
-        response = requests.get(endpoint, timeout=30)
-        response.raise_for_status()
-    except requests.exceptions.RequestException as exc:  # pragma: no cover - network errors
-        current_app.logger.exception("Supplier API request failed: %s", exc)
-        return jsonify({"error": "Impossible de contacter l'API fournisseur"}), 502
+    endpoint_id = body.get("endpoint_id")
+    if isinstance(endpoint_id, str):
+        endpoint_id = int(endpoint_id) if endpoint_id.isdigit() else None
+    elif not isinstance(endpoint_id, int):
+        endpoint_id = None
 
-    try:
-        payload = response.json()
-    except ValueError:  # pragma: no cover - invalid json
-        current_app.logger.exception("Invalid JSON returned by supplier API")
-        return jsonify({"error": "Réponse JSON invalide reçue depuis l'API fournisseur"}), 502
+    endpoint_name = body.get("endpoint_name")
+    if not isinstance(endpoint_name, str):
+        endpoint_name = None
 
-    rows = list(_extract_rows(payload))
-    if not rows:
-        return jsonify({"error": "Aucune donnée retournée par l'API fournisseur"}), 404
-
-    TemporaryImport.query.filter_by(supplier_id=supplier_id).delete(synchronize_session=False)
-    db.session.commit()
-
-    saved_rows: list[dict[str, Any]] = []
-    seen_keys: set[tuple[str | None, int]] = set()
-
-    for item in rows:
-        quantity = _coerce_int(item.get("quantity") or item.get("stock"))
-        price = _coerce_float(item.get("selling_price") or item.get("sellingprice"))
-        description = item.get("description") or item.get("model") or ""
-        ean = item.get("ean") or item.get("articelno")
-        if ean is not None:
-            ean = str(ean)
-        part_number = item.get("part_number") or item.get("partnumber")
-        if part_number is not None:
-            part_number = str(part_number)
-
-        key = (ean or part_number, supplier_id)
-        if key in seen_keys:
-            continue
-        seen_keys.add(key)
-
-        temp = TemporaryImport(
-            supplier_id=supplier_id,
-            description=description,
-            model=description,
-            quantity=quantity or 0,
-            selling_price=price or 0.0,
-            ean=ean,
-            part_number=part_number,
+    mapping_version_id = body.get("mapping_version_id")
+    if isinstance(mapping_version_id, str):
+        mapping_version_id = (
+            int(mapping_version_id) if mapping_version_id.isdigit() else None
         )
-        db.session.add(temp)
-        saved_rows.append(
-            {
-                "description": description,
-                "quantity": temp.quantity,
-                "selling_price": temp.selling_price,
-                "ean": ean,
-                "part_number": part_number,
-            }
-        )
+    elif not isinstance(mapping_version_id, int):
+        mapping_version_id = None
 
-    db.session.commit()
-
-    return (
-        jsonify(
-            {
-                "supplier_id": supplier_id,
-                "supplier": supplier.name,
-                "rows": saved_rows,
-                "count": len(saved_rows),
-            }
-        ),
-        200,
+    endpoint = _select_endpoint(
+        supplier_id,
+        endpoint_id,
+        endpoint_name,
     )
+    if not endpoint:
+        return (
+            jsonify(
+                {
+                    "error": "Endpoint API introuvable. Précisez endpoint_id ou endpoint_name."
+                }
+            ),
+            400,
+        )
+
+    mapping = _select_mapping(endpoint, mapping_version_id)
+    if not mapping:
+        return (
+            jsonify({"error": "Aucun mapping actif trouvé pour cet endpoint"}),
+            400,
+        )
+
+    job = ApiFetchJob(
+        supplier_api_id=endpoint.supplier_api_id,
+        endpoint_id=endpoint.id,
+        status="running",
+    )
+    db.session.add(job)
+    db.session.commit()
+
+    query_overrides = (
+        body.get("query_params") if isinstance(body.get("query_params"), dict) else None
+    )
+    body_overrides = body.get("body") if isinstance(body.get("body"), dict) else None
+
+    try:
+        result = run_fetch_job(
+            job_id=job.id,
+            supplier_id=supplier_id,
+            endpoint_id=endpoint.id,
+            mapping_id=mapping.id,
+            query_overrides=query_overrides,
+            body_overrides=body_overrides,
+        )
+    except RuntimeError as exc:
+        return jsonify({"error": str(exc)}), 502
+
+    return jsonify(result), 200
 
 
 @bp.route("/import_preview", methods=["POST"])
