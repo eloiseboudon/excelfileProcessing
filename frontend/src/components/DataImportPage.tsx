@@ -10,6 +10,8 @@ type UpdateStep = 'processing' | 'formatting';
 function DataImportPage() {
   const [activeSection, setActiveSection] = useState<DataImportSection>('update');
   const [updateStep, setUpdateStep] = useState<UpdateStep>('processing');
+  // Temporary flag to hide the legacy "Calculs et traitements" workflow while preserving the code.
+  const showUpdateWorkflow = false;
 
   return (
     <div className="flex-1 flex flex-col">
@@ -36,13 +38,15 @@ function DataImportPage() {
         {activeSection === 'update' ? (
           <>
             <SupplierApiSyncPanel />
-            <div className="mt-6">
-              {updateStep === 'processing' ? (
-                <ProcessingPage onNext={() => setUpdateStep('formatting')} />
-              ) : (
-                <FormattingPage onBack={() => setUpdateStep('processing')} />
-              )}
-            </div>
+            {showUpdateWorkflow && (
+              <div className="mt-6">
+                {updateStep === 'processing' ? (
+                  <ProcessingPage onNext={() => setUpdateStep('formatting')} />
+                ) : (
+                  <FormattingPage onBack={() => setUpdateStep('processing')} />
+                )}
+              </div>
+            )}
           </>
         ) : (
           <StatisticsPage />
