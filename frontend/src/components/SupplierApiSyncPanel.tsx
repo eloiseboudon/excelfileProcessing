@@ -105,7 +105,9 @@ function SupplierApiSyncPanel() {
               ) : (
                 <RefreshCcw className="w-4 h-4" />
               )}
-              <span>{supplier.name}</span>
+              <span className="text-left">
+                Lancer synchronisation donnée {supplier.name}
+              </span>
             </button>
           ))}
         </div>
