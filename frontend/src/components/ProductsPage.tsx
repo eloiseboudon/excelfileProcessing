@@ -37,7 +37,7 @@ interface AggregatedProduct {
 }
 
 interface ProductsPageProps {
-  onBack: () => void;
+  onBack?: () => void;
   role?: string;
 }
 
@@ -492,13 +492,15 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       <WeekToolbar />
-      <button
-        onClick={onBack}
-        className="btn btn-secondary mb-6"
-      >
-        <ArrowLeft className="w-5 h-5" />
-        <span>Retour</span>
-      </button>
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="btn btn-secondary mb-6"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span>Retour</span>
+        </button>
+      )}
       <h1 className="text-2xl font-bold text-center mb-4">Produits</h1>
       <div className="flex justify-center space-x-4 mb-6">
         <button
