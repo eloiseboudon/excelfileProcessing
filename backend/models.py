@@ -1,7 +1,10 @@
 from datetime import datetime
+from enum import Enum
 
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import check_password_hash, generate_password_hash
+
+from sqlalchemy.dialects.postgresql import JSONB
 
 db = SQLAlchemy()
 
@@ -15,6 +18,174 @@ class Supplier(db.Model):
     phone = db.Column(db.String(20), nullable=True)
     address = db.Column(db.String(200), nullable=True)
 
+
+class AuthType(Enum):
+    NONE = "none"
+    API_KEY = "api_key"
+    BASIC = "basic"
+    OAUTH2 = "oauth2"
+
+
+class PaginationType(Enum):
+    NONE = "none"
+    PAGE = "page"
+    CURSOR = "cursor"
+    LINK_HEADER = "link"
+    OFFSET_LIMIT = "offset"
+
+
+class SupplierAPI(db.Model):
+    __tablename__ = "supplier_apis"
+
+    id = db.Column(db.Integer, primary_key=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=False)
+    supplier = db.relationship("Supplier", backref=db.backref("apis", lazy=True))
+
+    base_url = db.Column(db.String(255), nullable=False)
+    auth_type = db.Column(db.Enum(AuthType), nullable=False, default=AuthType.NONE)
+    auth_config = db.Column(JSONB, nullable=True)
+    default_headers = db.Column(JSONB, nullable=True)
+    rate_limit_per_min = db.Column(db.Integer, nullable=True)
+
+
+class ApiEndpoint(db.Model):
+    __tablename__ = "api_endpoints"
+
+    id = db.Column(db.Integer, primary_key=True)
+    supplier_api_id = db.Column(
+        db.Integer, db.ForeignKey("supplier_apis.id"), nullable=False
+    )
+    supplier_api = db.relationship(
+        "SupplierAPI", backref=db.backref("endpoints", lazy=True)
+    )
+
+    name = db.Column(db.String(100), nullable=False)
+    path = db.Column(db.String(255), nullable=False)
+    method = db.Column(db.String(10), nullable=False, default="GET")
+    query_params = db.Column(JSONB, nullable=True)
+    body_template = db.Column(JSONB, nullable=True)
+    content_type = db.Column(db.String(50), nullable=False, default="application/json")
+
+    pagination_type = db.Column(
+        db.Enum(PaginationType), nullable=False, default=PaginationType.NONE
+    )
+    pagination_config = db.Column(JSONB, nullable=True)
+    items_path = db.Column(db.String(200), nullable=True)
+
+
+class MappingVersion(db.Model):
+    __tablename__ = "mapping_versions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    supplier_api_id = db.Column(
+        db.Integer, db.ForeignKey("supplier_apis.id"), nullable=False
+    )
+    supplier_api = db.relationship(
+        "SupplierAPI", backref=db.backref("mappings", lazy=True)
+    )
+    version = db.Column(db.Integer, nullable=False, default=1)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class FieldMap(db.Model):
+    __tablename__ = "field_maps"
+
+    id = db.Column(db.Integer, primary_key=True)
+    mapping_version_id = db.Column(
+        db.Integer, db.ForeignKey("mapping_versions.id"), nullable=False
+    )
+    mapping_version = db.relationship(
+        "MappingVersion", backref=db.backref("fields", lazy=True)
+    )
+
+    target_field = db.Column(db.String(100), nullable=False)
+    source_path = db.Column(db.String(300), nullable=False)
+    transform = db.Column(JSONB, nullable=True)
+
+
+class ApiFetchJob(db.Model):
+    __tablename__ = "api_fetch_jobs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    supplier_api_id = db.Column(
+        db.Integer, db.ForeignKey("supplier_apis.id"), nullable=False
+    )
+    endpoint_id = db.Column(db.Integer, db.ForeignKey("api_endpoints.id"), nullable=False)
+    started_at = db.Column(db.DateTime, default=datetime.utcnow)
+    ended_at = db.Column(db.DateTime, nullable=True)
+    status = db.Column(db.String(20), default="running")
+    error_message = db.Column(db.Text, nullable=True)
+    params_used = db.Column(JSONB, nullable=True)
+
+
+class RawIngest(db.Model):
+    __tablename__ = "raw_ingests"
+
+    id = db.Column(db.Integer, primary_key=True)
+    job_id = db.Column(db.Integer, db.ForeignKey("api_fetch_jobs.id"), nullable=False)
+    job = db.relationship("ApiFetchJob", backref=db.backref("raw_chunks", lazy=True))
+    fetched_at = db.Column(db.DateTime, default=datetime.utcnow)
+    http_status = db.Column(db.Integer, nullable=True)
+    payload = db.Column(db.LargeBinary, nullable=False)
+    content_type = db.Column(db.String(50), nullable=False)
+    page_index = db.Column(db.Integer, nullable=True)
+    cursor = db.Column(db.String(200), nullable=True)
+
+
+class ParsedItem(db.Model):
+    __tablename__ = "parsed_items"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "supplier_id", "ean", "part_number", "job_id", name="uix_parsed_supplier_ean_part_job"
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    job_id = db.Column(db.Integer, db.ForeignKey("api_fetch_jobs.id"), nullable=False)
+    job = db.relationship("ApiFetchJob", backref=db.backref("parsed_items", lazy=True))
+
+    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=False)
+    supplier = db.relationship("Supplier")
+
+    ean = db.Column(db.String(20))
+    part_number = db.Column(db.String(120))
+    model = db.Column(db.String(250))
+    description = db.Column(db.String(400))
+    brand = db.Column(db.String(100))
+    color = db.Column(db.String(50))
+    memory = db.Column(db.String(50))
+    ram = db.Column(db.String(50))
+    norme = db.Column(db.String(50))
+    device_type = db.Column(db.String(50))
+    quantity = db.Column(db.Integer)
+    purchase_price = db.Column(db.Float)
+    currency = db.Column(db.String(3))
+    recommended_price = db.Column(db.Float)
+    updated_at = db.Column(db.DateTime)
+
+
+class SupplierProductRef(db.Model):
+    __tablename__ = "supplier_product_refs"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "supplier_id",
+            "ean",
+            "part_number",
+            "supplier_sku",
+            name="uix_supplier_ref",
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey("products.id"), nullable=True)
+
+    ean = db.Column(db.String(20), nullable=True)
+    part_number = db.Column(db.String(120), nullable=True)
+    supplier_sku = db.Column(db.String(120), nullable=True)
+
+    last_seen_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class TemporaryImport(db.Model):
     __tablename__ = "temporary_imports"

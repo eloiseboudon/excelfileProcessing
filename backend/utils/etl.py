@@ -1,0 +1,405 @@
+from __future__ import annotations
+
+import re
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from urllib.parse import urljoin
+
+import jmespath
+import requests
+from dateutil import parser as date_parser
+from flask import current_app
+from requests.auth import HTTPBasicAuth
+from sqlalchemy.orm import joinedload
+
+from models import (
+    ApiEndpoint,
+    ApiFetchJob,
+    AuthType,
+    MappingVersion,
+    ParsedItem,
+    RawIngest,
+    Supplier,
+    TemporaryImport,
+    db,
+)
+
+
+_EXPRESSION_CACHE: Dict[str, jmespath.parser.ParsedResult] = {}
+
+
+def _compile_expression(path: str) -> jmespath.parser.ParsedResult:
+    expression = _EXPRESSION_CACHE.get(path)
+    if expression is None:
+        expression = jmespath.compile(path)
+        _EXPRESSION_CACHE[path] = expression
+    return expression
+
+
+def _normalize_source_path(path: str) -> str:
+    cleaned = (path or "").strip()
+    if not cleaned or cleaned == "$":
+        return "@"
+    if cleaned.startswith("$."):
+        cleaned = cleaned[2:]
+    elif cleaned.startswith("$"):
+        cleaned = cleaned[1:]
+    return cleaned or "@"
+
+
+def _search_path(obj: Any, path: str) -> Any:
+    normalized = _normalize_source_path(path)
+    if normalized == "@":
+        return obj
+    expression = _compile_expression(normalized)
+    return expression.search(obj)
+
+
+def _coerce_int(value: Any) -> Optional[int]:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return int(value)
+    try:
+        if isinstance(value, str):
+            value = value.strip()
+            if not value:
+                return None
+            value = value.replace(" ", "")
+            if value.count(",") == 1 and value.count(".") == 0:
+                value = value.replace(",", ".")
+        return int(float(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _coerce_float(value: Any) -> Optional[float]:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return float(int(value))
+    try:
+        if isinstance(value, str):
+            cleaned = value.strip()
+            if not cleaned:
+                return None
+            cleaned = cleaned.replace(" ", "")
+            if cleaned.count(",") == 1 and cleaned.count(".") == 0:
+                cleaned = cleaned.replace(",", ".")
+            value = cleaned
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _stringify(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        cleaned = value.strip()
+        return cleaned or None
+    return str(value)
+
+
+def _parse_datetime(value: Any) -> Optional[datetime]:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, (int, float)):
+        try:
+            return datetime.fromtimestamp(float(value))
+        except (ValueError, OSError, OverflowError):
+            return None
+    if isinstance(value, str):
+        cleaned = value.strip()
+        if not cleaned:
+            return None
+        try:
+            return date_parser.parse(cleaned)
+        except (ValueError, TypeError):
+            return None
+    return None
+
+
+def _apply_transforms(value: Any, transform: Optional[Dict[str, Any]]) -> Any:
+    if not transform or not isinstance(transform, dict):
+        return value
+
+    if transform.get("strip") and isinstance(value, str):
+        value = value.strip()
+    if transform.get("lower") and isinstance(value, str):
+        value = value.lower()
+    if transform.get("upper") and isinstance(value, str):
+        value = value.upper()
+
+    regex_replace = transform.get("regex_replace")
+    if regex_replace and isinstance(value, str):
+        for pattern, repl in regex_replace:
+            value = re.sub(pattern, repl, value)
+
+    if transform.get("decimal_normalize") and isinstance(value, str):
+        value = value.replace(" ", "").replace(",", ".")
+
+    cast_type = transform.get("cast")
+    if cast_type == "int":
+        value = _coerce_int(value)
+    elif cast_type == "float":
+        value = _coerce_float(value)
+    elif cast_type == "str":
+        value = _stringify(value)
+
+    if transform.get("parse_dt"):
+        parsed = _parse_datetime(value)
+        if parsed is not None:
+            value = parsed
+
+    currency = transform.get("currency")
+    if currency and not value:
+        value = currency
+
+    return value
+
+
+def _extract_items(payload: Any, items_path: Optional[str]) -> List[dict[str, Any]]:
+    data: Any = payload
+    if items_path:
+        result = _search_path(payload, items_path)
+        if result is not None:
+            data = result
+
+    if isinstance(data, list):
+        return [item for item in data if isinstance(item, dict)]
+    if isinstance(data, dict):
+        return [data]
+    return []
+
+
+def _prepare_field_maps(mapping: MappingVersion) -> List[FieldMap]:
+    fields = list(mapping.fields or [])
+    fields.sort(key=lambda field: field.id or 0)
+    return fields
+
+
+def _perform_request(
+    supplier_api, endpoint: ApiEndpoint, query: Dict[str, Any], body: Dict[str, Any]
+) -> requests.Response:
+    base_url = supplier_api.base_url.rstrip("/") + "/"
+    url = urljoin(base_url, endpoint.path.lstrip("/"))
+
+    headers = dict(supplier_api.default_headers or {})
+    auth = None
+
+    if supplier_api.auth_type == AuthType.API_KEY:
+        config = supplier_api.auth_config or {}
+        header_name = config.get("header")
+        header_value = config.get("value")
+        if header_name and header_value:
+            headers[header_name] = header_value
+    elif supplier_api.auth_type == AuthType.BASIC:
+        config = supplier_api.auth_config or {}
+        username = config.get("username")
+        password = config.get("password")
+        if username and password:
+            auth = HTTPBasicAuth(username, password)
+    elif supplier_api.auth_type == AuthType.OAUTH2:
+        raise RuntimeError("L'authentification OAuth2 n'est pas encore prise en charge")
+
+    method = (endpoint.method or "GET").upper()
+    timeout = 30
+
+    request_kwargs: Dict[str, Any] = {
+        "headers": headers,
+        "params": query,
+        "timeout": timeout,
+        "auth": auth,
+    }
+
+    if method in {"POST", "PUT", "PATCH"}:
+        if (endpoint.content_type or "").lower() == "application/json":
+            request_kwargs["json"] = body or None
+        else:
+            request_kwargs["data"] = body or None
+
+    response = requests.request(method, url, **request_kwargs)
+    response.raise_for_status()
+    return response
+
+
+def _prepare_temp_row(record: Dict[str, Any]) -> Dict[str, Any]:
+    quantity = _coerce_int(record.get("quantity")) or 0
+    purchase_price = _coerce_float(record.get("purchase_price"))
+    recommended = _coerce_float(record.get("recommended_price"))
+    price = purchase_price if purchase_price is not None else recommended
+    price = price if price is not None else 0.0
+
+    description = _stringify(record.get("description"))
+    model = _stringify(record.get("model")) or description
+
+    return {
+        "description": description,
+        "model": model,
+        "quantity": quantity,
+        "selling_price": price,
+        "ean": _stringify(record.get("ean")),
+        "part_number": _stringify(record.get("part_number")),
+    }
+
+
+def run_fetch_job(
+    job_id: int,
+    supplier_id: int,
+    endpoint_id: int,
+    mapping_id: int,
+    *,
+    query_overrides: Optional[Dict[str, Any]] = None,
+    body_overrides: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    job = ApiFetchJob.query.get(job_id)
+    if not job:
+        raise RuntimeError("Tâche introuvable")
+
+    endpoint = (
+        ApiEndpoint.query.options(joinedload(ApiEndpoint.supplier_api))
+        .filter_by(id=endpoint_id)
+        .first()
+    )
+    if not endpoint:
+        raise RuntimeError("Endpoint introuvable")
+
+    mapping = (
+        MappingVersion.query.options(joinedload(MappingVersion.fields))
+        .filter_by(id=mapping_id)
+        .first()
+    )
+    if not mapping:
+        raise RuntimeError("Aucun mapping disponible pour cet endpoint")
+
+    supplier = Supplier.query.get(supplier_id)
+    if not supplier:
+        raise RuntimeError("Fournisseur introuvable")
+
+    final_query = dict(endpoint.query_params or {})
+    if query_overrides:
+        final_query.update(query_overrides)
+
+    final_body = dict(endpoint.body_template or {})
+    if body_overrides:
+        final_body.update(body_overrides)
+
+    job.params_used = {"query": final_query, "body": final_body, "path": endpoint.path}
+    db.session.add(job)
+    db.session.commit()
+
+    try:
+        response = _perform_request(endpoint.supplier_api, endpoint, final_query, final_body)
+        content_type = response.headers.get("Content-Type", endpoint.content_type)
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise RuntimeError("Réponse JSON invalide reçue depuis l'API fournisseur") from exc
+
+        raw_entry = RawIngest(
+            job_id=job.id,
+            http_status=response.status_code,
+            payload=response.content,
+            content_type=content_type or "application/json",
+            page_index=0,
+        )
+        db.session.add(raw_entry)
+
+        items = _extract_items(payload, endpoint.items_path)
+        if not items:
+            raise RuntimeError("Aucune donnée exploitable retournée par l'API fournisseur")
+
+        field_maps = _prepare_field_maps(mapping)
+        if not field_maps:
+            raise RuntimeError("Aucun mapping de champs n'est défini pour cet endpoint")
+
+        parsed_records: List[Dict[str, Any]] = []
+        for item in items:
+            record: Dict[str, Any] = {}
+            for field in field_maps:
+                value = _search_path(item, field.source_path)
+                value = _apply_transforms(value, field.transform)
+                record[field.target_field] = value
+            parsed_records.append(record)
+
+        TemporaryImport.query.filter_by(supplier_id=supplier_id).delete(synchronize_session=False)
+
+        seen_keys: set[tuple[Optional[str], Optional[str]]] = set()
+        temp_rows: List[Dict[str, Any]] = []
+
+        for record in parsed_records:
+            temp_row = _prepare_temp_row(record)
+            key = (temp_row["ean"], temp_row["part_number"])
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+
+            temp_rows.append(temp_row)
+
+            parsed_item = ParsedItem(
+                job_id=job.id,
+                supplier_id=supplier_id,
+                ean=temp_row["ean"],
+                part_number=temp_row["part_number"],
+                model=temp_row["model"],
+                description=temp_row["description"],
+                brand=_stringify(record.get("brand")),
+                color=_stringify(record.get("color")),
+                memory=_stringify(record.get("memory")),
+                ram=_stringify(record.get("ram")),
+                norme=_stringify(record.get("norme")),
+                device_type=_stringify(record.get("device_type")),
+                quantity=temp_row["quantity"],
+                purchase_price=_coerce_float(record.get("purchase_price")),
+                currency=_stringify(record.get("currency")),
+                recommended_price=_coerce_float(record.get("recommended_price")),
+                updated_at=_parse_datetime(record.get("updated_at")),
+            )
+            db.session.add(parsed_item)
+
+            temp_import = TemporaryImport(
+                supplier_id=supplier_id,
+                description=temp_row["description"],
+                model=temp_row["model"],
+                quantity=temp_row["quantity"],
+                selling_price=temp_row["selling_price"],
+                ean=temp_row["ean"],
+                part_number=temp_row["part_number"],
+            )
+            db.session.add(temp_import)
+
+        job.status = "success"
+        job.error_message = None
+        job.ended_at = datetime.utcnow()
+        db.session.add(job)
+        db.session.commit()
+
+        preview_rows = temp_rows[:50]
+
+        return {
+            "job_id": job.id,
+            "supplier_id": supplier_id,
+            "supplier": supplier.name,
+            "status": job.status,
+            "parsed_count": len(parsed_records),
+            "temporary_import_count": len(temp_rows),
+            "started_at": job.started_at.isoformat() if job.started_at else None,
+            "ended_at": job.ended_at.isoformat() if job.ended_at else None,
+            "items": preview_rows,
+            "rows": preview_rows,
+        }
+    except Exception as exc:  # pragma: no cover - defensive logging
+        db.session.rollback()
+        message = str(exc)
+        current_app.logger.exception("Échec de la synchronisation API fournisseur: %s", exc)
+        job = ApiFetchJob.query.get(job_id)
+        if job:
+            job.status = "failed"
+            job.error_message = message
+            job.ended_at = datetime.utcnow()
+            db.session.add(job)
+            db.session.commit()
+        raise RuntimeError(message) from exc

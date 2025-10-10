@@ -14,10 +14,11 @@ interface ApiRowWithSupplier extends SupplierApiRow {
 }
 
 function mapResponseToRows(response: SupplierApiSyncResponse, fallbackName: string): ApiRowWithSupplier[] {
-  return (response.rows || []).map((row) => ({
+  const rows = response.items ?? response.rows ?? [];
+  return rows.map((row) => ({
     supplier_id: response.supplier_id,
     supplier: response.supplier || fallbackName,
-    description: row.description ?? '',
+    description: row.description ?? row.model ?? '',
     quantity: row.quantity ?? 0,
     selling_price: row.selling_price ?? 0,
     ean: row.ean ?? null,
@@ -56,7 +57,12 @@ function SupplierApiSyncPanel() {
         return [...withoutSupplier, ...mapped];
       });
 
-      notify(`Synchronisation réussie pour ${fallbackName}`, 'success');
+      const count =
+        response.temporary_import_count ??
+        response.items?.length ??
+        response.rows?.length ??
+        mapped.length;
+      notify(`Synchronisation réussie pour ${fallbackName} (${count} articles)`, 'success');
     } catch (err) {
       const message = err instanceof Error ? err.message : "Impossible de contacter l'API fournisseur";
       setError(message);
@@ -176,7 +182,7 @@ function SupplierApiSyncPanel() {
                         </div>
                         <div className="text-sm text-zinc-300 text-right space-y-1 min-w-[120px]">
                           <p className="text-lg font-semibold text-white">
-                            {row.selling_price.toLocaleString('fr-FR', {
+                            {(row.selling_price ?? 0).toLocaleString('fr-FR', {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2,
                             })}{' '}

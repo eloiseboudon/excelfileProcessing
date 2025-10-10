@@ -123,30 +123,50 @@ export async function fetchProducts() {
 
 export interface SupplierApiRow {
   description?: string | null;
-  quantity: number;
-  selling_price: number;
+  model?: string | null;
+  quantity?: number | null;
+  selling_price?: number | null;
   ean?: string | null;
   part_number?: string | null;
 }
 
 export interface SupplierApiSyncResponse {
+  job_id: number;
   supplier_id: number;
   supplier: string;
-  count: number;
-  rows: SupplierApiRow[];
+  status: string;
+  parsed_count: number;
+  temporary_import_count: number;
+  started_at?: string | null;
+  ended_at?: string | null;
+  items: SupplierApiRow[];
+  rows?: SupplierApiRow[];
 }
 
-export async function fetchSupplierApiData(supplierId: number) {
+export interface SupplierApiRefreshPayload {
+  endpoint_id?: number;
+  endpoint_name?: string;
+  mapping_version_id?: number;
+  query_params?: Record<string, unknown>;
+  body?: Record<string, unknown>;
+}
+
+export async function refreshSupplierCatalog(
+  supplierId: number,
+  payload: SupplierApiRefreshPayload = {}
+) {
   const res = await fetchWithAuth(`${API_BASE}/supplier_api/${supplierId}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({})
+    body: JSON.stringify(payload)
   });
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
   return res.json() as Promise<SupplierApiSyncResponse>;
 }
+
+export const fetchSupplierApiData = refreshSupplierCatalog;
 
 export async function createProduct(data: any) {
   const res = await fetchWithAuth(`${API_BASE}/products`, {
