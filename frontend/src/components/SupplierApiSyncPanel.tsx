@@ -67,6 +67,27 @@ function SupplierApiSyncPanel() {
   };
 
   const hasRows = rows.length > 0;
+  const groupedRows = useMemo(() => {
+    const map = new Map<number, { supplier: string; items: ApiRowWithSupplier[] }>();
+
+    rows.forEach((row) => {
+      const existing = map.get(row.supplier_id);
+      if (existing) {
+        existing.items.push(row);
+      } else {
+        map.set(row.supplier_id, {
+          supplier: row.supplier,
+          items: [row],
+        });
+      }
+    });
+
+    return Array.from(map.entries()).map(([supplierId, value]) => ({
+      supplier_id: supplierId,
+      supplier: value.supplier,
+      items: value.items,
+    }));
+  }, [rows]);
 
   return (
     <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -98,7 +119,9 @@ function SupplierApiSyncPanel() {
               key={supplier.id}
               onClick={() => handleFetch(supplier.id)}
               disabled={loadingSupplier === supplier.id}
-              className={`btn px-4 py-2 flex items-center gap-2 ${loadingSupplier === supplier.id ? 'opacity-70 cursor-wait' : ''}`}
+              className={`btn px-4 py-2 flex items-center gap-2 ${
+                loadingSupplier === supplier.id ? 'opacity-70 cursor-wait' : ''
+              }`}
             >
               {loadingSupplier === supplier.id ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -119,41 +142,59 @@ function SupplierApiSyncPanel() {
           </div>
         )}
 
-        <div className="mt-8 overflow-x-auto">
-          <table className="min-w-full text-left">
-            <thead className="bg-black/30 border border-zinc-800/60">
-              <tr>
-                <th className="px-4 py-3 text-sm font-semibold text-zinc-300">Fournisseur</th>
-                <th className="px-4 py-3 text-sm font-semibold text-zinc-300">Description</th>
-                <th className="px-4 py-3 text-sm font-semibold text-zinc-300">EAN</th>
-                <th className="px-4 py-3 text-sm font-semibold text-zinc-300">Part Number</th>
-                <th className="px-4 py-3 text-sm font-semibold text-zinc-300 text-right">Quantité</th>
-                <th className="px-4 py-3 text-sm font-semibold text-zinc-300 text-right">Prix</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-800/60">
-              {hasRows ? (
-                rows.map((row, index) => (
-                  <tr key={`${row.supplier_id}-${row.ean ?? row.part_number ?? index}`} className="hover:bg-white/5">
-                    <td className="px-4 py-3 text-sm text-zinc-200 whitespace-nowrap">{row.supplier}</td>
-                    <td className="px-4 py-3 text-sm text-zinc-300 max-w-xs">
-                      <span className="line-clamp-2">{row.description || '—'}</span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-zinc-300 whitespace-nowrap">{row.ean || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-zinc-300 whitespace-nowrap">{row.part_number || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-zinc-100 text-right">{row.quantity ?? 0}</td>
-                    <td className="px-4 py-3 text-sm text-zinc-100 text-right">{row.selling_price.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-sm text-zinc-400">
-                    Aucune donnée temporaire. Lancez une synchronisation pour remplir la table.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        <div className="mt-8">
+          {hasRows ? (
+            <div className="space-y-6">
+              {groupedRows.map(({ supplier_id, supplier, items }) => (
+                <div
+                  key={supplier_id}
+                  className="border border-zinc-800/60 rounded-xl bg-black/30 divide-y divide-zinc-800/60"
+                >
+                  <div className="px-5 py-4 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm text-zinc-400 uppercase tracking-wide">Fournisseur</p>
+                      <h3 className="text-lg font-semibold text-zinc-100">{supplier}</h3>
+                    </div>
+                    <span className="text-sm text-zinc-400">
+                      {items.length} article{items.length > 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <div className="p-5 space-y-4">
+                    {items.map((row, index) => (
+                      <div
+                        key={`${row.supplier_id}-${row.ean ?? row.part_number ?? index}`}
+                        className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between bg-black/20 rounded-lg p-4"
+                      >
+                        <div className="space-y-1">
+                          <p className="text-base font-medium text-zinc-100">
+                            {row.description || '—'}
+                          </p>
+                          <div className="text-sm text-zinc-400 flex flex-wrap gap-3">
+                            <span>EAN : {row.ean || '—'}</span>
+                            <span>Part Number : {row.part_number || '—'}</span>
+                          </div>
+                        </div>
+                        <div className="text-sm text-zinc-300 text-right space-y-1 min-w-[120px]">
+                          <p className="text-lg font-semibold text-white">
+                            {row.selling_price.toLocaleString('fr-FR', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}{' '}
+                            €
+                          </p>
+                          <p>Quantité : {row.quantity ?? 0}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="px-4 py-6 text-center text-sm text-zinc-400 border border-dashed border-zinc-800/60 rounded-xl">
+              Aucune donnée temporaire. Lancez une synchronisation pour remplir la table.
+            </div>
+          )}
         </div>
       </div>
     </section>
