@@ -1,14 +1,15 @@
-import { LibraryBig, Settings, Upload } from 'lucide-react';
+import { BarChart3, LibraryBig, Settings, Upload } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { fetchApitest, setAuthToken, setRefreshToken } from './api';
 import AdminPage from './components/AdminPage';
 import DataImportPage from './components/DataImportPage';
-import ProductsPage from './components/ProductsPage';
 import LoginPage from './components/LoginPage';
+import ProductsPage from './components/ProductsPage';
+import StatisticsPage from './components/StatisticsPage';
 
 function App() {
   const storedRole = localStorage.getItem('role');
-  const [currentPage, setCurrentPage] = useState<'products' | 'dataImport' | 'admin'>('products');
+  const [currentPage, setCurrentPage] = useState<'products' | 'dataImport' | 'statistics' | 'admin'>('products');
   const [apiTestMessage, setApiTestMessage] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [role, setRole] = useState<string>(storedRole || '');
@@ -82,6 +83,13 @@ function App() {
                   <span>Import de données</span>
                 </button>
                 <button
+                  onClick={() => setCurrentPage('statistics')}
+                  className={`btn px-6 py-3 ${currentPage === 'statistics' ? 'btn-primary' : 'btn-secondary'}`}
+                >
+                  <BarChart3 className="w-5 h-5" />
+                  <span>Statistiques</span>
+                </button>
+                <button
                   onClick={() => setCurrentPage('admin')}
                   className={`btn px-6 py-3 ${currentPage === 'admin' ? 'btn-primary' : 'btn-secondary'}`}
                 >
@@ -97,6 +105,7 @@ function App() {
 
       {/* Page Content */}
       {role !== 'client' && currentPage === 'dataImport' && <DataImportPage />}
+      {role !== 'client' && currentPage === 'statistics' && <StatisticsPage />}
       {role !== 'client' && currentPage === 'admin' && (
         <AdminPage onBack={() => setCurrentPage('dataImport')} />
       )}

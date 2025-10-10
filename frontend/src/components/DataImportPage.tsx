@@ -1,55 +1,27 @@
 import { useState } from 'react';
 import FormattingPage from './FormattingPage';
 import ProcessingPage from './ProcessingPage';
-import StatisticsPage from './StatisticsPage';
 import SupplierApiSyncPanel from './SupplierApiSyncPanel';
 
-type DataImportSection = 'update' | 'statistics';
 type UpdateStep = 'processing' | 'formatting';
 
 function DataImportPage() {
-  const [activeSection, setActiveSection] = useState<DataImportSection>('update');
   const [updateStep, setUpdateStep] = useState<UpdateStep>('processing');
   // Temporary flag to hide the legacy "Calculs et traitements" workflow while preserving the code.
   const showUpdateWorkflow = false;
 
   return (
     <div className="flex-1 flex flex-col">
-      <div className="bg-black/40 border-b border-[#B8860B]/10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={() => setActiveSection('update')}
-              className={`btn px-5 py-2 ${activeSection === 'update' ? 'btn-primary' : 'btn-secondary'}`}
-            >
-              Mise à jour des données
-            </button>
-            <button
-              onClick={() => setActiveSection('statistics')}
-              className={`btn px-5 py-2 ${activeSection === 'statistics' ? 'btn-primary' : 'btn-secondary'}`}
-            >
-              Statistiques
-            </button>
-          </div>
-        </div>
-      </div>
-
       <div className="flex-1 overflow-y-auto">
-        {activeSection === 'update' ? (
-          <>
-            <SupplierApiSyncPanel />
-            {showUpdateWorkflow && (
-              <div className="mt-6">
-                {updateStep === 'processing' ? (
-                  <ProcessingPage onNext={() => setUpdateStep('formatting')} />
-                ) : (
-                  <FormattingPage onBack={() => setUpdateStep('processing')} />
-                )}
-              </div>
+        <SupplierApiSyncPanel />
+        {showUpdateWorkflow && (
+          <div className="mt-6">
+            {updateStep === 'processing' ? (
+              <ProcessingPage onNext={() => setUpdateStep('formatting')} />
+            ) : (
+              <FormattingPage onBack={() => setUpdateStep('processing')} />
             )}
-          </>
-        ) : (
-          <StatisticsPage />
+          </div>
         )}
       </div>
     </div>
