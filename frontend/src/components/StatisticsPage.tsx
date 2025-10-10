@@ -32,7 +32,7 @@ interface ProductSupplierAvg {
 }
 
 interface StatisticsPageProps {
-  onBack: () => void;
+  onBack?: () => void;
 }
 
 interface ProductItem {
@@ -699,13 +699,15 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
 
   return (
     <div className="max-w-7xl mx-auto px-1 sm:px-2 py-6 sm:py-8">
-      <button
-        onClick={onBack}
-        className="flex items-center space-x-2 px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors mb-6"
-      >
-        <ArrowLeft className="w-5 h-5" />
-        <span>Retour</span>
-      </button>
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="flex items-center space-x-2 px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors mb-6"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span>Retour</span>
+        </button>
+      )}
       <h1 className="text-2xl font-bold text-center mb-4">Statistiques de prix</h1>
       <div className="flex flex-wrap gap-4 mb-6 items-end">
         <select

@@ -1,12 +1,13 @@
 import os
 from datetime import datetime
-from typing import Any
+from typing import Any, Iterable
 
 import pandas as pd
-from flask import Blueprint, jsonify, request
-from models import FormatImport, ImportHistory, TemporaryImport, db
-from utils.auth import token_required
+import requests
+from flask import Blueprint, current_app, jsonify, request
+from models import FormatImport, ImportHistory, Supplier, TemporaryImport, db
 from sqlalchemy import extract
+from utils.auth import token_required
 from utils.calculations import recalculate_product_calculations
 
 
@@ -14,6 +15,48 @@ def _normalize_column_key(name: str | None) -> str:
     """Return a normalized identifier for a mapped column name."""
 
     return "".join(ch for ch in (name or "").lower() if ch.isalnum())
+
+
+def _resolve_supplier_api_endpoint(supplier: Supplier, override: str | None = None) -> str | None:
+    """Return the configured endpoint for a supplier API call."""
+
+    if override:
+        return override
+
+    base_key = f"SUPPLIER_API_URL_{supplier.id}"
+    name_key = "SUPPLIER_API_URL_" + "".join(
+        ch if ch.isalnum() else "_" for ch in (supplier.name or "").upper()
+    )
+
+    return os.environ.get(base_key) or os.environ.get(name_key)
+
+
+def _coerce_int(value: Any) -> int | None:
+    try:
+        if value is None:
+            return None
+        return int(float(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _coerce_float(value: Any) -> float | None:
+    try:
+        if value is None:
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _extract_rows(payload: Any) -> Iterable[dict[str, Any]]:
+    if isinstance(payload, dict):
+        yield payload
+    elif isinstance(payload, list):
+        for item in payload:
+            if isinstance(item, dict):
+                yield item
+
 
 
 def _clean_cell(value: Any) -> str | None:
@@ -89,6 +132,94 @@ def verify_import(supplier_id):
     if verification:
         return jsonify({"status": "error", "message": "Import déjà existant"}), 200
     return jsonify({"status": "success", "message": "Import non existant"}), 200
+
+
+@bp.route("/supplier_api/<int:supplier_id>", methods=["POST"])
+@token_required("admin")
+def fetch_supplier_api(supplier_id: int):
+    """Fetch live supplier data and store it into the temporary table."""
+
+    supplier = Supplier.query.get(supplier_id)
+    if not supplier:
+        return jsonify({"error": "Fournisseur introuvable"}), 404
+
+    body = request.get_json(silent=True) or {}
+    endpoint = _resolve_supplier_api_endpoint(supplier, body.get("endpoint"))
+    if not endpoint:
+        return jsonify({"error": "Aucun endpoint API configuré pour ce fournisseur"}), 400
+
+    try:
+        response = requests.get(endpoint, timeout=30)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as exc:  # pragma: no cover - network errors
+        current_app.logger.exception("Supplier API request failed: %s", exc)
+        return jsonify({"error": "Impossible de contacter l'API fournisseur"}), 502
+
+    try:
+        payload = response.json()
+    except ValueError:  # pragma: no cover - invalid json
+        current_app.logger.exception("Invalid JSON returned by supplier API")
+        return jsonify({"error": "Réponse JSON invalide reçue depuis l'API fournisseur"}), 502
+
+    rows = list(_extract_rows(payload))
+    if not rows:
+        return jsonify({"error": "Aucune donnée retournée par l'API fournisseur"}), 404
+
+    TemporaryImport.query.filter_by(supplier_id=supplier_id).delete(synchronize_session=False)
+    db.session.commit()
+
+    saved_rows: list[dict[str, Any]] = []
+    seen_keys: set[tuple[str | None, int]] = set()
+
+    for item in rows:
+        quantity = _coerce_int(item.get("quantity") or item.get("stock"))
+        price = _coerce_float(item.get("selling_price") or item.get("sellingprice"))
+        description = item.get("description") or item.get("model") or ""
+        ean = item.get("ean") or item.get("articelno")
+        if ean is not None:
+            ean = str(ean)
+        part_number = item.get("part_number") or item.get("partnumber")
+        if part_number is not None:
+            part_number = str(part_number)
+
+        key = (ean or part_number, supplier_id)
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+
+        temp = TemporaryImport(
+            supplier_id=supplier_id,
+            description=description,
+            model=description,
+            quantity=quantity or 0,
+            selling_price=price or 0.0,
+            ean=ean,
+            part_number=part_number,
+        )
+        db.session.add(temp)
+        saved_rows.append(
+            {
+                "description": description,
+                "quantity": temp.quantity,
+                "selling_price": temp.selling_price,
+                "ean": ean,
+                "part_number": part_number,
+            }
+        )
+
+    db.session.commit()
+
+    return (
+        jsonify(
+            {
+                "supplier_id": supplier_id,
+                "supplier": supplier.name,
+                "rows": saved_rows,
+                "count": len(saved_rows),
+            }
+        ),
+        200,
+    )
 
 
 @bp.route("/import_preview", methods=["POST"])

@@ -121,6 +121,33 @@ export async function fetchProducts() {
   return res.json();
 }
 
+export interface SupplierApiRow {
+  description?: string | null;
+  quantity: number;
+  selling_price: number;
+  ean?: string | null;
+  part_number?: string | null;
+}
+
+export interface SupplierApiSyncResponse {
+  supplier_id: number;
+  supplier: string;
+  count: number;
+  rows: SupplierApiRow[];
+}
+
+export async function fetchSupplierApiData(supplierId: number) {
+  const res = await fetchWithAuth(`${API_BASE}/supplier_api/${supplierId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({})
+  });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<SupplierApiSyncResponse>;
+}
+
 export async function createProduct(data: any) {
   const res = await fetchWithAuth(`${API_BASE}/products`, {
     method: 'POST',
