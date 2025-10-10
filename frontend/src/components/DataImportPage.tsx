@@ -2,6 +2,7 @@ import { useState } from 'react';
 import FormattingPage from './FormattingPage';
 import ProcessingPage from './ProcessingPage';
 import StatisticsPage from './StatisticsPage';
+import SupplierApiSyncPanel from './SupplierApiSyncPanel';
 
 type DataImportSection = 'update' | 'reports';
 type UpdateStep = 'processing' | 'formatting';
@@ -31,13 +32,18 @@ function DataImportPage() {
         </div>
       </div>
 
-      <div className="flex-1">
+      <div className="flex-1 overflow-y-auto">
         {activeSection === 'update' ? (
-          updateStep === 'processing' ? (
-            <ProcessingPage onNext={() => setUpdateStep('formatting')} />
-          ) : (
-            <FormattingPage onBack={() => setUpdateStep('processing')} />
-          )
+          <>
+            <SupplierApiSyncPanel />
+            <div className="mt-6">
+              {updateStep === 'processing' ? (
+                <ProcessingPage onNext={() => setUpdateStep('formatting')} />
+              ) : (
+                <FormattingPage onBack={() => setUpdateStep('processing')} />
+              )}
+            </div>
+          </>
         ) : (
           <StatisticsPage />
         )}
