@@ -2,8 +2,8 @@
 
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
@@ -14,9 +14,22 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    auth_type = sa.Enum('none', 'api_key', 'basic', 'oauth2', name='authtype')
-    pagination_type = sa.Enum('none', 'page', 'cursor', 'link', 'offset', name='paginationtype')
-    auth_type.create(op.get_bind(), checkfirst=True)
+    op.execute("DROP TYPE IF EXISTS authtype CASCADE")
+    op.execute("DROP TYPE IF EXISTS paginationtype CASCADE")
+
+    authtype = postgresql.ENUM(
+        'none', 'api_key', 'basic', 'oauth2', name='authtype', create_type=False
+    )
+    authtype.create(op.get_bind(), checkfirst=True)
+    pagination_type = postgresql.ENUM(
+        'none',
+        'page',
+        'cursor',
+        'link',
+        'offset',
+        name='paginationtype',
+        create_type=False,
+    )
     pagination_type.create(op.get_bind(), checkfirst=True)
 
     op.create_table(
@@ -24,11 +37,26 @@ def upgrade() -> None:
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('supplier_id', sa.Integer(), nullable=False),
         sa.Column('base_url', sa.String(length=255), nullable=False),
-        sa.Column('auth_type', auth_type, nullable=False, server_default='none'),
-        sa.Column('auth_config', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column('default_headers', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column(
+            'auth_type',
+            postgresql.ENUM(
+                'none', 'api_key', 'basic', 'oauth2', name='authtype', create_type=False
+            ),
+            nullable=False,
+            server_default='none',
+        ),
+        sa.Column(
+            'auth_config', postgresql.JSONB(astext_type=sa.Text()), nullable=True
+        ),
+        sa.Column(
+            'default_headers', postgresql.JSONB(astext_type=sa.Text()), nullable=True
+        ),
         sa.Column('rate_limit_per_min', sa.Integer(), nullable=True),
-        sa.ForeignKeyConstraint(['supplier_id'], ['suppliers.id'], name=op.f('fk_supplier_apis_supplier_id_suppliers')),
+        sa.ForeignKeyConstraint(
+            ['supplier_id'],
+            ['suppliers.id'],
+            name=op.f('fk_supplier_apis_supplier_id_suppliers'),
+        ),
         sa.PrimaryKeyConstraint('id', name=op.f('pk_supplier_apis')),
     )
 
@@ -39,13 +67,41 @@ def upgrade() -> None:
         sa.Column('name', sa.String(length=100), nullable=False),
         sa.Column('path', sa.String(length=255), nullable=False),
         sa.Column('method', sa.String(length=10), nullable=False, server_default='GET'),
-        sa.Column('query_params', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column('body_template', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column('content_type', sa.String(length=50), nullable=False, server_default='application/json'),
-        sa.Column('pagination_type', pagination_type, nullable=False, server_default='none'),
-        sa.Column('pagination_config', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column(
+            'query_params', postgresql.JSONB(astext_type=sa.Text()), nullable=True
+        ),
+        sa.Column(
+            'body_template', postgresql.JSONB(astext_type=sa.Text()), nullable=True
+        ),
+        sa.Column(
+            'content_type',
+            sa.String(length=50),
+            nullable=False,
+            server_default='application/json',
+        ),
+        sa.Column(
+            'pagination_type',
+            postgresql.ENUM(
+                'none',
+                'page',
+                'cursor',
+                'link',
+                'offset',
+                name='paginationtype',
+                create_type=False,
+            ),
+            nullable=False,
+            server_default='none',
+        ),
+        sa.Column(
+            'pagination_config', postgresql.JSONB(astext_type=sa.Text()), nullable=True
+        ),
         sa.Column('items_path', sa.String(length=200), nullable=True),
-        sa.ForeignKeyConstraint(['supplier_api_id'], ['supplier_apis.id'], name=op.f('fk_api_endpoints_supplier_api_id_supplier_apis')),
+        sa.ForeignKeyConstraint(
+            ['supplier_api_id'],
+            ['supplier_apis.id'],
+            name=op.f('fk_api_endpoints_supplier_api_id_supplier_apis'),
+        ),
         sa.PrimaryKeyConstraint('id', name=op.f('pk_api_endpoints')),
     )
 
@@ -54,9 +110,15 @@ def upgrade() -> None:
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('supplier_api_id', sa.Integer(), nullable=False),
         sa.Column('version', sa.Integer(), nullable=False, server_default='1'),
-        sa.Column('is_active', sa.Boolean(), nullable=True, server_default=sa.text('true')),
+        sa.Column(
+            'is_active', sa.Boolean(), nullable=True, server_default=sa.text('true')
+        ),
         sa.Column('created_at', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['supplier_api_id'], ['supplier_apis.id'], name=op.f('fk_mapping_versions_supplier_api_id_supplier_apis')),
+        sa.ForeignKeyConstraint(
+            ['supplier_api_id'],
+            ['supplier_apis.id'],
+            name=op.f('fk_mapping_versions_supplier_api_id_supplier_apis'),
+        ),
         sa.PrimaryKeyConstraint('id', name=op.f('pk_mapping_versions')),
     )
 
@@ -67,7 +129,11 @@ def upgrade() -> None:
         sa.Column('target_field', sa.String(length=100), nullable=False),
         sa.Column('source_path', sa.String(length=300), nullable=False),
         sa.Column('transform', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.ForeignKeyConstraint(['mapping_version_id'], ['mapping_versions.id'], name=op.f('fk_field_maps_mapping_version_id_mapping_versions')),
+        sa.ForeignKeyConstraint(
+            ['mapping_version_id'],
+            ['mapping_versions.id'],
+            name=op.f('fk_field_maps_mapping_version_id_mapping_versions'),
+        ),
         sa.PrimaryKeyConstraint('id', name=op.f('pk_field_maps')),
     )
 
@@ -78,11 +144,23 @@ def upgrade() -> None:
         sa.Column('endpoint_id', sa.Integer(), nullable=False),
         sa.Column('started_at', sa.DateTime(), nullable=True),
         sa.Column('ended_at', sa.DateTime(), nullable=True),
-        sa.Column('status', sa.String(length=20), nullable=True, server_default='running'),
+        sa.Column(
+            'status', sa.String(length=20), nullable=True, server_default='running'
+        ),
         sa.Column('error_message', sa.Text(), nullable=True),
-        sa.Column('params_used', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.ForeignKeyConstraint(['endpoint_id'], ['api_endpoints.id'], name=op.f('fk_api_fetch_jobs_endpoint_id_api_endpoints')),
-        sa.ForeignKeyConstraint(['supplier_api_id'], ['supplier_apis.id'], name=op.f('fk_api_fetch_jobs_supplier_api_id_supplier_apis')),
+        sa.Column(
+            'params_used', postgresql.JSONB(astext_type=sa.Text()), nullable=True
+        ),
+        sa.ForeignKeyConstraint(
+            ['endpoint_id'],
+            ['api_endpoints.id'],
+            name=op.f('fk_api_fetch_jobs_endpoint_id_api_endpoints'),
+        ),
+        sa.ForeignKeyConstraint(
+            ['supplier_api_id'],
+            ['supplier_apis.id'],
+            name=op.f('fk_api_fetch_jobs_supplier_api_id_supplier_apis'),
+        ),
         sa.PrimaryKeyConstraint('id', name=op.f('pk_api_fetch_jobs')),
     )
 
@@ -96,7 +174,11 @@ def upgrade() -> None:
         sa.Column('content_type', sa.String(length=50), nullable=False),
         sa.Column('page_index', sa.Integer(), nullable=True),
         sa.Column('cursor', sa.String(length=200), nullable=True),
-        sa.ForeignKeyConstraint(['job_id'], ['api_fetch_jobs.id'], name=op.f('fk_raw_ingests_job_id_api_fetch_jobs')),
+        sa.ForeignKeyConstraint(
+            ['job_id'],
+            ['api_fetch_jobs.id'],
+            name=op.f('fk_raw_ingests_job_id_api_fetch_jobs'),
+        ),
         sa.PrimaryKeyConstraint('id', name=op.f('pk_raw_ingests')),
     )
 
@@ -120,10 +202,24 @@ def upgrade() -> None:
         sa.Column('currency', sa.String(length=3), nullable=True),
         sa.Column('recommended_price', sa.Float(), nullable=True),
         sa.Column('updated_at', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['job_id'], ['api_fetch_jobs.id'], name=op.f('fk_parsed_items_job_id_api_fetch_jobs')),
-        sa.ForeignKeyConstraint(['supplier_id'], ['suppliers.id'], name=op.f('fk_parsed_items_supplier_id_suppliers')),
+        sa.ForeignKeyConstraint(
+            ['job_id'],
+            ['api_fetch_jobs.id'],
+            name=op.f('fk_parsed_items_job_id_api_fetch_jobs'),
+        ),
+        sa.ForeignKeyConstraint(
+            ['supplier_id'],
+            ['suppliers.id'],
+            name=op.f('fk_parsed_items_supplier_id_suppliers'),
+        ),
         sa.PrimaryKeyConstraint('id', name=op.f('pk_parsed_items')),
-        sa.UniqueConstraint('supplier_id', 'ean', 'part_number', 'job_id', name='uix_parsed_supplier_ean_part_job'),
+        sa.UniqueConstraint(
+            'supplier_id',
+            'ean',
+            'part_number',
+            'job_id',
+            name='uix_parsed_supplier_ean_part_job',
+        ),
     )
 
     op.create_table(
@@ -135,10 +231,20 @@ def upgrade() -> None:
         sa.Column('part_number', sa.String(length=120), nullable=True),
         sa.Column('supplier_sku', sa.String(length=120), nullable=True),
         sa.Column('last_seen_at', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['product_id'], ['products.id'], name=op.f('fk_supplier_product_refs_product_id_products')),
-        sa.ForeignKeyConstraint(['supplier_id'], ['suppliers.id'], name=op.f('fk_supplier_product_refs_supplier_id_suppliers')),
+        sa.ForeignKeyConstraint(
+            ['product_id'],
+            ['products.id'],
+            name=op.f('fk_supplier_product_refs_product_id_products'),
+        ),
+        sa.ForeignKeyConstraint(
+            ['supplier_id'],
+            ['suppliers.id'],
+            name=op.f('fk_supplier_product_refs_supplier_id_suppliers'),
+        ),
         sa.PrimaryKeyConstraint('id', name=op.f('pk_supplier_product_refs')),
-        sa.UniqueConstraint('supplier_id', 'ean', 'part_number', 'supplier_sku', name='uix_supplier_ref'),
+        sa.UniqueConstraint(
+            'supplier_id', 'ean', 'part_number', 'supplier_sku', name='uix_supplier_ref'
+        ),
     )
 
 
