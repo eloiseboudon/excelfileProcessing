@@ -42,7 +42,15 @@ class SupplierAPI(db.Model):
     supplier = db.relationship("Supplier", backref=db.backref("apis", lazy=True))
 
     base_url = db.Column(db.String(255), nullable=False)
-    auth_type = db.Column(db.Enum(AuthType), nullable=False, default=AuthType.NONE)
+    auth_type = db.Column(
+        db.Enum(
+            AuthType,
+            name="authtype",
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+        ),
+        nullable=False,
+        default=AuthType.NONE,
+    )
     auth_config = db.Column(JSONB, nullable=True)
     default_headers = db.Column(JSONB, nullable=True)
     rate_limit_per_min = db.Column(db.Integer, nullable=True)
