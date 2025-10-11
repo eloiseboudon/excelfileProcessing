@@ -206,7 +206,8 @@ def _parse_auth_type(raw_value: str | None) -> AuthType:
         return AuthType.NONE
 
     try:
-        return AuthType(raw_value)
+        normalized = raw_value.strip().lower()
+        return AuthType(normalized)
     except ValueError as exc:  # pragma: no cover - defensive
         raise ValueError("Type d'authentification invalide.") from exc
 
