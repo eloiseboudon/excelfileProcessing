@@ -15,110 +15,170 @@ interface SupplierApiAdminProps {
 const PRICE_FIELDS = new Set(['price', 'selling_price', 'purchase_price', 'recommended_price']);
 const QUANTITY_FIELDS = new Set(['quantity', 'stock']);
 
-function groupFields(fields: SupplierApiConfigField[] | undefined, keys: Set<string>) {
-  if (!fields) return [];
-  return fields.filter((field) => keys.has((field.target_field || '').toLowerCase()));
+type FieldCategory = 'price' | 'quantity' | 'other';
+
+function getFieldCategory(field: SupplierApiConfigField): FieldCategory {
+  const key = (field.target_field || '').toLowerCase();
+  if (PRICE_FIELDS.has(key)) return 'price';
+  if (QUANTITY_FIELDS.has(key)) return 'quantity';
+  return 'other';
 }
 
-function SupplierApiCard({ api }: { api: SupplierApiConfigApi }) {
-  const priceFields = useMemo(
-    () => groupFields(api.mapping?.fields, PRICE_FIELDS),
-    [api.mapping?.fields],
+function useCategorisedFields(fields: SupplierApiConfigField[] | undefined) {
+  return useMemo(() => {
+    if (!fields) return [] as Array<SupplierApiConfigField & { category: FieldCategory }>;
+    return fields
+      .map((field) => ({ ...field, category: getFieldCategory(field) }))
+      .sort((a, b) => (a.target_field || '').localeCompare(b.target_field || ''));
+  }, [fields]);
+}
+
+function FieldCategoryBadge({ category }: { category: FieldCategory }) {
+  const config = {
+    price: {
+      label: 'Prix',
+      className: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/40',
+    },
+    quantity: {
+      label: 'Quantité',
+      className: 'bg-sky-500/10 text-sky-300 border-sky-500/40',
+    },
+    other: {
+      label: 'Autre',
+      className: 'bg-zinc-700/40 text-zinc-200 border-zinc-500/40',
+    },
+  } satisfies Record<FieldCategory, { label: string; className: string }>;
+
+  const { label, className } = config[category];
+  return (
+    <span
+      className={`text-xs font-semibold uppercase tracking-wide px-2 py-1 rounded border ${className}`}
+    >
+      {label}
+    </span>
   );
-  const quantityFields = useMemo(
-    () => groupFields(api.mapping?.fields, QUANTITY_FIELDS),
-    [api.mapping?.fields],
-  );
+}
+
+function SupplierApiTables({ api }: { api: SupplierApiConfigApi }) {
+  const fields = useCategorisedFields(api.mapping?.fields);
 
   return (
-    <div className="border border-zinc-800/60 rounded-xl bg-black/30 divide-y divide-zinc-800/60">
-      <div className="px-5 py-4 flex flex-wrap items-center gap-3 justify-between">
+    <div className="bg-black/30 border border-zinc-800/60 rounded-xl">
+      <div className="px-5 py-4 flex flex-wrap items-center gap-4 justify-between border-b border-zinc-800/60">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-[#B8860B]/10 text-[#B8860B]">
             <Server className="w-5 h-5" />
           </div>
-          <div>
-            <p className="text-sm text-zinc-400 uppercase tracking-wide">Base URL</p>
-            <p className="text-lg font-semibold text-white break-all">{api.base_url}</p>
+          <div className="space-y-1">
+            <div className="text-sm text-zinc-400 uppercase tracking-wide">Base URL</div>
+            <div className="text-lg font-semibold text-white break-all">{api.base_url}</div>
           </div>
         </div>
-        {api.auth_type && (
-          <span className="text-xs uppercase tracking-wide text-zinc-400 bg-zinc-900/70 border border-zinc-800 px-2 py-1 rounded-full">
-            Auth : {api.auth_type}
-          </span>
-        )}
+        <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide text-zinc-300">
+          {api.auth_type && (
+            <span className="px-2 py-1 rounded-full border border-zinc-700 bg-zinc-900/70">
+              Auth : {api.auth_type}
+            </span>
+          )}
+          {typeof api.rate_limit_per_min === 'number' && (
+            <span className="px-2 py-1 rounded-full border border-zinc-700 bg-zinc-900/70">
+              Limite : {api.rate_limit_per_min}/min
+            </span>
+          )}
+        </div>
       </div>
 
-      <div className="p-5 space-y-5">
-        <div>
-          <h4 className="text-sm text-zinc-400 uppercase tracking-wide mb-2">Endpoints</h4>
+      <div className="p-5 space-y-6">
+        <section>
+          <h4 className="text-sm text-zinc-400 uppercase tracking-wide mb-3">Endpoints</h4>
           {api.endpoints.length > 0 ? (
-            <div className="space-y-2">
-              {api.endpoints.map((endpoint) => (
-                <div
-                  key={endpoint.id}
-                  className="bg-black/20 border border-zinc-800/60 rounded-lg px-4 py-3 flex flex-wrap gap-3 justify-between"
-                >
-                  <div className="flex items-center gap-2 text-sm text-zinc-200">
-                    <span className="px-2 py-1 rounded bg-[#B8860B]/10 text-[#B8860B] uppercase font-semibold">
-                      {endpoint.method}
-                    </span>
-                    <span className="font-medium break-all">{endpoint.path}</span>
-                  </div>
-                  {endpoint.items_path && (
-                    <div className="flex items-center gap-2 text-xs text-zinc-400">
-                      <Link2 className="w-4 h-4" />
-                      <span>Chemin items : {endpoint.items_path}</span>
-                    </div>
-                  )}
-                </div>
-              ))}
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm text-left text-zinc-200 border border-zinc-800/60 rounded-lg overflow-hidden">
+                <thead className="bg-zinc-900/80 text-xs uppercase tracking-wide text-zinc-400">
+                  <tr>
+                    <th className="px-4 py-2 font-medium">Nom</th>
+                    <th className="px-4 py-2 font-medium">Méthode</th>
+                    <th className="px-4 py-2 font-medium">Chemin</th>
+                    <th className="px-4 py-2 font-medium">Chemin items</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {api.endpoints.map((endpoint) => (
+                    <tr
+                      key={endpoint.id}
+                      className="border-t border-zinc-800/60 even:bg-black/20"
+                    >
+                      <td className="px-4 py-2 font-medium text-white">{endpoint.name || '—'}</td>
+                      <td className="px-4 py-2">
+                        <span className="inline-flex items-center gap-2">
+                          <span className="px-2 py-1 rounded bg-[#B8860B]/10 text-[#B8860B] uppercase font-semibold">
+                            {endpoint.method}
+                          </span>
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 font-mono text-sm break-all text-zinc-100">
+                        {endpoint.path}
+                      </td>
+                      <td className="px-4 py-2 text-zinc-300">
+                        {endpoint.items_path ? (
+                          <div className="flex items-center gap-2">
+                            <Link2 className="w-4 h-4" />
+                            <span className="break-all">{endpoint.items_path}</span>
+                          </div>
+                        ) : (
+                          <span className="italic text-zinc-500">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : (
             <p className="text-sm text-zinc-500 italic">Aucun endpoint configuré.</p>
           )}
-        </div>
+        </section>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="bg-black/20 border border-zinc-800/60 rounded-lg p-4">
-            <h5 className="text-sm font-semibold text-white mb-3">Champs prix</h5>
-            {priceFields.length > 0 ? (
-              <ul className="space-y-2 text-sm text-zinc-300">
-                {priceFields.map((field) => (
-                  <li key={field.id} className="flex flex-col">
-                    <span className="text-xs uppercase tracking-wide text-zinc-500">
-                      {field.target_field}
-                    </span>
-                    <span className="font-medium">
-                      {field.source_path || '—'}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-zinc-500 italic">Aucun mapping de prix configuré.</p>
-            )}
-          </div>
-          <div className="bg-black/20 border border-zinc-800/60 rounded-lg p-4">
-            <h5 className="text-sm font-semibold text-white mb-3">Champs quantité</h5>
-            {quantityFields.length > 0 ? (
-              <ul className="space-y-2 text-sm text-zinc-300">
-                {quantityFields.map((field) => (
-                  <li key={field.id} className="flex flex-col">
-                    <span className="text-xs uppercase tracking-wide text-zinc-500">
-                      {field.target_field}
-                    </span>
-                    <span className="font-medium">
-                      {field.source_path || '—'}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-zinc-500 italic">Aucun mapping de quantité configuré.</p>
-            )}
-          </div>
-        </div>
+        <section>
+          <h4 className="text-sm text-zinc-400 uppercase tracking-wide mb-3">
+            Mapping des champs
+          </h4>
+          {fields.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm text-left text-zinc-200 border border-zinc-800/60 rounded-lg overflow-hidden">
+                <thead className="bg-zinc-900/80 text-xs uppercase tracking-wide text-zinc-400">
+                  <tr>
+                    <th className="px-4 py-2 font-medium">Champ cible</th>
+                    <th className="px-4 py-2 font-medium">Source</th>
+                    <th className="px-4 py-2 font-medium">Type</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {fields.map((field) => (
+                    <tr
+                      key={field.id}
+                      className="border-t border-zinc-800/60 even:bg-black/20"
+                    >
+                      <td className="px-4 py-2 font-medium text-white">
+                        {field.target_field}
+                      </td>
+                      <td className="px-4 py-2 font-mono text-sm text-zinc-100">
+                        {field.source_path || '—'}
+                      </td>
+                      <td className="px-4 py-2">
+                        <FieldCategoryBadge category={field.category} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm text-zinc-500 italic">
+              Aucun mapping actif pour cette API.
+            </p>
+          )}
+        </section>
       </div>
     </div>
   );
@@ -173,10 +233,10 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
         </p>
       )}
 
-      <div className="space-y-6">
+      <div className="space-y-10">
         {configs.map((supplier) => (
-          <div key={supplier.id} className="space-y-4">
-            <div className="flex items-center gap-3">
+          <div key={supplier.id} className="space-y-5">
+            <div className="flex items-center gap-3 border-b border-zinc-800/60 pb-3">
               <div className="p-2 rounded-lg bg-[#B8860B]/10 text-[#B8860B]">
                 <Server className="w-5 h-5" />
               </div>
@@ -186,9 +246,9 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
               </div>
             </div>
             {supplier.apis.length > 0 ? (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {supplier.apis.map((api) => (
-                  <SupplierApiCard key={api.id} api={api} />
+                  <SupplierApiTables key={api.id} api={api} />
                 ))}
               </div>
             ) : (
