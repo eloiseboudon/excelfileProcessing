@@ -16,6 +16,7 @@ from models import (
     db,
 )
 from sqlalchemy import extract, func
+from sqlalchemy.orm import joinedload
 from utils.auth import token_required
 from utils.calculations import recalculate_product_calculations
 from utils.etl import run_fetch_job
@@ -94,6 +95,94 @@ def _clean_cell(value: Any) -> str | None:
     return str(value).strip()
 
 bp = Blueprint("imports", __name__)
+
+
+@bp.route("/supplier_api/config", methods=["GET"])
+@token_required("admin")
+def list_supplier_api_config():
+    """Return API configuration overview for each supplier."""
+
+    suppliers = (
+        Supplier.query.options(
+            joinedload(Supplier.apis)
+            .joinedload(SupplierAPI.endpoints),
+            joinedload(Supplier.apis)
+            .joinedload(SupplierAPI.mappings)
+            .joinedload(MappingVersion.fields),
+        )
+        .order_by(Supplier.name.asc())
+        .all()
+    )
+
+    result = []
+    for supplier in suppliers:
+        supplier_payload = {
+            "id": supplier.id,
+            "name": supplier.name,
+            "apis": [],
+        }
+
+        for supplier_api in sorted(supplier.apis, key=lambda api: api.id or 0):
+            endpoints = [
+                {
+                    "id": endpoint.id,
+                    "name": endpoint.name,
+                    "method": endpoint.method,
+                    "path": endpoint.path,
+                    "items_path": endpoint.items_path,
+                }
+                for endpoint in sorted(
+                    supplier_api.endpoints,
+                    key=lambda ep: (ep.name or "").lower(),
+                )
+            ]
+
+            mappings_sorted = sorted(
+                supplier_api.mappings,
+                key=lambda mapping: (
+                    0 if mapping.is_active else 1,
+                    -(mapping.version or 0),
+                    -mapping.id,
+                ),
+            )
+            active_mapping = mappings_sorted[0] if mappings_sorted else None
+
+            mapping_payload = None
+            if active_mapping:
+                mapping_payload = {
+                    "id": active_mapping.id,
+                    "version": active_mapping.version,
+                    "is_active": active_mapping.is_active,
+                    "fields": [
+                        {
+                            "id": field.id,
+                            "target_field": field.target_field,
+                            "source_path": field.source_path,
+                            "transform": field.transform,
+                        }
+                        for field in sorted(
+                            active_mapping.fields,
+                            key=lambda f: (f.target_field or "").lower(),
+                        )
+                    ],
+                }
+
+            supplier_payload["apis"].append(
+                {
+                    "id": supplier_api.id,
+                    "base_url": supplier_api.base_url,
+                    "auth_type": supplier_api.auth_type.value
+                    if supplier_api.auth_type
+                    else None,
+                    "rate_limit_per_min": supplier_api.rate_limit_per_min,
+                    "endpoints": endpoints,
+                    "mapping": mapping_payload,
+                }
+            )
+
+        result.append(supplier_payload)
+
+    return jsonify(result)
 
 
 @bp.route("/import_history", methods=["GET"])

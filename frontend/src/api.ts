@@ -143,6 +143,43 @@ export interface SupplierApiSyncResponse {
   rows?: SupplierApiRow[];
 }
 
+export interface SupplierApiConfigField {
+  id: number;
+  target_field: string;
+  source_path: string;
+  transform?: Record<string, unknown> | null;
+}
+
+export interface SupplierApiConfigMapping {
+  id: number;
+  version: number;
+  is_active: boolean;
+  fields: SupplierApiConfigField[];
+}
+
+export interface SupplierApiConfigEndpoint {
+  id: number;
+  name: string;
+  method: string;
+  path: string;
+  items_path?: string | null;
+}
+
+export interface SupplierApiConfigApi {
+  id: number;
+  base_url: string;
+  auth_type?: string | null;
+  rate_limit_per_min?: number | null;
+  endpoints: SupplierApiConfigEndpoint[];
+  mapping: SupplierApiConfigMapping | null;
+}
+
+export interface SupplierApiConfigSupplier {
+  id: number;
+  name: string;
+  apis: SupplierApiConfigApi[];
+}
+
 export interface SupplierApiRefreshPayload {
   endpoint_id?: number;
   endpoint_name?: string;
@@ -278,6 +315,14 @@ export async function fetchSuppliers() {
     throw new Error(await extractErrorMessage(res));
   }
   return res.json();
+}
+
+export async function fetchSupplierApiConfigs() {
+  const res = await fetchWithAuth(`${API_BASE}/supplier_api/config`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<SupplierApiConfigSupplier[]>;
 }
 
 export async function refreshProduction() {

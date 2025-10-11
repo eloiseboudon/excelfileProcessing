@@ -1,6 +1,7 @@
 import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import ReferenceAdmin from './ReferenceAdmin';
+import SupplierApiAdmin from './SupplierApiAdmin';
 import TranslationAdmin from './TranslationAdmin';
 import UserAdmin from './UserAdmin';
 
@@ -12,6 +13,7 @@ function AdminPage({ onBack }: AdminPageProps) {
   const [showReferences, setShowReferences] = useState(false);
   const [showTranslations, setShowTranslations] = useState(false);
   const [showUsers, setShowUsers] = useState(false);
+  const [showApiManagement, setShowApiManagement] = useState(false);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
@@ -37,6 +39,12 @@ function AdminPage({ onBack }: AdminPageProps) {
           Cohérence des tables de référence
         </button>
         <button
+          onClick={() => setShowApiManagement(true)}
+          className="btn btn-primary px-6 py-3"
+        >
+          Gestion API fournisseurs
+        </button>
+        <button
           onClick={() => setShowUsers(true)}
           className="btn btn-primary px-6 py-3"
         >
@@ -50,6 +58,10 @@ function AdminPage({ onBack }: AdminPageProps) {
       <TranslationAdmin
         isVisible={showTranslations}
         onClose={() => setShowTranslations(false)}
+      />
+      <SupplierApiAdmin
+        isVisible={showApiManagement}
+        onClose={() => setShowApiManagement(false)}
       />
       <UserAdmin
         isVisible={showUsers}
