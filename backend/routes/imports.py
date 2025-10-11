@@ -7,6 +7,8 @@ from flask import Blueprint, current_app, jsonify, request
 from models import (
     ApiEndpoint,
     ApiFetchJob,
+    AuthType,
+    FieldMap,
     FormatImport,
     ImportHistory,
     MappingVersion,
@@ -97,6 +99,75 @@ def _clean_cell(value: Any) -> str | None:
 bp = Blueprint("imports", __name__)
 
 
+def _serialize_field(field: FieldMap) -> dict[str, Any]:
+    return {
+        "id": field.id,
+        "target_field": field.target_field,
+        "source_path": field.source_path,
+        "transform": field.transform,
+    }
+
+
+def _serialize_mapping(mapping: MappingVersion | None) -> dict[str, Any] | None:
+    if not mapping:
+        return None
+
+    return {
+        "id": mapping.id,
+        "version": mapping.version,
+        "is_active": mapping.is_active,
+        "fields": [
+            _serialize_field(field)
+            for field in sorted(
+                mapping.fields,
+                key=lambda f: (f.target_field or "").lower(),
+            )
+        ],
+    }
+
+
+def _serialize_endpoint(endpoint: ApiEndpoint) -> dict[str, Any]:
+    return {
+        "id": endpoint.id,
+        "name": endpoint.name,
+        "method": endpoint.method,
+        "path": endpoint.path,
+        "items_path": endpoint.items_path,
+    }
+
+
+def _serialize_supplier_api(api: SupplierAPI) -> dict[str, Any]:
+    return {
+        "id": api.id,
+        "base_url": api.base_url,
+        "auth_type": api.auth_type.value if api.auth_type else None,
+        "rate_limit_per_min": api.rate_limit_per_min,
+        "endpoints": [
+            _serialize_endpoint(endpoint)
+            for endpoint in sorted(
+                api.endpoints,
+                key=lambda ep: (ep.name or "").lower(),
+            )
+        ],
+        "mapping": _serialize_mapping(
+            next(
+                (
+                    mapping
+                    for mapping in sorted(
+                        api.mappings,
+                        key=lambda mapping: (
+                            0 if mapping.is_active else 1,
+                            -(mapping.version or 0),
+                            -mapping.id,
+                        ),
+                    )
+                ),
+                None,
+            )
+        ),
+    }
+
+
 @bp.route("/supplier_api/config", methods=["GET"])
 @token_required("admin")
 def list_supplier_api_config():
@@ -119,70 +190,347 @@ def list_supplier_api_config():
         supplier_payload = {
             "id": supplier.id,
             "name": supplier.name,
-            "apis": [],
+            "apis": [
+                _serialize_supplier_api(api)
+                for api in sorted(supplier.apis, key=lambda api: api.id or 0)
+            ],
         }
-
-        for supplier_api in sorted(supplier.apis, key=lambda api: api.id or 0):
-            endpoints = [
-                {
-                    "id": endpoint.id,
-                    "name": endpoint.name,
-                    "method": endpoint.method,
-                    "path": endpoint.path,
-                    "items_path": endpoint.items_path,
-                }
-                for endpoint in sorted(
-                    supplier_api.endpoints,
-                    key=lambda ep: (ep.name or "").lower(),
-                )
-            ]
-
-            mappings_sorted = sorted(
-                supplier_api.mappings,
-                key=lambda mapping: (
-                    0 if mapping.is_active else 1,
-                    -(mapping.version or 0),
-                    -mapping.id,
-                ),
-            )
-            active_mapping = mappings_sorted[0] if mappings_sorted else None
-
-            mapping_payload = None
-            if active_mapping:
-                mapping_payload = {
-                    "id": active_mapping.id,
-                    "version": active_mapping.version,
-                    "is_active": active_mapping.is_active,
-                    "fields": [
-                        {
-                            "id": field.id,
-                            "target_field": field.target_field,
-                            "source_path": field.source_path,
-                            "transform": field.transform,
-                        }
-                        for field in sorted(
-                            active_mapping.fields,
-                            key=lambda f: (f.target_field or "").lower(),
-                        )
-                    ],
-                }
-
-            supplier_payload["apis"].append(
-                {
-                    "id": supplier_api.id,
-                    "base_url": supplier_api.base_url,
-                    "auth_type": supplier_api.auth_type.value
-                    if supplier_api.auth_type
-                    else None,
-                    "rate_limit_per_min": supplier_api.rate_limit_per_min,
-                    "endpoints": endpoints,
-                    "mapping": mapping_payload,
-                }
-            )
 
         result.append(supplier_payload)
 
     return jsonify(result)
+
+
+def _parse_auth_type(raw_value: str | None) -> AuthType:
+    if not raw_value:
+        return AuthType.NONE
+
+    try:
+        return AuthType(raw_value)
+    except ValueError as exc:  # pragma: no cover - defensive
+        raise ValueError("Type d'authentification invalide.") from exc
+
+
+@bp.route("/supplier_api/<int:supplier_id>/apis", methods=["POST"])
+@token_required("admin")
+def create_supplier_api(supplier_id: int):
+    supplier = Supplier.query.get_or_404(supplier_id)
+    payload = request.get_json(silent=True) or {}
+
+    base_url = (payload.get("base_url") or "").strip()
+    if not base_url:
+        return jsonify({"error": "La base URL est obligatoire."}), 400
+
+    try:
+        auth_type = _parse_auth_type(payload.get("auth_type"))
+    except ValueError as err:
+        return jsonify({"error": str(err)}), 400
+
+    api = SupplierAPI(
+        supplier=supplier,
+        base_url=base_url,
+        auth_type=auth_type,
+        rate_limit_per_min=payload.get("rate_limit_per_min"),
+        auth_config=payload.get("auth_config"),
+        default_headers=payload.get("default_headers"),
+    )
+    db.session.add(api)
+    db.session.commit()
+
+    return jsonify(_serialize_supplier_api(api)), 201
+
+
+@bp.route("/supplier_api/apis/<int:api_id>", methods=["PUT", "PATCH"])
+@token_required("admin")
+def update_supplier_api(api_id: int):
+    api = SupplierAPI.query.get_or_404(api_id)
+    payload = request.get_json(silent=True) or {}
+
+    if "base_url" in payload:
+        base_url = (payload.get("base_url") or "").strip()
+        if not base_url:
+            return jsonify({"error": "La base URL est obligatoire."}), 400
+        api.base_url = base_url
+
+    if "auth_type" in payload:
+        try:
+            api.auth_type = _parse_auth_type(payload.get("auth_type"))
+        except ValueError as err:
+            return jsonify({"error": str(err)}), 400
+
+    if "rate_limit_per_min" in payload:
+        rate_limit = payload.get("rate_limit_per_min")
+        api.rate_limit_per_min = rate_limit if rate_limit is not None else None
+
+    if "auth_config" in payload:
+        api.auth_config = payload.get("auth_config")
+
+    if "default_headers" in payload:
+        api.default_headers = payload.get("default_headers")
+
+    db.session.commit()
+    db.session.refresh(api)
+
+    return jsonify(_serialize_supplier_api(api))
+
+
+@bp.route("/supplier_api/apis/<int:api_id>", methods=["DELETE"])
+@token_required("admin")
+def delete_supplier_api(api_id: int):
+    api = SupplierAPI.query.get_or_404(api_id)
+
+    if ApiFetchJob.query.filter_by(supplier_api_id=api_id).first():
+        return (
+            jsonify(
+                {
+                    "error": "Impossible de supprimer une API liée à des synchronisations existantes.",
+                }
+            ),
+            400,
+        )
+
+    for endpoint in list(api.endpoints):
+        db.session.delete(endpoint)
+
+    for mapping in list(api.mappings):
+        for field in list(mapping.fields):
+            db.session.delete(field)
+        db.session.delete(mapping)
+
+    db.session.delete(api)
+    db.session.commit()
+
+    return ("", 204)
+
+
+@bp.route("/supplier_api/apis/<int:api_id>/endpoints", methods=["POST"])
+@token_required("admin")
+def create_supplier_api_endpoint(api_id: int):
+    api = SupplierAPI.query.get_or_404(api_id)
+    payload = request.get_json(silent=True) or {}
+
+    name = (payload.get("name") or "").strip()
+    path = (payload.get("path") or "").strip()
+    method = (payload.get("method") or "GET").strip().upper() or "GET"
+
+    if not name or not path:
+        return jsonify({"error": "Le nom et le chemin sont obligatoires."}), 400
+
+    endpoint = ApiEndpoint(
+        supplier_api=api,
+        name=name,
+        path=path,
+        method=method,
+        items_path=(payload.get("items_path") or None),
+    )
+    db.session.add(endpoint)
+    db.session.commit()
+
+    return jsonify(_serialize_endpoint(endpoint)), 201
+
+
+@bp.route("/supplier_api/endpoints/<int:endpoint_id>", methods=["PUT", "PATCH"])
+@token_required("admin")
+def update_supplier_api_endpoint(endpoint_id: int):
+    endpoint = ApiEndpoint.query.get_or_404(endpoint_id)
+    payload = request.get_json(silent=True) or {}
+
+    if "name" in payload:
+        name = (payload.get("name") or "").strip()
+        if not name:
+            return jsonify({"error": "Le nom est obligatoire."}), 400
+        endpoint.name = name
+
+    if "path" in payload:
+        path = (payload.get("path") or "").strip()
+        if not path:
+            return jsonify({"error": "Le chemin est obligatoire."}), 400
+        endpoint.path = path
+
+    if "method" in payload:
+        method = (payload.get("method") or "GET").strip().upper()
+        endpoint.method = method or "GET"
+
+    if "items_path" in payload:
+        items_path = payload.get("items_path")
+        endpoint.items_path = items_path or None
+
+    db.session.commit()
+    db.session.refresh(endpoint)
+
+    return jsonify(_serialize_endpoint(endpoint))
+
+
+@bp.route("/supplier_api/endpoints/<int:endpoint_id>", methods=["DELETE"])
+@token_required("admin")
+def delete_supplier_api_endpoint(endpoint_id: int):
+    endpoint = ApiEndpoint.query.get_or_404(endpoint_id)
+
+    if ApiFetchJob.query.filter_by(endpoint_id=endpoint_id).first():
+        return (
+            jsonify(
+                {
+                    "error": "Impossible de supprimer un endpoint associé à des synchronisations existantes.",
+                }
+            ),
+            400,
+        )
+
+    db.session.delete(endpoint)
+    db.session.commit()
+
+    return ("", 204)
+
+
+@bp.route("/supplier_api/apis/<int:api_id>/mapping", methods=["POST"])
+@token_required("admin")
+def create_supplier_api_mapping(api_id: int):
+    SupplierAPI.query.get_or_404(api_id)
+    payload = request.get_json(silent=True) or {}
+
+    is_active = payload.get("is_active", True)
+    version = payload.get("version")
+    if version is None:
+        current_max = (
+            db.session.query(func.max(MappingVersion.version))
+            .filter(MappingVersion.supplier_api_id == api_id)
+            .scalar()
+        )
+        version = (current_max or 0) + 1
+
+    if is_active:
+        MappingVersion.query.filter_by(
+            supplier_api_id=api_id, is_active=True
+        ).update({"is_active": False}, synchronize_session=False)
+
+    mapping = MappingVersion(
+        supplier_api_id=api_id,
+        version=version,
+        is_active=is_active,
+    )
+    db.session.add(mapping)
+    db.session.flush()
+
+    fields_payload = payload.get("fields") or []
+    for field_payload in fields_payload:
+        target_field = (field_payload.get("target_field") or "").strip()
+        source_path = (field_payload.get("source_path") or "").strip()
+        if not target_field or not source_path:
+            continue
+        field = FieldMap(
+            mapping_version=mapping,
+            target_field=target_field,
+            source_path=source_path,
+            transform=field_payload.get("transform"),
+        )
+        db.session.add(field)
+
+    db.session.commit()
+
+    db.session.refresh(mapping)
+    return jsonify(_serialize_mapping(mapping)), 201
+
+
+@bp.route("/supplier_api/mappings/<int:mapping_id>", methods=["PUT", "PATCH"])
+@token_required("admin")
+def update_supplier_api_mapping(mapping_id: int):
+    mapping = MappingVersion.query.get_or_404(mapping_id)
+    payload = request.get_json(silent=True) or {}
+
+    if "is_active" in payload:
+        is_active = bool(payload.get("is_active"))
+        if is_active:
+            MappingVersion.query.filter(
+                MappingVersion.supplier_api_id == mapping.supplier_api_id,
+                MappingVersion.id != mapping.id,
+            ).update({"is_active": False}, synchronize_session=False)
+        mapping.is_active = is_active
+
+    if "version" in payload and payload.get("version"):
+        mapping.version = int(payload.get("version"))
+
+    db.session.commit()
+    db.session.refresh(mapping)
+
+    return jsonify(_serialize_mapping(mapping))
+
+
+@bp.route("/supplier_api/mappings/<int:mapping_id>", methods=["DELETE"])
+@token_required("admin")
+def delete_supplier_api_mapping(mapping_id: int):
+    mapping = MappingVersion.query.get_or_404(mapping_id)
+    for field in list(mapping.fields):
+        db.session.delete(field)
+    db.session.delete(mapping)
+    db.session.commit()
+    return ("", 204)
+
+
+@bp.route(
+    "/supplier_api/mappings/<int:mapping_id>/fields",
+    methods=["POST"],
+)
+@token_required("admin")
+def create_supplier_api_field(mapping_id: int):
+    mapping = MappingVersion.query.get_or_404(mapping_id)
+    payload = request.get_json(silent=True) or {}
+
+    target_field = (payload.get("target_field") or "").strip()
+    source_path = (payload.get("source_path") or "").strip()
+
+    if not target_field or not source_path:
+        return (
+            jsonify({"error": "Les champs cible et source sont obligatoires."}),
+            400,
+        )
+
+    field = FieldMap(
+        mapping_version=mapping,
+        target_field=target_field,
+        source_path=source_path,
+        transform=payload.get("transform"),
+    )
+    db.session.add(field)
+    db.session.commit()
+    db.session.refresh(field)
+
+    return jsonify(_serialize_field(field)), 201
+
+
+@bp.route("/supplier_api/fields/<int:field_id>", methods=["PUT", "PATCH"])
+@token_required("admin")
+def update_supplier_api_field(field_id: int):
+    field = FieldMap.query.get_or_404(field_id)
+    payload = request.get_json(silent=True) or {}
+
+    if "target_field" in payload:
+        target_field = (payload.get("target_field") or "").strip()
+        if not target_field:
+            return jsonify({"error": "Le champ cible est obligatoire."}), 400
+        field.target_field = target_field
+
+    if "source_path" in payload:
+        source_path = (payload.get("source_path") or "").strip()
+        if not source_path:
+            return jsonify({"error": "Le champ source est obligatoire."}), 400
+        field.source_path = source_path
+
+    if "transform" in payload:
+        field.transform = payload.get("transform")
+
+    db.session.commit()
+    db.session.refresh(field)
+
+    return jsonify(_serialize_field(field))
+
+
+@bp.route("/supplier_api/fields/<int:field_id>", methods=["DELETE"])
+@token_required("admin")
+def delete_supplier_api_field(field_id: int):
+    field = FieldMap.query.get_or_404(field_id)
+    db.session.delete(field)
+    db.session.commit()
+    return ("", 204)
 
 
 @bp.route("/import_history", methods=["GET"])

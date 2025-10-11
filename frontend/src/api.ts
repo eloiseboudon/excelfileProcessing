@@ -180,6 +180,27 @@ export interface SupplierApiConfigSupplier {
   apis: SupplierApiConfigApi[];
 }
 
+export interface SupplierApiPayload {
+  base_url: string;
+  auth_type?: string | null;
+  rate_limit_per_min?: number | null;
+  auth_config?: Record<string, unknown> | null;
+  default_headers?: Record<string, string> | null;
+}
+
+export interface SupplierApiEndpointPayload {
+  name: string;
+  method?: string;
+  path: string;
+  items_path?: string | null;
+}
+
+export interface SupplierApiFieldPayload {
+  target_field: string;
+  source_path: string;
+  transform?: Record<string, unknown> | null;
+}
+
 export interface SupplierApiRefreshPayload {
   endpoint_id?: number;
   endpoint_name?: string;
@@ -215,6 +236,164 @@ export async function createProduct(data: any) {
     throw new Error(await extractErrorMessage(res));
   }
   return res.json();
+}
+
+export async function fetchSupplierApiConfigs() {
+  const res = await fetchWithAuth(`${API_BASE}/supplier_api/config`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<SupplierApiConfigSupplier[]>;
+}
+
+export async function createSupplierApi(
+  supplierId: number,
+  payload: SupplierApiPayload
+) {
+  const res = await fetchWithAuth(`${API_BASE}/supplier_api/${supplierId}/apis`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function updateSupplierApi(
+  apiId: number,
+  payload: Partial<SupplierApiPayload>
+) {
+  const res = await fetchWithAuth(`${API_BASE}/supplier_api/apis/${apiId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function deleteSupplierApi(apiId: number) {
+  const res = await fetchWithAuth(`${API_BASE}/supplier_api/apis/${apiId}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+}
+
+export async function createSupplierApiEndpoint(
+  apiId: number,
+  payload: SupplierApiEndpointPayload
+) {
+  const res = await fetchWithAuth(
+    `${API_BASE}/supplier_api/apis/${apiId}/endpoints`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }
+  );
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function updateSupplierApiEndpoint(
+  endpointId: number,
+  payload: Partial<SupplierApiEndpointPayload>
+) {
+  const res = await fetchWithAuth(
+    `${API_BASE}/supplier_api/endpoints/${endpointId}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }
+  );
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function deleteSupplierApiEndpoint(endpointId: number) {
+  const res = await fetchWithAuth(
+    `${API_BASE}/supplier_api/endpoints/${endpointId}`,
+    {
+      method: 'DELETE'
+    }
+  );
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+}
+
+export async function createSupplierApiMapping(apiId: number) {
+  const res = await fetchWithAuth(
+    `${API_BASE}/supplier_api/apis/${apiId}/mapping`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    }
+  );
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function createSupplierApiField(
+  mappingId: number,
+  payload: SupplierApiFieldPayload
+) {
+  const res = await fetchWithAuth(
+    `${API_BASE}/supplier_api/mappings/${mappingId}/fields`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }
+  );
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function updateSupplierApiField(
+  fieldId: number,
+  payload: Partial<SupplierApiFieldPayload>
+) {
+  const res = await fetchWithAuth(
+    `${API_BASE}/supplier_api/fields/${fieldId}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }
+  );
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function deleteSupplierApiField(fieldId: number) {
+  const res = await fetchWithAuth(
+    `${API_BASE}/supplier_api/fields/${fieldId}`,
+    {
+      method: 'DELETE'
+    }
+  );
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
 }
 
 export async function updateProduct(id: number, data: any) {
@@ -309,22 +488,6 @@ export async function exportCalculations() {
   return { blob, filename };
 }
 
-export async function fetchSuppliers() {
-  const res = await fetchWithAuth(`${API_BASE}/references/suppliers`);
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
-  return res.json();
-}
-
-export async function fetchSupplierApiConfigs() {
-  const res = await fetchWithAuth(`${API_BASE}/supplier_api/config`);
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
-  return res.json() as Promise<SupplierApiConfigSupplier[]>;
-}
-
 export async function refreshProduction() {
   const res = await fetchWithAuth(`${API_BASE}/refresh`, {
     method: 'POST',
@@ -359,6 +522,14 @@ export async function fetchProductCalculations() {
 
 export async function fetchProductPriceSummary() {
   const res = await fetchWithAuth(`${API_BASE}/product_price_summary`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function fetchSuppliers() {
+  const res = await fetchWithAuth(`${API_BASE}/references/suppliers`);
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
