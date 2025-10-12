@@ -75,7 +75,13 @@ class ApiEndpoint(db.Model):
     content_type = db.Column(db.String(50), nullable=False, default="application/json")
 
     pagination_type = db.Column(
-        db.Enum(PaginationType), nullable=False, default=PaginationType.NONE
+        db.Enum(
+            PaginationType,
+            name="paginationtype",
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+        ),
+        nullable=False,
+        default=PaginationType.NONE,
     )
     pagination_config = db.Column(JSONB, nullable=True)
     items_path = db.Column(db.String(200), nullable=True)
