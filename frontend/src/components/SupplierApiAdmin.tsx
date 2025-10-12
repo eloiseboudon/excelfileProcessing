@@ -26,6 +26,10 @@ interface SupplierApiAdminProps {
 
 const PRICE_FIELDS = new Set(['price', 'selling_price', 'purchase_price', 'recommended_price']);
 const QUANTITY_FIELDS = new Set(['quantity', 'stock']);
+const DEFAULT_MAPPING_TARGET_FIELDS = ['product_id', 'price', 'quantity'] as const;
+const DEFAULT_FIELD_ORDER = new Map(
+  DEFAULT_MAPPING_TARGET_FIELDS.map((target, index) => [target, index])
+);
 const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 const AUTH_TYPE_OPTIONS: Array<{ value: string; label: string }> = [
   { value: 'none', label: 'Aucune' },
@@ -39,6 +43,59 @@ type FieldCategory = 'price' | 'quantity' | 'other';
 
 type CategorisedField = SupplierApiConfigField & { category: FieldCategory };
 
+let tempFieldIdCounter = -1;
+
+function createPlaceholderField(targetField: string): SupplierApiConfigField {
+  return {
+    id: tempFieldIdCounter--,
+    target_field: targetField,
+    source_path: '',
+    transform: null,
+  };
+}
+
+function normalizeMappingFields(
+  fields: SupplierApiConfigField[] | undefined
+): SupplierApiConfigField[] {
+  const normalizedFields = [...(fields ?? [])];
+  const seen = new Set(
+    normalizedFields
+      .map((field) => (field.target_field || '').trim().toLowerCase())
+      .filter(Boolean)
+  );
+
+  for (const target of DEFAULT_MAPPING_TARGET_FIELDS) {
+    if (!seen.has(target)) {
+      normalizedFields.push(createPlaceholderField(target));
+    }
+  }
+
+  normalizedFields.sort((a, b) => {
+    const aKey = (a.target_field || '').trim().toLowerCase();
+    const bKey = (b.target_field || '').trim().toLowerCase();
+    const orderA = DEFAULT_FIELD_ORDER.get(aKey);
+    const orderB = DEFAULT_FIELD_ORDER.get(bKey);
+    if (orderA !== undefined && orderB !== undefined) {
+      return orderA - orderB;
+    }
+    if (orderA !== undefined) return -1;
+    if (orderB !== undefined) return 1;
+    return 0;
+  });
+
+  return normalizedFields;
+}
+
+function withDefaultMappingFields(
+  mapping: SupplierApiConfigMapping | null
+): SupplierApiConfigMapping | null {
+  if (!mapping) return null;
+  return {
+    ...mapping,
+    fields: normalizeMappingFields(mapping.fields),
+  };
+}
+
 function getFieldCategory(field: SupplierApiConfigField): FieldCategory {
   const key = (field.target_field || '').toLowerCase();
   if (PRICE_FIELDS.has(key)) return 'price';
@@ -47,7 +104,13 @@ function getFieldCategory(field: SupplierApiConfigField): FieldCategory {
 }
 
 function mapFieldsWithCategory(fields: SupplierApiConfigField[] | undefined): CategorisedField[] {
-  return (fields ?? []).map((field) => ({ ...field, category: getFieldCategory(field) }));
+  if (!fields) {
+    return [];
+  }
+  return normalizeMappingFields(fields).map((field) => ({
+    ...field,
+    category: getFieldCategory(field),
+  }));
 }
 
 function FieldCategoryBadge({ category }: { category: FieldCategory }) {
@@ -91,7 +154,14 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
 
   const reloadConfigs = useCallback(async () => {
     const data = await fetchSupplierApiConfigs();
-    setConfigs(Array.isArray(data) ? data : []);
+    const normalized = (Array.isArray(data) ? data : []).map((supplier) => ({
+      ...supplier,
+      apis: supplier.apis.map((api) => ({
+        ...api,
+        mapping: withDefaultMappingFields(api.mapping),
+      })),
+    }));
+    setConfigs(normalized);
   }, []);
 
   const loadConfigs = useCallback(async () => {
@@ -373,6 +443,10 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
 
       try {
         const mapping = await createSupplierApiMapping(api.id);
+        const mappingWithDefaults = withDefaultMappingFields({
+          ...mapping,
+          fields: mapping.fields ?? [],
+        })!;
         setConfigs((prev) =>
           prev.map((supplier) =>
             supplier.id !== supplierId
@@ -381,7 +455,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                   ...supplier,
                   apis: supplier.apis.map((item) =>
                     item.id === api.id
-                      ? { ...item, mapping: { ...mapping, fields: [] } }
+                      ? { ...item, mapping: mappingWithDefaults }
                       : item
                   ),
                 }
@@ -420,8 +494,16 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
               apis: supplier.apis.map((item) => {
                 if (item.id !== api.id) return item;
                 const mapping = item.mapping
-                  ? { ...item.mapping, fields: [...item.mapping.fields, newField] }
-                  : { id: mappingId, version: 1, is_active: true, fields: [newField] };
+                  ? withDefaultMappingFields({
+                      ...item.mapping,
+                      fields: [...item.mapping.fields, newField],
+                    })!
+                  : withDefaultMappingFields({
+                      id: mappingId,
+                      version: 1,
+                      is_active: true,
+                      fields: [newField],
+                    })!;
                 return { ...item, mapping };
               }),
             }
@@ -445,7 +527,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
             if (api.id !== apiId || !api.mapping) return api;
             return {
               ...api,
-              mapping: {
+              mapping: withDefaultMappingFields({
                 ...api.mapping,
                 fields: api.mapping.fields.map((field) => {
                   if (field.id !== fieldId) return field;
@@ -454,7 +536,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                   }
                   return { ...field, source_path: value };
                 }),
-              },
+              })!,
             };
           }),
         };
@@ -520,10 +602,10 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                   item.id === api.id && item.mapping
                     ? {
                         ...item,
-                        mapping: {
+                        mapping: withDefaultMappingFields({
                           ...item.mapping,
                           fields: item.mapping.fields.filter((f) => f.id !== field.id),
-                        },
+                        })!,
                       }
                     : item
                 ),
@@ -828,6 +910,11 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                                   )}
                                 </div>
                               )}
+                              <p className="text-xs text-zinc-500 mt-1">
+                                Champs obligatoires : <code className="text-zinc-300">product_id</code>,{' '}
+                                <code className="text-zinc-300">price</code> et{' '}
+                                <code className="text-zinc-300">quantity</code>.
+                              </p>
                             </div>
                             <button
                               onClick={() => handleAddField(supplier.id, api)}
@@ -867,7 +954,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                                               e.target.value
                                             )
                                           }
-                                          placeholder="selling_price"
+                                          placeholder="product_id"
                                           className="w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-700 text-white placeholder:text-zinc-500"
                                         />
                                       </td>
