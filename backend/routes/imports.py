@@ -662,6 +662,21 @@ def fetch_supplier_api(supplier_id: int):
     except RuntimeError as exc:
         return jsonify({"error": str(exc)}), 502
 
+    product_count = int(result.get("temporary_import_count") or 0)
+    sync_name = endpoint.name or endpoint.path or supplier.name or "API"
+    history = ImportHistory(
+        filename=f"API Sync - {sync_name}"[:200],
+        supplier_id=supplier_id,
+        product_count=product_count,
+    )
+    db.session.add(history)
+    db.session.commit()
+
+    with db.session.no_autoflush():
+        recalculate_product_calculations()
+
+    result["history_id"] = history.id
+
     return jsonify(result), 200
 
 
