@@ -33,6 +33,18 @@ _EXPRESSION_CACHE: Dict[str, jmespath.parser.ParsedResult] = {}
 _MAX_REPORT_ITEMS = 200
 _MAX_RAW_SAMPLE_ITEMS = 25
 
+_FIELD_ALIAS_MAP = {
+    "supplier_ski": "supplier_sku",
+    "suppliersku": "supplier_sku",
+    "sku": "supplier_sku",
+}
+
+_FIELD_PRIORITY = {
+    "supplier_sku": 0,
+    "ean": 1,
+    "part_number": 2,
+}
+
 
 def _compile_expression(path: str) -> jmespath.parser.ParsedResult:
     expression = _EXPRESSION_CACHE.get(path)
@@ -51,6 +63,13 @@ def _normalize_source_path(path: str) -> str:
     elif cleaned.startswith("$"):
         cleaned = cleaned[1:]
     return cleaned or "@"
+
+
+def _normalize_target_field(name: Optional[str]) -> str:
+    if not name:
+        return ""
+    normalized = re.sub(r"\s+", "_", name.strip().lower())
+    return _FIELD_ALIAS_MAP.get(normalized, normalized)
 
 
 def _search_path(obj: Any, path: str) -> Any:
@@ -297,7 +316,12 @@ def _extract_items(payload: Any, items_path: Optional[str]) -> List[dict[str, An
 
 def _prepare_field_maps(mapping: MappingVersion) -> List[FieldMap]:
     fields = list(mapping.fields or [])
-    fields.sort(key=lambda field: field.id or 0)
+    fields.sort(
+        key=lambda field: (
+            _FIELD_PRIORITY.get(_normalize_target_field(field.target_field), 10),
+            field.id or 0,
+        )
+    )
     return fields
 
 
@@ -746,9 +770,12 @@ def run_fetch_job(
         for item in items:
             record: Dict[str, Any] = {}
             for field in field_maps:
+                target_field = _normalize_target_field(field.target_field)
+                if not target_field:
+                    continue
                 value = _search_path(item, field.source_path)
                 value = _apply_transforms(value, field.transform)
-                record[field.target_field] = value
+                record[target_field] = value
             parsed_records.append(record)
 
         TemporaryImport.query.filter_by(supplier_id=supplier_id).delete(synchronize_session=False)
