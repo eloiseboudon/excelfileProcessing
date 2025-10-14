@@ -85,6 +85,7 @@ function App() {
                 <button
                   onClick={() => setCurrentPage('statistics')}
                   className={`btn px-6 py-3 ${currentPage === 'statistics' ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ display: 'none' }}
                 >
                   <BarChart3 className="w-5 h-5" />
                   <span>Statistiques</span>
