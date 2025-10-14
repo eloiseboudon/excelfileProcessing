@@ -546,11 +546,29 @@ def _update_product_prices_from_records(
     for ref in references:
         if ref.product_id and ref.id not in matched_reference_ids:
             product_ids_to_fetch.add(ref.product_id)
+            identifiers: List[str] = []
+            if ref.supplier_sku:
+                identifiers.append(f"SKU fournisseur {ref.supplier_sku}")
+            if ref.ean:
+                identifiers.append(f"EAN {ref.ean}")
+            if ref.part_number:
+                identifiers.append(f"Référence {ref.part_number}")
+            if identifiers:
+                reason = (
+                    "Aucune donnée API ne correspond aux identifiants suivants : "
+                    + ", ".join(identifiers)
+                )
+            else:
+                reason = (
+                    "Aucune donnée API ne correspond à ce produit, et aucun identifiant "
+                    "n'est défini pour permettre l'appariement."
+                )
             entry = {
                 "product_id": ref.product_id,
                 "ean": ref.ean,
                 "part_number": ref.part_number,
                 "supplier_sku": ref.supplier_sku,
+                "reason": reason,
             }
             database_missing_entries.append(entry)
             if len(database_missing_entries) >= _MAX_REPORT_ITEMS:

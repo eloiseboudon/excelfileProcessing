@@ -79,6 +79,11 @@ function ReportList({
                     {item.part_number ? <span>Réf : {item.part_number}</span> : null}
                     {item.supplier_sku ? <span>SKU fournisseur : {item.supplier_sku}</span> : null}
                   </div>
+                  {item.reason ? (
+                    <p className="text-xs text-zinc-400 mt-2 leading-relaxed whitespace-pre-line">
+                      {item.reason}
+                    </p>
+                  ) : null}
                 </div>
                 {showPrice && item.price != null ? (
                   <span className="text-sm font-semibold text-white min-w-[80px] text-right">

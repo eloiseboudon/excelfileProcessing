@@ -139,6 +139,7 @@ export interface SupplierApiReportEntryItem {
   part_number?: string | null;
   supplier_sku?: string | null;
   price?: number | null;
+  reason?: string | null;
 }
 
 export interface SupplierApiReportData {
