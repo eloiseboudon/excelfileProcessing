@@ -146,6 +146,13 @@ export interface SupplierApiReportData {
   api_missing_products: SupplierApiReportEntryItem[];
 }
 
+export interface SupplierApiMappingSummary {
+  id: number;
+  version: number;
+  is_active: boolean;
+  field_count?: number;
+}
+
 export interface SupplierApiSyncResponse {
   job_id: number;
   supplier_id: number;
@@ -158,6 +165,7 @@ export interface SupplierApiSyncResponse {
   items: SupplierApiRow[];
   rows?: SupplierApiRow[];
   report?: SupplierApiReportData;
+  mapping?: SupplierApiMappingSummary | null;
 }
 
 export interface SupplierApiReportEntry extends SupplierApiReportData {
@@ -166,6 +174,7 @@ export interface SupplierApiReportEntry extends SupplierApiReportData {
   supplier: string | null;
   started_at: string | null;
   ended_at: string | null;
+  mapping?: SupplierApiMappingSummary | null;
 }
 
 export interface SupplierApiConfigField {

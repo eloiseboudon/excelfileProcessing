@@ -108,22 +108,31 @@ def _serialize_field(field: FieldMap) -> dict[str, Any]:
     }
 
 
-def _serialize_mapping(mapping: MappingVersion | None) -> dict[str, Any] | None:
+def _serialize_mapping(
+    mapping: MappingVersion | None, *, include_fields: bool = True
+) -> dict[str, Any] | None:
     if not mapping:
         return None
 
-    return {
+    fields = list(mapping.fields or [])
+
+    data: dict[str, Any] = {
         "id": mapping.id,
         "version": mapping.version,
         "is_active": mapping.is_active,
-        "fields": [
+        "field_count": len(fields),
+    }
+
+    if include_fields:
+        data["fields"] = [
             _serialize_field(field)
             for field in sorted(
-                mapping.fields,
+                fields,
                 key=lambda f: (f.target_field or "").lower(),
             )
-        ],
-    }
+        ]
+
+    return data
 
 
 def _serialize_endpoint(endpoint: ApiEndpoint) -> dict[str, Any]:
@@ -574,7 +583,8 @@ def list_supplier_api_reports():
 
     jobs = (
         ApiFetchJob.query.options(
-            joinedload(ApiFetchJob.supplier_api).joinedload(SupplierAPI.supplier)
+            joinedload(ApiFetchJob.supplier_api).joinedload(SupplierAPI.supplier),
+            joinedload(ApiFetchJob.mapping_version).joinedload(MappingVersion.fields),
         )
         .filter(ApiFetchJob.status == "success")
         .order_by(ApiFetchJob.started_at.desc())
@@ -596,6 +606,9 @@ def list_supplier_api_reports():
                 "database_missing_products": job.report_database_missing_products
                 or [],
                 "api_missing_products": job.report_api_missing_products or [],
+                "mapping": _serialize_mapping(
+                    job.mapping_version, include_fields=False
+                ),
             }
         )
 
@@ -682,6 +695,7 @@ def fetch_supplier_api(supplier_id: int):
     job = ApiFetchJob(
         supplier_api_id=endpoint.supplier_api_id,
         endpoint_id=endpoint.id,
+        mapping_version_id=mapping.id,
         status="running",
     )
     db.session.add(job)

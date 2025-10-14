@@ -531,6 +531,9 @@ def run_fetch_job(
     if not mapping:
         raise RuntimeError("Aucun mapping disponible pour cet endpoint")
 
+    if job.mapping_version_id != mapping.id:
+        job.mapping_version_id = mapping.id
+
     supplier = Supplier.query.get(supplier_id)
     if not supplier:
         raise RuntimeError("Fournisseur introuvable")
@@ -643,6 +646,13 @@ def run_fetch_job(
 
         preview_rows = temp_rows[:50]
 
+        mapping_summary = {
+            "id": mapping.id,
+            "version": mapping.version,
+            "is_active": mapping.is_active,
+            "field_count": len(mapping.fields or []),
+        }
+
         return {
             "job_id": job.id,
             "supplier_id": supplier_id,
@@ -655,6 +665,7 @@ def run_fetch_job(
             "items": preview_rows,
             "rows": preview_rows,
             "report": report_data,
+            "mapping": mapping_summary,
         }
     except Exception as exc:  # pragma: no cover - defensive logging
         db.session.rollback()

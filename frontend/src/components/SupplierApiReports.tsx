@@ -2,9 +2,20 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, FileText, Loader2, RefreshCcw } from 'lucide-react';
 import {
   fetchSupplierApiReports,
+  SupplierApiMappingSummary,
   SupplierApiReportEntry,
   SupplierApiReportEntryItem
 } from '../api';
+
+function describeMapping(mapping: SupplierApiMappingSummary | null | undefined): string {
+  if (!mapping) {
+    return 'Non renseigné';
+  }
+  const count = mapping.field_count ?? 0;
+  const plural = count > 1 ? 'champs' : 'champ';
+  const status = mapping.is_active ? '' : ' (inactif)';
+  return `v${mapping.version} • ${count} ${plural}${status}`;
+}
 
 function formatDate(value: string | null): string {
   if (!value) {
@@ -182,6 +193,12 @@ function SupplierApiReports() {
                   </p>
                   <p>
                     Fin : <span className="font-medium text-zinc-200">{formatDate(report.ended_at)}</span>
+                  </p>
+                  <p>
+                    Mapping :{' '}
+                    <span className="font-medium text-zinc-200">
+                      {describeMapping(report.mapping ?? null)}
+                    </span>
                   </p>
                 </div>
               </div>

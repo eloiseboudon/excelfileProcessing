@@ -126,6 +126,11 @@ class ApiFetchJob(db.Model):
         db.Integer, db.ForeignKey("supplier_apis.id"), nullable=False
     )
     endpoint_id = db.Column(db.Integer, db.ForeignKey("api_endpoints.id"), nullable=False)
+    mapping_version_id = db.Column(
+        db.Integer,
+        db.ForeignKey("mapping_versions.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     started_at = db.Column(db.DateTime, default=datetime.utcnow)
     ended_at = db.Column(db.DateTime, nullable=True)
     status = db.Column(db.String(20), default="running")
@@ -137,6 +142,7 @@ class ApiFetchJob(db.Model):
 
     supplier_api = db.relationship("SupplierAPI")
     endpoint = db.relationship("ApiEndpoint")
+    mapping_version = db.relationship("MappingVersion")
 
 
 class RawIngest(db.Model):
