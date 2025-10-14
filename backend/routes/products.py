@@ -124,24 +124,35 @@ def product_price_summary():
                 "supplier_prices": {},
                 "recommended_price": p.recommended_price,
                 "buy_price": {},
-                "tcp": calc.tcp,
+                "tcp": None,
                 "min_buy_price": None,
                 "min_buy_price_value": None,
                 "min_buy_margin": None,
-                "marge_samples": [],
+                "latest_margin": None,
+                "latest_date": None,
             }
         supplier = calc.supplier.name if calc.supplier else ""
         data[pid]["supplier_prices"][supplier] = calc.prixht_max
         data[pid]["buy_price"][supplier] = calc.price
-        if calc.marge is not None:
-            data[pid]["marge_samples"].append(calc.marge)
-        if data[pid]["tcp"] is None and calc.tcp is not None:
-            data[pid]["tcp"] = calc.tcp
         if calc.price is not None:
             current_min = data[pid]["min_buy_price_value"]
             if current_min is None or calc.price < current_min:
                 data[pid]["min_buy_price_value"] = calc.price
                 data[pid]["min_buy_margin"] = calc.marge
+
+        if calc.date is not None:
+            latest_date = data[pid]["latest_date"]
+            if latest_date is None or calc.date > latest_date:
+                data[pid]["latest_date"] = calc.date
+                preferred_price = (
+                    calc.prixht_max
+                    or calc.prixht_marge4_5
+                    or calc.prixht_tcp_marge4_5
+                    or data[pid]["recommended_price"]
+                )
+                data[pid]["recommended_price"] = preferred_price
+                data[pid]["tcp"] = calc.tcp or 0
+                data[pid]["latest_margin"] = calc.marge
 
     result = []
     for item in data.values():
@@ -161,10 +172,10 @@ def product_price_summary():
             min_buy_price_value = min(buy_prices) if buy_prices else 0
         item["min_buy_price"] = round(min_buy_price_value, 2)
 
+        latest_margin = item.pop("latest_margin", None)
         margin_from_calc = item.pop("min_buy_margin", None)
-        margin_samples = [m for m in item.pop("marge_samples", []) if m is not None]
-        if margin_from_calc is None and margin_samples:
-            margin_from_calc = margin_samples[0]
+        if latest_margin is not None:
+            margin_from_calc = latest_margin
 
         tcp_value = item.get("tcp", 0) or 0
         if margin_from_calc is None:
@@ -175,6 +186,7 @@ def product_price_summary():
             )
         item["marge"] = round(margin_from_calc, 2)
         item["tcp"] = round(tcp_value, 2)
+        item.pop("latest_date", None)
         if request.user.role == "client":
             item.pop("supplier_prices", None)
             item.pop("tcp", None)
