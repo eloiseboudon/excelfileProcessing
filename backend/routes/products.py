@@ -30,9 +30,18 @@ def list_product_calculations():
       200:
         description: Calculated prices for all products
     """
+    now = datetime.utcnow()
+    start_of_week = now - timedelta(days=now.weekday())
+    start_of_week = start_of_week.replace(hour=0, minute=0, second=0, microsecond=0)
+    end_of_week = start_of_week + timedelta(days=7)
+
     calculations = (
         ProductCalculation.query.join(Product)
         .join(Brand)
+        .filter(
+            ProductCalculation.date >= start_of_week,
+            ProductCalculation.date < end_of_week,
+        )
         .order_by(Brand.brand, Product.model)
         .all()
     )
