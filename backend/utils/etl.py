@@ -766,6 +766,14 @@ def run_fetch_job(
         if not field_maps:
             raise RuntimeError("Aucun mapping de champs n'est défini pour cet endpoint")
 
+        normalized_targets = {
+            _normalize_target_field(field.target_field) for field in field_maps
+        }
+        if "supplier_sku" not in normalized_targets:
+            raise RuntimeError(
+                "Le mapping doit contenir un champ 'supplier_sku' pour identifier les produits"
+            )
+
         parsed_records: List[Dict[str, Any]] = []
         for item in items:
             record: Dict[str, Any] = {}
