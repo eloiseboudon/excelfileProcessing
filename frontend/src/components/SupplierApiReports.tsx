@@ -152,6 +152,13 @@ function SupplierApiReports() {
   const [reports, setReports] = useState<SupplierApiReportEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expandedReportIds, setExpandedReportIds] = useState<number[]>([]);
+
+  const toggleReport = useCallback((jobId: number) => {
+    setExpandedReportIds((current) =>
+      current.includes(jobId) ? current.filter((id) => id !== jobId) : [...current, jobId]
+    );
+  }, []);
 
   const loadReports = useCallback(async () => {
     setLoading(true);
@@ -225,54 +232,107 @@ function SupplierApiReports() {
         ) : null}
 
         <div className="space-y-6">
-          {reports.map((report) => (
-            <div
-              key={report.job_id}
-              className="border border-zinc-800/60 rounded-xl bg-black/30 px-6 py-5"
-            >
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-5">
-                <div>
-                  <p className="text-xs text-zinc-500 uppercase tracking-wide">Fournisseur</p>
-                  <h3 className="text-lg font-semibold text-zinc-100">
-                    {report.supplier || 'Fournisseur'}
-                  </h3>
+          {reports.map((report) => {
+            const isExpanded = expandedReportIds.includes(report.job_id);
+            const summaryItems = [
+              {
+                title: 'Produits mis à jour',
+                count: report.updated_products.length,
+                highlight: true
+              },
+              {
+                title: 'Produits base non trouvés',
+                count: report.database_missing_products.length
+              },
+              {
+                title: 'Produits API non appairés',
+                count: report.api_missing_products.length
+              }
+            ];
+
+            return (
+              <div
+                key={report.job_id}
+                className="border border-zinc-800/60 rounded-xl bg-black/30 px-6 py-5"
+              >
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <p className="text-xs text-zinc-500 uppercase tracking-wide">Fournisseur</p>
+                    <h3 className="text-lg font-semibold text-zinc-100">
+                      {report.supplier || 'Fournisseur'}
+                    </h3>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                      {summaryItems.map((item) => (
+                        <div
+                          key={item.title}
+                          className="rounded-lg border border-zinc-800/60 bg-black/20 px-3 py-2"
+                        >
+                          <p className="text-[11px] uppercase tracking-wide text-zinc-500">{item.title}</p>
+                          <p
+                            className={`text-lg font-semibold ${
+                              item.highlight ? 'text-zinc-100' : 'text-zinc-200'
+                            }`}
+                          >
+                            {item.count}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-start gap-4 md:items-end">
+                    <div className="text-xs text-zinc-400 space-y-1 md:text-right">
+                      <p>
+                        Début :{' '}
+                        <span className="font-medium text-zinc-200">{formatDate(report.started_at)}</span>
+                      </p>
+                      <p>
+                        Fin :{' '}
+                        <span className="font-medium text-zinc-200">{formatDate(report.ended_at)}</span>
+                      </p>
+                      <p>
+                        Mapping :{' '}
+                        <span className="font-medium text-zinc-200">
+                          {describeMapping(report.mapping ?? null)}
+                        </span>
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleReport(report.job_id)}
+                      aria-expanded={isExpanded}
+                      className="btn btn-secondary text-xs"
+                    >
+                      {isExpanded ? 'Masquer le détail' : 'Afficher le détail'}
+                    </button>
+                  </div>
                 </div>
-                <div className="text-xs text-zinc-400 space-y-1 md:text-right">
-                  <p>
-                    Début : <span className="font-medium text-zinc-200">{formatDate(report.started_at)}</span>
-                  </p>
-                  <p>
-                    Fin : <span className="font-medium text-zinc-200">{formatDate(report.ended_at)}</span>
-                  </p>
-                  <p>
-                    Mapping :{' '}
-                    <span className="font-medium text-zinc-200">
-                      {describeMapping(report.mapping ?? null)}
-                    </span>
-                  </p>
-                </div>
+
+                {isExpanded ? (
+                  <div className="mt-6 space-y-5">
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <ReportList
+                        title="Produits mis à jour"
+                        items={report.updated_products}
+                        emptyMessage="Aucun produit mis à jour lors de cette synchronisation."
+                        showPrice
+                      />
+                      <ReportList
+                        title="Produits base non trouvés"
+                        items={report.database_missing_products}
+                        emptyMessage="Tous les produits liés ont été retrouvés dans l'API."
+                      />
+                      <ReportList
+                        title="Produits API non appairés"
+                        items={report.api_missing_products}
+                        emptyMessage="Tous les articles de l'API ont été associés à la base produits."
+                      />
+                    </div>
+                    <RawDataPreview items={report.api_raw_items} />
+                  </div>
+                ) : null}
               </div>
-              <div className="grid gap-4 md:grid-cols-3">
-                <ReportList
-                  title="Produits mis à jour"
-                  items={report.updated_products}
-                  emptyMessage="Aucun produit mis à jour lors de cette synchronisation."
-                  showPrice
-                />
-                <ReportList
-                  title="Produits base non trouvés"
-                  items={report.database_missing_products}
-                  emptyMessage="Tous les produits liés ont été retrouvés dans l'API."
-                />
-                <ReportList
-                  title="Produits API non appairés"
-                  items={report.api_missing_products}
-                  emptyMessage="Tous les articles de l'API ont été associés à la base produits."
-                />
-              </div>
-              <RawDataPreview items={report.api_raw_items} />
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
