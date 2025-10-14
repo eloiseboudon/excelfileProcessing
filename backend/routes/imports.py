@@ -560,6 +560,48 @@ def list_import_history():
     return jsonify(result)
 
 
+@bp.route("/supplier_api/reports", methods=["GET"])
+@token_required("admin")
+def list_supplier_api_reports():
+    """Return synchronization reports for recent API imports."""
+
+    try:
+        limit = int(request.args.get("limit", 20))
+    except (TypeError, ValueError):
+        limit = 20
+
+    limit = max(1, min(limit, 100))
+
+    jobs = (
+        ApiFetchJob.query.options(
+            joinedload(ApiFetchJob.supplier_api).joinedload(SupplierAPI.supplier)
+        )
+        .filter(ApiFetchJob.status == "success")
+        .order_by(ApiFetchJob.started_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+    reports = []
+    for job in jobs:
+        supplier = job.supplier_api.supplier if job.supplier_api else None
+        reports.append(
+            {
+                "job_id": job.id,
+                "supplier_id": supplier.id if supplier else None,
+                "supplier": supplier.name if supplier else None,
+                "started_at": job.started_at.isoformat() if job.started_at else None,
+                "ended_at": job.ended_at.isoformat() if job.ended_at else None,
+                "updated_products": job.report_updated_products or [],
+                "database_missing_products": job.report_database_missing_products
+                or [],
+                "api_missing_products": job.report_api_missing_products or [],
+            }
+        )
+
+    return jsonify(reports)
+
+
 @bp.route("/verify_import/<int:supplier_id>", methods=["GET"])
 @token_required("admin")
 def verify_import(supplier_id):

@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from datetime import datetime, timezone
 import math
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 from urllib.parse import urljoin
 
 import jmespath
@@ -30,6 +30,7 @@ from models import (
 
 
 _EXPRESSION_CACHE: Dict[str, jmespath.parser.ParsedResult] = {}
+_MAX_REPORT_ITEMS = 200
 
 
 def _compile_expression(path: str) -> jmespath.parser.ParsedResult:
@@ -304,9 +305,13 @@ def _prepare_temp_row(record: Dict[str, Any]) -> Dict[str, Any]:
 
 def _update_product_prices_from_records(
     supplier_id: int, records: List[Dict[str, Any]]
-) -> None:
+) -> Dict[str, List[Dict[str, Any]]]:
     if not records:
-        return
+        return {
+            "updated_products": [],
+            "database_missing_products": [],
+            "api_missing_products": [],
+        }
 
     references = SupplierProductRef.query.filter_by(supplier_id=supplier_id).all()
     by_sku = {
@@ -322,6 +327,12 @@ def _update_product_prices_from_records(
     }
 
     price_updates: dict[int, float] = {}
+    matched_reference_ids: Set[int] = set()
+    updated_products_map: Dict[int, Dict[str, Any]] = {}
+    database_missing_entries: List[Dict[str, Any]] = []
+    api_missing_entries: List[Dict[str, Any]] = []
+    unmatched_keys: Set[tuple] = set()
+    product_ids_to_fetch: Set[int] = set()
     now = datetime.utcnow()
 
     for record in records:
@@ -350,6 +361,7 @@ def _update_product_prices_from_records(
             matched_ref = by_sku[supplier_sku]
 
         if matched_ref:
+            matched_reference_ids.add(matched_ref.id)
             matched_ref.last_seen_at = now
             db.session.add(matched_ref)
 
@@ -363,9 +375,77 @@ def _update_product_prices_from_records(
 
         if product_id and price is not None and price >= 0:
             price_updates[product_id] = price
+            product_ids_to_fetch.add(product_id)
+            updated_products_map[product_id] = {
+                "product_id": product_id,
+                "ean": ean or (matched_ref.ean if matched_ref else None),
+                "part_number": part_number
+                or (matched_ref.part_number if matched_ref else None),
+                "supplier_sku": supplier_sku
+                or (matched_ref.supplier_sku if matched_ref else None),
+                "price": round(price, 2),
+            }
+        else:
+            key = (
+                (supplier_sku or "").strip().lower(),
+                (ean or "").strip(),
+                (part_number or "").strip(),
+            )
+            if key not in unmatched_keys and len(api_missing_entries) < _MAX_REPORT_ITEMS:
+                unmatched_keys.add(key)
+                api_missing_entries.append(
+                    {
+                        "description": _stringify(record.get("description"))
+                        or _stringify(record.get("model")),
+                        "ean": ean,
+                        "part_number": part_number,
+                        "supplier_sku": supplier_sku,
+                    }
+                )
+
+    for ref in references:
+        if ref.product_id and ref.id not in matched_reference_ids:
+            product_ids_to_fetch.add(ref.product_id)
+            entry = {
+                "product_id": ref.product_id,
+                "ean": ref.ean,
+                "part_number": ref.part_number,
+                "supplier_sku": ref.supplier_sku,
+            }
+            database_missing_entries.append(entry)
+            if len(database_missing_entries) >= _MAX_REPORT_ITEMS:
+                break
+
+    if product_ids_to_fetch:
+        products = (
+            Product.query.filter(Product.id.in_(product_ids_to_fetch)).all()
+        )
+        product_map = {product.id: product for product in products}
+    else:
+        product_map = {}
+
+    for data in updated_products_map.values():
+        product = product_map.get(data["product_id"])
+        if product:
+            data["product_name"] = (
+                product.model
+                or product.description
+                or product.part_number
+                or product.ean
+            )
+
+    for entry in database_missing_entries:
+        product = product_map.get(entry["product_id"])
+        if product:
+            entry["product_name"] = (
+                product.model
+                or product.description
+                or product.part_number
+                or product.ean
+            )
 
     for product_id, price in price_updates.items():
-        product = Product.query.get(product_id)
+        product = product_map.get(product_id)
         if not product:
             continue
 
@@ -412,6 +492,14 @@ def _update_product_prices_from_records(
                 date=timestamp,
             )
             db.session.add(calc)
+
+    updated_products = list(updated_products_map.values())
+
+    return {
+        "updated_products": updated_products[:_MAX_REPORT_ITEMS],
+        "database_missing_products": database_missing_entries,
+        "api_missing_products": api_missing_entries,
+    }
 
 
 def run_fetch_job(
@@ -539,7 +627,13 @@ def run_fetch_job(
             )
             db.session.add(temp_import)
 
-        _update_product_prices_from_records(supplier_id, parsed_records)
+        report_data = _update_product_prices_from_records(supplier_id, parsed_records)
+
+        job.report_updated_products = report_data.get("updated_products")
+        job.report_database_missing_products = report_data.get(
+            "database_missing_products"
+        )
+        job.report_api_missing_products = report_data.get("api_missing_products")
 
         job.status = "success"
         job.error_message = None
@@ -560,6 +654,7 @@ def run_fetch_job(
             "ended_at": job.ended_at.isoformat() if job.ended_at else None,
             "items": preview_rows,
             "rows": preview_rows,
+            "report": report_data,
         }
     except Exception as exc:  # pragma: no cover - defensive logging
         db.session.rollback()

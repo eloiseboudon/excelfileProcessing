@@ -131,6 +131,12 @@ class ApiFetchJob(db.Model):
     status = db.Column(db.String(20), default="running")
     error_message = db.Column(db.Text, nullable=True)
     params_used = db.Column(JSONB, nullable=True)
+    report_updated_products = db.Column(JSONB, nullable=True)
+    report_database_missing_products = db.Column(JSONB, nullable=True)
+    report_api_missing_products = db.Column(JSONB, nullable=True)
+
+    supplier_api = db.relationship("SupplierAPI")
+    endpoint = db.relationship("ApiEndpoint")
 
 
 class RawIngest(db.Model):
