@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import datetime, timezone
+import math
 from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin
 
@@ -18,8 +19,11 @@ from models import (
     AuthType,
     MappingVersion,
     ParsedItem,
+    Product,
+    ProductCalculation,
     RawIngest,
     Supplier,
+    SupplierProductRef,
     TemporaryImport,
     db,
 )
@@ -226,11 +230,63 @@ def _perform_request(
     return response
 
 
+_PRICE_THRESHOLDS = [15, 29, 49, 79, 99, 129, 149, 179, 209, 299, 499, 799, 999]
+_PRICE_MULTIPLIERS = [
+    1.25,
+    1.22,
+    1.20,
+    1.18,
+    1.15,
+    1.11,
+    1.10,
+    1.09,
+    1.09,
+    1.08,
+    1.08,
+    1.07,
+    1.07,
+    1.06,
+]
+
+
+def _compute_margin_prices(price: float, tcp: float) -> tuple[float, float, float, float, float]:
+    margin45 = price * 0.045
+    price_with_tcp = price + tcp + margin45
+
+    price_with_margin = price
+    for threshold, multiplier in zip(_PRICE_THRESHOLDS, _PRICE_MULTIPLIERS):
+        if price <= threshold:
+            price_with_margin = price * multiplier
+            break
+    else:
+        price_with_margin = price * _PRICE_MULTIPLIERS[-1]
+
+    if price > _PRICE_THRESHOLDS[-1]:
+        price_with_margin = price * _PRICE_MULTIPLIERS[-1]
+
+    max_price = math.ceil(max(price_with_tcp, price_with_margin))
+    marge = max_price - tcp - price
+    return (
+        round(margin45, 2),
+        round(price_with_tcp, 2),
+        round(price_with_margin, 2),
+        max_price,
+        round(marge, 2),
+    )
+
+
 def _prepare_temp_row(record: Dict[str, Any]) -> Dict[str, Any]:
     quantity = _coerce_int(record.get("quantity")) or 0
+    base_price = _coerce_float(record.get("price"))
     purchase_price = _coerce_float(record.get("purchase_price"))
     recommended = _coerce_float(record.get("recommended_price"))
-    price = purchase_price if purchase_price is not None else recommended
+    price = (
+        base_price
+        if base_price is not None
+        else purchase_price
+        if purchase_price is not None
+        else recommended
+    )
     price = price if price is not None else 0.0
 
     description = _stringify(record.get("description"))
@@ -244,6 +300,118 @@ def _prepare_temp_row(record: Dict[str, Any]) -> Dict[str, Any]:
         "ean": _stringify(record.get("ean")),
         "part_number": _stringify(record.get("part_number")),
     }
+
+
+def _update_product_prices_from_records(
+    supplier_id: int, records: List[Dict[str, Any]]
+) -> None:
+    if not records:
+        return
+
+    references = SupplierProductRef.query.filter_by(supplier_id=supplier_id).all()
+    by_sku = {
+        (ref.supplier_sku or "").strip(): ref
+        for ref in references
+        if ref.supplier_sku
+    }
+    by_ean = {(ref.ean or "").strip(): ref for ref in references if ref.ean}
+    by_part = {
+        (ref.part_number or "").strip(): ref
+        for ref in references
+        if ref.part_number
+    }
+
+    price_updates: dict[int, float] = {}
+    now = datetime.utcnow()
+
+    for record in records:
+        product_id = _coerce_int(record.get("product_id"))
+        ean = _stringify(record.get("ean"))
+        part_number = _stringify(record.get("part_number"))
+        supplier_sku = (
+            _stringify(record.get("supplier_sku"))
+            or _stringify(record.get("sku"))
+            or _stringify(record.get("reference"))
+        )
+
+        matched_ref = None
+
+        if not product_id:
+            if supplier_sku and supplier_sku in by_sku:
+                matched_ref = by_sku[supplier_sku]
+            elif ean and ean in by_ean:
+                matched_ref = by_ean[ean]
+            elif part_number and part_number in by_part:
+                matched_ref = by_part[part_number]
+
+            if matched_ref and matched_ref.product_id:
+                product_id = matched_ref.product_id
+        elif supplier_sku and supplier_sku in by_sku:
+            matched_ref = by_sku[supplier_sku]
+
+        if matched_ref:
+            matched_ref.last_seen_at = now
+            db.session.add(matched_ref)
+
+        price = _coerce_float(record.get("price"))
+        if price is None:
+            price = _coerce_float(record.get("selling_price"))
+        if price is None:
+            price = _coerce_float(record.get("purchase_price"))
+        if price is None:
+            price = _coerce_float(record.get("recommended_price"))
+
+        if product_id and price is not None and price >= 0:
+            price_updates[product_id] = price
+
+    for product_id, price in price_updates.items():
+        product = Product.query.get(product_id)
+        if not product:
+            continue
+
+        tcp = float(product.memory.tcp_value) if product.memory else 0.0
+        (
+            margin45,
+            price_with_tcp,
+            price_with_margin,
+            max_price,
+            marge,
+        ) = _compute_margin_prices(price, tcp)
+
+        calc = (
+            ProductCalculation.query.filter_by(
+                product_id=product_id, supplier_id=supplier_id
+            )
+            .order_by(ProductCalculation.date.desc())
+            .first()
+        )
+
+        timestamp = datetime.now(timezone.utc)
+
+        if calc:
+            calc.price = round(price, 2)
+            calc.tcp = round(tcp, 2)
+            calc.marge4_5 = margin45
+            calc.prixht_tcp_marge4_5 = price_with_tcp
+            calc.prixht_marge4_5 = price_with_margin
+            calc.prixht_max = max_price
+            calc.marge = marge
+            calc.date = timestamp
+            db.session.add(calc)
+        else:
+            calc = ProductCalculation(
+                product_id=product_id,
+                supplier_id=supplier_id,
+                price=round(price, 2),
+                tcp=round(tcp, 2),
+                marge4_5=margin45,
+                prixht_tcp_marge4_5=price_with_tcp,
+                prixht_marge4_5=price_with_margin,
+                prixht_max=max_price,
+                marge=marge,
+                date=timestamp,
+            )
+            db.session.add(calc)
 
 
 def run_fetch_job(
@@ -370,6 +538,8 @@ def run_fetch_job(
                 part_number=temp_row["part_number"],
             )
             db.session.add(temp_import)
+
+        _update_product_prices_from_records(supplier_id, parsed_records)
 
         job.status = "success"
         job.error_message = None
