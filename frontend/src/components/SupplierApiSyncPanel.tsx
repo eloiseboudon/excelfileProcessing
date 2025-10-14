@@ -39,6 +39,7 @@ function mapResponseToRows(response: SupplierApiSyncResponse, fallbackName: stri
     selling_price: row.selling_price ?? 0,
     ean: row.ean ?? null,
     part_number: row.part_number ?? null,
+    supplier_sku: row.supplier_sku ?? null,
   }));
 }
 
@@ -210,7 +211,9 @@ function SupplierApiSyncPanel() {
                   <div className="p-5 space-y-4">
                     {items.map((row, index) => (
                       <div
-                        key={`${row.supplier_id}-${row.ean ?? row.part_number ?? index}`}
+                        key={`${
+                          row.supplier_id
+                        }-${row.ean ?? row.part_number ?? row.supplier_sku ?? index}`}
                         className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between bg-black/20 rounded-lg p-4"
                       >
                         <div className="space-y-1">
@@ -220,6 +223,7 @@ function SupplierApiSyncPanel() {
                           <div className="text-sm text-zinc-400 flex flex-wrap gap-3">
                             <span>EAN : {row.ean || '—'}</span>
                             <span>Part Number : {row.part_number || '—'}</span>
+                            <span>SKU fournisseur : {row.supplier_sku || '—'}</span>
                           </div>
                         </div>
                         <div className="text-sm text-zinc-300 text-right space-y-1 min-w-[120px]">

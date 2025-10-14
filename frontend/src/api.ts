@@ -128,6 +128,7 @@ export interface SupplierApiRow {
   selling_price?: number | null;
   ean?: string | null;
   part_number?: string | null;
+  supplier_sku?: string | null;
 }
 
 export interface SupplierApiReportEntryItem {

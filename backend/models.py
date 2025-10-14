@@ -176,6 +176,7 @@ class ParsedItem(db.Model):
 
     ean = db.Column(db.String(20))
     part_number = db.Column(db.String(120))
+    supplier_sku = db.Column(db.String(120))
     model = db.Column(db.String(250))
     description = db.Column(db.String(400))
     brand = db.Column(db.String(100))

@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from datetime import datetime, timezone
 import math
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 from urllib.parse import urljoin
 
 import jmespath
@@ -97,6 +97,22 @@ def _coerce_float(value: Any) -> Optional[float]:
         return None
 
 
+def _coerce_first_int(*values: Any) -> Optional[int]:
+    for value in values:
+        result = _coerce_int(value)
+        if result is not None:
+            return result
+    return None
+
+
+def _coerce_first_float(*values: Any) -> Optional[float]:
+    for value in values:
+        result = _coerce_float(value)
+        if result is not None:
+            return result
+    return None
+
+
 def _stringify(value: Any) -> Optional[str]:
     if value is None:
         return None
@@ -104,6 +120,72 @@ def _stringify(value: Any) -> Optional[str]:
         cleaned = value.strip()
         return cleaned or None
     return str(value)
+
+
+def _first_non_empty(*values: Any) -> Optional[str]:
+    for value in values:
+        text = _stringify(value)
+        if text:
+            return text
+    return None
+
+
+def _extract_supplier_sku(record: Dict[str, Any]) -> Optional[str]:
+    return _first_non_empty(
+        record.get("supplier_sku"),
+        record.get("sku"),
+        record.get("reference"),
+        record.get("ref"),
+        record.get("item_code"),
+        record.get("product_code"),
+        record.get("code"),
+        record.get("vpn"),
+        record.get("vpnr"),
+    )
+
+
+def _extract_ean(record: Dict[str, Any]) -> Optional[str]:
+    return _first_non_empty(
+        record.get("ean"),
+        record.get("ean13"),
+        record.get("ean_13"),
+        record.get("barcode"),
+        record.get("gtin"),
+    )
+
+
+def _extract_part_number(record: Dict[str, Any]) -> Optional[str]:
+    return _first_non_empty(
+        record.get("part_number"),
+        record.get("partNumber"),
+        record.get("pn"),
+        record.get("mpn"),
+        record.get("manufacturer_part_number"),
+        record.get("product_number"),
+        record.get("item_number"),
+        record.get("vpn"),
+        record.get("vpnr"),
+    )
+
+
+def _extract_description(record: Dict[str, Any]) -> Optional[str]:
+    return _first_non_empty(
+        record.get("description"),
+        record.get("name"),
+        record.get("title"),
+        record.get("designation"),
+        record.get("product_name"),
+    )
+
+
+def _extract_model(record: Dict[str, Any], description: Optional[str]) -> Optional[str]:
+    return _first_non_empty(
+        record.get("model"),
+        record.get("model_name"),
+        record.get("product_model"),
+        record.get("reference"),
+        description,
+    )
 
 
 def _parse_datetime(value: Any) -> Optional[datetime]:
@@ -277,29 +359,56 @@ def _compute_margin_prices(price: float, tcp: float) -> tuple[float, float, floa
 
 
 def _prepare_temp_row(record: Dict[str, Any]) -> Dict[str, Any]:
-    quantity = _coerce_int(record.get("quantity")) or 0
-    base_price = _coerce_float(record.get("price"))
-    purchase_price = _coerce_float(record.get("purchase_price"))
-    recommended = _coerce_float(record.get("recommended_price"))
-    price = (
-        base_price
-        if base_price is not None
-        else purchase_price
-        if purchase_price is not None
-        else recommended
-    )
-    price = price if price is not None else 0.0
+    quantity = _coerce_first_int(
+        record.get("quantity"),
+        record.get("qty"),
+        record.get("stock"),
+        record.get("stock_quantity"),
+        record.get("available"),
+        record.get("availability"),
+        record.get("quantity_available"),
+    ) or 0
 
-    description = _stringify(record.get("description"))
-    model = _stringify(record.get("model")) or description
+    purchase_price = _coerce_first_float(
+        record.get("purchase_price"),
+        record.get("buy_price"),
+        record.get("net_price"),
+        record.get("cost"),
+        record.get("purchaseprice"),
+    )
+    base_price = _coerce_first_float(
+        record.get("price"),
+        record.get("selling_price"),
+        record.get("sale_price"),
+        record.get("unit_price"),
+        record.get("gross_price"),
+        record.get("final_price"),
+    )
+    recommended = _coerce_first_float(
+        record.get("recommended_price"),
+        record.get("msrp"),
+        record.get("rrp"),
+    )
+
+    price = base_price
+    if price is None:
+        price = purchase_price
+    if price is None:
+        price = recommended
+    if price is None:
+        price = 0.0
+
+    description = _extract_description(record)
+    model = _extract_model(record, description)
 
     return {
         "description": description,
         "model": model,
         "quantity": quantity,
         "selling_price": price,
-        "ean": _stringify(record.get("ean")),
-        "part_number": _stringify(record.get("part_number")),
+        "ean": _extract_ean(record),
+        "part_number": _extract_part_number(record),
+        "supplier_sku": _extract_supplier_sku(record),
     }
 
 
@@ -337,13 +446,9 @@ def _update_product_prices_from_records(
 
     for record in records:
         product_id = _coerce_int(record.get("product_id"))
-        ean = _stringify(record.get("ean"))
-        part_number = _stringify(record.get("part_number"))
-        supplier_sku = (
-            _stringify(record.get("supplier_sku"))
-            or _stringify(record.get("sku"))
-            or _stringify(record.get("reference"))
-        )
+        ean = _extract_ean(record)
+        part_number = _extract_part_number(record)
+        supplier_sku = _extract_supplier_sku(record)
 
         matched_ref = None
 
@@ -365,13 +470,15 @@ def _update_product_prices_from_records(
             matched_ref.last_seen_at = now
             db.session.add(matched_ref)
 
-        price = _coerce_float(record.get("price"))
-        if price is None:
-            price = _coerce_float(record.get("selling_price"))
-        if price is None:
-            price = _coerce_float(record.get("purchase_price"))
-        if price is None:
-            price = _coerce_float(record.get("recommended_price"))
+        price = _coerce_first_float(
+            record.get("price"),
+            record.get("selling_price"),
+            record.get("purchase_price"),
+            record.get("recommended_price"),
+            record.get("sale_price"),
+            record.get("net_price"),
+            record.get("cost"),
+        )
 
         if product_id and price is not None and price >= 0:
             price_updates[product_id] = price
@@ -388,15 +495,15 @@ def _update_product_prices_from_records(
         else:
             key = (
                 (supplier_sku or "").strip().lower(),
-                (ean or "").strip(),
-                (part_number or "").strip(),
+                (ean or "").strip().lower(),
+                (part_number or "").strip().lower(),
             )
             if key not in unmatched_keys and len(api_missing_entries) < _MAX_REPORT_ITEMS:
                 unmatched_keys.add(key)
                 api_missing_entries.append(
                     {
-                        "description": _stringify(record.get("description"))
-                        or _stringify(record.get("model")),
+                        "description": _extract_description(record)
+                        or _extract_model(record, None),
                         "ean": ean,
                         "part_number": part_number,
                         "supplier_sku": supplier_sku,
@@ -552,6 +659,12 @@ def run_fetch_job(
 
     try:
         response = _perform_request(endpoint.supplier_api, endpoint, final_query, final_body)
+        job.params_used = {
+            **(job.params_used or {}),
+            "resolved_url": response.url,
+            "status_code": response.status_code,
+        }
+        db.session.add(job)
         content_type = response.headers.get("Content-Type", endpoint.content_type)
         try:
             payload = response.json()
@@ -586,12 +699,27 @@ def run_fetch_job(
 
         TemporaryImport.query.filter_by(supplier_id=supplier_id).delete(synchronize_session=False)
 
-        seen_keys: set[tuple[Optional[str], Optional[str]]] = set()
+        seen_keys: Set[Tuple[str, str, str]] = set()
         temp_rows: List[Dict[str, Any]] = []
 
         for record in parsed_records:
             temp_row = _prepare_temp_row(record)
-            key = (temp_row["ean"], temp_row["part_number"])
+            supplier_sku = temp_row.get("supplier_sku")
+            key = (
+                (temp_row.get("ean") or "").strip().lower(),
+                (temp_row.get("part_number") or "").strip().lower(),
+                (supplier_sku or "").strip().lower(),
+            )
+            if not any(key):
+                fallback = _first_non_empty(
+                    temp_row.get("description"),
+                    temp_row.get("model"),
+                    record.get("name"),
+                    record.get("title"),
+                    record.get("designation"),
+                    supplier_sku,
+                ) or f"row-{len(temp_rows)}"
+                key = ("", "", fallback.lower())
             if key in seen_keys:
                 continue
             seen_keys.add(key)
@@ -603,6 +731,7 @@ def run_fetch_job(
                 supplier_id=supplier_id,
                 ean=temp_row["ean"],
                 part_number=temp_row["part_number"],
+                supplier_sku=supplier_sku,
                 model=temp_row["model"],
                 description=temp_row["description"],
                 brand=_stringify(record.get("brand")),
@@ -612,9 +741,20 @@ def run_fetch_job(
                 norme=_stringify(record.get("norme")),
                 device_type=_stringify(record.get("device_type")),
                 quantity=temp_row["quantity"],
-                purchase_price=_coerce_float(record.get("purchase_price")),
+                purchase_price=_coerce_first_float(
+                    record.get("purchase_price"),
+                    record.get("buy_price"),
+                    record.get("net_price"),
+                    record.get("cost"),
+                    record.get("price"),
+                    record.get("selling_price"),
+                ),
                 currency=_stringify(record.get("currency")),
-                recommended_price=_coerce_float(record.get("recommended_price")),
+                recommended_price=_coerce_first_float(
+                    record.get("recommended_price"),
+                    record.get("msrp"),
+                    record.get("rrp"),
+                ),
                 updated_at=_parse_datetime(record.get("updated_at")),
             )
             db.session.add(parsed_item)
