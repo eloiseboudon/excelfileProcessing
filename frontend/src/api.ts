@@ -128,6 +128,31 @@ export interface SupplierApiRow {
   selling_price?: number | null;
   ean?: string | null;
   part_number?: string | null;
+  supplier_sku?: string | null;
+}
+
+export interface SupplierApiReportEntryItem {
+  product_id?: number | null;
+  product_name?: string | null;
+  description?: string | null;
+  ean?: string | null;
+  part_number?: string | null;
+  supplier_sku?: string | null;
+  price?: number | null;
+  reason?: string | null;
+}
+
+export interface SupplierApiReportData {
+  updated_products: SupplierApiReportEntryItem[];
+  database_missing_products: SupplierApiReportEntryItem[];
+  api_missing_products: SupplierApiReportEntryItem[];
+}
+
+export interface SupplierApiMappingSummary {
+  id: number;
+  version: number;
+  is_active: boolean;
+  field_count?: number;
 }
 
 export interface SupplierApiSyncResponse {
@@ -141,6 +166,19 @@ export interface SupplierApiSyncResponse {
   ended_at?: string | null;
   items: SupplierApiRow[];
   rows?: SupplierApiRow[];
+  report?: SupplierApiReportData;
+  api_raw_items?: unknown[];
+  mapping?: SupplierApiMappingSummary | null;
+}
+
+export interface SupplierApiReportEntry extends SupplierApiReportData {
+  job_id: number;
+  supplier_id: number | null;
+  supplier: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+  api_raw_items?: unknown[];
+  mapping?: SupplierApiMappingSummary | null;
 }
 
 export interface SupplierApiConfigField {
@@ -225,6 +263,15 @@ export async function refreshSupplierCatalog(
 }
 
 export const fetchSupplierApiData = refreshSupplierCatalog;
+
+export async function fetchSupplierApiReports(limit = 20) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  const res = await fetchWithAuth(`${API_BASE}/supplier_api/reports?${params.toString()}`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<SupplierApiReportEntry[]>;
+}
 
 export async function createProduct(data: any) {
   const res = await fetchWithAuth(`${API_BASE}/products`, {

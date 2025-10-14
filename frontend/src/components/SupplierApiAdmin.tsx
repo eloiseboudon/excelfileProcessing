@@ -26,7 +26,7 @@ interface SupplierApiAdminProps {
 
 const PRICE_FIELDS = new Set(['price', 'selling_price', 'purchase_price', 'recommended_price']);
 const QUANTITY_FIELDS = new Set(['quantity', 'stock']);
-const DEFAULT_MAPPING_TARGET_FIELDS = ['product_id', 'price', 'quantity'] as const;
+const DEFAULT_MAPPING_TARGET_FIELDS = ['supplier_sku', 'price', 'quantity'] as const;
 const DEFAULT_FIELD_ORDER = new Map(
   DEFAULT_MAPPING_TARGET_FIELDS.map((target, index) => [target, index])
 );
@@ -911,7 +911,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                                 </div>
                               )}
                               <p className="text-xs text-zinc-500 mt-1">
-                                Champs obligatoires : <code className="text-zinc-300">product_id</code>,{' '}
+                                Champs obligatoires : <code className="text-zinc-300">supplier_sku</code>,{' '}
                                 <code className="text-zinc-300">price</code> et{' '}
                                 <code className="text-zinc-300">quantity</code>.
                               </p>
@@ -954,7 +954,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                                               e.target.value
                                             )
                                           }
-                                          placeholder="product_id"
+                                          placeholder="supplier_sku"
                                           className="w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-700 text-white placeholder:text-zinc-500"
                                         />
                                       </td>

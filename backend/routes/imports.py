@@ -108,22 +108,31 @@ def _serialize_field(field: FieldMap) -> dict[str, Any]:
     }
 
 
-def _serialize_mapping(mapping: MappingVersion | None) -> dict[str, Any] | None:
+def _serialize_mapping(
+    mapping: MappingVersion | None, *, include_fields: bool = True
+) -> dict[str, Any] | None:
     if not mapping:
         return None
 
-    return {
+    fields = list(mapping.fields or [])
+
+    data: dict[str, Any] = {
         "id": mapping.id,
         "version": mapping.version,
         "is_active": mapping.is_active,
-        "fields": [
+        "field_count": len(fields),
+    }
+
+    if include_fields:
+        data["fields"] = [
             _serialize_field(field)
             for field in sorted(
-                mapping.fields,
+                fields,
                 key=lambda f: (f.target_field or "").lower(),
             )
-        ],
-    }
+        ]
+
+    return data
 
 
 def _serialize_endpoint(endpoint: ApiEndpoint) -> dict[str, Any]:
@@ -560,6 +569,53 @@ def list_import_history():
     return jsonify(result)
 
 
+@bp.route("/supplier_api/reports", methods=["GET"])
+@token_required("admin")
+def list_supplier_api_reports():
+    """Return synchronization reports for recent API imports."""
+
+    try:
+        limit = int(request.args.get("limit", 20))
+    except (TypeError, ValueError):
+        limit = 20
+
+    limit = max(1, min(limit, 100))
+
+    jobs = (
+        ApiFetchJob.query.options(
+            joinedload(ApiFetchJob.supplier_api).joinedload(SupplierAPI.supplier),
+            joinedload(ApiFetchJob.mapping_version).joinedload(MappingVersion.fields),
+        )
+        .filter(ApiFetchJob.status == "success")
+        .order_by(ApiFetchJob.started_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+    reports = []
+    for job in jobs:
+        supplier = job.supplier_api.supplier if job.supplier_api else None
+        reports.append(
+            {
+                "job_id": job.id,
+                "supplier_id": supplier.id if supplier else None,
+                "supplier": supplier.name if supplier else None,
+                "started_at": job.started_at.isoformat() if job.started_at else None,
+                "ended_at": job.ended_at.isoformat() if job.ended_at else None,
+                "updated_products": job.report_updated_products or [],
+                "database_missing_products": job.report_database_missing_products
+                or [],
+                "api_missing_products": job.report_api_missing_products or [],
+                "api_raw_items": job.report_api_raw_items or [],
+                "mapping": _serialize_mapping(
+                    job.mapping_version, include_fields=False
+                ),
+            }
+        )
+
+    return jsonify(reports)
+
+
 @bp.route("/verify_import/<int:supplier_id>", methods=["GET"])
 @token_required("admin")
 def verify_import(supplier_id):
@@ -640,6 +696,7 @@ def fetch_supplier_api(supplier_id: int):
     job = ApiFetchJob(
         supplier_api_id=endpoint.supplier_api_id,
         endpoint_id=endpoint.id,
+        mapping_version_id=mapping.id,
         status="running",
     )
     db.session.add(job)

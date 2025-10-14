@@ -1,6 +1,12 @@
 import { RefreshCcw, Loader2, ShieldCheck, AlertCircle, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { fetchSupplierApiData, fetchSuppliers, SupplierApiRow, SupplierApiSyncResponse } from '../api';
+import {
+  fetchSupplierApiData,
+  fetchSuppliers,
+  SupplierApiMappingSummary,
+  SupplierApiRow,
+  SupplierApiSyncResponse
+} from '../api';
 import { useNotification } from './NotificationProvider';
 
 interface Supplier {
@@ -13,6 +19,16 @@ interface ApiRowWithSupplier extends SupplierApiRow {
   supplier: string;
 }
 
+function describeMapping(mapping: SupplierApiMappingSummary | null | undefined): string {
+  if (!mapping) {
+    return 'Non renseigné';
+  }
+  const count = mapping.field_count ?? 0;
+  const plural = count > 1 ? 'champs' : 'champ';
+  const status = mapping.is_active ? '' : ' (inactif)';
+  return `v${mapping.version} • ${count} ${plural}${status}`;
+}
+
 function mapResponseToRows(response: SupplierApiSyncResponse, fallbackName: string): ApiRowWithSupplier[] {
   const rows = response.items ?? response.rows ?? [];
   return rows.map((row) => ({
@@ -23,6 +39,7 @@ function mapResponseToRows(response: SupplierApiSyncResponse, fallbackName: stri
     selling_price: row.selling_price ?? 0,
     ean: row.ean ?? null,
     part_number: row.part_number ?? null,
+    supplier_sku: row.supplier_sku ?? null,
   }));
 }
 
@@ -30,6 +47,7 @@ function SupplierApiSyncPanel() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loadingSupplier, setLoadingSupplier] = useState<number | null>(null);
   const [rows, setRows] = useState<ApiRowWithSupplier[]>([]);
+  const [mappingsBySupplier, setMappingsBySupplier] = useState<Record<number, SupplierApiMappingSummary | null>>({});
   const [error, setError] = useState<string | null>(null);
   const notify = useNotification();
 
@@ -57,12 +75,21 @@ function SupplierApiSyncPanel() {
         return [...withoutSupplier, ...mapped];
       });
 
+      setMappingsBySupplier((prev) => ({
+        ...prev,
+        [supplierId]: response.mapping ?? null,
+      }));
+
       const count =
         response.temporary_import_count ??
         response.items?.length ??
         response.rows?.length ??
         mapped.length;
-      notify(`Synchronisation réussie pour ${fallbackName} (${count} articles)`, 'success');
+      const mappingInfo = describeMapping(response.mapping ?? null);
+      notify(
+        `Synchronisation réussie pour ${fallbackName} (${count} articles) • Mapping ${mappingInfo}`,
+        'success'
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : "Impossible de contacter l'API fournisseur";
       setError(message);
@@ -74,7 +101,10 @@ function SupplierApiSyncPanel() {
 
   const hasRows = rows.length > 0;
   const groupedRows = useMemo(() => {
-    const map = new Map<number, { supplier: string; items: ApiRowWithSupplier[] }>();
+    const map = new Map<
+      number,
+      { supplier: string; items: ApiRowWithSupplier[]; mapping: SupplierApiMappingSummary | null }
+    >();
 
     rows.forEach((row) => {
       const existing = map.get(row.supplier_id);
@@ -84,6 +114,7 @@ function SupplierApiSyncPanel() {
         map.set(row.supplier_id, {
           supplier: row.supplier,
           items: [row],
+          mapping: mappingsBySupplier[row.supplier_id] ?? null,
         });
       }
     });
@@ -92,8 +123,9 @@ function SupplierApiSyncPanel() {
       supplier_id: supplierId,
       supplier: value.supplier,
       items: value.items,
+      mapping: value.mapping ?? mappingsBySupplier[supplierId] ?? null,
     }));
-  }, [rows]);
+  }, [rows, mappingsBySupplier]);
 
   return (
     <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -110,7 +142,10 @@ function SupplierApiSyncPanel() {
           </div>
           {hasRows && (
             <button
-              onClick={() => setRows([])}
+              onClick={() => {
+                setRows([]);
+                setMappingsBySupplier({});
+              }}
               className="btn btn-secondary flex items-center gap-2"
             >
               <Trash2 className="w-4 h-4" />
@@ -151,7 +186,7 @@ function SupplierApiSyncPanel() {
         <div className="mt-8">
           {hasRows ? (
             <div className="space-y-6">
-              {groupedRows.map(({ supplier_id, supplier, items }) => (
+              {groupedRows.map(({ supplier_id, supplier, items, mapping }) => (
                 <div
                   key={supplier_id}
                   className="border border-zinc-800/60 rounded-xl bg-black/30 divide-y divide-zinc-800/60"
@@ -161,14 +196,24 @@ function SupplierApiSyncPanel() {
                       <p className="text-sm text-zinc-400 uppercase tracking-wide">Fournisseur</p>
                       <h3 className="text-lg font-semibold text-zinc-100">{supplier}</h3>
                     </div>
-                    <span className="text-sm text-zinc-400">
-                      {items.length} article{items.length > 1 ? 's' : ''}
-                    </span>
+                    <div className="text-sm text-zinc-400 text-right space-y-1">
+                      <p>
+                        {items.length} article{items.length > 1 ? 's' : ''}
+                      </p>
+                      <p>
+                        Mapping :{' '}
+                        <span className="font-medium text-zinc-200">
+                          {describeMapping(mapping)}
+                        </span>
+                      </p>
+                    </div>
                   </div>
                   <div className="p-5 space-y-4">
                     {items.map((row, index) => (
                       <div
-                        key={`${row.supplier_id}-${row.ean ?? row.part_number ?? index}`}
+                        key={`${
+                          row.supplier_id
+                        }-${row.ean ?? row.part_number ?? row.supplier_sku ?? index}`}
                         className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between bg-black/20 rounded-lg p-4"
                       >
                         <div className="space-y-1">
@@ -178,6 +223,7 @@ function SupplierApiSyncPanel() {
                           <div className="text-sm text-zinc-400 flex flex-wrap gap-3">
                             <span>EAN : {row.ean || '—'}</span>
                             <span>Part Number : {row.part_number || '—'}</span>
+                            <span>SKU fournisseur : {row.supplier_sku || '—'}</span>
                           </div>
                         </div>
                         <div className="text-sm text-zinc-300 text-right space-y-1 min-w-[120px]">

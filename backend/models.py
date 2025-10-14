@@ -126,11 +126,24 @@ class ApiFetchJob(db.Model):
         db.Integer, db.ForeignKey("supplier_apis.id"), nullable=False
     )
     endpoint_id = db.Column(db.Integer, db.ForeignKey("api_endpoints.id"), nullable=False)
+    mapping_version_id = db.Column(
+        db.Integer,
+        db.ForeignKey("mapping_versions.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     started_at = db.Column(db.DateTime, default=datetime.utcnow)
     ended_at = db.Column(db.DateTime, nullable=True)
     status = db.Column(db.String(20), default="running")
     error_message = db.Column(db.Text, nullable=True)
     params_used = db.Column(JSONB, nullable=True)
+    report_updated_products = db.Column(JSONB, nullable=True)
+    report_database_missing_products = db.Column(JSONB, nullable=True)
+    report_api_missing_products = db.Column(JSONB, nullable=True)
+    report_api_raw_items = db.Column(JSONB, nullable=True)
+
+    supplier_api = db.relationship("SupplierAPI")
+    endpoint = db.relationship("ApiEndpoint")
+    mapping_version = db.relationship("MappingVersion")
 
 
 class RawIngest(db.Model):
@@ -164,6 +177,7 @@ class ParsedItem(db.Model):
 
     ean = db.Column(db.String(20))
     part_number = db.Column(db.String(120))
+    supplier_sku = db.Column(db.String(120))
     model = db.Column(db.String(250))
     description = db.Column(db.String(400))
     brand = db.Column(db.String(100))
