@@ -606,6 +606,7 @@ def list_supplier_api_reports():
                 "database_missing_products": job.report_database_missing_products
                 or [],
                 "api_missing_products": job.report_api_missing_products or [],
+                "api_raw_items": job.report_api_raw_items or [],
                 "mapping": _serialize_mapping(
                     job.mapping_version, include_fields=False
                 ),

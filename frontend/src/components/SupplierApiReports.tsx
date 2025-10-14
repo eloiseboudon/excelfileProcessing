@@ -98,6 +98,51 @@ function ReportList({
   );
 }
 
+function RawDataPreview({ items }: { items: unknown[] | undefined }) {
+  const [expanded, setExpanded] = useState(false);
+  const entries = useMemo(() => (Array.isArray(items) ? items : []), [items]);
+
+  const visibleEntries = useMemo(() => {
+    if (expanded) {
+      return entries;
+    }
+    return entries.slice(0, 3);
+  }, [entries, expanded]);
+
+  return (
+    <div className="p-5 rounded-xl bg-black/30 border border-zinc-800/60">
+      <div className="flex items-center justify-between mb-4">
+        <h4 className="text-sm font-semibold text-zinc-200 uppercase tracking-wide">
+          Données brutes de l'API
+        </h4>
+        <span className="text-xs text-zinc-400">{entries.length} élément{entries.length > 1 ? 's' : ''}</span>
+      </div>
+      {entries.length === 0 ? (
+        <p className="text-sm text-zinc-400">
+          Aucun échantillon de données brutes n'a été enregistré pour cette synchronisation.
+        </p>
+      ) : (
+        <div className="space-y-3">
+          <pre className="text-xs text-left text-zinc-200 bg-black/40 border border-zinc-800/60 rounded-lg p-4 overflow-x-auto whitespace-pre-wrap break-words max-h-80">
+            {visibleEntries
+              .map((entry) => JSON.stringify(entry, null, 2))
+              .join('\n\n')}
+          </pre>
+          {entries.length > 3 ? (
+            <button
+              type="button"
+              onClick={() => setExpanded((value) => !value)}
+              className="text-xs font-medium text-[#B8860B] hover:underline"
+            >
+              {expanded ? 'Réduire l\'aperçu' : 'Afficher toutes les données brutes'}
+            </button>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SupplierApiReports() {
   const [reports, setReports] = useState<SupplierApiReportEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -220,6 +265,7 @@ function SupplierApiReports() {
                   emptyMessage="Tous les articles de l'API ont été associés à la base produits."
                 />
               </div>
+              <RawDataPreview items={report.api_raw_items} />
             </div>
           ))}
         </div>

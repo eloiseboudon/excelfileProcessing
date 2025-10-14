@@ -31,6 +31,7 @@ from models import (
 
 _EXPRESSION_CACHE: Dict[str, jmespath.parser.ParsedResult] = {}
 _MAX_REPORT_ITEMS = 200
+_MAX_RAW_SAMPLE_ITEMS = 25
 
 
 def _compile_expression(path: str) -> jmespath.parser.ParsedResult:
@@ -58,6 +59,38 @@ def _search_path(obj: Any, path: str) -> Any:
         return obj
     expression = _compile_expression(normalized)
     return expression.search(obj)
+
+
+def _ensure_json_compatible(value: Any, depth: int = 0) -> Any:
+    if depth > 4:
+        return str(value)
+
+    if isinstance(value, dict):
+        result = {}
+        for idx, (key, item) in enumerate(value.items()):
+            if idx >= _MAX_RAW_SAMPLE_ITEMS:
+                break
+            result[str(key)] = _ensure_json_compatible(item, depth + 1)
+        return result
+    if isinstance(value, list):
+        return [
+            _ensure_json_compatible(item, depth + 1)
+            for item in value[:_MAX_RAW_SAMPLE_ITEMS]
+        ]
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    return str(value)
+
+
+def _prepare_api_raw_samples(items: Any) -> List[Any]:
+    if isinstance(items, list):
+        sample_source = items[:_MAX_RAW_SAMPLE_ITEMS]
+    elif items is None:
+        sample_source = []
+    else:
+        sample_source = [items]
+
+    return [_ensure_json_compatible(entry) for entry in sample_source]
 
 
 def _coerce_int(value: Any) -> Optional[int]:
@@ -681,6 +714,9 @@ def run_fetch_job(
         db.session.add(raw_entry)
 
         items = _extract_items(payload, endpoint.items_path)
+        raw_samples = _prepare_api_raw_samples(items)
+        job.report_api_raw_items = raw_samples
+        db.session.add(job)
         if not items:
             raise RuntimeError("Aucune donnée exploitable retournée par l'API fournisseur")
 
@@ -777,6 +813,7 @@ def run_fetch_job(
             "database_missing_products"
         )
         job.report_api_missing_products = report_data.get("api_missing_products")
+        job.report_api_raw_items = raw_samples
 
         job.status = "success"
         job.error_message = None
@@ -805,6 +842,7 @@ def run_fetch_job(
             "items": preview_rows,
             "rows": preview_rows,
             "report": report_data,
+            "api_raw_items": raw_samples,
             "mapping": mapping_summary,
         }
     except Exception as exc:  # pragma: no cover - defensive logging

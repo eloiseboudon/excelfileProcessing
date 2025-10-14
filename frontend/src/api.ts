@@ -166,6 +166,7 @@ export interface SupplierApiSyncResponse {
   items: SupplierApiRow[];
   rows?: SupplierApiRow[];
   report?: SupplierApiReportData;
+  api_raw_items?: unknown[];
   mapping?: SupplierApiMappingSummary | null;
 }
 
@@ -175,6 +176,7 @@ export interface SupplierApiReportEntry extends SupplierApiReportData {
   supplier: string | null;
   started_at: string | null;
   ended_at: string | null;
+  api_raw_items?: unknown[];
   mapping?: SupplierApiMappingSummary | null;
 }
 

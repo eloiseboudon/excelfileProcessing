@@ -139,6 +139,7 @@ class ApiFetchJob(db.Model):
     report_updated_products = db.Column(JSONB, nullable=True)
     report_database_missing_products = db.Column(JSONB, nullable=True)
     report_api_missing_products = db.Column(JSONB, nullable=True)
+    report_api_raw_items = db.Column(JSONB, nullable=True)
 
     supplier_api = db.relationship("SupplierAPI")
     endpoint = db.relationship("ApiEndpoint")
