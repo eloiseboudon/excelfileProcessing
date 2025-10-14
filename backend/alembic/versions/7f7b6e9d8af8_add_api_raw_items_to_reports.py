@@ -1,8 +1,7 @@
-"""
-add api raw items to reports
+"""add api raw items to reports
 
 Revision ID: 7f7b6e9d8af8
-Revises: f9a0f1d3c2ab
+Revises: 4f0e2d1f5e7b
 Create Date: 2024-06-06 00:00:00.000000
 """
 
@@ -12,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '7f7b6e9d8af8'
-down_revision = 'f9a0f1d3c2ab'
+down_revision = '4f0e2d1f5e7b'
 branch_labels = None
 depends_on = None
 
