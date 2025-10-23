@@ -389,7 +389,9 @@ _PRICE_MULTIPLIERS = [
 ]
 
 
-def _compute_margin_prices(price: float, tcp: float) -> tuple[float, float, float, float, float]:
+def _compute_margin_prices(
+    price: float, tcp: float
+) -> tuple[float, float, float, float, float, float | None]:
     margin45 = price * 0.045
     price_with_tcp = price + tcp + margin45
 
@@ -406,12 +408,15 @@ def _compute_margin_prices(price: float, tcp: float) -> tuple[float, float, floa
 
     max_price = math.ceil(max(price_with_tcp, price_with_margin))
     marge = max_price - tcp - price
+    base_cost = price + tcp
+    marge_percent = (marge / base_cost * 100) if base_cost else None
     return (
         round(margin45, 2),
         round(price_with_tcp, 2),
         round(price_with_margin, 2),
         max_price,
         round(marge, 2),
+        round(marge_percent, 4) if marge_percent is not None else None,
     )
 
 
@@ -651,6 +656,7 @@ def _update_product_prices_from_records(
             price_with_margin,
             max_price,
             marge,
+            marge_percent,
         ) = _compute_margin_prices(price, tcp)
 
         calc = (
@@ -673,6 +679,7 @@ def _update_product_prices_from_records(
             calc.prixht_marge4_5 = price_with_margin
             calc.prixht_max = max_price
             calc.marge = marge
+            calc.marge_percent = marge_percent
             calc.date = timestamp
             calc.stock = stock
             db.session.add(calc)
@@ -687,6 +694,7 @@ def _update_product_prices_from_records(
                 prixht_marge4_5=price_with_margin,
                 prixht_max=max_price,
                 marge=marge,
+                marge_percent=marge_percent,
                 date=timestamp,
                 stock=stock,
             )

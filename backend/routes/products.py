@@ -142,6 +142,7 @@ def product_price_summary():
             "tcp": calc.tcp,
             "marge4_5": calc.marge4_5,
             "marge": calc.marge,
+            "marge_percent": calc.marge_percent,
             "prixht_tcp_marge4_5": calc.prixht_tcp_marge4_5,
             "prixht_marge4_5": calc.prixht_marge4_5,
             "prixht_max": calc.prixht_max,
@@ -167,6 +168,7 @@ def product_price_summary():
                 data[pid]["recommended_price"] = preferred_price
                 data[pid]["tcp"] = calc.tcp or 0
                 data[pid]["latest_margin"] = calc.marge
+                data[pid]["latest_margin_percent"] = calc.marge_percent
 
     result = []
     for item in data.values():
@@ -199,8 +201,17 @@ def product_price_summary():
                 - min_buy_price_value
             )
         item["marge"] = round(margin_from_calc, 2)
+        base_cost = (item["min_buy_price"] or 0) + tcp_value
+        margin_percent = None
+        if item.get("latest_margin_percent") is not None:
+            margin_percent = item["latest_margin_percent"]
+        elif base_cost:
+            margin_percent = round((margin_from_calc / base_cost) * 100, 4)
+
+        item["marge_percent"] = margin_percent
         item["tcp"] = round(tcp_value, 2)
         item.pop("latest_date", None)
+        item.pop("latest_margin_percent", None)
         if request.user.role == "client":
             item.pop("supplier_prices", None)
             item.pop("tcp", None)
@@ -487,44 +498,84 @@ def update_product(product_id):
         if field in data:
             setattr(product, field, data[field])
 
+    has_margin_update = "marge" in data or "marge_percent" in data
+    new_margin = None
+    new_margin_percent = None
+
     if "marge" in data:
         try:
             new_margin = float(data["marge"])
         except (TypeError, ValueError):
             new_margin = None
-        if new_margin is not None:
-            latest_calc = (
-                ProductCalculation.query.filter_by(product_id=product_id)
-                .order_by(ProductCalculation.date.desc())
-                .first()
-            )
-            if latest_calc:
-                latest_date = latest_calc.date
-                calcs = ProductCalculation.query.filter(
-                    ProductCalculation.product_id == product_id,
-                    ProductCalculation.date == latest_date,
-                ).all()
-                min_price_calc = None
-                if calcs:
-                    min_price_calc = min(
-                        (c for c in calcs if c.price is not None),
-                        key=lambda c: c.price,
-                        default=None,
-                    )
-                base_price = 0.0
-                if min_price_calc and min_price_calc.price is not None:
-                    base_price = min_price_calc.price
-                elif latest_calc.price is not None:
-                    base_price = latest_calc.price
-                product.recommended_price = round(
-                    (latest_calc.tcp or 0) + base_price + new_margin,
-                    2,
+
+    if "marge_percent" in data:
+        try:
+            new_margin_percent = float(data["marge_percent"])
+        except (TypeError, ValueError):
+            new_margin_percent = None
+
+    if has_margin_update:
+        latest_calc = (
+            ProductCalculation.query.filter_by(product_id=product_id)
+            .order_by(ProductCalculation.date.desc())
+            .first()
+        )
+        if latest_calc:
+            latest_date = latest_calc.date
+            calcs = ProductCalculation.query.filter(
+                ProductCalculation.product_id == product_id,
+                ProductCalculation.date == latest_date,
+            ).all()
+            min_price_calc = None
+            if calcs:
+                min_price_calc = min(
+                    (c for c in calcs if c.price is not None),
+                    key=lambda c: c.price,
+                    default=None,
                 )
+            base_price = 0.0
+            if min_price_calc and min_price_calc.price is not None:
+                base_price = min_price_calc.price
+            elif latest_calc.price is not None:
+                base_price = latest_calc.price
+            tcp_value = latest_calc.tcp or 0
+            base_cost = base_price + tcp_value
+
+            margin_value = None
+            if new_margin is not None:
+                margin_value = round(new_margin, 2)
+            elif new_margin_percent is not None and base_cost:
+                margin_value = round(base_cost * (new_margin_percent / 100), 2)
+
+            if margin_value is not None:
+                if base_cost:
+                    product_margin_percent = round((margin_value / base_cost) * 100, 4)
+                elif new_margin_percent is not None:
+                    product_margin_percent = round(new_margin_percent, 4)
+                else:
+                    product_margin_percent = None
+
+                product.recommended_price = round(base_cost + margin_value, 2)
+
                 for c in calcs:
-                    c.marge = round(new_margin, 2)
                     price_value = c.price or 0
-                    tcp_value = c.tcp or 0
-                    c.prixht_max = round(tcp_value + price_value + new_margin, 2)
+                    calc_base_cost = price_value + (c.tcp or 0)
+                    if calc_base_cost:
+                        calc_margin_percent = round(
+                            (margin_value / calc_base_cost) * 100,
+                            4,
+                        )
+                    else:
+                        calc_margin_percent = product_margin_percent
+
+                    c.marge = margin_value
+                    c.marge_percent = calc_margin_percent
+                    c.prixht_max = round(
+                        (c.tcp or 0) + price_value + margin_value,
+                        2,
+                    )
+
+                latest_calc.marge_percent = product_margin_percent
     db.session.commit()
     return jsonify({"status": "updated"})
 
