@@ -389,7 +389,9 @@ _PRICE_MULTIPLIERS = [
 ]
 
 
-def _compute_margin_prices(price: float, tcp: float) -> tuple[float, float, float, float, float]:
+def _compute_margin_prices(
+    price: float, tcp: float
+) -> tuple[float, float, float, float, float, float | None]:
     margin45 = price * 0.045
     price_with_tcp = price + tcp + margin45
 
@@ -406,12 +408,15 @@ def _compute_margin_prices(price: float, tcp: float) -> tuple[float, float, floa
 
     max_price = math.ceil(max(price_with_tcp, price_with_margin))
     marge = max_price - tcp - price
+    base_cost = price + tcp
+    marge_percent = (marge / base_cost * 100) if base_cost else None
     return (
         round(margin45, 2),
         round(price_with_tcp, 2),
         round(price_with_margin, 2),
         max_price,
         round(marge, 2),
+        round(marge_percent, 4) if marge_percent is not None else None,
     )
 
 
@@ -493,6 +498,7 @@ def _update_product_prices_from_records(
     }
 
     price_updates: dict[int, float] = {}
+    stock_updates: dict[int, Optional[int]] = {}
     matched_reference_ids: Set[int] = set()
     updated_products_map: Dict[int, Dict[str, Any]] = {}
     database_missing_entries: List[Dict[str, Any]] = []
@@ -537,8 +543,19 @@ def _update_product_prices_from_records(
             record.get("cost"),
         )
 
+        quantity = _coerce_first_int(
+            record.get("quantity"),
+            record.get("qty"),
+            record.get("stock"),
+            record.get("stock_quantity"),
+            record.get("available"),
+            record.get("availability"),
+            record.get("quantity_available"),
+        )
+
         if product_id and price is not None and price >= 0:
             price_updates[product_id] = price
+            stock_updates[product_id] = quantity
             product_ids_to_fetch.add(product_id)
             updated_products_map[product_id] = {
                 "product_id": product_id,
@@ -548,6 +565,7 @@ def _update_product_prices_from_records(
                 "supplier_sku": supplier_sku
                 or (matched_ref.supplier_sku if matched_ref else None),
                 "price": round(price, 2),
+                "stock": quantity,
             }
         else:
             key = (
@@ -638,6 +656,7 @@ def _update_product_prices_from_records(
             price_with_margin,
             max_price,
             marge,
+            marge_percent,
         ) = _compute_margin_prices(price, tcp)
 
         calc = (
@@ -650,6 +669,8 @@ def _update_product_prices_from_records(
 
         timestamp = datetime.now(timezone.utc)
 
+        stock = stock_updates.get(product_id)
+
         if calc:
             calc.price = round(price, 2)
             calc.tcp = round(tcp, 2)
@@ -658,7 +679,9 @@ def _update_product_prices_from_records(
             calc.prixht_marge4_5 = price_with_margin
             calc.prixht_max = max_price
             calc.marge = marge
+            calc.marge_percent = marge_percent
             calc.date = timestamp
+            calc.stock = stock
             db.session.add(calc)
         else:
             calc = ProductCalculation(
@@ -671,7 +694,9 @@ def _update_product_prices_from_records(
                 prixht_marge4_5=price_with_margin,
                 prixht_max=max_price,
                 marge=marge,
+                marge_percent=marge_percent,
                 date=timestamp,
+                stock=stock,
             )
             db.session.add(calc)
 

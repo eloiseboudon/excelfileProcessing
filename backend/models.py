@@ -365,10 +365,12 @@ class ProductCalculation(db.Model):
     tcp = db.Column(db.Float, nullable=False)
     marge4_5 = db.Column(db.Float, nullable=False)
     marge = db.Column(db.Float, nullable=True)
+    marge_percent = db.Column(db.Float, nullable=True)
     prixht_tcp_marge4_5 = db.Column(db.Float, nullable=False)
     prixht_marge4_5 = db.Column(db.Float, nullable=False)
     prixht_max = db.Column(db.Float, nullable=False)
     date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    stock = db.Column(db.Integer, nullable=True)
 
 
 class ImportHistory(db.Model):
