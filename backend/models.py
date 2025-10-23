@@ -369,6 +369,7 @@ class ProductCalculation(db.Model):
     prixht_marge4_5 = db.Column(db.Float, nullable=False)
     prixht_max = db.Column(db.Float, nullable=False)
     date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    stock = db.Column(db.Integer, nullable=True)
 
 
 class ImportHistory(db.Model):

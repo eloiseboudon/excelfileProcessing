@@ -171,6 +171,7 @@ def recalculate_product_calculations():
             prixht_max=max_price,
             date=datetime.now(timezone.utc),
             marge=round(max_price - tcp - price, 2),
+            stock=temp.quantity,
         )
         db.session.add(calc)
 

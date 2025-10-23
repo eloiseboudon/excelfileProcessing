@@ -124,6 +124,7 @@ def product_price_summary():
                 "supplier_prices": {},
                 "recommended_price": p.recommended_price,
                 "buy_price": {},
+                "stock_levels": {},
                 "tcp": None,
                 "min_buy_price": None,
                 "min_buy_price_value": None,
@@ -134,6 +135,7 @@ def product_price_summary():
         supplier = calc.supplier.name if calc.supplier else ""
         data[pid]["supplier_prices"][supplier] = calc.prixht_max
         data[pid]["buy_price"][supplier] = calc.price
+        data[pid]["stock_levels"][supplier] = calc.stock
         if calc.price is not None:
             current_min = data[pid]["min_buy_price_value"]
             if current_min is None or calc.price < current_min:
@@ -190,6 +192,7 @@ def product_price_summary():
         if request.user.role == "client":
             item.pop("supplier_prices", None)
             item.pop("tcp", None)
+            item.pop("stock_levels", None)
         result.append(item)
 
     db.session.commit()

@@ -493,6 +493,7 @@ def _update_product_prices_from_records(
     }
 
     price_updates: dict[int, float] = {}
+    stock_updates: dict[int, Optional[int]] = {}
     matched_reference_ids: Set[int] = set()
     updated_products_map: Dict[int, Dict[str, Any]] = {}
     database_missing_entries: List[Dict[str, Any]] = []
@@ -537,8 +538,19 @@ def _update_product_prices_from_records(
             record.get("cost"),
         )
 
+        quantity = _coerce_first_int(
+            record.get("quantity"),
+            record.get("qty"),
+            record.get("stock"),
+            record.get("stock_quantity"),
+            record.get("available"),
+            record.get("availability"),
+            record.get("quantity_available"),
+        )
+
         if product_id and price is not None and price >= 0:
             price_updates[product_id] = price
+            stock_updates[product_id] = quantity
             product_ids_to_fetch.add(product_id)
             updated_products_map[product_id] = {
                 "product_id": product_id,
@@ -548,6 +560,7 @@ def _update_product_prices_from_records(
                 "supplier_sku": supplier_sku
                 or (matched_ref.supplier_sku if matched_ref else None),
                 "price": round(price, 2),
+                "stock": quantity,
             }
         else:
             key = (
@@ -650,6 +663,8 @@ def _update_product_prices_from_records(
 
         timestamp = datetime.now(timezone.utc)
 
+        stock = stock_updates.get(product_id)
+
         if calc:
             calc.price = round(price, 2)
             calc.tcp = round(tcp, 2)
@@ -659,6 +674,7 @@ def _update_product_prices_from_records(
             calc.prixht_max = max_price
             calc.marge = marge
             calc.date = timestamp
+            calc.stock = stock
             db.session.add(calc)
         else:
             calc = ProductCalculation(
@@ -672,6 +688,7 @@ def _update_product_prices_from_records(
                 prixht_max=max_price,
                 marge=marge,
                 date=timestamp,
+                stock=stock,
             )
             db.session.add(calc)
 

@@ -32,6 +32,7 @@ interface AggregatedProduct {
   averagePrice: number;
   buyPrices: Record<string, number | undefined>;
   salePrices: Record<string, number | undefined>;
+  stockLevels: Record<string, number | undefined>;
   minBuyPrice: number;
   tcp: number;
 }
@@ -132,6 +133,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
               it.recommended_price ?? it.average_price ?? 0,
             buyPrices: it.buy_price || {},
             salePrices: it.supplier_prices || {},
+            stockLevels: it.stock_levels || {},
             minBuyPrice:
               typeof it.min_buy_price === 'number' ? it.min_buy_price : 0,
             tcp: typeof it.tcp === 'number' ? it.tcp : 0,
@@ -775,6 +777,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
       {role !== 'client' && selectedProduct && (
         <SupplierPriceModal
           prices={selectedProduct.salePrices}
+          stocks={selectedProduct.stockLevels}
           onClose={() => setSelectedProduct(null)}
         />
       )}
