@@ -48,41 +48,43 @@ function SupplierPriceModal({
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-      <div className="bg-zinc-900 p-6 rounded-lg border border-zinc-700 w-96">
+      <div className="bg-zinc-900 p-6 rounded-lg border border-zinc-700 w-full max-w-5xl mx-4">
         <h2 className="text-xl font-semibold mb-4">
           Dernières données calculées par fournisseur
         </h2>
         {suppliers.length ? (
-          <table className="table mb-4">
-            <thead>
-              <tr>
-                <th>Fournisseur</th>
-                <th>Prix achat</th>
-                <th>Prix HT max</th>
-                <th>TCP</th>
-                <th>Marge</th>
-                <th>Stock</th>
-                <th>Mise à jour</th>
-              </tr>
-            </thead>
-            <tbody>
-              {suppliers.map((s) => (
-                <tr key={s}>
-                  <td>{s}</td>
-                  <td>{formatNumber(calculations[s]?.price ?? prices[s])}</td>
-                  <td>
-                    {formatNumber(
-                      calculations[s]?.prixhtMax ?? calculations[s]?.prixhtMarge45 ?? undefined
-                    )}
-                  </td>
-                  <td>{formatNumber(calculations[s]?.tcp)}</td>
-                  <td>{formatNumber(calculations[s]?.marge)}</td>
-                  <td>{formatNumber(calculations[s]?.stock ?? stocks?.[s])}</td>
-                  <td>{formatDate(calculations[s]?.updatedAt)}</td>
+          <div className="overflow-auto max-h-[70vh]">
+            <table className="table mb-4 min-w-full">
+              <thead>
+                <tr>
+                  <th>Fournisseur</th>
+                  <th>Prix achat</th>
+                  <th>Prix HT max</th>
+                  <th>TCP</th>
+                  <th>Marge</th>
+                  <th>Stock</th>
+                  <th>Mise à jour</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {suppliers.map((s) => (
+                  <tr key={s}>
+                    <td>{s}</td>
+                    <td>{formatNumber(calculations[s]?.price ?? prices[s])}</td>
+                    <td>
+                      {formatNumber(
+                        calculations[s]?.prixhtMax ?? calculations[s]?.prixhtMarge45 ?? undefined
+                      )}
+                    </td>
+                    <td>{formatNumber(calculations[s]?.tcp)}</td>
+                    <td>{formatNumber(calculations[s]?.marge)}</td>
+                    <td>{formatNumber(calculations[s]?.stock ?? stocks?.[s])}</td>
+                    <td>{formatDate(calculations[s]?.updatedAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <p>Aucun prix disponible.</p>
         )}
