@@ -125,6 +125,7 @@ def product_price_summary():
                 "recommended_price": p.recommended_price,
                 "buy_price": {},
                 "stock_levels": {},
+                "latest_calculations": {},
                 "tcp": None,
                 "min_buy_price": None,
                 "min_buy_price_value": None,
@@ -136,6 +137,17 @@ def product_price_summary():
         data[pid]["supplier_prices"][supplier] = calc.prixht_max
         data[pid]["buy_price"][supplier] = calc.price
         data[pid]["stock_levels"][supplier] = calc.stock
+        data[pid]["latest_calculations"][supplier] = {
+            "price": calc.price,
+            "tcp": calc.tcp,
+            "marge4_5": calc.marge4_5,
+            "marge": calc.marge,
+            "prixht_tcp_marge4_5": calc.prixht_tcp_marge4_5,
+            "prixht_marge4_5": calc.prixht_marge4_5,
+            "prixht_max": calc.prixht_max,
+            "stock": calc.stock,
+            "date": calc.date.isoformat() if calc.date else None,
+        }
         if calc.price is not None:
             current_min = data[pid]["min_buy_price_value"]
             if current_min is None or calc.price < current_min:
@@ -193,6 +205,7 @@ def product_price_summary():
             item.pop("supplier_prices", None)
             item.pop("tcp", None)
             item.pop("stock_levels", None)
+            item.pop("latest_calculations", None)
         result.append(item)
 
     db.session.commit()

@@ -33,6 +33,20 @@ interface AggregatedProduct {
   buyPrices: Record<string, number | undefined>;
   salePrices: Record<string, number | undefined>;
   stockLevels: Record<string, number | undefined>;
+  latestCalculations: Record<
+    string,
+    {
+      price?: number;
+      tcp?: number;
+      marge45?: number;
+      marge?: number;
+      prixhtTcpMarge45?: number;
+      prixhtMarge45?: number;
+      prixhtMax?: number;
+      stock?: number;
+      updatedAt?: string | null;
+    }
+  >;
   minBuyPrice: number;
   tcp: number;
 }
@@ -118,6 +132,20 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
         const suppliersSet = new Set<string>();
         const aggregated: AggregatedProduct[] = items.map((it) => {
           Object.keys(it.buy_price || {}).forEach((s) => suppliersSet.add(s));
+          const latest: AggregatedProduct['latestCalculations'] = {};
+          Object.entries(it.latest_calculations || {}).forEach(([supplier, detail]) => {
+            latest[supplier] = {
+              price: detail?.price ?? undefined,
+              tcp: detail?.tcp ?? undefined,
+              marge45: detail?.marge4_5 ?? undefined,
+              marge: detail?.marge ?? undefined,
+              prixhtTcpMarge45: detail?.prixht_tcp_marge4_5 ?? undefined,
+              prixhtMarge45: detail?.prixht_marge4_5 ?? undefined,
+              prixhtMax: detail?.prixht_max ?? undefined,
+              stock: detail?.stock ?? undefined,
+              updatedAt: detail?.date ?? null,
+            };
+          });
           return {
             id: it.id,
             model: it.model,
@@ -134,6 +162,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
             buyPrices: it.buy_price || {},
             salePrices: it.supplier_prices || {},
             stockLevels: it.stock_levels || {},
+            latestCalculations: latest,
             minBuyPrice:
               typeof it.min_buy_price === 'number' ? it.min_buy_price : 0,
             tcp: typeof it.tcp === 'number' ? it.tcp : 0,
@@ -778,6 +807,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
         <SupplierPriceModal
           prices={selectedProduct.salePrices}
           stocks={selectedProduct.stockLevels}
+          calculations={selectedProduct.latestCalculations}
           onClose={() => setSelectedProduct(null)}
         />
       )}
