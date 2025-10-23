@@ -66,6 +66,8 @@ npm install
 npm run dev
 ```
 
+> 💡 **Astuce** : ajoutez l'option `--host` à `npm run dev` (par exemple `npm run dev -- --host`) pour accéder à l'interface depuis un autre appareil du réseau local.
+
 ## Structure du projet
 
 ```
@@ -131,6 +133,15 @@ Ces informations correspondent aux champs visibles dans le composant `SupplierAp
 ## Backend Python
 
 Un backend minimal en **Python** est fourni dans le dossier `backend`. Il utilise **Flask** et une base **PostgreSQL** pour stocker les produits traités.
+
+### Variables d'environnement du backend
+
+Un fichier d'exemple `backend/.env.example` est fourni. Copiez-le en `backend/.env` puis adaptez les valeurs à votre environnement avant de lancer le serveur.
+
+```bash
+cp backend/.env.example backend/.env
+# Éditez ensuite backend/.env avec vos identifiants locaux
+```
 
 ### Installation et lancement
 
