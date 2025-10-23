@@ -101,6 +101,23 @@ src/
 3. **Panier** : Les clients peuvent sélectionner des produits et passer commande
 4. **Administration** : Gérez les produits Hotwav via l'interface dédiée
 
+### Configurer un endpoint dans « Gestion des API fournisseurs »
+
+1. Ouvrez la page **Administration** puis cliquez sur **Gestion des API fournisseurs**.
+2. Sélectionnez le fournisseur concerné et ajoutez (ou éditez) une API.
+3. Renseignez les champs principaux du bloc API :
+   - **Base URL** : uniquement le domaine racine de l'API. Pour `https://api.yukatel.de/api/stock-list?...`, saisissez `https://api.yukatel.de`.
+   - **Authentification** : choisissez le type attendu par le fournisseur (`Aucune` si le jeton est déjà dans l'URL).
+   - **Limite/minute** : la limite de requêtes si elle est connue (laisser vide sinon).
+4. Dans la section **Endpoints**, ajoutez une ligne et remplissez :
+   - **Nom** : un libellé interne, par exemple `Stock Yukatel`.
+   - **Méthode** : choisissez `GET` pour l'URL d'exemple.
+   - **Chemin** : la partie restante de l'URL, y compris les paramètres de requête. Exemple : `/api/stock-list?vpnr=22366&authcode=22366-98e3387e-320c-11ef-87c1-0050568c8f1a`.
+   - **Chemin items** : indiquez le chemin JSON vers la liste d'articles si la réponse est imbriquée (laissez vide si les articles sont à la racine du JSON).
+5. Enregistrez l'endpoint puis l'API via les boutons **💾** ou **Enregistrer**.
+
+Ces informations correspondent aux champs visibles dans le composant `SupplierApiAdmin` qui gère l'écran « Gestion des API fournisseurs » du frontend.【F:frontend/src/components/SupplierApiAdmin.tsx†L559-L750】
+
 ## Fonctionnalités avancées
 
 - **Responsive design** adapté mobile et desktop

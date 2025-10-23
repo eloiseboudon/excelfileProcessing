@@ -5,6 +5,7 @@ import {
   FileDown,
   FileUp,
   Loader2,
+  RefreshCcw,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -13,6 +14,7 @@ import {
   fetchImportPreview,
   fetchLastImport,
   fetchSuppliers,
+  fetchSupplierApiData,
   verifyImport
 } from '../api';
 import { getCurrentTimestamp, getCurrentWeekYear, getWeekYear } from '../utils/date';
@@ -37,13 +39,15 @@ interface ImportZoneProps {
   file: File | null;
   lastImportDate?: string | null;
   onFileChange: (id: number, file: File | null) => void;
+  onRefreshComplete?: () => void;
 }
 
-function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZoneProps) {
+function ImportZone({ supplier, file, lastImportDate, onFileChange, onRefreshComplete }: ImportZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [previewRows, setPreviewRows] = useState<any[]>([]);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [refreshLoading, setRefreshLoading] = useState(false);
   const notify = useNotification();
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -100,13 +104,51 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange }: ImportZone
         setPreviewLoading(false);
       }
     },
-    [supplier.id]
+    [supplier.id, notify]
   );
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshLoading(true);
+    try {
+      const response = await fetchSupplierApiData(supplier.id);
+      const count =
+        response.temporary_import_count ??
+        response.items?.length ??
+        response.rows?.length ??
+        0;
+      notify(`Synchronisation API réussie (${count} articles)`, 'success');
+      onRefreshComplete?.();
+    } catch (err) {
+      console.error('refresh error', err);
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Impossible de contacter l'API fournisseur";
+      notify(message, 'error');
+    } finally {
+      setRefreshLoading(false);
+    }
+  }, [supplier.id, onRefreshComplete, notify]);
 
   return (
     <>
       <div className="card p-8">
-        <h2 className="text-xl font-semibold mb-6">Import de {supplier.name}</h2>
+        <div className="flex flex-col gap-4 mb-6 md:flex-row md:items-center md:justify-between">
+          <h2 className="text-xl font-semibold">Import de {supplier.name}</h2>
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={refreshLoading}
+            className={`btn btn-secondary flex items-center gap-2 ${refreshLoading ? 'opacity-70 cursor-wait' : ''}`}
+          >
+            {refreshLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <RefreshCcw className="w-4 h-4" />
+            )}
+            <span>Actualiser via API</span>
+          </button>
+        </div>
         {lastImportDate && (
           <p className="text-sm text-zinc-400 mb-2">
             Dernier import : {getWeekYear(new Date(lastImportDate))} -{' '}
@@ -271,17 +313,18 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
           <span>Télécharger</span>
         </button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {suppliers.map((f) => (
-          <ImportZone
-            key={f.id}
-            supplier={f}
-            file={files[f.id] || null}
-            lastImportDate={lastImports[f.id]}
-            onFileChange={handleFileChange}
-          />
-        ))}
-      </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {suppliers.map((f) => (
+            <ImportZone
+              key={f.id}
+              supplier={f}
+              file={files[f.id] || null}
+              lastImportDate={lastImports[f.id]}
+              onFileChange={handleFileChange}
+              onRefreshComplete={refreshLastImports}
+            />
+          ))}
+        </div>
 
       <div className="mt-8 flex flex-col items-center space-y-4">
         <button

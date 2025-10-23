@@ -121,6 +121,158 @@ export async function fetchProducts() {
   return res.json();
 }
 
+export interface SupplierApiRow {
+  description?: string | null;
+  model?: string | null;
+  quantity?: number | null;
+  selling_price?: number | null;
+  ean?: string | null;
+  part_number?: string | null;
+  supplier_sku?: string | null;
+}
+
+export interface SupplierApiReportEntryItem {
+  product_id?: number | null;
+  product_name?: string | null;
+  description?: string | null;
+  ean?: string | null;
+  part_number?: string | null;
+  supplier_sku?: string | null;
+  price?: number | null;
+  reason?: string | null;
+}
+
+export interface SupplierApiReportData {
+  updated_products: SupplierApiReportEntryItem[];
+  database_missing_products: SupplierApiReportEntryItem[];
+  api_missing_products: SupplierApiReportEntryItem[];
+}
+
+export interface SupplierApiMappingSummary {
+  id: number;
+  version: number;
+  is_active: boolean;
+  field_count?: number;
+}
+
+export interface SupplierApiSyncResponse {
+  job_id: number;
+  supplier_id: number;
+  supplier: string;
+  status: string;
+  parsed_count: number;
+  temporary_import_count: number;
+  started_at?: string | null;
+  ended_at?: string | null;
+  items: SupplierApiRow[];
+  rows?: SupplierApiRow[];
+  report?: SupplierApiReportData;
+  api_raw_items?: unknown[];
+  mapping?: SupplierApiMappingSummary | null;
+}
+
+export interface SupplierApiReportEntry extends SupplierApiReportData {
+  job_id: number;
+  supplier_id: number | null;
+  supplier: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+  api_raw_items?: unknown[];
+  mapping?: SupplierApiMappingSummary | null;
+}
+
+export interface SupplierApiConfigField {
+  id: number;
+  target_field: string;
+  source_path: string;
+  transform?: Record<string, unknown> | null;
+}
+
+export interface SupplierApiConfigMapping {
+  id: number;
+  version: number;
+  is_active: boolean;
+  fields: SupplierApiConfigField[];
+}
+
+export interface SupplierApiConfigEndpoint {
+  id: number;
+  name: string;
+  method: string;
+  path: string;
+  items_path?: string | null;
+}
+
+export interface SupplierApiConfigApi {
+  id: number;
+  base_url: string;
+  auth_type?: string | null;
+  rate_limit_per_min?: number | null;
+  endpoints: SupplierApiConfigEndpoint[];
+  mapping: SupplierApiConfigMapping | null;
+}
+
+export interface SupplierApiConfigSupplier {
+  id: number;
+  name: string;
+  apis: SupplierApiConfigApi[];
+}
+
+export interface SupplierApiPayload {
+  base_url: string;
+  auth_type?: string | null;
+  rate_limit_per_min?: number | null;
+  auth_config?: Record<string, unknown> | null;
+  default_headers?: Record<string, string> | null;
+}
+
+export interface SupplierApiEndpointPayload {
+  name: string;
+  method?: string;
+  path: string;
+  items_path?: string | null;
+}
+
+export interface SupplierApiFieldPayload {
+  target_field: string;
+  source_path: string;
+  transform?: Record<string, unknown> | null;
+}
+
+export interface SupplierApiRefreshPayload {
+  endpoint_id?: number;
+  endpoint_name?: string;
+  mapping_version_id?: number;
+  query_params?: Record<string, unknown>;
+  body?: Record<string, unknown>;
+}
+
+export async function refreshSupplierCatalog(
+  supplierId: number,
+  payload: SupplierApiRefreshPayload = {}
+) {
+  const res = await fetchWithAuth(`${API_BASE}/supplier_api/${supplierId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<SupplierApiSyncResponse>;
+}
+
+export const fetchSupplierApiData = refreshSupplierCatalog;
+
+export async function fetchSupplierApiReports(limit = 20) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  const res = await fetchWithAuth(`${API_BASE}/supplier_api/reports?${params.toString()}`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<SupplierApiReportEntry[]>;
+}
+
 export async function createProduct(data: any) {
   const res = await fetchWithAuth(`${API_BASE}/products`, {
     method: 'POST',
@@ -131,6 +283,164 @@ export async function createProduct(data: any) {
     throw new Error(await extractErrorMessage(res));
   }
   return res.json();
+}
+
+export async function fetchSupplierApiConfigs() {
+  const res = await fetchWithAuth(`${API_BASE}/supplier_api/config`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<SupplierApiConfigSupplier[]>;
+}
+
+export async function createSupplierApi(
+  supplierId: number,
+  payload: SupplierApiPayload
+) {
+  const res = await fetchWithAuth(`${API_BASE}/supplier_api/${supplierId}/apis`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function updateSupplierApi(
+  apiId: number,
+  payload: Partial<SupplierApiPayload>
+) {
+  const res = await fetchWithAuth(`${API_BASE}/supplier_api/apis/${apiId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function deleteSupplierApi(apiId: number) {
+  const res = await fetchWithAuth(`${API_BASE}/supplier_api/apis/${apiId}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+}
+
+export async function createSupplierApiEndpoint(
+  apiId: number,
+  payload: SupplierApiEndpointPayload
+) {
+  const res = await fetchWithAuth(
+    `${API_BASE}/supplier_api/apis/${apiId}/endpoints`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }
+  );
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function updateSupplierApiEndpoint(
+  endpointId: number,
+  payload: Partial<SupplierApiEndpointPayload>
+) {
+  const res = await fetchWithAuth(
+    `${API_BASE}/supplier_api/endpoints/${endpointId}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }
+  );
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function deleteSupplierApiEndpoint(endpointId: number) {
+  const res = await fetchWithAuth(
+    `${API_BASE}/supplier_api/endpoints/${endpointId}`,
+    {
+      method: 'DELETE'
+    }
+  );
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+}
+
+export async function createSupplierApiMapping(apiId: number) {
+  const res = await fetchWithAuth(
+    `${API_BASE}/supplier_api/apis/${apiId}/mapping`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    }
+  );
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function createSupplierApiField(
+  mappingId: number,
+  payload: SupplierApiFieldPayload
+) {
+  const res = await fetchWithAuth(
+    `${API_BASE}/supplier_api/mappings/${mappingId}/fields`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }
+  );
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function updateSupplierApiField(
+  fieldId: number,
+  payload: Partial<SupplierApiFieldPayload>
+) {
+  const res = await fetchWithAuth(
+    `${API_BASE}/supplier_api/fields/${fieldId}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }
+  );
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function deleteSupplierApiField(fieldId: number) {
+  const res = await fetchWithAuth(
+    `${API_BASE}/supplier_api/fields/${fieldId}`,
+    {
+      method: 'DELETE'
+    }
+  );
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
 }
 
 export async function updateProduct(id: number, data: any) {
@@ -225,14 +535,6 @@ export async function exportCalculations() {
   return { blob, filename };
 }
 
-export async function fetchSuppliers() {
-  const res = await fetchWithAuth(`${API_BASE}/references/suppliers`);
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
-  return res.json();
-}
-
 export async function refreshProduction() {
   const res = await fetchWithAuth(`${API_BASE}/refresh`, {
     method: 'POST',
@@ -267,6 +569,14 @@ export async function fetchProductCalculations() {
 
 export async function fetchProductPriceSummary() {
   const res = await fetchWithAuth(`${API_BASE}/product_price_summary`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function fetchSuppliers() {
+  const res = await fetchWithAuth(`${API_BASE}/references/suppliers`);
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }

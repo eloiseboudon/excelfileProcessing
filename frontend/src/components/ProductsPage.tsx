@@ -29,15 +29,32 @@ interface AggregatedProduct {
   ram: string | null;
   norme: string | null;
   marge: number;
+  margePercent: number | null;
   averagePrice: number;
   buyPrices: Record<string, number | undefined>;
   salePrices: Record<string, number | undefined>;
+  stockLevels: Record<string, number | undefined>;
+  latestCalculations: Record<
+    string,
+    {
+      price?: number;
+      tcp?: number;
+      marge45?: number;
+      marge?: number;
+      margePercent?: number | null;
+      prixhtTcpMarge45?: number;
+      prixhtMarge45?: number;
+      prixhtMax?: number;
+      stock?: number;
+      updatedAt?: string | null;
+    }
+  >;
   minBuyPrice: number;
   tcp: number;
 }
 
 interface ProductsPageProps {
-  onBack: () => void;
+  onBack?: () => void;
   role?: string;
 }
 
@@ -117,6 +134,21 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
         const suppliersSet = new Set<string>();
         const aggregated: AggregatedProduct[] = items.map((it) => {
           Object.keys(it.buy_price || {}).forEach((s) => suppliersSet.add(s));
+          const latest: AggregatedProduct['latestCalculations'] = {};
+          Object.entries(it.latest_calculations || {}).forEach(([supplier, detail]) => {
+            latest[supplier] = {
+              price: detail?.price ?? undefined,
+              tcp: detail?.tcp ?? undefined,
+              marge45: detail?.marge4_5 ?? undefined,
+              marge: detail?.marge ?? undefined,
+              margePercent: detail?.marge_percent ?? null,
+              prixhtTcpMarge45: detail?.prixht_tcp_marge4_5 ?? undefined,
+              prixhtMarge45: detail?.prixht_marge4_5 ?? undefined,
+              prixhtMax: detail?.prixht_max ?? undefined,
+              stock: detail?.stock ?? undefined,
+              updatedAt: detail?.date ?? null,
+            };
+          });
           return {
             id: it.id,
             model: it.model,
@@ -128,10 +160,14 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
             ram: it.ram,
             norme: it.norme,
             marge: it.marge ?? 0,
+            margePercent:
+              typeof it.marge_percent === 'number' ? it.marge_percent : null,
             averagePrice:
               it.recommended_price ?? it.average_price ?? 0,
             buyPrices: it.buy_price || {},
             salePrices: it.supplier_prices || {},
+            stockLevels: it.stock_levels || {},
+            latestCalculations: latest,
             minBuyPrice:
               typeof it.min_buy_price === 'number' ? it.min_buy_price : 0,
             tcp: typeof it.tcp === 'number' ? it.tcp : 0,
@@ -319,8 +355,17 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
         const tcpValue = Number.isFinite(product.tcp) ? product.tcp : 0;
         const baseBuyPrice = getBaseBuyPrice(product);
         const newPrice = Number((tcpValue + baseBuyPrice + normalizedMargin).toFixed(2));
+        const baseCost = baseBuyPrice + tcpValue;
+        const newPercent = baseCost
+          ? Number(((normalizedMargin / baseCost) * 100).toFixed(4))
+          : null;
         updatedPrices[product.id] = newPrice;
-        return { ...product, marge: normalizedMargin, averagePrice: newPrice };
+        return {
+          ...product,
+          marge: normalizedMargin,
+          margePercent: newPercent,
+          averagePrice: newPrice,
+        };
       })
     );
     setEditedPrices((prev) => ({ ...prev, ...updatedPrices }));
@@ -372,6 +417,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
           return updateProduct(Number(id), {
             recommended_price: price,
             marge: prod?.marge,
+            marge_percent: prod?.margePercent ?? undefined,
           });
         })
       );
@@ -380,6 +426,86 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
     } catch {
       notify("Erreur lors de l'enregistrement", 'error');
     }
+  };
+
+  const handleProductMarginUpdate = async (
+    productId: number,
+    margin: number,
+    marginPercent: number | null
+  ) => {
+    const product = data.find((p) => p.id === productId);
+    if (!product) {
+      return;
+    }
+
+    const baseBuyPrice = getBaseBuyPrice(product);
+    const tcpValue = Number.isFinite(product.tcp) ? product.tcp : 0;
+    const normalizedMargin = Number(margin.toFixed(2));
+    const baseCost = baseBuyPrice + tcpValue;
+    const derivedPercent = baseCost
+      ? Number(((normalizedMargin / baseCost) * 100).toFixed(4))
+      : marginPercent !== null
+        ? Number(marginPercent.toFixed(4))
+        : null;
+    const recommendedPrice = Number((baseCost + normalizedMargin).toFixed(2));
+
+    try {
+      await updateProduct(productId, {
+        marge: normalizedMargin,
+        marge_percent: derivedPercent ?? undefined,
+        recommended_price: recommendedPrice,
+      });
+    } catch (err) {
+      notify('Erreur lors de la mise à jour de la marge', 'error');
+      throw err;
+    }
+
+    const refreshProduct = (item: AggregatedProduct): AggregatedProduct => {
+      const updatedLatest: AggregatedProduct['latestCalculations'] = {};
+      Object.entries(item.latestCalculations || {}).forEach(([supplier, detail]) => {
+        const detailData = detail ?? {};
+        const buyPrice = detailData.price ?? item.buyPrices[supplier] ?? 0;
+        const tcp = detailData.tcp ?? item.tcp ?? 0;
+        const calcBaseCost = buyPrice + tcp;
+        const supplierPercent = calcBaseCost
+          ? Number(((normalizedMargin / calcBaseCost) * 100).toFixed(4))
+          : derivedPercent;
+        const newMax = Number((tcp + buyPrice + normalizedMargin).toFixed(2));
+        updatedLatest[supplier] = {
+          ...detailData,
+          marge: normalizedMargin,
+          margePercent: supplierPercent,
+          prixhtMax: newMax,
+        };
+      });
+
+      const updatedSalePrices = { ...item.salePrices };
+      Object.entries(updatedLatest).forEach(([supplier, detail]) => {
+        if (detail?.prixhtMax !== undefined) {
+          updatedSalePrices[supplier] = detail.prixhtMax;
+        }
+      });
+
+      return {
+        ...item,
+        marge: normalizedMargin,
+        margePercent: derivedPercent,
+        averagePrice: recommendedPrice,
+        salePrices: updatedSalePrices,
+        latestCalculations: updatedLatest,
+      };
+    };
+
+    setData((prev) => prev.map((item) => (item.id === productId ? refreshProduct(item) : item)));
+    setSelectedProduct((prev) =>
+      prev && prev.id === productId ? refreshProduct(prev) : prev
+    );
+    setEditedPrices((prev) => {
+      const next = { ...prev };
+      delete next[productId];
+      return next;
+    });
+    notify('Marge mise à jour', 'success');
   };
 
   const handleExportJSON = () => {
@@ -492,13 +618,15 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       <WeekToolbar />
-      <button
-        onClick={onBack}
-        className="btn btn-secondary mb-6"
-      >
-        <ArrowLeft className="w-5 h-5" />
-        <span>Retour</span>
-      </button>
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="btn btn-secondary mb-6"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span>Retour</span>
+        </button>
+      )}
       <h1 className="text-2xl font-bold text-center mb-4">Produits</h1>
       <div className="flex justify-center space-x-4 mb-6">
         <button
@@ -726,29 +854,38 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
                                 value={row.marge}
                                 onClick={(e) => e.stopPropagation()}
                                 onChange={(e) => {
-                                  const v = Number(e.target.value);
-                                  if (Number.isNaN(v)) {
-                                    return;
-                                  }
-                                  const tcpValue = Number.isFinite(row.tcp)
-                                    ? row.tcp
-                                    : row.averagePrice - row.marge - baseBuyPrice;
-                                  const newPrice = Number(
-                                    (tcpValue + baseBuyPrice + v).toFixed(2)
-                                  );
-                                  setEditedPrices((prev) => ({
-                                    ...prev,
-                                    [row.id]: newPrice,
-                                  }));
-                                  setData((prev) =>
-                                    prev.map((p) =>
-                                      p.id === row.id
-                                        ? { ...p, marge: v, averagePrice: newPrice }
-                                        : p
-                                    )
-                                  );
-                                }}
-                                className="w-20 px-1 bg-zinc-700 rounded"
+                              const v = Number(e.target.value);
+                              if (Number.isNaN(v)) {
+                                return;
+                              }
+                              const tcpValue = Number.isFinite(row.tcp)
+                                ? row.tcp
+                                : row.averagePrice - row.marge - baseBuyPrice;
+                              const newPrice = Number(
+                                (tcpValue + baseBuyPrice + v).toFixed(2)
+                              );
+                              const baseCost = baseBuyPrice + tcpValue;
+                              const newPercent = baseCost
+                                ? Number(((v / baseCost) * 100).toFixed(4))
+                                : null;
+                              setEditedPrices((prev) => ({
+                                ...prev,
+                                [row.id]: newPrice,
+                              }));
+                              setData((prev) =>
+                                prev.map((p) =>
+                                  p.id === row.id
+                                    ? {
+                                        ...p,
+                                        marge: v,
+                                        margePercent: newPercent,
+                                        averagePrice: newPrice,
+                                      }
+                                    : p
+                                )
+                              );
+                            }}
+                            className="w-20 px-1 bg-zinc-700 rounded"
                               />
                             ) : col.key === 'marge' ? (
                               row.marge
@@ -773,6 +910,18 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
       {role !== 'client' && selectedProduct && (
         <SupplierPriceModal
           prices={selectedProduct.salePrices}
+          stocks={selectedProduct.stockLevels}
+          calculations={selectedProduct.latestCalculations}
+          currentMargin={selectedProduct.marge}
+          currentMarginPercent={selectedProduct.margePercent}
+          baseCost={
+            getBaseBuyPrice(selectedProduct) +
+            (Number.isFinite(selectedProduct.tcp) ? selectedProduct.tcp : 0)
+          }
+          recommendedPrice={selectedProduct.averagePrice}
+          onUpdateMargin={(margin, percent) =>
+            handleProductMarginUpdate(selectedProduct.id, margin, percent)
+          }
           onClose={() => setSelectedProduct(null)}
         />
       )}

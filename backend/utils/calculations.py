@@ -160,6 +160,14 @@ def recalculate_product_calculations():
             print(f"Erreur de calcul pour le produit {product.id}: {str(e)}")
             continue
 
+        marge_value = max_price - tcp - price
+        base_cost = price + tcp
+        marge_percent = (
+            round((marge_value / base_cost) * 100, 4)
+            if base_cost
+            else None
+        )
+
         calc = ProductCalculation(
             product_id=product.id,
             supplier_id=temp.supplier_id,
@@ -170,7 +178,9 @@ def recalculate_product_calculations():
             prixht_marge4_5=round(price_with_margin, 2),
             prixht_max=max_price,
             date=datetime.now(timezone.utc),
-            marge=round(max_price - tcp - price, 2),
+            marge=round(marge_value, 2),
+            marge_percent=marge_percent,
+            stock=temp.quantity,
         )
         db.session.add(calc)
 
@@ -223,12 +233,21 @@ def update_product_calculations_for_memory_option(memory_option_id: int) -> None
 
         max_price = math.ceil(max(price_with_tcp, price_with_margin))
 
+        marge_value = max_price - tcp - price
+        base_cost = price + tcp
+        marge_percent = (
+            round((marge_value / base_cost) * 100, 4)
+            if base_cost
+            else None
+        )
+
         calc.tcp = round(tcp, 2)
         calc.marge4_5 = round(margin45, 2)
         calc.prixht_tcp_marge4_5 = round(price_with_tcp, 2)
         calc.prixht_marge4_5 = round(price_with_margin, 2)
         calc.prixht_max = max_price
-        calc.marge = round(max_price - tcp - price, 2)
+        calc.marge = round(marge_value, 2)
+        calc.marge_percent = marge_percent
 
     if calcs:
         db.session.commit()
