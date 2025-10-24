@@ -1,9 +1,35 @@
 #!/usr/bin/env python3
-"""Importer des produits de référence à partir d'un fichier CSV."""
+"""Importer des produits de référence à partir d'un fichier CSV.
+
+Utilisation rapide
+===================
+
+1. Exporter ou copier le fichier ``products_odoo_20251023.csv`` (ou un
+   équivalent) sur la machine qui possède l'accès à la base Postgres.
+2. Vérifier que la variable d'environnement ``DATABASE_URL`` pointe vers la
+   base de données à enrichir (le format attendu est l'URL standard
+   ``postgresql://user:password@host:port/db``).
+3. Lancer le script :
+
+   ``python backend/scripts/database/import_reference_products_odoo_20251024.py \
+   path/to/products_odoo_20251023.csv``
+
+   Des options supplémentaires sont disponibles via ``--help`` (délimiteur du
+   CSV, valeur TCP par défaut, génération d'un rapport JSON des références
+   manquantes, etc.).
+
+Le script peut être exécuté sur une base « vivante » : il crée les produits
+absents, met à jour ceux qui existent déjà et synchronise les entrées de
+``internal_products``. Il n'est donc **pas** nécessaire de vider ou de
+recréer les tables cibles au préalable. Pensez néanmoins à effectuer une
+sauvegarde de la base avant l'import pour pouvoir revenir en arrière en cas de
+mauvaise manipulation.
+"""
 
 from __future__ import annotations
 
 import argparse
+import ast
 import csv
 import json
 import os
@@ -26,6 +52,8 @@ class ImportStats:
     updated_by_name: int = 0
     skipped: int = 0
     errors: int = 0
+    internal_inserted: int = 0
+    internal_updated: int = 0
     missing_references: Dict[str, list[str]] = field(default_factory=dict)
     unresolved_by_name: Dict[str, list[str]] = field(default_factory=dict)
     update_reasons: Dict[str, list[int]] = field(default_factory=dict)
@@ -51,13 +79,22 @@ class NotImportedInfo:
 
 COLUMN_MAP: Dict[str, str] = {
     "nom": "name",
+    "name": "name",
     "modele": "model",
+    "model": "model",
     "marque": "brand",
+    "brand": "brand",
     "capacite": "memory",
+    "memory": "memory",
     "ram": "ram",
     "couleur": "color",
+    "color": "color",
     "ean": "ean",
     "partnumber": "part_number",
+    "part_number": "part_number",
+    "productid": "product_id",
+    "insertintointernalproductsodooidproductid": "internal_product_values",
+    "insertintoproductsiddescription": "product_values",
 }
 
 
@@ -95,6 +132,70 @@ def _clean(value: Optional[str]) -> Optional[str]:
     if lowered in {"na", "n/a", "none", "null"}:
         return None
     return cleaned
+
+
+def _strip_wrapping_quotes(value: str) -> str:
+    if value.startswith("\"") and value.endswith("\""):
+        return value[1:-1]
+    return value
+
+
+def _coerce_int(value: Optional[object]) -> Optional[int]:
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return None
+        try:
+            return int(stripped)
+        except ValueError:
+            return None
+    return None
+
+
+def _parse_internal_product_values(
+    raw: Optional[str],
+) -> Tuple[Optional[str], Optional[int]]:
+    if not raw:
+        return None, None
+    cleaned = _strip_wrapping_quotes(raw.strip()).rstrip(";")
+    if not cleaned:
+        return None, None
+    try:
+        parsed = ast.literal_eval(cleaned)
+    except (SyntaxError, ValueError):
+        return None, None
+    if isinstance(parsed, (list, tuple)) and len(parsed) == 2:
+        odoo_id = str(parsed[0]).strip() if parsed[0] is not None else None
+        product_id = _coerce_int(parsed[1])
+        return (odoo_id or None), product_id
+    return None, None
+
+
+def _parse_product_values(
+    raw: Optional[str],
+) -> Tuple[Optional[int], Optional[str]]:
+    if not raw:
+        return None, None
+    cleaned = _strip_wrapping_quotes(raw.strip()).rstrip(";")
+    if not cleaned:
+        return None, None
+    try:
+        parsed = ast.literal_eval(cleaned)
+    except (SyntaxError, ValueError):
+        return None, None
+    if isinstance(parsed, (list, tuple)) and parsed:
+        product_id = _coerce_int(parsed[0])
+        description: Optional[str] = None
+        if len(parsed) > 1 and parsed[1] is not None:
+            description = str(parsed[1]).strip() or None
+        return product_id, description
+    return None, None
 
 
 def _strip_accents_lower(text: str) -> str:
@@ -397,8 +498,15 @@ def _find_product_id(
     name: Optional[str],
     model: Optional[str],
     brand_id: Optional[int],
+    explicit_id: Optional[int] = None,
 ) -> Tuple[Optional[int], Optional[str]]:
     """Tenter de retrouver un produit existant et indiquer la logique utilisée."""
+
+    if explicit_id is not None:
+        cursor.execute("SELECT id FROM products WHERE id = %s", (explicit_id,))
+        row = cursor.fetchone()
+        if row:
+            return row["id"], "id"
 
     if ean:
         cursor.execute("SELECT id FROM products WHERE ean = %s", (ean,))
@@ -442,6 +550,47 @@ def _find_product_id(
         if row:
             return row["id"], "model"
     return None, None
+
+
+def _sync_internal_product(
+    cursor, odoo_id: Optional[str], product_id: Optional[int]
+) -> Tuple[bool, bool]:
+    if not odoo_id or not product_id:
+        return False, False
+
+    cursor.execute(
+        "SELECT id, product_id FROM internal_products WHERE odoo_id = %s",
+        (odoo_id,),
+    )
+    row = cursor.fetchone()
+    if row:
+        if row["product_id"] != product_id:
+            cursor.execute(
+                "UPDATE internal_products SET product_id = %s WHERE id = %s",
+                (product_id, row["id"]),
+            )
+            return False, True
+        return False, False
+
+    cursor.execute(
+        "SELECT id, odoo_id FROM internal_products WHERE product_id = %s",
+        (product_id,),
+    )
+    row = cursor.fetchone()
+    if row:
+        if row["odoo_id"] != odoo_id:
+            cursor.execute(
+                "UPDATE internal_products SET odoo_id = %s WHERE id = %s",
+                (odoo_id, row["id"]),
+            )
+            return False, True
+        return False, False
+
+    cursor.execute(
+        "INSERT INTO internal_products (odoo_id, product_id) VALUES (%s, %s)",
+        (odoo_id, product_id),
+    )
+    return True, False
 
 
 def process_csv(
@@ -489,6 +638,46 @@ def process_csv(
                 description = normalized.get("name")
                 model = normalized.get("model") or description
 
+                internal_odoo_id, internal_product_id = _parse_internal_product_values(
+                    normalized.get("internal_product_values")
+                )
+                tuple_product_id, tuple_description = _parse_product_values(
+                    normalized.get("product_values")
+                )
+
+                if (
+                    internal_product_id is not None
+                    and tuple_product_id is not None
+                    and internal_product_id != tuple_product_id
+                ):
+                    stats.errors += 1
+                    errors.append(
+                        "Ligne {}: incohérence des identifiants produits ({}/{}).".format(
+                            index, internal_product_id, tuple_product_id
+                        )
+                    )
+                    product_label = (
+                        description
+                        or tuple_description
+                        or normalized.get("model")
+                        or "(inconnu)"
+                    )
+                    stats.not_imported[index] = NotImportedInfo(
+                        label=product_label,
+                        reason="Identifiants produit différents entre les colonnes d'insertion",
+                    )
+                    continue
+
+                explicit_product_id = _coerce_int(normalized.get("product_id"))
+                for candidate in (internal_product_id, tuple_product_id):
+                    if explicit_product_id is None and candidate is not None:
+                        explicit_product_id = candidate
+
+                if not description and tuple_description:
+                    description = tuple_description
+                if not model and description:
+                    model = description
+
                 if not description and not model:
                     product_label = normalized.get("name") or normalized.get("model") or "(inconnu)"
                     stats.skipped += 1
@@ -530,10 +719,16 @@ def process_csv(
                     stats.truncations[index] = truncations
 
                 product_id, match_reason = _find_product_id(
-                    cursor, ean, description, model, brand_id
+                    cursor,
+                    ean,
+                    description,
+                    model,
+                    brand_id,
+                    explicit_product_id,
                 )
 
                 try:
+                    final_product_id: Optional[int]
                     if product_id:
                         cursor.execute(
                             """
@@ -560,11 +755,12 @@ def process_csv(
                                 ram_id,
                                 norme_id,
                                 ean,
-                                part_number,
-                                product_id,
+                               part_number,
+                               product_id,
                             ),
                         )
                         stats.updated += 1
+                        final_product_id = product_id
                         if match_reason == "ean":
                             stats.updated_by_ean += 1
                         elif match_reason in {
@@ -576,29 +772,50 @@ def process_csv(
                         if match_reason:
                             stats.update_reasons.setdefault(match_reason, []).append(index)
                     else:
+                        columns = [
+                            "description",
+                            "model",
+                            "brand_id",
+                            "memory_id",
+                            "color_id",
+                            "type_id",
+                            '"RAM_id"',
+                            "norme_id",
+                            "ean",
+                            "part_number",
+                        ]
+                        values = [
+                            description,
+                            model,
+                            brand_id,
+                            memory_id,
+                            color_id,
+                            type_id,
+                            ram_id,
+                            norme_id,
+                            ean,
+                            part_number,
+                        ]
+                        if explicit_product_id is not None:
+                            columns.insert(0, "id")
+                            values.insert(0, explicit_product_id)
+                        placeholders = ", ".join(["%s"] * len(columns))
                         cursor.execute(
-                            """
-                            INSERT INTO products (
-                                description, model, brand_id, memory_id, color_id,
-                                type_id, "RAM_id", norme_id, ean, part_number
-                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                            RETURNING id
-                            """,
-                            (
-                                description,
-                                model,
-                                brand_id,
-                                memory_id,
-                                color_id,
-                                type_id,
-                                ram_id,
-                                norme_id,
-                                ean,
-                                part_number,
-                            ),
+                            f"INSERT INTO products ({', '.join(columns)}) "
+                            f"VALUES ({placeholders}) RETURNING id",
+                            values,
                         )
-                        cursor.fetchone()
+                        row = cursor.fetchone()
+                        final_product_id = row["id"] if row else None
                         stats.inserted += 1
+                    if final_product_id is not None:
+                        inserted_internal, updated_internal = _sync_internal_product(
+                            cursor, internal_odoo_id, final_product_id
+                        )
+                        if inserted_internal:
+                            stats.internal_inserted += 1
+                        if updated_internal:
+                            stats.internal_updated += 1
                     conn.commit()
                 except Exception as exc:  # pylint: disable=broad-except
                     conn.rollback()
@@ -622,6 +839,12 @@ def process_csv(
                 print(
                     f"      ↳ dont {stats.updated_by_ean} par EAN et {stats.updated_by_name} par nom"
                 )
+            print(
+                f"   🧩 Liens internal_products insérés : {stats.internal_inserted}"
+            )
+            print(
+                f"   🛠️  Liens internal_products mis à jour : {stats.internal_updated}"
+            )
             print(f"   ⏭️  Produits ignorés : {stats.skipped}")
             print(f"   ⚠️  Lignes en erreur : {stats.errors}")
 
