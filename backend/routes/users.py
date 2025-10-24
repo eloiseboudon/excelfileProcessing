@@ -8,6 +8,15 @@ bp = Blueprint("users", __name__)
 @bp.route("/users", methods=["GET"])
 @token_required("admin")
 def list_users():
+    """List all registered users.
+
+    ---
+    tags:
+      - Users
+    responses:
+      200:
+        description: Array of users with their roles and contact information
+    """
     users = User.query.all()
     return jsonify(
         [
@@ -27,6 +36,38 @@ def list_users():
 @bp.route("/users", methods=["POST"])
 @token_required("admin")
 def create_user():
+    """Create a new user with a temporary password.
+
+    ---
+    tags:
+      - Users
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: payload
+        schema:
+          type: object
+          required:
+            - email
+          properties:
+            email:
+              type: string
+              format: email
+            username:
+              type: string
+            role:
+              type: string
+            first_name:
+              type: string
+            last_name:
+              type: string
+    responses:
+      200:
+        description: Created user details
+      400:
+        description: Invalid payload or duplicate user
+    """
     data = request.json or {}
     first_name = data.get("first_name")
     last_name = data.get("last_name")
@@ -62,6 +103,36 @@ def create_user():
 @bp.route("/users/<int:user_id>", methods=["PUT"])
 @token_required("admin")
 def update_user(user_id):
+    """Update user attributes.
+
+    ---
+    tags:
+      - Users
+    parameters:
+      - in: path
+        name: user_id
+        type: integer
+        required: true
+      - in: body
+        name: payload
+        schema:
+          type: object
+          properties:
+            username:
+              type: string
+            email:
+              type: string
+              format: email
+            role:
+              type: string
+            first_name:
+              type: string
+            last_name:
+              type: string
+    responses:
+      200:
+        description: Confirmation that the user has been updated
+    """
     user = User.query.get_or_404(user_id)
     data = request.json or {}
     if "username" in data:
@@ -81,6 +152,20 @@ def update_user(user_id):
 @bp.route("/users/<int:user_id>", methods=["DELETE"])
 @token_required("admin")
 def delete_user(user_id):
+    """Delete a user.
+
+    ---
+    tags:
+      - Users
+    parameters:
+      - in: path
+        name: user_id
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Confirmation that the user has been deleted
+    """
     user = User.query.get_or_404(user_id)
     db.session.delete(user)
     db.session.commit()

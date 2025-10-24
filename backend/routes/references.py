@@ -5,7 +5,6 @@ from models import (
     ColorTranslation,
     DeviceType,
     Exclusion,
-    FormatImport,
     MemoryOption,
     NormeOption,
     Product,
@@ -31,7 +30,6 @@ def _model_mapping():
         "device_types": DeviceType,
         "exclusions": Exclusion,
         "color_translations": ColorTranslation,
-        "format_imports": FormatImport,
     }
 
 
@@ -114,13 +112,6 @@ def get_reference_table(table):
                 "id": obj.id,
                 "color_source": obj.color_source,
                 "color_target": obj.color_target,
-            }
-        if isinstance(obj, FormatImport):
-            return {
-                "id": obj.id,
-                "supplier_id": obj.supplier_id,
-                "column_name": obj.column_name,
-                "column_order": obj.column_order,
             }
         return {}
 
