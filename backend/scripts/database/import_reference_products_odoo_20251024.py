@@ -10,7 +10,9 @@ Utilisation rapide
    ``DATABASE_URL``, soit en passant l'option ``--database-url`` au script (le
    format attendu est ``postgresql://user:password@host:port/db`` mais les
    variantes SQLAlchemy telles que ``postgresql+psycopg2://`` sont également
-   acceptées).
+   acceptées). Si aucune URL explicite n'est fournie, le script tentera
+   automatiquement de construire une connexion à partir des variables
+   ``POSTGRES_DB``, ``POSTGRES_USER`` et associées.
 3. Lancer le script :
 
    ``python backend/scripts/database/import_reference_products_odoo_20251024.py \
@@ -37,6 +39,7 @@ import json
 import os
 import sys
 import unicodedata
+from urllib.parse import urlparse
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Set, Tuple
@@ -246,11 +249,100 @@ def _normalise_db_url(db_url: str) -> str:
     return db_url
 
 
-def _connect(db_url: str) -> connection:
-    """Créer une connexion vers la base de données."""
+def _build_db_url_from_parts() -> Optional[str]:
+    """Construire une URL à partir des variables ``POSTGRES_*`` le cas échéant."""
 
-    normalised = _normalise_db_url(db_url)
-    return psycopg2.connect(normalised, cursor_factory=DictCursor)
+    database = _clean(os.getenv("POSTGRES_DB") or os.getenv("PGDATABASE"))
+    user = _clean(os.getenv("POSTGRES_USER") or os.getenv("PGUSER"))
+    password = os.getenv("POSTGRES_PASSWORD") or os.getenv("PGPASSWORD")
+    host = _clean(
+        os.getenv("POSTGRES_HOST")
+        or os.getenv("PGHOST")
+        or os.getenv("POSTGRES_SERVER")
+        or os.getenv("DB_HOST")
+        or os.getenv("DATABASE_HOST")
+        or "localhost"
+    )
+    port = _clean(
+        os.getenv("POSTGRES_PORT")
+        or os.getenv("PGPORT")
+        or os.getenv("DB_PORT")
+        or os.getenv("DATABASE_PORT")
+        or "5432"
+    )
+
+    if not database or not user:
+        return None
+
+    credentials = user
+    if password:
+        credentials = f"{user}:{password}"
+
+    host_part = host or "localhost"
+    port_part = f":{port}" if port else ""
+    return f"postgresql://{credentials}@{host_part}{port_part}/{database}"
+
+
+def _describe_db_url(db_url: str) -> str:
+    parsed = urlparse(db_url)
+    username = parsed.username or "?"
+    hostname = parsed.hostname or "?"
+    port = parsed.port or "?"
+    database = parsed.path.lstrip("/") or "?"
+    return f"user={username} host={hostname} port={port} db={database}"
+
+
+def _candidate_db_urls(explicit: Optional[str]) -> list[str]:
+    candidates: list[str] = []
+    seen: Set[str] = set()
+
+    def add(url: Optional[str]) -> None:
+        if not url:
+            return
+        normalized = _normalise_db_url(url.strip())
+        if normalized and normalized not in seen:
+            seen.add(normalized)
+            candidates.append(normalized)
+
+    add(explicit)
+    add(os.getenv("DATABASE_URL"))
+    add(_build_db_url_from_parts())
+
+    return candidates
+
+
+def _connect(candidates: list[str]) -> connection:
+    """Créer une connexion vers la base de données à partir des candidats."""
+
+    attempts: list[tuple[str, str]] = []
+    last_error: Optional[Exception] = None
+
+    for url in candidates:
+        description = _describe_db_url(url)
+        print(f"🔌 Tentative de connexion ({description})")
+        try:
+            return psycopg2.connect(url, cursor_factory=DictCursor)
+        except psycopg2.OperationalError as exc:  # pragma: no cover - dépend d'un env externe
+            attempts.append((description, str(exc).strip()))
+            last_error = exc
+        except psycopg2.Error as exc:  # pragma: no cover - dépend d'un env externe
+            attempts.append((description, str(exc).strip()))
+            last_error = exc
+
+    details = [
+        "❌ Impossible de se connecter à la base de données après plusieurs tentatives:",
+    ]
+    for description, error in attempts:
+        details.append(f"   - {description}: {error}")
+    details.append(
+        "   → Vérifiez vos identifiants ou fournissez l'option --database-url"
+        " (ex: postgresql://user:password@host:5432/ajtpro)."
+    )
+
+    message = "\n".join(details)
+    if last_error is not None:
+        raise RuntimeError(message) from last_error
+    raise RuntimeError(message)
 
 
 class ReferenceCache:
@@ -980,16 +1072,21 @@ def main() -> None:
     _load_environment()
 
     print("🚀 Début de l'import des produits de référence...")
-    database_url = args.database_url or os.getenv("DATABASE_URL")
-    if not database_url:
-        print("❌ ERROR: aucune URL de base de données fournie.")
+    candidates = _candidate_db_urls(args.database_url)
+    if not candidates:
+        print("❌ ERROR: aucune URL de base de données disponible.")
         print(
-            "   → définissez la variable d'environnement DATABASE_URL ou passez l'option"
+            "   → définissez la variable d'environnement DATABASE_URL,"
+            " POSTGRES_DB/POSTGRES_USER ou passez l'option",
             " --database-url postgresql://user:password@host:port/db",
         )
         sys.exit(1)
 
-    conn = _connect(database_url)
+    try:
+        conn = _connect(candidates)
+    except RuntimeError as exc:
+        print(exc)
+        sys.exit(2)
     try:
         process_csv(
             conn,
