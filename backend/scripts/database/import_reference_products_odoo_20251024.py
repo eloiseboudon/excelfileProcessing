@@ -6,9 +6,9 @@ Utilisation rapide
 
 1. Exporter ou copier le fichier ``products_odoo_20251023.csv`` (ou un
    équivalent) sur la machine qui possède l'accès à la base Postgres.
-2. Vérifier que la variable d'environnement ``DATABASE_URL`` pointe vers la
-   base de données à enrichir (le format attendu est l'URL standard
-   ``postgresql://user:password@host:port/db``).
+2. Fournir une URL de connexion Postgres soit via la variable d'environnement
+   ``DATABASE_URL``, soit en passant l'option ``--database-url`` au script (le
+   format attendu est ``postgresql://user:password@host:port/db``).
 3. Lancer le script :
 
    ``python backend/scripts/database/import_reference_products_odoo_20251024.py \
@@ -36,6 +36,7 @@ import os
 import sys
 import unicodedata
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 import psycopg2
@@ -101,14 +102,17 @@ COLUMN_MAP: Dict[str, str] = {
 def _load_environment() -> None:
     """Charger les variables d'environnement disponibles."""
 
-    current_dir = os.path.dirname(__file__)
-    candidates = [
-        os.path.join(current_dir, ".env"),
-        os.path.join(current_dir, "..", ".env"),
-        os.path.join(current_dir, "..", "..", ".env"),
-    ]
-    for path in candidates:
-        if os.path.exists(path):
+    current_dir = Path(__file__).resolve().parent
+    candidates: list[Path] = []
+    directory = current_dir
+    while True:
+        candidates.append(directory / ".env")
+        if directory == directory.parent:
+            break
+        directory = directory.parent
+
+    for path in reversed(candidates):
+        if path.exists():
             load_dotenv(path)
 
 
@@ -217,13 +221,9 @@ def _build_header_mapping(headers: Iterable[str]) -> Dict[str, Optional[str]]:
     return mapping
 
 
-def _connect() -> connection:
+def _connect(db_url: str) -> connection:
     """Créer une connexion vers la base de données."""
 
-    db_url = os.getenv("DATABASE_URL")
-    if not db_url:
-        print("❌ ERROR: DATABASE_URL environment variable is not set")
-        sys.exit(1)
     return psycopg2.connect(db_url, cursor_factory=DictCursor)
 
 
@@ -926,6 +926,10 @@ def main() -> None:
     )
     parser.add_argument("csv", help="Chemin du fichier CSV à importer")
     parser.add_argument(
+        "--database-url",
+        help="URL de connexion Postgres (sinon utiliser la variable d'environnement DATABASE_URL)",
+    )
+    parser.add_argument(
         "--delimiter",
         default=";",
         help="Délimiteur utilisé dans le fichier (défaut: ';')",
@@ -950,7 +954,16 @@ def main() -> None:
     _load_environment()
 
     print("🚀 Début de l'import des produits de référence...")
-    conn = _connect()
+    database_url = args.database_url or os.getenv("DATABASE_URL")
+    if not database_url:
+        print("❌ ERROR: aucune URL de base de données fournie.")
+        print(
+            "   → définissez la variable d'environnement DATABASE_URL ou passez l'option"
+            " --database-url postgresql://user:password@host:port/db",
+        )
+        sys.exit(1)
+
+    conn = _connect(database_url)
     try:
         process_csv(
             conn,
