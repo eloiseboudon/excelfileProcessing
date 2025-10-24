@@ -42,10 +42,10 @@ import unicodedata
 from urllib.parse import urlparse
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Set, Tuple
+from typing import Dict, Iterable, List, Mapping, Optional, Set, Tuple
 
 import psycopg2
-from dotenv import load_dotenv
+from dotenv import load_dotenv, dotenv_values
 from psycopg2.extensions import connection
 from psycopg2.extras import DictCursor
 
@@ -249,26 +249,38 @@ def _normalise_db_url(db_url: str) -> str:
     return db_url
 
 
-def _build_db_url_from_parts() -> Optional[str]:
+def _build_db_url_from_parts(values: Optional[Mapping[str, object]] = None) -> Optional[str]:
     """Construire une URL à partir des variables ``POSTGRES_*`` le cas échéant."""
 
-    database = _clean(os.getenv("POSTGRES_DB") or os.getenv("PGDATABASE"))
-    user = _clean(os.getenv("POSTGRES_USER") or os.getenv("PGUSER"))
-    password = os.getenv("POSTGRES_PASSWORD") or os.getenv("PGPASSWORD")
+    def get(*keys: str, default: Optional[str] = None) -> Optional[str]:
+        for key in keys:
+            raw: Optional[object]
+            if values is None:
+                raw = os.getenv(key)
+            else:
+                raw = values.get(key) if key in values else None
+            if raw is None:
+                continue
+            if isinstance(raw, str):
+                return raw
+            return str(raw)
+        return default
+
+    database = _clean(get("POSTGRES_DB", "PGDATABASE"))
+    user = _clean(get("POSTGRES_USER", "PGUSER"))
+    password = get("POSTGRES_PASSWORD", "PGPASSWORD")
     host = _clean(
-        os.getenv("POSTGRES_HOST")
-        or os.getenv("PGHOST")
-        or os.getenv("POSTGRES_SERVER")
-        or os.getenv("DB_HOST")
-        or os.getenv("DATABASE_HOST")
+        get(
+            "POSTGRES_HOST",
+            "PGHOST",
+            "POSTGRES_SERVER",
+            "DB_HOST",
+            "DATABASE_HOST",
+        )
         or "localhost"
     )
     port = _clean(
-        os.getenv("POSTGRES_PORT")
-        or os.getenv("PGPORT")
-        or os.getenv("DB_PORT")
-        or os.getenv("DATABASE_PORT")
-        or "5432"
+        get("POSTGRES_PORT", "PGPORT", "DB_PORT", "DATABASE_PORT") or "5432"
     )
 
     if not database or not user:
@@ -292,11 +304,100 @@ def _describe_db_url(db_url: str) -> str:
     return f"user={username} host={hostname} port={port} db={database}"
 
 
+def _discover_dotenv_files() -> list[Path]:
+    """Trouver les fichiers ``.env*`` pertinents à analyser."""
+
+    names = (
+        ".env",
+        ".env.local",
+        ".env.development",
+        ".env.example",
+    )
+    current_dir = Path(__file__).resolve().parent
+    directories: list[Path] = []
+    directory = current_dir
+    while True:
+        directories.append(directory)
+        if directory == directory.parent:
+            break
+        directory = directory.parent
+
+    files: list[Path] = []
+    seen: Set[Path] = set()
+    for base in directories:
+        for name in names:
+            candidate = base / name
+            if candidate in seen or not candidate.exists():
+                continue
+            seen.add(candidate)
+            files.append(candidate)
+    return files
+
+
+def _load_dotenv_candidates() -> list[Mapping[str, object]]:
+    """Charger les valeurs de connexion potentielles à partir des fichiers ``.env``."""
+
+    candidates: list[Mapping[str, object]] = []
+    for path in _discover_dotenv_files():
+        try:
+            values = dotenv_values(path)
+        except Exception:  # pragma: no cover - dépend de fichiers utilisateur
+            continue
+        if not values:
+            continue
+        cleaned: Dict[str, object] = {}
+        for key, value in values.items():
+            if value is None:
+                continue
+            cleaned[key] = value
+        if cleaned:
+            candidates.append(cleaned)
+    return candidates
+
+
+def _expand_host_variants(db_url: str) -> list[str]:
+    """Générer des variantes de l'URL avec des hôtes locaux courants."""
+
+    parsed = urlparse(db_url)
+    if parsed.scheme not in {"postgresql", "postgres"}:
+        return [db_url]
+
+    username = parsed.username or ""
+    password = parsed.password
+    port = parsed.port
+    database = parsed.path.lstrip("/")
+    host = parsed.hostname
+
+    if not database:
+        return [db_url]
+
+    auth = username
+    if auth and password is not None:
+        auth = f"{username}:{password}"
+    elif not auth:
+        auth = None
+
+    def build(hostname: str) -> str:
+        netloc = hostname
+        if port:
+            netloc = f"{hostname}:{port}"
+        if auth:
+            netloc = f"{auth}@{netloc}"
+        return f"{parsed.scheme}://{netloc}/{database}"
+
+    variants = [db_url]
+    for candidate_host in ("localhost", "127.0.0.1"):
+        if candidate_host == host or host is None:
+            continue
+        variants.append(build(candidate_host))
+    return variants
+
+
 def _candidate_db_urls(explicit: Optional[str]) -> list[str]:
     candidates: list[str] = []
     seen: Set[str] = set()
 
-    def add(url: Optional[str]) -> None:
+    def add(url: Optional[str], *, expand: bool = True) -> None:
         if not url:
             return
         normalized = _normalise_db_url(url.strip())
@@ -304,9 +405,18 @@ def _candidate_db_urls(explicit: Optional[str]) -> list[str]:
             seen.add(normalized)
             candidates.append(normalized)
 
+            if expand:
+                for variant in _expand_host_variants(normalized):
+                    if variant != normalized:
+                        add(variant, expand=False)
+
     add(explicit)
     add(os.getenv("DATABASE_URL"))
     add(_build_db_url_from_parts())
+
+    for mapping in _load_dotenv_candidates():
+        add(mapping.get("DATABASE_URL"))
+        add(_build_db_url_from_parts(mapping))
 
     return candidates
 
