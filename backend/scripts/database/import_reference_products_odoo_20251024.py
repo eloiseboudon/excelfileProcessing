@@ -66,6 +66,8 @@ class ImportStats:
     truncations: Dict[int, List["TruncationInfo"]] = field(default_factory=dict)
 
     not_imported: Dict[int, "NotImportedInfo"] = field(default_factory=dict)
+    missing_reference_tables: List[str] = field(default_factory=list)
+    missing_reference_columns: Dict[str, List[str]] = field(default_factory=dict)
 
 
 
@@ -478,6 +480,8 @@ class ReferenceCache:
         self.table_values_cache: Dict[tuple[str, str], list[tuple[int, list[str]]]] = {}
         self.table_columns_cache: Dict[str, Set[str]] = {}
         self.default_tcp = default_tcp
+        self.missing_tables: Set[str] = set()
+        self.missing_columns: Dict[str, Set[str]] = {}
 
     def _column_name(self, column_sql: str) -> str:
         return column_sql.replace('"', "").strip()
@@ -503,7 +507,18 @@ class ReferenceCache:
             return self.table_values_cache[key]
 
         columns = self._get_table_columns(table)
+        if not columns:
+            self.missing_tables.add(table)
+            self.table_values_cache[key] = []
+            return []
+
         primary_column = self._column_name(column_sql)
+        normalized_columns = {col.lower() for col in columns}
+        if primary_column.lower() not in normalized_columns:
+            self.missing_columns.setdefault(table, set()).add(primary_column)
+            self.table_values_cache[key] = []
+            return []
+
         extras = [
             col
             for col in ("name", "nom")
@@ -567,6 +582,17 @@ class ReferenceCache:
         search_in_name: bool = False,
         product_name: Optional[str] = None,
     ) -> Optional[int]:
+        columns = self._get_table_columns(table)
+        if not columns:
+            self.missing_tables.add(table)
+            return None
+
+        normalized_columns = {col.lower() for col in columns}
+        primary_column = self._column_name(column_sql)
+        if primary_column.lower() not in normalized_columns:
+            self.missing_columns.setdefault(table, set()).add(primary_column)
+            return None
+
         candidate_id: Optional[int] = None
         if value is not None:
             key = value.lower()
@@ -1086,6 +1112,23 @@ def process_csv(
                 for table, values in ref_cache.unresolved_from_name.items()
                 if values
             }
+            stats.missing_reference_tables = sorted(ref_cache.missing_tables)
+            stats.missing_reference_columns = {
+                table: sorted(columns)
+                for table, columns in ref_cache.missing_columns.items()
+                if columns
+            }
+
+            if stats.missing_reference_tables:
+                print("\n⚠️  Tables de référence introuvables :")
+                for table in stats.missing_reference_tables:
+                    print(f"   - {table}")
+
+            if stats.missing_reference_columns:
+                print("\n⚠️  Colonnes de référence introuvables :")
+                for table, columns in stats.missing_reference_columns.items():
+                    joined = ", ".join(columns)
+                    print(f"   - {table}: {joined}")
 
             has_missing = bool(stats.missing_references or stats.unresolved_by_name)
 
@@ -1140,6 +1183,11 @@ def _write_missing_report(path: str, stats: ImportStats, has_missing: bool) -> N
         "missing_references": stats.missing_references,
         "unresolved_by_name": stats.unresolved_by_name,
     }
+
+    if stats.missing_reference_tables:
+        payload["missing_reference_tables"] = stats.missing_reference_tables
+    if stats.missing_reference_columns:
+        payload["missing_reference_columns"] = stats.missing_reference_columns
 
     with open(path, "w", encoding="utf-8") as handle:
         json.dump(payload, handle, ensure_ascii=False, indent=2, sort_keys=True)
