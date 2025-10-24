@@ -8,7 +8,9 @@ Utilisation rapide
    équivalent) sur la machine qui possède l'accès à la base Postgres.
 2. Fournir une URL de connexion Postgres soit via la variable d'environnement
    ``DATABASE_URL``, soit en passant l'option ``--database-url`` au script (le
-   format attendu est ``postgresql://user:password@host:port/db``).
+   format attendu est ``postgresql://user:password@host:port/db`` mais les
+   variantes SQLAlchemy telles que ``postgresql+psycopg2://`` sont également
+   acceptées).
 3. Lancer le script :
 
    ``python backend/scripts/database/import_reference_products_odoo_20251024.py \
@@ -221,10 +223,34 @@ def _build_header_mapping(headers: Iterable[str]) -> Dict[str, Optional[str]]:
     return mapping
 
 
+def _normalise_db_url(db_url: str) -> str:
+    """Adapter l'URL de connexion aux formats attendus par ``psycopg2``.
+
+    Les projets basés sur SQLAlchemy utilisent souvent des schémas de la
+    forme ``postgresql+psycopg2://`` (ou ``postgresql+asyncpg://``). Ces
+    variantes ne sont pas comprises par ``psycopg2.connect`` qui attend un
+    schéma « pur » (``postgresql://``). Cette fonction supprime simplement la
+    partie ``+driver`` quand le schéma est compatible Postgres.
+    """
+
+    if "://" not in db_url:
+        return db_url
+
+    scheme, rest = db_url.split("://", 1)
+    if "+" in scheme:
+        base_scheme, _driver = scheme.split("+", 1)
+        if base_scheme in {"postgresql", "postgres"}:
+            return f"{base_scheme}://{rest}"
+    if scheme == "postgres":
+        return f"postgresql://{rest}"
+    return db_url
+
+
 def _connect(db_url: str) -> connection:
     """Créer une connexion vers la base de données."""
 
-    return psycopg2.connect(db_url, cursor_factory=DictCursor)
+    normalised = _normalise_db_url(db_url)
+    return psycopg2.connect(normalised, cursor_factory=DictCursor)
 
 
 class ReferenceCache:
