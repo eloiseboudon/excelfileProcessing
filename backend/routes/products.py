@@ -261,27 +261,6 @@ def list_products():
     return jsonify(result)
 
 
-@bp.route("/product_calculations/count", methods=["GET"])
-@token_required("admin")
-def count_product_calculations():
-    """Return the number of product calculations available.
-
-    ---
-    tags:
-      - Products
-    responses:
-      200:
-        description: Number of available calculations
-        schema:
-          type: object
-          properties:
-            count:
-              type: integer
-    """
-    count = ProductCalculation.query.count()
-    return jsonify({"count": count})
-
-
 @bp.route("/calculate_products", methods=["POST"])
 @token_required("admin")
 def calculate_products():

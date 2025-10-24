@@ -12,6 +12,35 @@ bp = Blueprint("auth", __name__)
 
 @bp.route("/login", methods=["POST"])
 def login():
+    """Authenticate a user and return access tokens.
+
+    ---
+    tags:
+      - Auth
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: credentials
+        schema:
+          type: object
+          required:
+            - email
+            - password
+          properties:
+            email:
+              type: string
+              format: email
+            password:
+              type: string
+    responses:
+      200:
+        description: Tokens generated for the authenticated user
+      400:
+        description: Missing credentials in the request body
+      401:
+        description: Invalid email or password
+    """
     data = request.get_json(silent=True) or {}
     email = data.get("email")
     password = data.get("password")
@@ -29,6 +58,31 @@ def login():
 
 @bp.route("/refresh", methods=["POST"])
 def refresh():
+    """Exchange a refresh token for a new access token.
+
+    ---
+    tags:
+      - Auth
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: payload
+        schema:
+          type: object
+          required:
+            - refresh_token
+          properties:
+            refresh_token:
+              type: string
+    responses:
+      200:
+        description: New access token generated from the provided refresh token
+      400:
+        description: Missing refresh token in the request body
+      401:
+        description: Expired or invalid refresh token
+    """
     data = request.get_json(silent=True) or {}
     token = data.get("refresh_token")
     if not token:

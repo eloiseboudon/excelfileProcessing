@@ -1,33 +1,22 @@
-import os
 from datetime import datetime
 from typing import Any
 
-import pandas as pd
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, jsonify, request
 from models import (
     ApiEndpoint,
     ApiFetchJob,
     AuthType,
     FieldMap,
-    FormatImport,
     ImportHistory,
     MappingVersion,
     Supplier,
     SupplierAPI,
-    TemporaryImport,
     db,
 )
 from sqlalchemy import extract, func
 from sqlalchemy.orm import joinedload
 from utils.auth import token_required
-from utils.calculations import recalculate_product_calculations
 from utils.etl import run_fetch_job
-
-
-def _normalize_column_key(name: str | None) -> str:
-    """Return a normalized identifier for a mapped column name."""
-
-    return "".join(ch for ch in (name or "").lower() if ch.isalnum())
 
 
 def _select_endpoint(
@@ -73,28 +62,6 @@ def _select_mapping(endpoint: ApiEndpoint, mapping_version_id: int | None) -> Ma
         .order_by(MappingVersion.version.desc(), MappingVersion.id.desc())
         .first()
     )
-
-
-
-def _clean_cell(value: Any) -> str | None:
-    """Convert a raw dataframe cell to a clean string value."""
-
-    if value is None:
-        return None
-    if isinstance(value, str):
-        cleaned = value.strip()
-        if not cleaned or cleaned.lower() == "nan":
-            return None
-        return cleaned
-    if pd.isna(value):
-        return None
-    if isinstance(value, float):
-        if value.is_integer():
-            return str(int(value))
-        return str(value).strip()
-    if isinstance(value, int):
-        return str(value)
-    return str(value).strip()
 
 bp = Blueprint("imports", __name__)
 
@@ -180,7 +147,15 @@ def _serialize_supplier_api(api: SupplierAPI) -> dict[str, Any]:
 @bp.route("/supplier_api/config", methods=["GET"])
 @token_required("admin")
 def list_supplier_api_config():
-    """Return API configuration overview for each supplier."""
+    """List the API configuration for each supplier.
+
+    ---
+    tags:
+      - Imports
+    responses:
+      200:
+        description: Supplier API configuration grouped by supplier
+    """
 
     suppliers = (
         Supplier.query.options(
@@ -224,6 +199,39 @@ def _parse_auth_type(raw_value: str | None) -> AuthType:
 @bp.route("/supplier_api/<int:supplier_id>/apis", methods=["POST"])
 @token_required("admin")
 def create_supplier_api(supplier_id: int):
+    """Create a new supplier API configuration.
+
+    ---
+    tags:
+      - Imports
+    parameters:
+      - in: path
+        name: supplier_id
+        type: integer
+        required: true
+      - in: body
+        name: payload
+        schema:
+          type: object
+          required:
+            - base_url
+          properties:
+            base_url:
+              type: string
+            auth_type:
+              type: string
+            rate_limit_per_min:
+              type: integer
+            auth_config:
+              type: object
+            default_headers:
+              type: object
+    responses:
+      201:
+        description: Newly created API configuration
+      400:
+        description: Validation error for the provided payload
+    """
     supplier = Supplier.query.get_or_404(supplier_id)
     payload = request.get_json(silent=True) or {}
 
@@ -253,6 +261,37 @@ def create_supplier_api(supplier_id: int):
 @bp.route("/supplier_api/apis/<int:api_id>", methods=["PUT", "PATCH"])
 @token_required("admin")
 def update_supplier_api(api_id: int):
+    """Update an existing supplier API configuration.
+
+    ---
+    tags:
+      - Imports
+    parameters:
+      - in: path
+        name: api_id
+        type: integer
+        required: true
+      - in: body
+        name: payload
+        schema:
+          type: object
+          properties:
+            base_url:
+              type: string
+            auth_type:
+              type: string
+            rate_limit_per_min:
+              type: integer
+            auth_config:
+              type: object
+            default_headers:
+              type: object
+    responses:
+      200:
+        description: Updated API configuration
+      400:
+        description: Invalid data provided for the update
+    """
     api = SupplierAPI.query.get_or_404(api_id)
     payload = request.get_json(silent=True) or {}
 
@@ -287,6 +326,22 @@ def update_supplier_api(api_id: int):
 @bp.route("/supplier_api/apis/<int:api_id>", methods=["DELETE"])
 @token_required("admin")
 def delete_supplier_api(api_id: int):
+    """Delete a supplier API configuration.
+
+    ---
+    tags:
+      - Imports
+    parameters:
+      - in: path
+        name: api_id
+        type: integer
+        required: true
+    responses:
+      204:
+        description: API configuration successfully deleted
+      400:
+        description: API cannot be deleted because of existing dependencies
+    """
     api = SupplierAPI.query.get_or_404(api_id)
 
     if ApiFetchJob.query.filter_by(supplier_api_id=api_id).first():
@@ -316,6 +371,38 @@ def delete_supplier_api(api_id: int):
 @bp.route("/supplier_api/apis/<int:api_id>/endpoints", methods=["POST"])
 @token_required("admin")
 def create_supplier_api_endpoint(api_id: int):
+    """Create an API endpoint definition for a supplier.
+
+    ---
+    tags:
+      - Imports
+    parameters:
+      - in: path
+        name: api_id
+        type: integer
+        required: true
+      - in: body
+        name: payload
+        schema:
+          type: object
+          required:
+            - name
+            - path
+          properties:
+            name:
+              type: string
+            path:
+              type: string
+            method:
+              type: string
+            items_path:
+              type: string
+    responses:
+      201:
+        description: Newly created endpoint
+      400:
+        description: Validation error for the endpoint payload
+    """
     api = SupplierAPI.query.get_or_404(api_id)
     payload = request.get_json(silent=True) or {}
 
@@ -342,6 +429,35 @@ def create_supplier_api_endpoint(api_id: int):
 @bp.route("/supplier_api/endpoints/<int:endpoint_id>", methods=["PUT", "PATCH"])
 @token_required("admin")
 def update_supplier_api_endpoint(endpoint_id: int):
+    """Update a supplier API endpoint definition.
+
+    ---
+    tags:
+      - Imports
+    parameters:
+      - in: path
+        name: endpoint_id
+        type: integer
+        required: true
+      - in: body
+        name: payload
+        schema:
+          type: object
+          properties:
+            name:
+              type: string
+            path:
+              type: string
+            method:
+              type: string
+            items_path:
+              type: string
+    responses:
+      200:
+        description: Updated endpoint definition
+      400:
+        description: Validation error for the endpoint payload
+    """
     endpoint = ApiEndpoint.query.get_or_404(endpoint_id)
     payload = request.get_json(silent=True) or {}
 
@@ -374,6 +490,22 @@ def update_supplier_api_endpoint(endpoint_id: int):
 @bp.route("/supplier_api/endpoints/<int:endpoint_id>", methods=["DELETE"])
 @token_required("admin")
 def delete_supplier_api_endpoint(endpoint_id: int):
+    """Delete an API endpoint definition.
+
+    ---
+    tags:
+      - Imports
+    parameters:
+      - in: path
+        name: endpoint_id
+        type: integer
+        required: true
+    responses:
+      204:
+        description: Endpoint successfully deleted
+      400:
+        description: Endpoint cannot be deleted due to existing dependencies
+    """
     endpoint = ApiEndpoint.query.get_or_404(endpoint_id)
 
     if ApiFetchJob.query.filter_by(endpoint_id=endpoint_id).first():
@@ -395,6 +527,42 @@ def delete_supplier_api_endpoint(endpoint_id: int):
 @bp.route("/supplier_api/apis/<int:api_id>/mapping", methods=["POST"])
 @token_required("admin")
 def create_supplier_api_mapping(api_id: int):
+    """Create a mapping version for a supplier API.
+
+    ---
+    tags:
+      - Imports
+    parameters:
+      - in: path
+        name: api_id
+        type: integer
+        required: true
+      - in: body
+        name: payload
+        schema:
+          type: object
+          properties:
+            version:
+              type: integer
+            is_active:
+              type: boolean
+            fields:
+              type: array
+              items:
+                type: object
+                properties:
+                  target_field:
+                    type: string
+                  source_path:
+                    type: string
+                  transform:
+                    type: string
+    responses:
+      201:
+        description: Mapping definition created
+      400:
+        description: Invalid mapping payload
+    """
     SupplierAPI.query.get_or_404(api_id)
     payload = request.get_json(silent=True) or {}
 
@@ -441,47 +609,42 @@ def create_supplier_api_mapping(api_id: int):
     return jsonify(_serialize_mapping(mapping)), 201
 
 
-@bp.route("/supplier_api/mappings/<int:mapping_id>", methods=["PUT", "PATCH"])
-@token_required("admin")
-def update_supplier_api_mapping(mapping_id: int):
-    mapping = MappingVersion.query.get_or_404(mapping_id)
-    payload = request.get_json(silent=True) or {}
-
-    if "is_active" in payload:
-        is_active = bool(payload.get("is_active"))
-        if is_active:
-            MappingVersion.query.filter(
-                MappingVersion.supplier_api_id == mapping.supplier_api_id,
-                MappingVersion.id != mapping.id,
-            ).update({"is_active": False}, synchronize_session=False)
-        mapping.is_active = is_active
-
-    if "version" in payload and payload.get("version"):
-        mapping.version = int(payload.get("version"))
-
-    db.session.commit()
-    db.session.refresh(mapping)
-
-    return jsonify(_serialize_mapping(mapping))
-
-
-@bp.route("/supplier_api/mappings/<int:mapping_id>", methods=["DELETE"])
-@token_required("admin")
-def delete_supplier_api_mapping(mapping_id: int):
-    mapping = MappingVersion.query.get_or_404(mapping_id)
-    for field in list(mapping.fields):
-        db.session.delete(field)
-    db.session.delete(mapping)
-    db.session.commit()
-    return ("", 204)
-
-
 @bp.route(
     "/supplier_api/mappings/<int:mapping_id>/fields",
     methods=["POST"],
 )
 @token_required("admin")
 def create_supplier_api_field(mapping_id: int):
+    """Add a mapped field to a mapping version.
+
+    ---
+    tags:
+      - Imports
+    parameters:
+      - in: path
+        name: mapping_id
+        type: integer
+        required: true
+      - in: body
+        name: payload
+        schema:
+          type: object
+          required:
+            - target_field
+            - source_path
+          properties:
+            target_field:
+              type: string
+            source_path:
+              type: string
+            transform:
+              type: string
+    responses:
+      201:
+        description: Newly created mapping field
+      400:
+        description: Missing field details
+    """
     mapping = MappingVersion.query.get_or_404(mapping_id)
     payload = request.get_json(silent=True) or {}
 
@@ -510,6 +673,33 @@ def create_supplier_api_field(mapping_id: int):
 @bp.route("/supplier_api/fields/<int:field_id>", methods=["PUT", "PATCH"])
 @token_required("admin")
 def update_supplier_api_field(field_id: int):
+    """Update a mapped field definition.
+
+    ---
+    tags:
+      - Imports
+    parameters:
+      - in: path
+        name: field_id
+        type: integer
+        required: true
+      - in: body
+        name: payload
+        schema:
+          type: object
+          properties:
+            target_field:
+              type: string
+            source_path:
+              type: string
+            transform:
+              type: string
+    responses:
+      200:
+        description: Updated mapping field
+      400:
+        description: Invalid field update payload
+    """
     field = FieldMap.query.get_or_404(field_id)
     payload = request.get_json(silent=True) or {}
 
@@ -537,42 +727,44 @@ def update_supplier_api_field(field_id: int):
 @bp.route("/supplier_api/fields/<int:field_id>", methods=["DELETE"])
 @token_required("admin")
 def delete_supplier_api_field(field_id: int):
+    """Delete a mapped field definition.
+
+    ---
+    tags:
+      - Imports
+    parameters:
+      - in: path
+        name: field_id
+        type: integer
+        required: true
+    responses:
+      204:
+        description: Field successfully deleted
+    """
     field = FieldMap.query.get_or_404(field_id)
     db.session.delete(field)
     db.session.commit()
     return ("", 204)
 
 
-@bp.route("/import_history", methods=["GET"])
+@bp.route("/supplier_api/reports", methods=["GET"])
 @token_required("admin")
-def list_import_history():
-    """List previous import operations.
+def list_supplier_api_reports():
+    """List recent supplier API synchronization reports.
 
     ---
     tags:
       - Imports
+    parameters:
+      - in: query
+        name: limit
+        type: integer
+        required: false
+        description: Maximum number of reports to return
     responses:
       200:
-        description: Import history records
+        description: Synchronization reports with metadata and mapping details
     """
-    histories = ImportHistory.query.order_by(ImportHistory.import_date.desc()).all()
-    result = [
-        {
-            "id": h.id,
-            "filename": h.filename,
-            "supplier_id": h.supplier_id,
-            "product_count": h.product_count,
-            "import_date": h.import_date.isoformat(),
-        }
-        for h in histories
-    ]
-    return jsonify(result)
-
-
-@bp.route("/supplier_api/reports", methods=["GET"])
-@token_required("admin")
-def list_supplier_api_reports():
-    """Return synchronization reports for recent API imports."""
 
     try:
         limit = int(request.args.get("limit", 20))
@@ -619,14 +811,19 @@ def list_supplier_api_reports():
 @bp.route("/verify_import/<int:supplier_id>", methods=["GET"])
 @token_required("admin")
 def verify_import(supplier_id):
-    """Verify if an import already exists for the current week for a supplier.
+    """Check whether the current week already has an import for a supplier.
 
     ---
     tags:
       - Imports
+    parameters:
+      - in: path
+        name: supplier_id
+        type: integer
+        required: true
     responses:
       200:
-        description: Return if an import already exists for the current week for a supplier
+        description: Status indicating whether an import already exists this week
     """
 
     verification = (
@@ -645,7 +842,39 @@ def verify_import(supplier_id):
 @bp.route("/supplier_api/<int:supplier_id>", methods=["POST"])
 @token_required("admin")
 def fetch_supplier_api(supplier_id: int):
-    """Fetch live supplier data and store it into the temporary table."""
+    """Trigger a supplier API fetch and store the result.
+
+    ---
+    tags:
+      - Imports
+    parameters:
+      - in: path
+        name: supplier_id
+        type: integer
+        required: true
+      - in: body
+        name: payload
+        schema:
+          type: object
+          properties:
+            endpoint_id:
+              type: integer
+            endpoint_name:
+              type: string
+            mapping_version_id:
+              type: integer
+            query_params:
+              type: object
+            body:
+              type: object
+    responses:
+      200:
+        description: Result of the fetch operation
+      400:
+        description: Endpoint or mapping selection error
+      502:
+        description: Upstream supplier API error
+    """
 
     supplier = Supplier.query.get(supplier_id)
     if not supplier:
@@ -720,351 +949,6 @@ def fetch_supplier_api(supplier_id: int):
         return jsonify({"error": str(exc)}), 502
 
     return jsonify(result), 200
-
-
-@bp.route("/import_preview", methods=["POST"])
-@token_required("admin")
-def preview_import():
-    """Return a preview of the first five valid rows from an Excel file.
-
-    ---
-    tags:
-      - Imports
-    consumes:
-      - multipart/form-data
-    parameters:
-      - in: formData
-        name: file
-        type: file
-        required: true
-      - in: formData
-        name: supplier_id
-        type: integer
-        required: false
-    responses:
-      200:
-        description: Rows preview
-    """
-
-    if "file" not in request.files:
-        return jsonify({"error": "Pas de fichier fourni"}), 400
-
-    file = request.files["file"]
-    supplier_id = request.form.get("supplier_id")
-    if supplier_id is not None:
-        try:
-            supplier_id = int(supplier_id)
-        except ValueError:
-            supplier_id = None
-
-    df = pd.read_excel(file)
-    df.columns = [str(c).lower().strip() for c in df.columns]
-
-    for col in ["quantity", "selling_price"]:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
-
-    mappings = []
-    if supplier_id:
-        mappings = FormatImport.query.filter_by(supplier_id=supplier_id).all()
-        if not mappings:
-            return (
-                jsonify({"error": "Format d'import non trouvé pour ce fournisseur"}),
-                400,
-            )
-
-    for m in mappings:
-        if m.column_order is None or not m.column_name:
-            continue
-        idx = m.column_order - 1
-        if 0 <= idx < len(df.columns):
-            normalized_name = (m.column_name or "").lower()
-            df[normalized_name] = df.iloc[:, idx]
-            if normalized_name in {"quantity", "selling_price"}:
-                df[normalized_name] = pd.to_numeric(
-                    df[normalized_name], errors="coerce"
-                )
-
-    required_columns = [
-        (m.column_name or "").lower() for m in mappings if m.column_name
-    ]
-    missing_columns = [c for c in required_columns if c not in df.columns]
-    if missing_columns:
-        return (
-            jsonify(
-                {
-                    "error": "Colonnes manquantes après le mapping: "
-                    + ", ".join(missing_columns)
-                }
-            ),
-            400,
-        )
-
-    if "description" in df.columns:
-        df["description"] = df["description"].astype(str).str.strip()
-
-    preview_rows = []
-    for _, row in df.iterrows():
-        quantity = row.get("quantity")
-        selling_price = row.get("selling_price")
-        if pd.isna(quantity) or pd.isna(selling_price):
-            continue
-        try:
-            quantity_value = int(float(quantity))
-            selling_price_value = float(selling_price)
-        except (TypeError, ValueError):
-            continue
-        preview_rows.append(
-            {
-                "description": row.get("description"),
-                "model": row.get("model") or row.get("description"),
-                "quantity": quantity_value,
-                "selling_price": selling_price_value,
-            }
-        )
-        if len(preview_rows) >= 5:
-            break
-
-    return jsonify({"preview": preview_rows})
-
-
-@bp.route("/import", methods=["POST"])
-@token_required("admin")
-def create_import():
-    """Import a new Excel file.
-
-    ---
-    tags:
-      - Imports
-    consumes:
-      - multipart/form-data
-    parameters:
-      - in: formData
-        name: file
-        type: file
-        required: true
-      - in: formData
-        name: supplier_id
-        type: integer
-        required: false
-    responses:
-      200:
-        description: Import result
-    """
-
-    from flask import current_app
-
-    current_app.logger.debug(f"Headers: {request.headers}")
-    current_app.logger.debug(f"Content-Type: {request.content_type}")
-
-    if request.content_type == "application/json":
-        data = request.get_json()
-        current_app.logger.debug(f"JSON reçu: {data}")
-    elif request.content_type.startswith("multipart/form-data"):
-        current_app.logger.debug(f"Fichiers: {request.files}")
-        current_app.logger.debug(f"Formulaire: {request.form}")
-    else:
-        raw_data = request.data
-        current_app.logger.debug(f"Raw data: {raw_data}")
-
-    if "file" not in request.files:
-        return jsonify({"error": "Pas de fichier fourni"}), 400
-
-    file = request.files["file"]
-    supplier_id = request.form.get("supplier_id")
-    if supplier_id is not None:
-        try:
-            supplier_id = int(supplier_id)
-        except ValueError:
-            supplier_id = None
-
-    TemporaryImport.query.delete()
-    db.session.commit()
-
-    df = pd.read_excel(file)
-    df.columns = [str(c).lower().strip() for c in df.columns]
-
-    # Prepare invalid rows log
-    log_dir = os.path.join(os.path.dirname(__file__), "..", "log")
-    os.makedirs(log_dir, exist_ok=True)
-    log_filename = datetime.utcnow().strftime("import_%Y%m%d_%H%M%S.txt")
-    log_path = os.path.join(log_dir, log_filename)
-    log_entries = ["line\tdescription\treason"]
-
-    # Apply column mappings defined for the supplier if available
-    mappings = FormatImport.query.filter_by(supplier_id=supplier_id).all()
-    if not mappings:
-        current_app.logger.error("Aucun format d'import défini pour ce fournisseur")
-        return (
-            jsonify({"error": "Format d'import non trouvé pour ce fournisseur"}),
-            400,
-        )
-
-    # Find mappings for quantity, selling_price, description and model
-    def find_mapping(target: str):
-        return next(
-            (
-                m
-                for m in mappings
-                if m.column_name
-                and _normalize_column_key(m.column_name) == target
-            ),
-            None,
-        )
-
-    quantity_mapping = find_mapping("quantity")
-    selling_price_mapping = find_mapping("sellingprice")
-    description_mapping = find_mapping("description")
-    model_mapping = find_mapping("model")
-    ean_mapping = find_mapping("ean")
-    part_number_mapping = find_mapping("partnumber")
-
-    if not quantity_mapping or not selling_price_mapping or not description_mapping:
-        current_app.logger.error(
-            "Les colonnes quantity, selling_price et description doivent être configurées dans le format d'import"
-        )
-        return (
-            jsonify(
-                {
-                    "error": "Les colonnes quantity, selling_price et description doivent être configurées dans le format d'import"
-                }
-            ),
-            400,
-        )
-
-    # Map Excel columns to standardized names
-    for m in mappings:
-        if m.column_order is None or not m.column_name:
-            continue
-        idx = m.column_order - 1
-        if 0 <= idx < len(df.columns):
-            normalized_name = (m.column_name or "").lower()
-            df[normalized_name] = df.iloc[:, idx]
-            if normalized_name in {"quantity", "selling_price"}:
-                df[normalized_name] = pd.to_numeric(
-                    df[normalized_name], errors="coerce"
-                )
-
-    required_columns = [
-        (m.column_name or "").lower() for m in mappings if m.column_name
-    ]
-
-    # Process description column
-    if description_mapping:
-        description_col = description_mapping.column_name.lower()
-        if description_col in df.columns:
-            df[description_col] = df[description_col].astype(str).str.strip()
-    missing_columns = [c for c in required_columns if c not in df.columns]
-    if missing_columns:
-        current_app.logger.error(
-            f"Required columns missing after renaming: {missing_columns}"
-        )
-        return (
-            jsonify(
-                {
-                    "error": "Colonnes manquantes après le mapping: "
-                    + ", ".join(missing_columns)
-                }
-            ),
-            400,
-        )
-
-    if "description" in df.columns:
-        df["description"] = df["description"].astype(str).str.strip()
-
-    current_app.logger.debug(f"Colonnes du DataFrame final : {df.columns.tolist()}")
-    current_app.logger.debug(
-        f"Premières lignes du DataFrame :\n{df.head().to_string()}"
-    )
-
-    count_new = 0
-    invalid_rows = 0
-    existing_eans: set[tuple[str, int]] = set()
-
-    for idx, row in df.iterrows():
-        # Get quantity and selling_price using their mappings
-        quantity_col = quantity_mapping.column_name.lower()
-        selling_price_col = selling_price_mapping.column_name.lower()
-        description_col = description_mapping.column_name.lower()
-        model_col = model_mapping.column_name.lower() if model_mapping else None
-        ean_col = ean_mapping.column_name.lower() if ean_mapping else None
-        part_number_col = (
-            part_number_mapping.column_name.lower()
-            if part_number_mapping
-            else None
-        )
-        quantity = row.get(quantity_col)
-        selling_price = row.get(selling_price_col)
-
-        if pd.isna(quantity) or pd.isna(selling_price):
-            invalid_rows += 1
-            log_entries.append(
-                f"{idx + 2}\t{row.get(description_col, '')}\tinvalid quantity or selling_price-{row.get(quantity_col, '')}-{row.get(selling_price_col, '')}"
-            )
-            continue
-
-        try:
-            quantity_int = int(float(quantity))
-            selling_price_float = float(selling_price)
-        except (TypeError, ValueError):
-            invalid_rows += 1
-            log_entries.append(
-                f"{idx + 2}\t{row.get(description_col, '')}\tunable to convert quantity/selling_price-{row.get(quantity_col, '')}-{row.get(selling_price_col, '')}"
-            )
-            continue
-
-        # Get description and model using their mappings
-        description = row.get(description_col)
-        model = row.get(model_col) if model_col else description
-        ean_value = _clean_cell(row.get(ean_col)) if ean_col else None
-        part_number_value = (
-            _clean_cell(row.get(part_number_col)) if part_number_col else None
-        )
-
-        if ean_value and supplier_id:
-            key = (ean_value, supplier_id)
-            if key in existing_eans:
-                invalid_rows += 1
-                log_entries.append(
-                    f"{idx + 2}\t{row.get(description_col, '')}\tduplicate ean {ean_value}"
-                )
-                continue
-            existing_eans.add(key)
-
-        count_new += 1
-
-        temp = TemporaryImport(
-            description=description,
-            model=model,
-            quantity=quantity_int,
-            selling_price=selling_price_float,
-            supplier_id=supplier_id,
-            ean=ean_value,
-            part_number=part_number_value,
-        )
-        db.session.add(temp)
-
-    # Write invalid rows report
-    with open(log_path, "w", encoding="utf-8") as log_file:
-        for entry in log_entries:
-            log_file.write(entry + "\n")
-
-    history = ImportHistory(
-        filename=file.filename, supplier_id=supplier_id, product_count=count_new
-    )
-    db.session.add(history)
-    db.session.commit()
-
-    with db.session.no_autoflush:
-        recalculate_product_calculations()
-
-    return jsonify(
-        {
-            "status": "success",
-            "new": count_new,
-            "invalid": invalid_rows,
-        }
-    )
 
 
 @bp.route("/last_import/<int:supplier_id>", methods=["GET"])
