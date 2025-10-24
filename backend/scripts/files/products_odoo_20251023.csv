@@ -1,4 +1,4 @@
-﻿id;name;id;insert into internal_products ();insert into products ()
+﻿id;name;id;insert into internal_products (odoo_id,product_id);insert into products (id,description)
 __export__.product_template_19576_70cd7837;Amazfit Bip U Pro Pink;1;"('__export__.product_template_19576_70cd7837',1);";"(1,'Amazfit Bip U Pro Pink');"
 __export__.product_template_24727_7ed74ddf;Amazon Fire TV Stick 2.Gen WiFi 4K;2;"('__export__.product_template_24727_7ed74ddf',2);";"(2,'Amazon Fire TV Stick 2.Gen WiFi 4K');"
 __export__.product_template_24645_5a44c4ae;Apple AirPods 2nd Gen. with Lightning Charging Case White;3;"('__export__.product_template_24645_5a44c4ae',3);";"(3,'Apple AirPods 2nd Gen. with Lightning Charging Case White');"
