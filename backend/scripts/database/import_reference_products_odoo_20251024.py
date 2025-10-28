@@ -1070,33 +1070,35 @@ def process_csv(
 
         internal_structure_ready = _ensure_internal_products_structure(conn)
 
-        with conn.cursor() as cursor:
-            product_columns = _get_table_columns(cursor, "products")
-            missing_product_columns = {
-                column
-                for column, _sql_identifier in PRODUCT_COLUMN_MAPPING
-                if column not in product_columns
-            }
+        with conn.cursor() as meta_cursor:
+            product_columns = _get_table_columns(meta_cursor, "products")
+        missing_product_columns = {
+            column
+            for column, _sql_identifier in PRODUCT_COLUMN_MAPPING
+            if column not in product_columns
+        }
 
-            internal_columns: Set[str] = set()
-            internal_table_missing = not internal_structure_ready
-            missing_internal_columns: Set[str] = set()
-            required_internal_columns = {"id", "odoo_id", "product_id"}
-            if not internal_table_missing:
-                internal_columns = _get_table_columns(cursor, "internal_products")
-            if internal_columns:
-                missing_internal_columns = required_internal_columns - internal_columns
-            else:
-                internal_table_missing = True
+        with conn.cursor() as meta_cursor:
+            internal_columns = _get_table_columns(meta_cursor, "internal_products")
 
-            internal_sync_enabled = bool(internal_columns) and not missing_internal_columns
-            internal_sync_reason = None
-            if internal_table_missing:
+        required_internal_columns = {"id", "odoo_id", "product_id"}
+        missing_internal_columns: Set[str] = set()
+        internal_table_missing = not internal_columns
+        if internal_columns:
+            missing_internal_columns = required_internal_columns - internal_columns
+
+        internal_sync_enabled = bool(internal_columns) and not missing_internal_columns
+        internal_sync_reason = None
+        if internal_table_missing:
+            if internal_structure_ready:
                 internal_sync_reason = "table introuvable"
-            elif missing_internal_columns:
-                missing_list = ", ".join(sorted(missing_internal_columns))
-                internal_sync_reason = f"colonnes manquantes ({missing_list})"
+            else:
+                internal_sync_reason = "table introuvable (création automatique impossible)"
+        elif missing_internal_columns:
+            missing_list = ", ".join(sorted(missing_internal_columns))
+            internal_sync_reason = f"colonnes manquantes ({missing_list})"
 
+        with conn.cursor() as cursor:
             ref_cache = ReferenceCache(cursor, default_tcp=default_tcp)
             sanitizer = ProductValueSanitizer(cursor)
             for index, row in enumerate(
