@@ -1251,8 +1251,10 @@ def process_csv(
                     available_columns=product_columns,
                 )
 
+                final_product_id: Optional[int] = None
+                link_product_id: Optional[int] = explicit_product_id
+
                 try:
-                    final_product_id: Optional[int]
                     if product_id:
                         product_payload: Dict[str, Optional[object]] = {
                             "name": name_value,
@@ -1283,6 +1285,7 @@ def process_csv(
                             )
                         stats.updated += 1
                         final_product_id = product_id
+                        link_product_id = final_product_id or link_product_id
                         if match_reason == "ean":
                             stats.updated_by_ean += 1
                         elif match_reason in {
@@ -1331,13 +1334,9 @@ def process_csv(
                         )
                         row = cursor.fetchone()
                         final_product_id = row["id"] if row else None
+                        if final_product_id is not None:
+                            link_product_id = final_product_id
                         stats.inserted += 1
-                    if (
-                        final_product_id is not None
-                        and internal_sync_enabled
-                        and internal_odoo_id
-                    ):
-                        pending_internal_links[internal_odoo_id] = final_product_id
                     conn.commit()
                 except Exception as exc:  # pylint: disable=broad-except
                     conn.rollback()
@@ -1348,6 +1347,14 @@ def process_csv(
                         label=product_label,
                         reason=f"Erreur lors de l'écriture en base: {exc}",
                     )
+                    continue
+
+                if (
+                    internal_sync_enabled
+                    and internal_odoo_id
+                    and link_product_id is not None
+                ):
+                    pending_internal_links[internal_odoo_id] = link_product_id
 
             if internal_sync_enabled:
                 _apply_internal_links(cursor, pending_internal_links, stats)
