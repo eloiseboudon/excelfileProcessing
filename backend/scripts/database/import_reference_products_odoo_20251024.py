@@ -108,6 +108,7 @@ COLUMN_MAP: Dict[str, str] = {
 
 
 PRODUCT_COLUMN_MAPPING: list[tuple[str, str]] = [
+    ("name", "name"),
     ("description", "description"),
     ("model", "model"),
     ("brand_id", "brand_id"),
@@ -976,8 +977,9 @@ def process_csv(
                         continue
                     normalized[mapped] = _clean(value)
 
-                description = normalized.get("name")
-                model = normalized.get("model") or description
+                name_value = normalized.get("name")
+                description = normalized.get("description") or name_value
+                model = normalized.get("model") or name_value
 
                 internal_odoo_id, internal_product_id = _parse_internal_product_values(
                     normalized.get("internal_product_values")
@@ -998,7 +1000,8 @@ def process_csv(
                         )
                     )
                     product_label = (
-                        description
+                        name_value
+                        or description
                         or tuple_description
                         or normalized.get("model")
                         or "(inconnu)"
@@ -1014,13 +1017,22 @@ def process_csv(
                     if explicit_product_id is None and candidate is not None:
                         explicit_product_id = candidate
 
+                if not name_value and tuple_description:
+                    name_value = tuple_description
                 if not description and tuple_description:
                     description = tuple_description
                 if not model and description:
                     model = description
+                if not name_value and model:
+                    name_value = model
 
-                if not description and not model:
-                    product_label = normalized.get("name") or normalized.get("model") or "(inconnu)"
+                if not name_value and not model:
+                    product_label = (
+                        normalized.get("name")
+                        or normalized.get("model")
+                        or tuple_description
+                        or "(inconnu)"
+                    )
                     stats.skipped += 1
                     stats.not_imported[index] = NotImportedInfo(
                         label=product_label,
@@ -1028,7 +1040,11 @@ def process_csv(
                     )
                     continue
 
-                name_hint = description or model
+                description = description or name_value
+                model = model or description
+                name_value = name_value or description
+
+                name_hint = name_value or model
 
                 brand_id = ref_cache.brand_id(normalized.get("brand"))
                 memory_id = ref_cache.memory_id(
@@ -1046,14 +1062,20 @@ def process_csv(
 
                 sanitized_strings, truncations = sanitizer.sanitize(
                     {
+                        "name": name_value,
                         "description": description,
                         "model": model,
                         "ean": ean,
                         "part_number": part_number,
                     }
                 )
-                description = sanitized_strings.get("description")
-                model = sanitized_strings.get("model") or description
+                name_value = sanitized_strings.get("name") or name_value
+                description = (
+                    sanitized_strings.get("description")
+                    or description
+                    or name_value
+                )
+                model = sanitized_strings.get("model") or model or description
                 ean = sanitized_strings.get("ean")
                 part_number = sanitized_strings.get("part_number")
                 if truncations:
@@ -1062,7 +1084,7 @@ def process_csv(
                 product_id, match_reason = _find_product_id(
                     cursor,
                     ean,
-                    description,
+                    name_value,
                     model,
                     brand_id,
                     explicit_product_id,
@@ -1073,6 +1095,7 @@ def process_csv(
                     final_product_id: Optional[int]
                     if product_id:
                         product_payload: Dict[str, Optional[object]] = {
+                            "name": name_value,
                             "description": description,
                             "model": model,
                             "brand_id": brand_id,
@@ -1112,6 +1135,7 @@ def process_csv(
                             stats.update_reasons.setdefault(match_reason, []).append(index)
                     else:
                         product_payload = {
+                            "name": name_value,
                             "description": description,
                             "model": model,
                             "brand_id": brand_id,
@@ -1161,7 +1185,7 @@ def process_csv(
                     conn.rollback()
                     stats.errors += 1
                     errors.append(f"Ligne {index}: {exc}")
-                    product_label = description or model or "(inconnu)"
+                    product_label = name_value or description or model or "(inconnu)"
                     stats.not_imported[index] = NotImportedInfo(
                         label=product_label,
                         reason=f"Erreur lors de l'écriture en base: {exc}",
