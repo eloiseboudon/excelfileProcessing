@@ -39,6 +39,7 @@ import json
 import os
 import sys
 import unicodedata
+from collections import Counter
 from urllib.parse import urlparse
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -87,6 +88,7 @@ class NotImportedInfo:
 
 
 COLUMN_MAP: Dict[str, str] = {
+    "id": "product_id",
     "nom": "name",
     "name": "name",
     "modele": "model",
@@ -102,6 +104,7 @@ COLUMN_MAP: Dict[str, str] = {
     "partnumber": "part_number",
     "part_number": "part_number",
     "productid": "product_id",
+    "odooid": "odoo_id",
     "insertintointernalproductsodooidproductid": "internal_product_values",
     "insertintoproductsiddescription": "product_values",
 }
@@ -252,13 +255,56 @@ def _strip_accents_lower(text: str) -> str:
     return "".join(ch for ch in normalized if not unicodedata.combining(ch)).lower()
 
 
-def _build_header_mapping(headers: Iterable[str]) -> Dict[str, Optional[str]]:
-    """Créer un mapping entre les en-têtes du fichier et les clés internes."""
-
-    mapping: Dict[str, Optional[str]] = {}
+def _dedupe_headers(headers: Iterable[str]) -> list[str]:
+    seen: Dict[str, int] = {}
+    result: list[str] = []
     for header in headers:
         if header is None:
+            result.append(header)
             continue
+        count = seen.get(header, 0)
+        if count:
+            result.append(f"{header}__{count + 1}")
+        else:
+            result.append(header)
+        seen[header] = count + 1
+    return result
+
+
+def _build_header_mapping(
+    headers: Iterable[str],
+    original_headers: Optional[Iterable[str]] = None,
+) -> Dict[str, Optional[str]]:
+    """Créer un mapping entre les en-têtes du fichier et les clés internes."""
+
+    header_list = list(headers)
+    original_list = list(original_headers) if original_headers is not None else header_list
+
+    if len(original_list) != len(header_list):
+        raise ValueError("Le nombre d'en-têtes originaux doit correspondre aux en-têtes dédupliqués")
+
+    normalized_counts = Counter(
+        _normalize_header(header)
+        for header in original_list
+        if header is not None
+    )
+
+    occurrences: Dict[str, int] = {}
+    mapping: Dict[str, Optional[str]] = {}
+    for header, original in zip(header_list, original_list):
+        if header is None:
+            continue
+        normalized_original = _normalize_header(original)
+        index = occurrences.get(normalized_original, 0)
+        occurrences[normalized_original] = index + 1
+
+        if normalized_original == "id" and normalized_counts.get("id", 0) > 1:
+            if index == 0:
+                mapping[header] = "odoo_id"
+            else:
+                mapping[header] = "product_id"
+            continue
+
         normalized = _normalize_header(header)
         mapping[header] = COLUMN_MAP.get(normalized)
     return mapping
@@ -940,11 +986,16 @@ def process_csv(
 
     with open(csv_path, newline="", encoding="utf-8-sig") as csvfile:
         reader = csv.DictReader(csvfile, delimiter=delimiter)
-        if not reader.fieldnames:
+        original_headers = reader.fieldnames
+        if not original_headers:
             print("❌ ERROR: impossible de lire les en-têtes du fichier CSV")
             sys.exit(1)
 
-        header_map = _build_header_mapping(reader.fieldnames)
+        deduped_headers = _dedupe_headers(original_headers)
+        if deduped_headers != original_headers:
+            reader.fieldnames = deduped_headers
+
+        header_map = _build_header_mapping(reader.fieldnames, original_headers)
         recognized = {raw: mapped for raw, mapped in header_map.items() if mapped}
         if not recognized:
             print("❌ ERROR: aucune colonne reconnue dans le fichier CSV")
@@ -1001,6 +1052,8 @@ def process_csv(
                 internal_odoo_id, internal_product_id = _parse_internal_product_values(
                     normalized.get("internal_product_values")
                 )
+                if not internal_odoo_id:
+                    internal_odoo_id = normalized.get("odoo_id")
                 tuple_product_id, tuple_description = _parse_product_values(
                     normalized.get("product_values")
                 )
