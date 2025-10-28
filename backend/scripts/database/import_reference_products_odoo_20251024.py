@@ -107,6 +107,20 @@ COLUMN_MAP: Dict[str, str] = {
 }
 
 
+PRODUCT_COLUMN_MAPPING: list[tuple[str, str]] = [
+    ("description", "description"),
+    ("model", "model"),
+    ("brand_id", "brand_id"),
+    ("memory_id", "memory_id"),
+    ("color_id", "color_id"),
+    ("type_id", "type_id"),
+    ("RAM_id", '"RAM_id"'),
+    ("norme_id", "norme_id"),
+    ("ean", "ean"),
+    ("part_number", "part_number"),
+]
+
+
 def _load_environment() -> None:
     """Charger les variables d'environnement disponibles."""
 
@@ -208,6 +222,26 @@ def _parse_product_values(
             description = str(parsed[1]).strip() or None
         return product_id, description
     return None, None
+
+
+def _split_table_identifier(table: str) -> tuple[str, str]:
+    if "." in table:
+        schema, name = table.split(".", 1)
+        return schema.strip('"'), name.strip('"')
+    return "public", table.strip('"')
+
+
+def _get_table_columns(cursor, table: str) -> Set[str]:
+    schema, name = _split_table_identifier(table)
+    cursor.execute(
+        """
+        SELECT column_name
+          FROM information_schema.columns
+         WHERE table_schema = %s AND table_name = %s
+        """,
+        (schema, name),
+    )
+    return {row["column_name"] for row in cursor.fetchall()}
 
 
 def _strip_accents_lower(text: str) -> str:
@@ -792,8 +826,12 @@ def _find_product_id(
     model: Optional[str],
     brand_id: Optional[int],
     explicit_id: Optional[int] = None,
+    *,
+    available_columns: Optional[Set[str]] = None,
 ) -> Tuple[Optional[int], Optional[str]]:
     """Tenter de retrouver un produit existant et indiquer la logique utilisée."""
+
+    columns = available_columns or set()
 
     if explicit_id is not None:
         cursor.execute("SELECT id FROM products WHERE id = %s", (explicit_id,))
@@ -801,15 +839,17 @@ def _find_product_id(
         if row:
             return row["id"], "id"
 
-    if ean:
+    if ean and (not columns or "ean" in columns):
         cursor.execute("SELECT id FROM products WHERE ean = %s", (ean,))
         row = cursor.fetchone()
         if row:
             return row["id"], "ean"
 
     search_label = name or model
-    if search_label:
-        if brand_id:
+    description_available = (not columns) or ("description" in columns)
+    brand_available = (not columns) or ("brand_id" in columns)
+    if search_label and description_available:
+        if brand_id and brand_available:
             cursor.execute(
                 """
                 SELECT id FROM products
@@ -828,8 +868,9 @@ def _find_product_id(
         if row:
             return row["id"], reason
 
-    if model and not name:
-        if brand_id:
+    model_available = (not columns) or ("model" in columns)
+    if model and not name and model_available:
+        if brand_id and brand_available:
             cursor.execute(
                 "SELECT id FROM products WHERE LOWER(model) = LOWER(%s) AND brand_id = %s",
                 (model, brand_id),
@@ -915,6 +956,13 @@ def process_csv(
             )
 
         with conn.cursor() as cursor:
+            product_columns = _get_table_columns(cursor, "products")
+            missing_product_columns = {
+                column
+                for column, _sql_identifier in PRODUCT_COLUMN_MAPPING
+                if column not in product_columns
+            }
+
             ref_cache = ReferenceCache(cursor, default_tcp=default_tcp)
             sanitizer = ProductValueSanitizer(cursor)
 
@@ -1018,40 +1066,38 @@ def process_csv(
                     model,
                     brand_id,
                     explicit_product_id,
+                    available_columns=product_columns,
                 )
 
                 try:
                     final_product_id: Optional[int]
                     if product_id:
-                        cursor.execute(
-                            """
-                            UPDATE products
-                               SET description = %s,
-                                   model = %s,
-                                   brand_id = %s,
-                                   memory_id = %s,
-                                   color_id = %s,
-                                   type_id = %s,
-                                   "RAM_id" = %s,
-                                   norme_id = %s,
-                                   ean = %s,
-                                   part_number = %s
-                             WHERE id = %s
-                            """,
-                            (
-                                description,
-                                model,
-                                brand_id,
-                                memory_id,
-                                color_id,
-                                type_id,
-                                ram_id,
-                                norme_id,
-                                ean,
-                               part_number,
-                               product_id,
-                            ),
-                        )
+                        product_payload: Dict[str, Optional[object]] = {
+                            "description": description,
+                            "model": model,
+                            "brand_id": brand_id,
+                            "memory_id": memory_id,
+                            "color_id": color_id,
+                            "type_id": type_id,
+                            "RAM_id": ram_id,
+                            "norme_id": norme_id,
+                            "ean": ean,
+                            "part_number": part_number,
+                        }
+
+                        update_clauses: list[str] = []
+                        update_values: list[Optional[object]] = []
+                        for column, sql_identifier in PRODUCT_COLUMN_MAPPING:
+                            if column not in product_columns:
+                                continue
+                            update_clauses.append(f"{sql_identifier} = %s")
+                            update_values.append(product_payload[column])
+
+                        if update_clauses:
+                            cursor.execute(
+                                f"UPDATE products SET {', '.join(update_clauses)} WHERE id = %s",
+                                (*update_values, product_id),
+                            )
                         stats.updated += 1
                         final_product_id = product_id
                         if match_reason == "ean":
@@ -1065,33 +1111,34 @@ def process_csv(
                         if match_reason:
                             stats.update_reasons.setdefault(match_reason, []).append(index)
                     else:
-                        columns = [
-                            "description",
-                            "model",
-                            "brand_id",
-                            "memory_id",
-                            "color_id",
-                            "type_id",
-                            '"RAM_id"',
-                            "norme_id",
-                            "ean",
-                            "part_number",
+                        product_payload = {
+                            "description": description,
+                            "model": model,
+                            "brand_id": brand_id,
+                            "memory_id": memory_id,
+                            "color_id": color_id,
+                            "type_id": type_id,
+                            "RAM_id": ram_id,
+                            "norme_id": norme_id,
+                            "ean": ean,
+                            "part_number": part_number,
+                        }
+
+                        available_pairs = [
+                            (column, sql_identifier)
+                            for column, sql_identifier in PRODUCT_COLUMN_MAPPING
+                            if column in product_columns
                         ]
-                        values = [
-                            description,
-                            model,
-                            brand_id,
-                            memory_id,
-                            color_id,
-                            type_id,
-                            ram_id,
-                            norme_id,
-                            ean,
-                            part_number,
-                        ]
+
+                        columns = [sql_identifier for _column, sql_identifier in available_pairs]
+                        values = [product_payload[column] for column, _sql_identifier in available_pairs]
                         if explicit_product_id is not None:
                             columns.insert(0, "id")
                             values.insert(0, explicit_product_id)
+                        if not columns:
+                            raise RuntimeError(
+                                "Aucune colonne disponible pour insérer le produit dans la table cible"
+                            )
                         placeholders = ", ".join(["%s"] * len(columns))
                         cursor.execute(
                             f"INSERT INTO products ({', '.join(columns)}) "
@@ -1157,6 +1204,11 @@ def process_csv(
                 for table, columns in ref_cache.missing_columns.items()
                 if columns
             }
+
+            if missing_product_columns:
+                existing = set(stats.missing_reference_columns.get("products", []))
+                existing.update(missing_product_columns)
+                stats.missing_reference_columns["products"] = sorted(existing)
 
             if stats.missing_reference_tables:
                 print("\n⚠️  Tables de référence introuvables :")
