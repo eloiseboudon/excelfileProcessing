@@ -45,6 +45,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Mapping, Optional, Set, Tuple
 
 import psycopg2
+from psycopg2 import errors
 from dotenv import load_dotenv, dotenv_values
 from psycopg2.extensions import connection
 from psycopg2.extras import DictCursor
@@ -486,6 +487,29 @@ class ReferenceCache:
     def _column_name(self, column_sql: str) -> str:
         return column_sql.replace('"', "").strip()
 
+    def _safe_execute(
+        self,
+        query: str,
+        params,
+        *,
+        table: str,
+        column: Optional[str] = None,
+    ) -> bool:
+        try:
+            self.cursor.execute(query, params)
+            return True
+        except errors.UndefinedTable:
+            self.missing_tables.add(table)
+            self.cursor.connection.rollback()
+        except errors.UndefinedColumn:
+            if column:
+                self.missing_columns.setdefault(table, set()).add(column)
+            self.cursor.connection.rollback()
+        except psycopg2.Error:
+            self.cursor.connection.rollback()
+            raise
+        return False
+
     def _get_table_columns(self, table: str) -> Set[str]:
         if table not in self.table_columns_cache:
             self.cursor.execute(
@@ -528,9 +552,15 @@ class ReferenceCache:
         for extra in extras:
             select_parts.append(f"{extra} AS {extra}")
 
-        self.cursor.execute(
-            f"SELECT id, {', '.join(select_parts)} FROM {table}"
-        )
+        if not self._safe_execute(
+            f"SELECT id, {', '.join(select_parts)} FROM {table}",
+            None,
+            table=table,
+            column=self._column_name(column_sql),
+        ):
+            self.table_values_cache[key] = []
+            return []
+
         rows: list[tuple[int, list[str]]] = []
         for row in self.cursor.fetchall():
             values: list[str] = []
@@ -600,10 +630,13 @@ class ReferenceCache:
             if key in table_cache:
                 return table_cache[key]
 
-            self.cursor.execute(
+            if not self._safe_execute(
                 f"SELECT id FROM {table} WHERE LOWER({column_sql}) = LOWER(%s)",
                 (value,),
-            )
+                table=table,
+                column=self._column_name(column_sql),
+            ):
+                return candidate_id
             row = self.cursor.fetchone()
             if row:
                 table_cache[key] = row["id"]
@@ -635,10 +668,13 @@ class ReferenceCache:
         if key in colors_cache:
             return colors_cache[key]
 
-        self.cursor.execute(
+        if not self._safe_execute(
             "SELECT id FROM colors WHERE LOWER(color) = LOWER(%s)",
             (value,),
-        )
+            table="colors",
+            column="color",
+        ):
+            return None
         row = self.cursor.fetchone()
         if row:
             colors_cache[key] = row["id"]
@@ -648,14 +684,17 @@ class ReferenceCache:
         if key in translations_cache:
             return translations_cache[key]
 
-        self.cursor.execute(
+        if not self._safe_execute(
             """
             SELECT color_target_id
               FROM color_translations
              WHERE LOWER(color_source) = LOWER(%s)
             """,
             (value,),
-        )
+            table="color_translations",
+            column="color_source",
+        ):
+            return None
         row = self.cursor.fetchone()
         if row:
             translations_cache[key] = row["color_target_id"]
