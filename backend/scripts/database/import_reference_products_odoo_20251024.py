@@ -1035,6 +1035,30 @@ def _sync_internal_product(
     return True, False
 
 
+def _apply_internal_links(
+    cursor,
+    pending: Mapping[str, int],
+    stats: ImportStats,
+) -> None:
+    """Insérer ou mettre à jour les correspondances ``internal_products`` en lot."""
+
+    if not pending:
+        return
+
+    connection = cursor.connection
+    try:
+        for odoo_id, product_id in pending.items():
+            inserted, updated = _sync_internal_product(cursor, odoo_id, product_id)
+            if inserted:
+                stats.internal_inserted += 1
+            elif updated:
+                stats.internal_updated += 1
+        connection.commit()
+    except Exception:  # pylint: disable=broad-except
+        connection.rollback()
+        raise
+
+
 def process_csv(
     conn: connection,
     csv_path: str,
@@ -1099,6 +1123,7 @@ def process_csv(
 
             ref_cache = ReferenceCache(cursor, default_tcp=default_tcp)
             sanitizer = ProductValueSanitizer(cursor)
+            pending_internal_links: Dict[str, int] = {}
 
             for index, row in enumerate(
                 reader, start=2
@@ -1307,14 +1332,12 @@ def process_csv(
                         row = cursor.fetchone()
                         final_product_id = row["id"] if row else None
                         stats.inserted += 1
-                    if final_product_id is not None and internal_sync_enabled:
-                        inserted_internal, updated_internal = _sync_internal_product(
-                            cursor, internal_odoo_id, final_product_id
-                        )
-                        if inserted_internal:
-                            stats.internal_inserted += 1
-                        if updated_internal:
-                            stats.internal_updated += 1
+                    if (
+                        final_product_id is not None
+                        and internal_sync_enabled
+                        and internal_odoo_id
+                    ):
+                        pending_internal_links[internal_odoo_id] = final_product_id
                     conn.commit()
                 except Exception as exc:  # pylint: disable=broad-except
                     conn.rollback()
@@ -1325,6 +1348,9 @@ def process_csv(
                         label=product_label,
                         reason=f"Erreur lors de l'écriture en base: {exc}",
                     )
+
+            if internal_sync_enabled:
+                _apply_internal_links(cursor, pending_internal_links, stats)
 
             if stats.errors:
                 print("\n❌ Des erreurs ont été rencontrées lors de l'import :")
