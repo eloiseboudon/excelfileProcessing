@@ -248,6 +248,67 @@ def _get_table_columns(cursor, table: str) -> Set[str]:
     return {row["column_name"] for row in cursor.fetchall()}
 
 
+def _ensure_internal_products_structure(conn: connection) -> bool:
+    """Créer la table ``internal_products`` si elle n'existe pas encore."""
+
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT to_regclass('public.internal_products')")
+        row = cursor.fetchone()
+        if row and row[0]:
+            try:
+                cursor.execute(
+                    """
+                    CREATE INDEX IF NOT EXISTS idx_internal_products_odoo_id
+                        ON internal_products (odoo_id)
+                    """
+                )
+                cursor.execute(
+                    """
+                    CREATE INDEX IF NOT EXISTS idx_internal_products_product_id
+                        ON internal_products (product_id)
+                    """
+                )
+                conn.commit()
+            except psycopg2.Error:
+                conn.rollback()
+            return True
+
+        try:
+            cursor.execute(
+                """
+                CREATE TABLE internal_products (
+                    id SERIAL PRIMARY KEY,
+                    product_id INTEGER NOT NULL REFERENCES products(id),
+                    odoo_id VARCHAR(200) NOT NULL
+                )
+                """
+            )
+            cursor.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_internal_products_odoo_id
+                    ON internal_products (odoo_id)
+                """
+            )
+            cursor.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_internal_products_product_id
+                    ON internal_products (product_id)
+                """
+            )
+            conn.commit()
+            print(
+                "🆕 Table internal_products créée automatiquement pour stocker les correspondances produit/Odoo."
+            )
+            return True
+        except psycopg2.Error as exc:  # pragma: no cover - dépend d'un env externe
+            conn.rollback()
+            print(
+                "⚠️  Impossible de créer automatiquement la table internal_products :"
+                f" {exc}"
+            )
+            return False
+
+
 def _strip_accents_lower(text: str) -> str:
     """Retirer les accents et convertir en minuscules."""
 
@@ -1007,6 +1068,8 @@ def process_csv(
                 "⚠️  AVERTISSEMENT: les colonnes Nom ou Modèle sont absentes, les produits risquent d'être ignorés"
             )
 
+        internal_structure_ready = _ensure_internal_products_structure(conn)
+
         with conn.cursor() as cursor:
             product_columns = _get_table_columns(cursor, "products")
             missing_product_columns = {
@@ -1015,14 +1078,16 @@ def process_csv(
                 if column not in product_columns
             }
 
-            internal_columns = _get_table_columns(cursor, "internal_products")
-            internal_table_missing = False
+            internal_columns: Set[str] = set()
+            internal_table_missing = not internal_structure_ready
             missing_internal_columns: Set[str] = set()
             required_internal_columns = {"id", "odoo_id", "product_id"}
-            if not internal_columns:
-                internal_table_missing = True
-            else:
+            if not internal_table_missing:
+                internal_columns = _get_table_columns(cursor, "internal_products")
+            if internal_columns:
                 missing_internal_columns = required_internal_columns - internal_columns
+            else:
+                internal_table_missing = True
 
             internal_sync_enabled = bool(internal_columns) and not missing_internal_columns
             internal_sync_reason = None
