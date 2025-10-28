@@ -258,13 +258,13 @@ def _ensure_internal_products_structure(conn: connection) -> bool:
             try:
                 cursor.execute(
                     """
-                    CREATE INDEX IF NOT EXISTS idx_internal_products_odoo_id
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_internal_products_odoo_id_unique
                         ON internal_products (odoo_id)
                     """
                 )
                 cursor.execute(
                     """
-                    CREATE INDEX IF NOT EXISTS idx_internal_products_product_id
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_internal_products_product_id_unique
                         ON internal_products (product_id)
                     """
                 )
@@ -285,13 +285,13 @@ def _ensure_internal_products_structure(conn: connection) -> bool:
             )
             cursor.execute(
                 """
-                CREATE INDEX IF NOT EXISTS idx_internal_products_odoo_id
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_internal_products_odoo_id_unique
                     ON internal_products (odoo_id)
                 """
             )
             cursor.execute(
                 """
-                CREATE INDEX IF NOT EXISTS idx_internal_products_product_id
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_internal_products_product_id_unique
                     ON internal_products (product_id)
                 """
             )
@@ -1035,6 +1035,36 @@ def _sync_internal_product(
     return True, False
 
 
+def _apply_internal_links(
+    conn: connection,
+    pending_links: Iterable[Tuple[str, int]],
+    stats: ImportStats,
+    *,
+    enabled: bool,
+) -> None:
+    """Synchroniser en base toutes les correspondances internal_products en attente."""
+
+    if not enabled:
+        return
+
+    links = list(pending_links)
+    if not links:
+        return
+
+    try:
+        with conn.cursor() as cursor:
+            for odoo_id, product_id in links:
+                inserted, updated = _sync_internal_product(cursor, odoo_id, product_id)
+                if inserted:
+                    stats.internal_inserted += 1
+                if updated:
+                    stats.internal_updated += 1
+        conn.commit()
+    except Exception:  # pylint: disable=broad-except
+        conn.rollback()
+        raise
+
+
 def process_csv(
     conn: connection,
     csv_path: str,
@@ -1097,6 +1127,9 @@ def process_csv(
         elif missing_internal_columns:
             missing_list = ", ".join(sorted(missing_internal_columns))
             internal_sync_reason = f"colonnes manquantes ({missing_list})"
+
+        pending_links: list[Tuple[str, int]] = []
+        ref_cache: Optional[ReferenceCache] = None
 
         with conn.cursor() as cursor:
             ref_cache = ReferenceCache(cursor, default_tcp=default_tcp)
@@ -1314,19 +1347,16 @@ def process_csv(
                             link_product_id = final_product_id
                         stats.inserted += 1
 
+                    link_candidate: Optional[Tuple[str, int]] = None
                     if (
                         internal_sync_enabled
                         and internal_odoo_id
                         and link_product_id is not None
                     ):
-                        inserted, updated = _sync_internal_product(
-                            cursor, internal_odoo_id, link_product_id
-                        )
-                        if inserted:
-                            stats.internal_inserted += 1
-                        elif updated:
-                            stats.internal_updated += 1
+                        link_candidate = (internal_odoo_id, int(link_product_id))
                     conn.commit()
+                    if link_candidate:
+                        pending_links.append(link_candidate)
                 except Exception as exc:  # pylint: disable=broad-except
                     conn.rollback()
                     stats.errors += 1
@@ -1338,115 +1368,123 @@ def process_csv(
                     )
                     continue
 
-            if stats.errors:
-                print("\n❌ Des erreurs ont été rencontrées lors de l'import :")
-                for err in errors:
-                    print(f"   - {err}")
+    try:
+        _apply_internal_links(conn, pending_links, stats, enabled=internal_sync_enabled)
+    except Exception as exc:  # pylint: disable=broad-except
+        message = f"Erreur lors de la synchronisation internal_products: {exc}"
+        conn.rollback()
+        stats.errors += 1
+        errors.append(message)
+        print(f"\n⚠️  {message}")
 
-            print("\n📊 Résumé de l'import :")
-            print(f"   ➕ Produits insérés : {stats.inserted}")
-            print(f"   🔁 Produits mis à jour : {stats.updated}")
-            if stats.updated:
-                print(
-                    f"      ↳ dont {stats.updated_by_ean} par EAN et {stats.updated_by_name} par nom"
-                )
-            print(
-                f"   🧩 Liens internal_products insérés : {stats.internal_inserted}"
+    if ref_cache is not None:
+        stats.missing_references = {
+            table: sorted(values)
+            for table, values in ref_cache.missing.items()
+            if values
+        }
+        stats.unresolved_by_name = {
+            table: sorted(values)
+            for table, values in ref_cache.unresolved_from_name.items()
+            if values
+        }
+        stats.missing_reference_tables = sorted(ref_cache.missing_tables)
+        stats.missing_reference_columns = {
+            table: sorted(columns)
+            for table, columns in ref_cache.missing_columns.items()
+            if columns
+        }
+    else:
+        stats.missing_references = {}
+        stats.unresolved_by_name = {}
+        stats.missing_reference_tables = []
+        stats.missing_reference_columns = {}
+
+    if missing_product_columns:
+        existing = set(stats.missing_reference_columns.get("products", []))
+        existing.update(missing_product_columns)
+        stats.missing_reference_columns["products"] = sorted(existing)
+
+    if internal_table_missing:
+        tables = set(stats.missing_reference_tables)
+        tables.add("internal_products")
+        stats.missing_reference_tables = sorted(tables)
+    elif missing_internal_columns:
+        existing = set(stats.missing_reference_columns.get("internal_products", []))
+        existing.update(missing_internal_columns)
+        stats.missing_reference_columns["internal_products"] = sorted(existing)
+
+    if stats.errors:
+        print("\n❌ Des erreurs ont été rencontrées lors de l'import :")
+        for err in errors:
+            print(f"   - {err}")
+
+    print("\n📊 Résumé de l'import :")
+    print(f"   ➕ Produits insérés : {stats.inserted}")
+    print(f"   🔁 Produits mis à jour : {stats.updated}")
+    if stats.updated:
+        print(
+            f"      ↳ dont {stats.updated_by_ean} par EAN et {stats.updated_by_name} par nom"
+        )
+    print(f"   🧩 Liens internal_products insérés : {stats.internal_inserted}")
+    print(f"   🛠️  Liens internal_products mis à jour : {stats.internal_updated}")
+    print(f"   ⏭️  Produits ignorés : {stats.skipped}")
+    print(f"   ⚠️  Lignes en erreur : {stats.errors}")
+
+    if stats.missing_reference_tables:
+        print("\n⚠️  Tables de référence introuvables :")
+        for table in stats.missing_reference_tables:
+            print(f"   - {table}")
+
+    if stats.missing_reference_columns:
+        print("\n⚠️  Colonnes de référence introuvables :")
+        for table, columns in stats.missing_reference_columns.items():
+            joined = ", ".join(columns)
+            print(f"   - {table}: {joined}")
+
+    if internal_sync_reason:
+        print(
+            "\n⚠️  Synchronisation des liens internal_products ignorée ("
+            f"{internal_sync_reason})."
+        )
+
+    has_missing = bool(stats.missing_references or stats.unresolved_by_name)
+
+    if has_missing:
+        print("\n⚠️  Références manquantes ou non résolues :")
+        for table, values in stats.missing_references.items():
+            joined = ", ".join(values)
+            print(f"   - {table}: {joined}")
+        for table, names in stats.unresolved_by_name.items():
+            joined = "; ".join(names)
+            print(f"   - {table} (d'après le nom): {joined}")
+    else:
+        print("\n✅ Toutes les références nécessaires ont été trouvées.")
+
+    if missing_report_path:
+        _write_missing_report(missing_report_path, stats, has_missing)
+
+    if stats.update_reasons:
+        print("\nℹ️  Détails des mises à jour :")
+        for reason, lines in stats.update_reasons.items():
+            joined = ", ".join(str(line) for line in lines)
+            print(f"   - {reason}: lignes {joined}")
+
+    if stats.truncations:
+        print("\n✂️  Valeurs tronquées pour respecter les contraintes :")
+        for line, infos in sorted(stats.truncations.items()):
+            details = ", ".join(
+                f"{info.column} (max {info.max_length}, initiale {info.original_length} caractères)"
+                for info in infos
             )
-            print(
-                f"   🛠️  Liens internal_products mis à jour : {stats.internal_updated}"
-            )
-            print(f"   ⏭️  Produits ignorés : {stats.skipped}")
-            print(f"   ⚠️  Lignes en erreur : {stats.errors}")
+            print(f"   - Ligne {line}: {details}")
 
-            stats.missing_references = {
-                table: sorted(values)
-                for table, values in ref_cache.missing.items()
-                if values
-            }
-            stats.unresolved_by_name = {
-                table: sorted(values)
-                for table, values in ref_cache.unresolved_from_name.items()
-                if values
-            }
-            stats.missing_reference_tables = sorted(ref_cache.missing_tables)
-            stats.missing_reference_columns = {
-                table: sorted(columns)
-                for table, columns in ref_cache.missing_columns.items()
-                if columns
-            }
-
-            if missing_product_columns:
-                existing = set(stats.missing_reference_columns.get("products", []))
-                existing.update(missing_product_columns)
-                stats.missing_reference_columns["products"] = sorted(existing)
-
-            if internal_table_missing:
-                tables = set(stats.missing_reference_tables)
-                tables.add("internal_products")
-                stats.missing_reference_tables = sorted(tables)
-            if missing_internal_columns:
-                existing = set(
-                    stats.missing_reference_columns.get("internal_products", [])
-                )
-                existing.update(missing_internal_columns)
-                stats.missing_reference_columns["internal_products"] = sorted(existing)
-
-            if stats.missing_reference_tables:
-                print("\n⚠️  Tables de référence introuvables :")
-                for table in stats.missing_reference_tables:
-                    print(f"   - {table}")
-
-            if stats.missing_reference_columns:
-                print("\n⚠️  Colonnes de référence introuvables :")
-                for table, columns in stats.missing_reference_columns.items():
-                    joined = ", ".join(columns)
-                    print(f"   - {table}: {joined}")
-
-            if internal_sync_reason:
-                print(
-                    "\n⚠️  Synchronisation des liens internal_products ignorée ("
-                    f"{internal_sync_reason})."
-                )
-
-            has_missing = bool(stats.missing_references or stats.unresolved_by_name)
-
-            if has_missing:
-                print("\n⚠️  Références manquantes ou non résolues :")
-                for table, values in stats.missing_references.items():
-                    joined = ", ".join(values)
-                    print(f"   - {table}: {joined}")
-                for table, names in stats.unresolved_by_name.items():
-                    joined = "; ".join(names)
-                    print(f"   - {table} (d'après le nom): {joined}")
-            else:
-                print("\n✅ Toutes les références nécessaires ont été trouvées.")
-
-            if missing_report_path:
-                _write_missing_report(missing_report_path, stats, has_missing)
-
-            if stats.update_reasons:
-                print("\nℹ️  Détails des mises à jour :")
-                for reason, lines in stats.update_reasons.items():
-                    joined = ", ".join(str(line) for line in lines)
-                    print(f"   - {reason}: lignes {joined}")
-
-            if stats.truncations:
-                print("\n✂️  Valeurs tronquées pour respecter les contraintes :")
-                for line, infos in sorted(stats.truncations.items()):
-                    details = ", ".join(
-                        f"{info.column} (max {info.max_length}, initiale {info.original_length} caractères)"
-                        for info in infos
-                    )
-                    print(f"   - Ligne {line}: {details}")
-
-            if stats.not_imported:
-                print("\n🚫 Produits non importés :")
-                for line, info in sorted(stats.not_imported.items()):
-                    label = info.label.strip()
-                    display = f" ({label})" if label and label != "(inconnu)" else ""
-                    print(f"   - Ligne {line}{display}: {info.reason}")
-
+    if stats.not_imported:
+        print("\n🚫 Produits non importés :")
+        for line, info in sorted(stats.not_imported.items()):
+            label = info.label.strip()
+            display = f" ({label})" if label and label != "(inconnu)" else ""
+            print(f"   - Ligne {line}{display}: {info.reason}")
 
     return stats
 
