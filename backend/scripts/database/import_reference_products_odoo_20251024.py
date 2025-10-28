@@ -62,6 +62,9 @@ class ImportStats:
     errors: int = 0
     internal_inserted: int = 0
     internal_updated: int = 0
+    internal_unchanged: int = 0
+    internal_missing_product: int = 0
+    internal_missing_odoo: int = 0
     missing_references: Dict[str, list[str]] = field(default_factory=dict)
     unresolved_by_name: Dict[str, list[str]] = field(default_factory=dict)
     update_reasons: Dict[str, list[int]] = field(default_factory=dict)
@@ -996,9 +999,9 @@ def _find_product_id(
 
 def _sync_internal_product(
     cursor, odoo_id: Optional[str], product_id: Optional[int]
-) -> Tuple[bool, bool]:
+) -> Tuple[bool, bool, bool]:
     if not odoo_id or not product_id:
-        return False, False
+        return False, False, False
 
     cursor.execute(
         "SELECT id, product_id FROM internal_products WHERE odoo_id = %s",
@@ -1011,8 +1014,8 @@ def _sync_internal_product(
                 "UPDATE internal_products SET product_id = %s WHERE id = %s",
                 (product_id, row["id"]),
             )
-            return False, True
-        return False, False
+            return False, True, False
+        return False, False, True
 
     cursor.execute(
         "SELECT id, odoo_id FROM internal_products WHERE product_id = %s",
@@ -1025,14 +1028,14 @@ def _sync_internal_product(
                 "UPDATE internal_products SET odoo_id = %s WHERE id = %s",
                 (odoo_id, row["id"]),
             )
-            return False, True
-        return False, False
+            return False, True, False
+        return False, False, True
 
     cursor.execute(
         "INSERT INTO internal_products (odoo_id, product_id) VALUES (%s, %s)",
         (odoo_id, product_id),
     )
-    return True, False
+    return True, False, False
 
 
 def _apply_internal_links(
@@ -1054,11 +1057,15 @@ def _apply_internal_links(
     try:
         with conn.cursor() as cursor:
             for odoo_id, product_id in links:
-                inserted, updated = _sync_internal_product(cursor, odoo_id, product_id)
+                inserted, updated, unchanged = _sync_internal_product(
+                    cursor, odoo_id, product_id
+                )
                 if inserted:
                     stats.internal_inserted += 1
                 if updated:
                     stats.internal_updated += 1
+                if unchanged:
+                    stats.internal_unchanged += 1
         conn.commit()
     except Exception:  # pylint: disable=broad-except
         conn.rollback()
@@ -1347,16 +1354,16 @@ def process_csv(
                             link_product_id = final_product_id
                         stats.inserted += 1
 
-                    link_candidate: Optional[Tuple[str, int]] = None
-                    if (
-                        internal_sync_enabled
-                        and internal_odoo_id
-                        and link_product_id is not None
-                    ):
-                        link_candidate = (internal_odoo_id, int(link_product_id))
+                    if internal_sync_enabled:
+                        if internal_odoo_id and link_product_id is not None:
+                            pending_links.append(
+                                (internal_odoo_id, int(link_product_id))
+                            )
+                        elif internal_odoo_id and link_product_id is None:
+                            stats.internal_missing_product += 1
+                        elif not internal_odoo_id and link_product_id is not None:
+                            stats.internal_missing_odoo += 1
                     conn.commit()
-                    if link_candidate:
-                        pending_links.append(link_candidate)
                 except Exception as exc:  # pylint: disable=broad-except
                     conn.rollback()
                     stats.errors += 1
@@ -1428,8 +1435,25 @@ def process_csv(
         )
     print(f"   🧩 Liens internal_products insérés : {stats.internal_inserted}")
     print(f"   🛠️  Liens internal_products mis à jour : {stats.internal_updated}")
+    if stats.internal_unchanged:
+        print(
+            f"   💤 Liens internal_products déjà présents : {stats.internal_unchanged}"
+        )
     print(f"   ⏭️  Produits ignorés : {stats.skipped}")
     print(f"   ⚠️  Lignes en erreur : {stats.errors}")
+
+    if stats.internal_missing_product or stats.internal_missing_odoo:
+        print("\n⚠️  Liens internal_products non créés faute de données complètes :")
+        if stats.internal_missing_product:
+            print(
+                "   - Odoo_id connu mais aucun identifiant produit final"
+                f" (occurrences: {stats.internal_missing_product})"
+            )
+        if stats.internal_missing_odoo:
+            print(
+                "   - Identifiant produit trouvé mais colonne Odoo vide"
+                f" (occurrences: {stats.internal_missing_odoo})"
+            )
 
     if stats.missing_reference_tables:
         print("\n⚠️  Tables de référence introuvables :")
