@@ -964,6 +964,23 @@ def process_csv(
                 if column not in product_columns
             }
 
+            internal_columns = _get_table_columns(cursor, "internal_products")
+            internal_table_missing = False
+            missing_internal_columns: Set[str] = set()
+            required_internal_columns = {"id", "odoo_id", "product_id"}
+            if not internal_columns:
+                internal_table_missing = True
+            else:
+                missing_internal_columns = required_internal_columns - internal_columns
+
+            internal_sync_enabled = bool(internal_columns) and not missing_internal_columns
+            internal_sync_reason = None
+            if internal_table_missing:
+                internal_sync_reason = "table introuvable"
+            elif missing_internal_columns:
+                missing_list = ", ".join(sorted(missing_internal_columns))
+                internal_sync_reason = f"colonnes manquantes ({missing_list})"
+
             ref_cache = ReferenceCache(cursor, default_tcp=default_tcp)
             sanitizer = ProductValueSanitizer(cursor)
 
@@ -1172,7 +1189,7 @@ def process_csv(
                         row = cursor.fetchone()
                         final_product_id = row["id"] if row else None
                         stats.inserted += 1
-                    if final_product_id is not None:
+                    if final_product_id is not None and internal_sync_enabled:
                         inserted_internal, updated_internal = _sync_internal_product(
                             cursor, internal_odoo_id, final_product_id
                         )
@@ -1234,6 +1251,17 @@ def process_csv(
                 existing.update(missing_product_columns)
                 stats.missing_reference_columns["products"] = sorted(existing)
 
+            if internal_table_missing:
+                tables = set(stats.missing_reference_tables)
+                tables.add("internal_products")
+                stats.missing_reference_tables = sorted(tables)
+            if missing_internal_columns:
+                existing = set(
+                    stats.missing_reference_columns.get("internal_products", [])
+                )
+                existing.update(missing_internal_columns)
+                stats.missing_reference_columns["internal_products"] = sorted(existing)
+
             if stats.missing_reference_tables:
                 print("\n⚠️  Tables de référence introuvables :")
                 for table in stats.missing_reference_tables:
@@ -1244,6 +1272,12 @@ def process_csv(
                 for table, columns in stats.missing_reference_columns.items():
                     joined = ", ".join(columns)
                     print(f"   - {table}: {joined}")
+
+            if internal_sync_reason:
+                print(
+                    "\n⚠️  Synchronisation des liens internal_products ignorée ("
+                    f"{internal_sync_reason})."
+                )
 
             has_missing = bool(stats.missing_references or stats.unresolved_by_name)
 
