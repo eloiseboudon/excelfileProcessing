@@ -6,6 +6,7 @@ from flask import Blueprint, jsonify, request, send_file
 from models import (
     Brand,
     ImportHistory,
+    InternalProduct,
     Product,
     ProductCalculation,
     TemporaryImport,
@@ -75,6 +76,21 @@ def list_product_calculations():
             "supplier": c.supplier.name if c.supplier else None,
         }
         for c in calculations
+    ]
+    return jsonify(result)
+
+
+@bp.route("/internal_products", methods=["GET"])
+def internal_products():
+    """Return internal products."""
+    internal_products = InternalProduct.query.all()
+    result = [
+        {
+            "id": i.id,
+            "product_id": i.product_id,
+            "odoo_id": i.odoo_id,
+        }
+        for i in internal_products
     ]
     return jsonify(result)
 
@@ -196,9 +212,7 @@ def product_price_summary():
         tcp_value = item.get("tcp", 0) or 0
         if margin_from_calc is None:
             margin_from_calc = (
-                (item["recommended_price"] or 0)
-                - tcp_value
-                - min_buy_price_value
+                (item["recommended_price"] or 0) - tcp_value - min_buy_price_value
             )
         item["marge"] = round(margin_from_calc, 2)
         base_cost = (item["min_buy_price"] or 0) + tcp_value

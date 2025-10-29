@@ -43,3 +43,5 @@ backend/alembic/versions/*.pyc
 
 todo.md
 backend/log
+
+import_log_*
