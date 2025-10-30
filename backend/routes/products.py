@@ -68,7 +68,16 @@ def _ensure_daily_supplier_cache() -> None:
                 .order_by(ApiFetchJob.started_at.desc())
                 .first()
             )
-            if latest_job:
+            has_temp_data = (
+                TemporaryImport.query.filter(
+                    TemporaryImport.supplier_id == supplier.id
+                )
+                .limit(1)
+                .first()
+                is not None
+            )
+
+            if latest_job and has_temp_data:
                 continue
 
             job = ApiFetchJob(
