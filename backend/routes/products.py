@@ -115,6 +115,7 @@ def list_search_catalog():
             joinedload(TemporaryImport.brand),
             joinedload(TemporaryImport.supplier),
         )
+        .filter(TemporaryImport.supplier_id.isnot(None))
         .order_by(TemporaryImport.model.asc(), TemporaryImport.description.asc())
         .all()
     )
