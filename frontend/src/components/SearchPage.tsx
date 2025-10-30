@@ -12,6 +12,34 @@ interface SearchProduct {
   supplier: string | null;
 }
 
+const SUPPLIER_BADGE_STYLES = [
+  'bg-emerald-500/15 text-emerald-200 ring-emerald-500/40',
+  'bg-sky-500/15 text-sky-200 ring-sky-500/40',
+  'bg-violet-500/15 text-violet-200 ring-violet-500/40',
+  'bg-rose-500/15 text-rose-200 ring-rose-500/40',
+  'bg-amber-500/15 text-amber-200 ring-amber-500/40',
+  'bg-lime-500/15 text-lime-200 ring-lime-500/40',
+  'bg-cyan-500/15 text-cyan-200 ring-cyan-500/40',
+  'bg-fuchsia-500/15 text-fuchsia-200 ring-fuchsia-500/40',
+];
+
+function hashSupplierName(value: string): number {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) % 2 ** 32;
+  }
+  return Math.abs(hash);
+}
+
+function getSupplierBadgeClass(name: string | null): string {
+  if (!name) {
+    return 'bg-zinc-700/40 text-zinc-300 ring-zinc-500/20';
+  }
+
+  const paletteIndex = hashSupplierName(name) % SUPPLIER_BADGE_STYLES.length;
+  return SUPPLIER_BADGE_STYLES[paletteIndex];
+}
+
 function normalisePrice(value: unknown): number {
   if (typeof value === 'number' && !Number.isNaN(value)) {
     return Math.round(value * 100) / 100;
@@ -166,9 +194,13 @@ function SearchPage() {
                       <div className="rounded-lg bg-[#B8860B]/10 px-3 py-2 text-[#B8860B] font-semibold">
                         {product.price.toFixed(2)}€
                       </div>
-                      <p className="mt-2 text-xs uppercase tracking-wide text-zinc-400">
-                        {product.supplier ? `Fournisseur : ${product.supplier}` : 'Fournisseur inconnu'}
-                      </p>
+                      <span
+                        className={`mt-3 inline-flex items-center justify-end rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ring-1 ring-inset ${getSupplierBadgeClass(
+                          product.supplier
+                        )}`}
+                      >
+                        {product.supplier ?? 'Fournisseur inconnu'}
+                      </span>
                     </div>
                   </div>
                   {product.description && (
