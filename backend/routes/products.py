@@ -1,11 +1,14 @@
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
+from typing import Dict, Set
 
 import pandas as pd
 from flask import Blueprint, jsonify, request, send_file, current_app
 from models import (
     ApiFetchJob,
     Brand,
+    Color,
+    ColorTranslation,
     ImportHistory,
     InternalProduct,
     MappingVersion,
@@ -119,10 +122,25 @@ def list_search_catalog():
         current_app.logger.exception("Daily supplier sync failed: %s", exc)
         return jsonify({"error": str(exc)}), 502
 
+    color_synonyms: Dict[int, Set[str]] = {}
+
+    for color in Color.query.all():
+        if color.color:
+            color_synonyms.setdefault(color.id, set()).add(color.color)
+
+    for translation in ColorTranslation.query.all():
+        target_id = translation.color_target_id
+        synonyms = color_synonyms.setdefault(target_id, set())
+        if translation.color_target:
+            synonyms.add(translation.color_target)
+        if translation.color_source:
+            synonyms.add(translation.color_source)
+
     entries = (
         TemporaryImport.query.options(
             joinedload(TemporaryImport.brand),
             joinedload(TemporaryImport.supplier),
+            joinedload(TemporaryImport.color),
         )
         .filter(TemporaryImport.supplier_id.isnot(None))
         .order_by(TemporaryImport.model.asc(), TemporaryImport.description.asc())
@@ -140,6 +158,16 @@ def list_search_catalog():
         )
         price = entry.selling_price if entry.selling_price is not None else None
 
+        color_values = []
+        if entry.color_id is not None:
+            color_values = sorted(
+                {
+                    value.strip()
+                    for value in color_synonyms.get(entry.color_id, set())
+                    if value and value.strip()
+                }
+            )
+
         results.append(
             {
                 "id": entry.id,
@@ -152,6 +180,7 @@ def list_search_catalog():
                 "ean": entry.ean,
                 "part_number": entry.part_number,
                 "supplier": entry.supplier.name if entry.supplier else None,
+                "color_synonyms": color_values,
             }
         )
 

@@ -10,6 +10,8 @@ interface SearchProduct {
   brand: string | null;
   price: number;
   supplier: string | null;
+  colorSynonyms: string[];
+  searchIndex: string;
 }
 
 const SUPPLIER_BADGE_STYLES = [
@@ -29,6 +31,36 @@ function hashSupplierName(value: string): number {
     hash = (hash * 31 + value.charCodeAt(index)) % 2 ** 32;
   }
   return Math.abs(hash);
+}
+
+function normalizeText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase();
+}
+
+function buildSearchIndex(...values: Array<string | null | undefined | string[]>): string {
+  const parts: string[] = [];
+  values.forEach((value) => {
+    if (!value) {
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach((part) => {
+        if (typeof part === 'string' && part.trim().length > 0) {
+          parts.push(part);
+        }
+      });
+      return;
+    }
+    if (typeof value === 'string' && value.trim().length > 0) {
+      parts.push(value);
+    }
+  });
+
+  const normalized = normalizeText(parts.join(' '));
+  return normalized.replace(/[^a-z0-9]+/g, ' ').trim();
 }
 
 function getSupplierBadgeClass(name: string | null): string {
@@ -63,6 +95,19 @@ function SearchPage() {
         const items = (res as any[]).map((item, index) => {
           const price = normalisePrice(item.price ?? item.selling_price ?? 0);
           const name = item.name ?? item.model ?? item.description ?? `Produit ${index + 1}`;
+          const colorSynonyms = Array.isArray(item.color_synonyms)
+            ? (item.color_synonyms as unknown[])
+                .filter((entry): entry is string => typeof entry === 'string')
+                .map((entry) => entry.trim())
+                .filter((entry) => entry.length > 0)
+            : [];
+          const searchIndex = buildSearchIndex(
+            name,
+            item.description ?? null,
+            item.brand ?? null,
+            item.supplier ?? null,
+            colorSynonyms,
+          );
           return {
             id: String(item.id ?? name ?? index),
             name,
@@ -70,6 +115,8 @@ function SearchPage() {
             brand: item.brand ?? null,
             price,
             supplier: item.supplier ?? null,
+            colorSynonyms,
+            searchIndex,
           } as SearchProduct;
         });
 
@@ -106,15 +153,16 @@ function SearchPage() {
   }, []);
 
   const displayedProducts = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
+    const normalizedTerm = normalizeText(searchTerm.trim());
+    const termTokens = normalizedTerm
+      .split(/[^a-z0-9]+/)
+      .map((token) => token.trim())
+      .filter((token) => token.length > 0);
 
     return products
       .filter((product) => {
         const matchesTerm =
-          term.length === 0 ||
-          [product.name, product.description, product.brand, product.supplier]
-            .filter((value): value is string => typeof value === 'string')
-            .some((value) => value.toLowerCase().includes(term));
+          termTokens.length === 0 || termTokens.every((token) => product.searchIndex.includes(token));
         const matchesPrice = product.price >= minPrice && product.price <= maxPrice;
         return matchesTerm && matchesPrice;
       })
