@@ -1,6 +1,6 @@
 import { Loader2, PackageSearch } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { fetchProductPriceSummary } from '../api';
+import { fetchSearchCatalog } from '../api';
 import SearchControls from './SearchControls';
 
 interface SearchProduct {
@@ -9,6 +9,7 @@ interface SearchProduct {
   description: string | null;
   brand: string | null;
   price: number;
+  supplier: string | null;
 }
 
 function normalisePrice(value: unknown): number {
@@ -29,17 +30,18 @@ function SearchPage() {
 
   useEffect(() => {
     setLoading(true);
-    fetchProductPriceSummary()
+    fetchSearchCatalog()
       .then((res) => {
         const items = (res as any[]).map((item, index) => {
-          const price = normalisePrice(item.recommended_price ?? item.average_price ?? item.marge ?? 0);
-          const name = item.model ?? item.description ?? 'Produit';
+          const price = normalisePrice(item.price ?? item.selling_price ?? 0);
+          const name = item.name ?? item.model ?? item.description ?? `Produit ${index + 1}`;
           return {
             id: String(item.id ?? name ?? index),
             name,
             description: item.description ?? null,
             brand: item.brand ?? null,
             price,
+            supplier: item.supplier ?? null,
           } as SearchProduct;
         });
 
@@ -61,12 +63,16 @@ function SearchPage() {
         setError(null);
       })
       .catch((err) => {
-        console.error('Unable to fetch product summary', err);
+        console.error('Unable to fetch supplier catalog', err);
         setProducts([]);
         setPriceRange({ min: 0, max: 1 });
         setMinPrice(0);
         setMaxPrice(1);
-        setError("Impossible de récupérer les produits. Veuillez réessayer.");
+        const message =
+          err instanceof Error && err.message
+            ? err.message
+            : "Impossible de récupérer les produits. Veuillez réessayer.";
+        setError(message);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -78,7 +84,7 @@ function SearchPage() {
       .filter((product) => {
         const matchesTerm =
           term.length === 0 ||
-          [product.name, product.description, product.brand]
+          [product.name, product.description, product.brand, product.supplier]
             .filter((value): value is string => typeof value === 'string')
             .some((value) => value.toLowerCase().includes(term));
         const matchesPrice = product.price >= minPrice && product.price <= maxPrice;
@@ -156,8 +162,13 @@ function SearchPage() {
                         <p className="mt-1 text-sm uppercase tracking-wide text-[#B8860B]">{product.brand}</p>
                       )}
                     </div>
-                    <div className="rounded-lg bg-[#B8860B]/10 px-3 py-2 text-[#B8860B] font-semibold">
-                      {product.price.toFixed(2)}€
+                    <div className="text-right">
+                      <div className="rounded-lg bg-[#B8860B]/10 px-3 py-2 text-[#B8860B] font-semibold">
+                        {product.price.toFixed(2)}€
+                      </div>
+                      <p className="mt-2 text-xs uppercase tracking-wide text-zinc-400">
+                        {product.supplier ? `Fournisseur : ${product.supplier}` : 'Fournisseur inconnu'}
+                      </p>
                     </div>
                   </div>
                   {product.description && (
