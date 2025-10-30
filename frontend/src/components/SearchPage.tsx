@@ -1,4 +1,5 @@
-import { Loader2, PackageSearch } from 'lucide-react';
+import { ArrowLeft, Barcode, Boxes, Loader2, PackageSearch, Tag } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { fetchSearchCatalog } from '../api';
 import SearchControls from './SearchControls';
@@ -9,9 +10,33 @@ interface SearchProduct {
   description: string | null;
   brand: string | null;
   price: number;
+  hasPrice: boolean;
   supplier: string | null;
+  quantity: number | null;
+  ean: string | null;
+  partNumber: string | null;
   colorSynonyms: string[];
   searchIndex: string;
+}
+
+interface DetailStatProps {
+  icon: ReactNode;
+  label: string;
+  value: string;
+}
+
+function DetailStat({ icon, label, value }: DetailStatProps) {
+  return (
+    <div className="rounded-xl border border-zinc-700/60 bg-zinc-900/60 p-4">
+      <div className="flex items-center gap-3 text-sm text-zinc-400">
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800/80 text-[#B8860B]">
+          {icon}
+        </span>
+        <span className="uppercase tracking-wide">{label}</span>
+      </div>
+      <p className="mt-3 text-lg font-semibold text-white">{value}</p>
+    </div>
+  );
 }
 
 const SUPPLIER_BADGE_STYLES = [
@@ -87,13 +112,16 @@ function SearchPage() {
   const [priceRange, setPriceRange] = useState({ min: 0, max: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<SearchProduct | null>(null);
 
   useEffect(() => {
     setLoading(true);
     fetchSearchCatalog()
       .then((res) => {
         const items = (res as any[]).map((item, index) => {
-          const price = normalisePrice(item.price ?? item.selling_price ?? 0);
+          const rawPrice = item.price ?? item.selling_price ?? null;
+          const hasPrice = typeof rawPrice === 'number' && !Number.isNaN(rawPrice);
+          const price = normalisePrice(hasPrice ? rawPrice : 0);
           const name = item.name ?? item.model ?? item.description ?? `Produit ${index + 1}`;
           const colorSynonyms = Array.isArray(item.color_synonyms)
             ? (item.color_synonyms as unknown[])
@@ -107,6 +135,8 @@ function SearchPage() {
             item.brand ?? null,
             item.supplier ?? null,
             colorSynonyms,
+            item.ean ?? null,
+            item.part_number ?? null,
           );
           return {
             id: String(item.id ?? name ?? index),
@@ -114,7 +144,14 @@ function SearchPage() {
             description: item.description ?? null,
             brand: item.brand ?? null,
             price,
+            hasPrice,
             supplier: item.supplier ?? null,
+            quantity: typeof item.quantity === 'number' && !Number.isNaN(item.quantity) ? item.quantity : null,
+            ean: typeof item.ean === 'string' && item.ean.trim().length > 0 ? item.ean.trim() : null,
+            partNumber:
+              typeof item.part_number === 'string' && item.part_number.trim().length > 0
+                ? item.part_number.trim()
+                : null,
             colorSynonyms,
             searchIndex,
           } as SearchProduct;
@@ -174,6 +211,14 @@ function SearchPage() {
     setMaxPrice(Math.min(priceRange.max, Math.max(max, min + 1)));
   };
 
+  const handleProductSelect = (product: SearchProduct) => {
+    setSelectedProduct(product);
+  };
+
+  const handleBackToResults = () => {
+    setSelectedProduct(null);
+  };
+
   return (
     <div className="max-w-7xl mx-auto w-full flex-1 px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-8">
@@ -186,23 +231,84 @@ function SearchPage() {
         </p>
       </div>
 
-      <div className="card p-6 mb-10">
-        <SearchControls
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          minPrice={minPrice}
-          maxPrice={maxPrice}
-          onPriceRangeChange={handlePriceRangeChange}
-          allProducts={products.map((product) => ({
-            name: product.name,
-            price: product.price,
-            brand: product.brand ?? 'Inconnu',
-          }))}
-          priceRange={priceRange}
-        />
-      </div>
+      {selectedProduct ? (
+        <div className="space-y-6">
+          <button
+            type="button"
+            onClick={handleBackToResults}
+            className="inline-flex items-center gap-2 text-sm font-medium text-zinc-300 transition-colors hover:text-white"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Retour aux résultats
+          </button>
 
-      {loading ? (
+          <div className="card p-6 space-y-6">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+              <div className="space-y-2">
+                <h2 className="text-2xl font-semibold text-white">{selectedProduct.name}</h2>
+                {selectedProduct.brand && (
+                  <p className="text-sm uppercase tracking-wide text-[#B8860B]">{selectedProduct.brand}</p>
+                )}
+                {selectedProduct.description && (
+                  <p className="text-sm text-zinc-400 max-w-2xl">{selectedProduct.description}</p>
+                )}
+              </div>
+              <div className="space-y-3 text-right">
+                <div className="rounded-lg bg-[#B8860B]/10 px-4 py-3 text-2xl font-semibold text-[#B8860B]">
+                  {selectedProduct.hasPrice ? `${selectedProduct.price.toFixed(2)}€` : 'Prix non communiqué'}
+                </div>
+                <span
+                  className={`inline-flex items-center justify-end rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ring-1 ring-inset ${getSupplierBadgeClass(
+                    selectedProduct.supplier
+                  )}`}
+                >
+                  {selectedProduct.supplier ?? 'Fournisseur inconnu'}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <DetailStat
+                icon={<Boxes className="h-4 w-4" />}
+                label="Stock disponible"
+                value={
+                  typeof selectedProduct.quantity === 'number'
+                    ? `${selectedProduct.quantity}`
+                    : 'Non communiqué'
+                }
+              />
+              <DetailStat
+                icon={<Barcode className="h-4 w-4" />}
+                label="EAN"
+                value={selectedProduct.ean ?? 'Non communiqué'}
+              />
+              <DetailStat
+                icon={<Tag className="h-4 w-4" />}
+                label="Référence fournisseur"
+                value={selectedProduct.partNumber ?? 'Non communiqué'}
+              />
+            </div>
+
+            {selectedProduct.colorSynonyms.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-300">
+                  Variantes couleur reconnues
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {selectedProduct.colorSynonyms.map((color) => (
+                    <span
+                      key={color}
+                      className="inline-flex items-center rounded-full border border-zinc-700/60 bg-zinc-900/60 px-3 py-1 text-xs text-zinc-300"
+                    >
+                      {color}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : loading ? (
         <div className="flex items-center justify-center py-20 text-zinc-400">
           <Loader2 className="w-6 h-6 animate-spin mr-3" />
           Chargement des produits...
@@ -212,7 +318,24 @@ function SearchPage() {
           {error}
         </div>
       ) : (
-        <div className="space-y-4">
+        <>
+          <div className="card p-6 mb-10">
+            <SearchControls
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              minPrice={minPrice}
+              maxPrice={maxPrice}
+              onPriceRangeChange={handlePriceRangeChange}
+              allProducts={products.map((product) => ({
+                name: product.name,
+                price: product.price,
+                brand: product.brand ?? 'Inconnu',
+              }))}
+              priceRange={priceRange}
+            />
+          </div>
+
+          <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-white">Résultats ({displayedProducts.length})</h2>
             <span className="text-sm text-zinc-400">
@@ -227,9 +350,11 @@ function SearchPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {displayedProducts.map((product) => (
-                <div
+                <button
+                  type="button"
                   key={product.id}
-                  className="rounded-xl border border-zinc-700/60 bg-zinc-900/60 p-5 transition-colors hover:border-[#B8860B]/60"
+                  onClick={() => handleProductSelect(product)}
+                  className="rounded-xl border border-zinc-700/60 bg-zinc-900/60 p-5 text-left transition-colors hover:border-[#B8860B]/60 focus:outline-none focus-visible:border-[#B8860B]/60 focus-visible:ring-2 focus-visible:ring-[#B8860B]/40"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -240,7 +365,7 @@ function SearchPage() {
                     </div>
                     <div className="text-right">
                       <div className="rounded-lg bg-[#B8860B]/10 px-3 py-2 text-[#B8860B] font-semibold">
-                        {product.price.toFixed(2)}€
+                        {product.hasPrice ? `${product.price.toFixed(2)}€` : 'Prix N/C'}
                       </div>
                       <span
                         className={`mt-3 inline-flex items-center justify-end rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ring-1 ring-inset ${getSupplierBadgeClass(
@@ -254,11 +379,12 @@ function SearchPage() {
                   {product.description && (
                     <p className="mt-4 text-sm text-zinc-400 line-clamp-3">{product.description}</p>
                   )}
-                </div>
+                </button>
               ))}
             </div>
           )}
-        </div>
+          </div>
+        </>
       )}
     </div>
   );
