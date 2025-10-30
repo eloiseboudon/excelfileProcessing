@@ -18,6 +18,7 @@ from models import (
     ApiFetchJob,
     AuthType,
     MappingVersion,
+    ImportHistory,
     ParsedItem,
     Product,
     ProductCalculation,
@@ -818,16 +819,20 @@ def run_fetch_job(
 
         for record in parsed_records:
             temp_row = _prepare_temp_row(record)
-            supplier_sku = temp_row.get("supplier_sku")
+            supplier_sku = (temp_row.get("supplier_sku") or "").strip()
+            ean_value = (temp_row.get("ean") or "").strip()
+            part_value = (temp_row.get("part_number") or "").strip()
+            description_value = (temp_row.get("description") or "").strip()
+            model_value = (temp_row.get("model") or "").strip()
             key = (
-                (temp_row.get("ean") or "").strip().lower(),
-                (temp_row.get("part_number") or "").strip().lower(),
-                (supplier_sku or "").strip().lower(),
+                ean_value.lower(),
+                part_value.lower(),
+                supplier_sku.lower(),
             )
             if not any(key):
                 fallback = _first_non_empty(
-                    temp_row.get("description"),
-                    temp_row.get("model"),
+                    description_value,
+                    model_value,
                     record.get("name"),
                     record.get("title"),
                     record.get("designation"),
@@ -838,23 +843,44 @@ def run_fetch_job(
                 continue
             seen_keys.add(key)
 
-            temp_rows.append(temp_row)
+            quantity_value = temp_row.get("quantity") or 0
+            price_value = temp_row.get("selling_price")
+            has_identity = any(
+                [description_value, model_value, ean_value, part_value, supplier_sku]
+            )
+            has_value = bool(quantity_value) or (
+                price_value is not None and price_value != 0
+            )
+            if not has_identity and not has_value:
+                continue
+
+            cleaned_row = {
+                "description": description_value or None,
+                "model": model_value or None,
+                "quantity": quantity_value,
+                "selling_price": price_value,
+                "ean": ean_value or None,
+                "part_number": part_value or None,
+                "supplier_sku": supplier_sku or None,
+            }
+
+            temp_rows.append(cleaned_row)
 
             parsed_item = ParsedItem(
                 job_id=job.id,
                 supplier_id=supplier_id,
-                ean=temp_row["ean"],
-                part_number=temp_row["part_number"],
+                ean=cleaned_row["ean"],
+                part_number=cleaned_row["part_number"],
                 supplier_sku=supplier_sku,
-                model=temp_row["model"],
-                description=temp_row["description"],
+                model=cleaned_row["model"],
+                description=cleaned_row["description"],
                 brand=_stringify(record.get("brand")),
                 color=_stringify(record.get("color")),
                 memory=_stringify(record.get("memory")),
                 ram=_stringify(record.get("ram")),
                 norme=_stringify(record.get("norme")),
                 device_type=_stringify(record.get("device_type")),
-                quantity=temp_row["quantity"],
+                quantity=quantity_value,
                 purchase_price=_coerce_first_float(
                     record.get("purchase_price"),
                     record.get("buy_price"),
@@ -875,12 +901,12 @@ def run_fetch_job(
 
             temp_import = TemporaryImport(
                 supplier_id=supplier_id,
-                description=temp_row["description"],
-                model=temp_row["model"],
-                quantity=temp_row["quantity"],
-                selling_price=temp_row["selling_price"],
-                ean=temp_row["ean"],
-                part_number=temp_row["part_number"],
+                description=cleaned_row["description"],
+                model=cleaned_row["model"],
+                quantity=quantity_value,
+                selling_price=price_value,
+                ean=cleaned_row["ean"],
+                part_number=cleaned_row["part_number"],
             )
             db.session.add(temp_import)
 
@@ -897,6 +923,28 @@ def run_fetch_job(
         job.error_message = None
         job.ended_at = datetime.utcnow()
         db.session.add(job)
+
+        params_used = job.params_used or {}
+        source_url = None
+        if isinstance(params_used, dict):
+            source_url = params_used.get("resolved_url")
+        if not source_url:
+            base_url = (endpoint.supplier_api.base_url or "").rstrip("/")
+            path = (endpoint.path or "").lstrip("/")
+            if base_url and path:
+                source_url = f"{base_url}/{path}"
+            else:
+                source_url = base_url or path or None
+
+        history = ImportHistory(
+            filename=source_url
+            or endpoint.path
+            or endpoint.name
+            or f"endpoint-{endpoint.id}",
+            supplier_id=supplier_id,
+            product_count=len(temp_rows),
+        )
+        db.session.add(history)
         db.session.commit()
 
         preview_rows = temp_rows[:50]
