@@ -849,6 +849,7 @@ def run_fetch_job(
         TemporaryImport.query.filter_by(supplier_id=supplier_id).delete(synchronize_session=False)
 
         seen_keys: Set[Tuple[str, str, str]] = set()
+        seen_eans: Set[str] = set()
         temp_rows: List[Dict[str, Any]] = []
         duplicate_count = 0
         skipped_no_identity = 0
@@ -895,11 +896,19 @@ def run_fetch_job(
                 skipped_no_description += 1
                 continue
 
+            if ean_value:
+                normalized_ean = ean_value.lower()
+                if normalized_ean in seen_eans:
+                    duplicate_count += 1
+                    continue
+
             if is_duplicate:
                 duplicate_count += 1
                 continue
 
             seen_keys.add(key)
+            if ean_value:
+                seen_eans.add(ean_value.lower())
 
             cleaned_row = {
                 "description": description_value,
