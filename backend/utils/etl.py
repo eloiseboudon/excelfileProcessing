@@ -3,15 +3,17 @@ from __future__ import annotations
 import re
 from datetime import datetime, timezone
 import math
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 from urllib.parse import urljoin
 
 import jmespath
 import requests
 from dateutil import parser as date_parser
-from flask import current_app
+from flask import current_app, has_app_context
 from requests.auth import HTTPBasicAuth
 from sqlalchemy.orm import joinedload
+_TEMP_IMPORT_LOG_FILENAME = "temporary_imports.log"
 
 from models import (
     ApiEndpoint,
@@ -45,6 +47,38 @@ _FIELD_PRIORITY = {
     "ean": 1,
     "part_number": 2,
 }
+
+
+def _resolve_temp_import_log_path() -> Path:
+    if has_app_context():
+        custom_path = current_app.config.get("TEMP_IMPORT_LOG_PATH")
+        base_dir = Path(current_app.root_path)
+    else:
+        custom_path = None
+        base_dir = Path(__file__).resolve().parents[1]
+
+    if custom_path:
+        log_path = Path(custom_path)
+        if not log_path.is_absolute():
+            log_path = base_dir / log_path
+    else:
+        log_path = base_dir / "logs" / _TEMP_IMPORT_LOG_FILENAME
+
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    return log_path
+
+
+def _append_temp_import_log_entry(message: str) -> None:
+    log_path = _resolve_temp_import_log_path()
+    timestamp = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    try:
+        with log_path.open("a", encoding="utf-8") as handle:
+            handle.write(f"[{timestamp}] {message}\n")
+    except OSError as exc:  # pragma: no cover - logging safeguard
+        if has_app_context():
+            current_app.logger.warning(
+                "Impossible d'écrire dans le journal temporary_imports: %s", exc
+            )
 
 
 def _compile_expression(path: str) -> jmespath.parser.ParsedResult:
@@ -816,6 +850,10 @@ def run_fetch_job(
 
         seen_keys: Set[Tuple[str, str, str]] = set()
         temp_rows: List[Dict[str, Any]] = []
+        duplicate_count = 0
+        skipped_no_identity = 0
+        skipped_no_description = 0
+        inserted_count = 0
 
         for record in parsed_records:
             temp_row = _prepare_temp_row(record)
@@ -839,9 +877,7 @@ def run_fetch_job(
                     supplier_sku,
                 ) or f"row-{len(temp_rows)}"
                 key = ("", "", fallback.lower())
-            if key in seen_keys:
-                continue
-            seen_keys.add(key)
+            is_duplicate = key in seen_keys
 
             quantity_value = temp_row.get("quantity") or 0
             price_value = temp_row.get("selling_price")
@@ -852,10 +888,21 @@ def run_fetch_job(
                 price_value is not None and price_value != 0
             )
             if not has_identity and not has_value:
+                skipped_no_identity += 1
                 continue
 
+            if not description_value:
+                skipped_no_description += 1
+                continue
+
+            if is_duplicate:
+                duplicate_count += 1
+                continue
+
+            seen_keys.add(key)
+
             cleaned_row = {
-                "description": description_value or None,
+                "description": description_value,
                 "model": model_value or None,
                 "quantity": quantity_value,
                 "selling_price": price_value,
@@ -865,6 +912,7 @@ def run_fetch_job(
             }
 
             temp_rows.append(cleaned_row)
+            inserted_count += 1
 
             parsed_item = ParsedItem(
                 job_id=job.id,
@@ -942,12 +990,30 @@ def run_fetch_job(
             or endpoint.name
             or f"endpoint-{endpoint.id}",
             supplier_id=supplier_id,
-            product_count=len(temp_rows),
+            product_count=inserted_count,
         )
         db.session.add(history)
         db.session.commit()
 
         preview_rows = temp_rows[:50]
+
+        raw_count = len(items) if isinstance(items, list) else len(parsed_records)
+        parsed_count = len(parsed_records)
+        _append_temp_import_log_entry(
+            " ".join(
+                [
+                    f"job_id={job.id}",
+                    f"supplier_id={supplier_id}",
+                    f"endpoint_id={endpoint.id}",
+                    f"raw_count={raw_count}",
+                    f"parsed_count={parsed_count}",
+                    f"inserted_count={inserted_count}",
+                    f"skipped_no_identity={skipped_no_identity}",
+                    f"skipped_no_description={skipped_no_description}",
+                    f"duplicates={duplicate_count}",
+                ]
+            )
+        )
 
         mapping_summary = {
             "id": mapping.id,
