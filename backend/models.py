@@ -2,9 +2,8 @@ from datetime import datetime
 from enum import Enum
 
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import check_password_hash, generate_password_hash
-
 from sqlalchemy.dialects.postgresql import JSONB
+from werkzeug.security import check_password_hash, generate_password_hash
 
 db = SQLAlchemy()
 
@@ -125,7 +124,9 @@ class ApiFetchJob(db.Model):
     supplier_api_id = db.Column(
         db.Integer, db.ForeignKey("supplier_apis.id"), nullable=False
     )
-    endpoint_id = db.Column(db.Integer, db.ForeignKey("api_endpoints.id"), nullable=False)
+    endpoint_id = db.Column(
+        db.Integer, db.ForeignKey("api_endpoints.id"), nullable=False
+    )
     mapping_version_id = db.Column(
         db.Integer,
         db.ForeignKey("mapping_versions.id", ondelete="SET NULL"),
@@ -164,7 +165,11 @@ class ParsedItem(db.Model):
     __tablename__ = "parsed_items"
     __table_args__ = (
         db.UniqueConstraint(
-            "supplier_id", "ean", "part_number", "job_id", name="uix_parsed_supplier_ean_part_job"
+            "supplier_id",
+            "ean",
+            "part_number",
+            "job_id",
+            name="uix_parsed_supplier_ean_part_job",
         ),
     )
 
@@ -214,6 +219,7 @@ class SupplierProductRef(db.Model):
     supplier_sku = db.Column(db.String(120), nullable=True)
 
     last_seen_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 
 class TemporaryImport(db.Model):
     __tablename__ = "temporary_imports"
@@ -422,3 +428,16 @@ class User(db.Model):
 
     def check_password(self, password: str) -> bool:
         return check_password_hash(self.password_hash, password)
+
+
+class InternalProduct(db.Model):
+    __tablename__ = "internal_products"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    product_id = db.Column(db.Integer, db.ForeignKey("products.id"), nullable=False)
+    odoo_id = db.Column(db.String(200), nullable=False)
+
+    product = db.relationship(
+        "Product", backref=db.backref("internal_products", lazy=True)
+    )

@@ -97,19 +97,28 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
     return 0;
   };
 
-  const baseColumns: { key: string; label: string }[] = [
-    { key: 'id', label: 'ID' },
-    { key: 'model', label: 'Modèle' },
-    { key: 'description', label: 'Description' },
-    { key: 'brand', label: 'Marque' },
-    { key: 'memory', label: 'Mémoire' },
-    { key: 'color', label: 'Couleur' },
-    { key: 'type', label: 'Type' },
-    { key: 'ram', label: 'RAM' },
-    { key: 'norme', label: 'Norme' },
-    { key: 'averagePrice', label: 'Prix de vente' },
-    { key: 'marge', label: 'Marge' },
-  ];
+  const baseColumns: { key: string; label: string }[] = useMemo(() => {
+    if (role === 'client') {
+      return [
+        { key: 'averagePrice', label: 'Prix de vente' },
+        { key: 'model', label: 'Modèle' },
+        { key: 'description', label: 'Description' },
+      ];
+    }
+    return [
+      { key: 'id', label: 'ID' },
+      { key: 'model', label: 'Modèle' },
+      { key: 'description', label: 'Description' },
+      { key: 'brand', label: 'Marque' },
+      { key: 'memory', label: 'Mémoire' },
+      { key: 'color', label: 'Couleur' },
+      { key: 'type', label: 'Type' },
+      { key: 'ram', label: 'RAM' },
+      { key: 'norme', label: 'Norme' },
+      { key: 'averagePrice', label: 'Prix de vente' },
+      { key: 'marge', label: 'Marge' },
+    ];
+  }, [role]);
 
   const columns = useMemo(
     () =>
@@ -724,7 +733,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
                         }
                         aria-checked={
                           paginatedData.some((row) => selectedSet.has(row.id)) &&
-                          !paginatedData.every((row) => selectedSet.has(row.id))
+                            !paginatedData.every((row) => selectedSet.has(row.id))
                             ? 'mixed'
                             : undefined
                         }
@@ -796,9 +805,8 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
                   return (
                     <tr
                       key={String(row.id)}
-                      className={`odd:bg-zinc-900 even:bg-zinc-800 ${
-                        role !== 'client' ? 'cursor-pointer' : ''
-                      } ${isSelected ? 'bg-indigo-900/40 ring-1 ring-indigo-500' : ''}`}
+                      className={`odd:bg-zinc-900 even:bg-zinc-800 ${role !== 'client' ? 'cursor-pointer' : ''
+                        } ${isSelected ? 'bg-indigo-900/40 ring-1 ring-indigo-500' : ''}`}
                       onClick={() => role !== 'client' && setSelectedProduct(row)}
                     >
                       {role !== 'client' && (
@@ -854,38 +862,38 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
                                 value={row.marge}
                                 onClick={(e) => e.stopPropagation()}
                                 onChange={(e) => {
-                              const v = Number(e.target.value);
-                              if (Number.isNaN(v)) {
-                                return;
-                              }
-                              const tcpValue = Number.isFinite(row.tcp)
-                                ? row.tcp
-                                : row.averagePrice - row.marge - baseBuyPrice;
-                              const newPrice = Number(
-                                (tcpValue + baseBuyPrice + v).toFixed(2)
-                              );
-                              const baseCost = baseBuyPrice + tcpValue;
-                              const newPercent = baseCost
-                                ? Number(((v / baseCost) * 100).toFixed(4))
-                                : null;
-                              setEditedPrices((prev) => ({
-                                ...prev,
-                                [row.id]: newPrice,
-                              }));
-                              setData((prev) =>
-                                prev.map((p) =>
-                                  p.id === row.id
-                                    ? {
-                                        ...p,
-                                        marge: v,
-                                        margePercent: newPercent,
-                                        averagePrice: newPrice,
-                                      }
-                                    : p
-                                )
-                              );
-                            }}
-                            className="w-20 px-1 bg-zinc-700 rounded"
+                                  const v = Number(e.target.value);
+                                  if (Number.isNaN(v)) {
+                                    return;
+                                  }
+                                  const tcpValue = Number.isFinite(row.tcp)
+                                    ? row.tcp
+                                    : row.averagePrice - row.marge - baseBuyPrice;
+                                  const newPrice = Number(
+                                    (tcpValue + baseBuyPrice + v).toFixed(2)
+                                  );
+                                  const baseCost = baseBuyPrice + tcpValue;
+                                  const newPercent = baseCost
+                                    ? Number(((v / baseCost) * 100).toFixed(4))
+                                    : null;
+                                  setEditedPrices((prev) => ({
+                                    ...prev,
+                                    [row.id]: newPrice,
+                                  }));
+                                  setData((prev) =>
+                                    prev.map((p) =>
+                                      p.id === row.id
+                                        ? {
+                                          ...p,
+                                          marge: v,
+                                          margePercent: newPercent,
+                                          averagePrice: newPrice,
+                                        }
+                                        : p
+                                    )
+                                  );
+                                }}
+                                className="w-20 px-1 bg-zinc-700 rounded"
                               />
                             ) : col.key === 'marge' ? (
                               row.marge
