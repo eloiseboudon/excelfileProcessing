@@ -1,5 +1,4 @@
-import { ArrowLeft, Barcode, Boxes, Loader2, PackageSearch, Tag } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Barcode, Boxes, Loader2, PackageSearch } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { fetchSearchCatalog } from '../api';
 import SearchControls from './SearchControls';
@@ -19,25 +18,6 @@ interface SearchProduct {
   searchIndex: string;
 }
 
-interface DetailStatProps {
-  icon: ReactNode;
-  label: string;
-  value: string;
-}
-
-function DetailStat({ icon, label, value }: DetailStatProps) {
-  return (
-    <div className="rounded-xl border border-zinc-700/60 bg-zinc-900/60 p-4">
-      <div className="flex items-center gap-3 text-sm text-zinc-400">
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800/80 text-[#B8860B]">
-          {icon}
-        </span>
-        <span className="uppercase tracking-wide">{label}</span>
-      </div>
-      <p className="mt-3 text-lg font-semibold text-white">{value}</p>
-    </div>
-  );
-}
 
 const SUPPLIER_BADGE_STYLES = [
   'bg-emerald-500/15 text-emerald-200 ring-emerald-500/40',
@@ -112,7 +92,6 @@ function SearchPage() {
   const [priceRange, setPriceRange] = useState({ min: 0, max: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedProduct, setSelectedProduct] = useState<SearchProduct | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -211,14 +190,6 @@ function SearchPage() {
     setMaxPrice(Math.min(priceRange.max, Math.max(max, min + 1)));
   };
 
-  const handleProductSelect = (product: SearchProduct) => {
-    setSelectedProduct(product);
-  };
-
-  const handleBackToResults = () => {
-    setSelectedProduct(null);
-  };
-
   return (
     <div className="max-w-7xl mx-auto w-full flex-1 px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-8">
@@ -231,84 +202,7 @@ function SearchPage() {
         </p>
       </div>
 
-      {selectedProduct ? (
-        <div className="space-y-6">
-          <button
-            type="button"
-            onClick={handleBackToResults}
-            className="inline-flex items-center gap-2 text-sm font-medium text-zinc-300 transition-colors hover:text-white"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Retour aux résultats
-          </button>
-
-          <div className="card p-6 space-y-6">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-              <div className="space-y-2">
-                <h2 className="text-2xl font-semibold text-white">{selectedProduct.name}</h2>
-                {selectedProduct.brand && (
-                  <p className="text-sm uppercase tracking-wide text-[#B8860B]">{selectedProduct.brand}</p>
-                )}
-                {selectedProduct.description && (
-                  <p className="text-sm text-zinc-400 max-w-2xl">{selectedProduct.description}</p>
-                )}
-              </div>
-              <div className="space-y-3 text-right">
-                <div className="rounded-lg bg-[#B8860B]/10 px-4 py-3 text-2xl font-semibold text-[#B8860B]">
-                  {selectedProduct.hasPrice ? `${selectedProduct.price.toFixed(2)}€` : 'Prix non communiqué'}
-                </div>
-                <span
-                  className={`inline-flex items-center justify-end rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ring-1 ring-inset ${getSupplierBadgeClass(
-                    selectedProduct.supplier
-                  )}`}
-                >
-                  {selectedProduct.supplier ?? 'Fournisseur inconnu'}
-                </span>
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <DetailStat
-                icon={<Boxes className="h-4 w-4" />}
-                label="Stock disponible"
-                value={
-                  typeof selectedProduct.quantity === 'number'
-                    ? `${selectedProduct.quantity}`
-                    : 'Non communiqué'
-                }
-              />
-              <DetailStat
-                icon={<Barcode className="h-4 w-4" />}
-                label="EAN"
-                value={selectedProduct.ean ?? 'Non communiqué'}
-              />
-              <DetailStat
-                icon={<Tag className="h-4 w-4" />}
-                label="Référence fournisseur"
-                value={selectedProduct.partNumber ?? 'Non communiqué'}
-              />
-            </div>
-
-            {selectedProduct.colorSynonyms.length > 0 && (
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-300">
-                  Variantes couleur reconnues
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {selectedProduct.colorSynonyms.map((color) => (
-                    <span
-                      key={color}
-                      className="inline-flex items-center rounded-full border border-zinc-700/60 bg-zinc-900/60 px-3 py-1 text-xs text-zinc-300"
-                    >
-                      {color}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      ) : loading ? (
+      {loading ? (
         <div className="flex items-center justify-center py-20 text-zinc-400">
           <Loader2 className="w-6 h-6 animate-spin mr-3" />
           Chargement des produits...
@@ -348,38 +242,46 @@ function SearchPage() {
               Aucun produit ne correspond à votre recherche pour le moment.
             </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="space-y-3">
               {displayedProducts.map((product) => (
-                <button
-                  type="button"
+                <div
                   key={product.id}
-                  onClick={() => handleProductSelect(product)}
-                  className="rounded-xl border border-zinc-700/60 bg-zinc-900/60 p-5 text-left transition-colors hover:border-[#B8860B]/60 focus:outline-none focus-visible:border-[#B8860B]/60 focus-visible:ring-2 focus-visible:ring-[#B8860B]/40"
+                  className="w-full rounded-xl border border-zinc-700/60 bg-zinc-900/60 p-5"
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h3 className="text-lg font-semibold text-white line-clamp-2">{product.name}</h3>
+                  <div className="flex items-start justify-between gap-6">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-semibold text-white">{product.name}</h3>
                       {product.brand && (
                         <p className="mt-1 text-sm uppercase tracking-wide text-[#B8860B]">{product.brand}</p>
                       )}
-                    </div>
-                    <div className="text-right">
-                      <div className="rounded-lg bg-[#B8860B]/10 px-3 py-2 text-[#B8860B] font-semibold">
-                        {product.hasPrice ? `${product.price.toFixed(2)}€` : 'Prix N/C'}
+                      {product.description && (
+                        <p className="mt-2 text-sm text-zinc-400 line-clamp-2">{product.description}</p>
+                      )}
+                      <div className="mt-3 flex items-center gap-4 text-xs text-zinc-400">
+                        <span className="flex items-center gap-1.5">
+                          <Boxes className="h-3.5 w-3.5" />
+                          Stock: {typeof product.quantity === 'number' ? product.quantity : 'N/C'}
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <Barcode className="h-3.5 w-3.5" />
+                          EAN: {product.ean ?? 'N/C'}
+                        </span>
                       </div>
+                    </div>
+                    <div className="flex items-center gap-4 flex-shrink-0">
                       <span
-                        className={`mt-3 inline-flex items-center justify-end rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ring-1 ring-inset ${getSupplierBadgeClass(
+                        className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ring-1 ring-inset ${getSupplierBadgeClass(
                           product.supplier
                         )}`}
                       >
                         {product.supplier ?? 'Fournisseur inconnu'}
                       </span>
+                      <div className="rounded-lg bg-[#B8860B]/10 px-4 py-2 text-[#B8860B] font-semibold whitespace-nowrap">
+                        {product.hasPrice ? `${product.price.toFixed(2)}€` : 'Prix N/C'}
+                      </div>
                     </div>
                   </div>
-                  {product.description && (
-                    <p className="mt-4 text-sm text-zinc-400 line-clamp-3">{product.description}</p>
-                  )}
-                </button>
+                </div>
               ))}
             </div>
           )}
