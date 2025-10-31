@@ -1,22 +1,191 @@
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
+from typing import Dict, Set
 
 import pandas as pd
-from flask import Blueprint, jsonify, request, send_file
+from flask import Blueprint, jsonify, request, send_file, current_app
 from models import (
+    ApiFetchJob,
     Brand,
+    Color,
+    ColorTranslation,
     ImportHistory,
     InternalProduct,
+    MappingVersion,
     Product,
     ProductCalculation,
+    SupplierAPI,
     TemporaryImport,
     db,
 )
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 from utils.auth import token_required
+from sqlalchemy.orm import joinedload
 from utils.calculations import recalculate_product_calculations
+from utils.etl import run_fetch_job
+
+
+def _start_of_day_utc() -> datetime:
+    now = datetime.utcnow()
+    return now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def _ensure_daily_supplier_cache() -> None:
+    """Ensure supplier API data is refreshed once per day."""
+
+    today = _start_of_day_utc()
+    supplier_apis = (
+        SupplierAPI.query.options(joinedload(SupplierAPI.endpoints))
+        .filter(SupplierAPI.endpoints.any())
+        .all()
+    )
+
+    for api in supplier_apis:
+        supplier = api.supplier
+        if not supplier:
+            continue
+
+        mapping_query = MappingVersion.query.filter_by(supplier_api_id=api.id)
+        mapping = (
+            mapping_query.filter(MappingVersion.is_active.is_(True))
+            .order_by(MappingVersion.version.desc(), MappingVersion.id.desc())
+            .first()
+        )
+        if not mapping:
+            mapping = (
+                mapping_query.order_by(
+                    MappingVersion.version.desc(), MappingVersion.id.desc()
+                )
+                .first()
+            )
+        if not mapping:
+            continue
+
+        for endpoint in api.endpoints:
+            latest_job = (
+                ApiFetchJob.query.filter(
+                    ApiFetchJob.endpoint_id == endpoint.id,
+                    ApiFetchJob.status == "success",
+                    ApiFetchJob.started_at >= today,
+                )
+                .order_by(ApiFetchJob.started_at.desc())
+                .first()
+            )
+            has_temp_data = (
+                TemporaryImport.query.filter(
+                    TemporaryImport.supplier_id == supplier.id
+                )
+                .limit(1)
+                .first()
+                is not None
+            )
+
+            if latest_job and has_temp_data:
+                continue
+
+            job = ApiFetchJob(
+                supplier_api_id=api.id,
+                endpoint_id=endpoint.id,
+                mapping_version_id=mapping.id,
+                status="running",
+            )
+            db.session.add(job)
+            db.session.commit()
+
+            current_app.logger.info(
+                "Daily supplier sync triggered",  # pragma: no cover - logging
+                extra={
+                    "supplier_id": supplier.id,
+                    "supplier": supplier.name,
+                    "endpoint_id": endpoint.id,
+                },
+            )
+
+            run_fetch_job(
+                job_id=job.id,
+                supplier_id=supplier.id,
+                endpoint_id=endpoint.id,
+                mapping_id=mapping.id,
+            )
 
 bp = Blueprint("products", __name__)
+
+
+@bp.route("/search_catalog", methods=["GET"])
+@token_required()
+def list_search_catalog():
+    """Return daily supplier catalog cached in temporary imports."""
+
+    try:
+        _ensure_daily_supplier_cache()
+    except RuntimeError as exc:  # pragma: no cover - defensive
+        current_app.logger.exception("Daily supplier sync failed: %s", exc)
+        return jsonify({"error": str(exc)}), 502
+
+    color_synonyms: Dict[int, Set[str]] = {}
+
+    for color in Color.query.all():
+        if color.color:
+            color_synonyms.setdefault(color.id, set()).add(color.color)
+
+    for translation in ColorTranslation.query.all():
+        target_id = translation.color_target_id
+        synonyms = color_synonyms.setdefault(target_id, set())
+        if translation.color_target:
+            synonyms.add(translation.color_target)
+        if translation.color_source:
+            synonyms.add(translation.color_source)
+
+    entries = (
+        TemporaryImport.query.options(
+            joinedload(TemporaryImport.brand),
+            joinedload(TemporaryImport.supplier),
+            joinedload(TemporaryImport.color),
+        )
+        .filter(TemporaryImport.supplier_id.isnot(None))
+        .order_by(TemporaryImport.model.asc(), TemporaryImport.description.asc())
+        .all()
+    )
+
+    results = []
+    for entry in entries:
+        name = (
+            entry.model
+            or entry.description
+            or entry.part_number
+            or entry.ean
+            or f"Produit-{entry.id}"
+        )
+        price = entry.selling_price if entry.selling_price is not None else None
+
+        color_values = []
+        if entry.color_id is not None:
+            color_values = sorted(
+                {
+                    value.strip()
+                    for value in color_synonyms.get(entry.color_id, set())
+                    if value and value.strip()
+                }
+            )
+
+        results.append(
+            {
+                "id": entry.id,
+                "name": name,
+                "model": entry.model,
+                "description": entry.description,
+                "brand": entry.brand.brand if entry.brand else None,
+                "price": price,
+                "quantity": entry.quantity,
+                "ean": entry.ean,
+                "part_number": entry.part_number,
+                "supplier": entry.supplier.name if entry.supplier else None,
+                "color_synonyms": color_values,
+            }
+        )
+
+    return jsonify(results)
 
 
 @bp.route("/product_calculation", methods=["GET"])
@@ -82,16 +251,48 @@ def list_product_calculations():
 
 @bp.route("/internal_products", methods=["GET"])
 def internal_products():
-    """Return internal products."""
-    internal_products = InternalProduct.query.all()
-    result = [
-        {
-            "id": i.id,
-            "product_id": i.product_id,
-            "odoo_id": i.odoo_id,
-        }
-        for i in internal_products
-    ]
+    """Return internal products with related product details."""
+
+    internal_products = InternalProduct.query.options(
+        joinedload(InternalProduct.product)
+        .joinedload(Product.brand),
+        joinedload(InternalProduct.product).joinedload(Product.memory),
+        joinedload(InternalProduct.product).joinedload(Product.color),
+        joinedload(InternalProduct.product).joinedload(Product.type),
+        joinedload(InternalProduct.product).joinedload(Product.RAM),
+        joinedload(InternalProduct.product).joinedload(Product.norme),
+    ).all()
+
+    result = []
+    for internal in internal_products:
+        product = internal.product
+        product_payload = None
+
+        if product is not None:
+            product_payload = {
+                "id": product.id,
+                "ean": product.ean,
+                "part_number": product.part_number,
+                "model": product.model,
+                "description": product.description,
+                "brand": product.brand.brand if product.brand else None,
+                "memory": product.memory.memory if product.memory else None,
+                "color": product.color.color if product.color else None,
+                "type": product.type.type if product.type else None,
+                "ram": product.RAM.ram if product.RAM else None,
+                "norme": product.norme.norme if product.norme else None,
+                "recommended_price": product.recommended_price,
+            }
+
+        result.append(
+            {
+                "id": internal.id,
+                "product_id": internal.product_id,
+                "odoo_id": internal.odoo_id,
+                "product": product_payload,
+            }
+        )
+
     return jsonify(result)
 
 

@@ -153,7 +153,7 @@ def ensure_internal_products_table(conn: connection, logger: ImportLogger) -> bo
         return False
 
 
-def find_product_by_name(cursor, product_name: str) -> Optional[int]:
+def find_product_by_model(cursor, product_model: str) -> Optional[int]:
     """
     Chercher un produit par son nom (ou modèle).
     Retourne l'ID du produit si trouvé, None sinon.
@@ -162,10 +162,10 @@ def find_product_by_name(cursor, product_name: str) -> Optional[int]:
     cursor.execute(
         """
         SELECT id FROM products 
-        WHERE LOWER(TRIM(name)) = LOWER(TRIM(%s))
+        WHERE LOWER(TRIM(model)) = LOWER(TRIM(%s))
         LIMIT 1
     """,
-        (product_name,),
+        (product_model,),
     )
 
     result = cursor.fetchone()
@@ -179,7 +179,7 @@ def find_product_by_name(cursor, product_name: str) -> Optional[int]:
         WHERE LOWER(TRIM(model)) = LOWER(TRIM(%s))
         LIMIT 1
     """,
-        (product_name,),
+        (product_model,),
     )
 
     result = cursor.fetchone()
@@ -190,7 +190,7 @@ def find_product_by_name(cursor, product_name: str) -> Optional[int]:
 
 
 def create_product(
-    conn, cursor, product_name: str, logger: ImportLogger
+    conn, cursor, product_model: str, logger: ImportLogger
 ) -> Optional[int]:
     """
     Créer un nouveau produit avec le nom fourni.
@@ -199,11 +199,11 @@ def create_product(
     try:
         cursor.execute(
             """
-            INSERT INTO products (name, model, description)
-            VALUES (%s, %s, %s)
+            INSERT INTO products (model, description)
+            VALUES ( %s, %s)
             RETURNING id
         """,
-            (product_name, product_name, product_name),
+            (product_model, product_model),
         )
 
         result = cursor.fetchone()
@@ -351,7 +351,7 @@ def verify_internal_products(conn: connection, logger: ImportLogger):
                 # Afficher quelques exemples
                 cursor.execute(
                     """
-                    SELECT ip.id, ip.odoo_id, ip.product_id, p.name 
+                    SELECT ip.id, ip.odoo_id, ip.product_id, p.model 
                     FROM internal_products ip
                     LEFT JOIN products p ON ip.product_id = p.id
                     ORDER BY ip.id DESC
@@ -364,7 +364,7 @@ def verify_internal_products(conn: connection, logger: ImportLogger):
                 for row in rows:
                     logger.log(
                         f"     - ID={row['id']}, odoo_id={row['odoo_id']}, "
-                        f"product_id={row['product_id']}, nom='{row['name']}'"
+                        f"product_id={row['product_id']}, model='{row['model']}'"
                     )
             else:
                 logger.log("   ⚠️  La table internal_products est VIDE !", "WARNING")
@@ -413,9 +413,9 @@ def process_csv(csv_path: str, conn: connection, logger: ImportLogger):
                     continue
 
                 odoo_id = row[0].strip()
-                product_name = row[1].strip()
+                product_model = row[1].strip()
 
-                if not odoo_id or not product_name:
+                if not odoo_id or not product_model:
                     logger.log(
                         f"⚠️  Ligne {line_number}: odoo_id ou nom vide, ignorée",
                         "WARNING",
@@ -426,12 +426,12 @@ def process_csv(csv_path: str, conn: connection, logger: ImportLogger):
                 try:
                     with conn.cursor() as cursor:
                         # Étape 1: Chercher le produit
-                        product_id = find_product_by_name(cursor, product_name)
+                        product_id = find_product_by_model(cursor, product_model)
 
                         if product_id:
                             # Produit trouvé
                             logger.log(
-                                f"✓ Ligne {line_number} - Produit trouvé: '{product_name}' (ID: {product_id})"
+                                f"✓ Ligne {line_number} - Produit trouvé: '{product_model}' (ID: {product_id})"
                             )
 
                             # Créer le lien
@@ -460,11 +460,11 @@ def process_csv(csv_path: str, conn: connection, logger: ImportLogger):
                         else:
                             # Produit non trouvé, le créer
                             logger.log(
-                                f"➕ Ligne {line_number} - Produit non trouvé, création: '{product_name}'"
+                                f"➕ Ligne {line_number} - Produit non trouvé, création: '{product_model}'"
                             )
 
                             product_id = create_product(
-                                conn, cursor, product_name, logger
+                                conn, cursor, product_model, logger
                             )
 
                             if product_id:
