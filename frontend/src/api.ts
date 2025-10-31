@@ -575,6 +575,14 @@ export async function fetchProductPriceSummary() {
   return res.json();
 }
 
+export async function fetchSearchCatalog() {
+  const res = await fetchWithAuth(`${API_BASE}/search_catalog`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
 export async function fetchSuppliers() {
   const res = await fetchWithAuth(`${API_BASE}/references/suppliers`);
   if (!res.ok) {

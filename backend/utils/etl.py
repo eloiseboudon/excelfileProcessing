@@ -3,21 +3,24 @@ from __future__ import annotations
 import re
 from datetime import datetime, timezone
 import math
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 from urllib.parse import urljoin
 
 import jmespath
 import requests
 from dateutil import parser as date_parser
-from flask import current_app
+from flask import current_app, has_app_context
 from requests.auth import HTTPBasicAuth
 from sqlalchemy.orm import joinedload
+_TEMP_IMPORT_LOG_FILENAME = "temporary_imports.log"
 
 from models import (
     ApiEndpoint,
     ApiFetchJob,
     AuthType,
     MappingVersion,
+    ImportHistory,
     ParsedItem,
     Product,
     ProductCalculation,
@@ -44,6 +47,38 @@ _FIELD_PRIORITY = {
     "ean": 1,
     "part_number": 2,
 }
+
+
+def _resolve_temp_import_log_path() -> Path:
+    if has_app_context():
+        custom_path = current_app.config.get("TEMP_IMPORT_LOG_PATH")
+        base_dir = Path(current_app.root_path)
+    else:
+        custom_path = None
+        base_dir = Path(__file__).resolve().parents[1]
+
+    if custom_path:
+        log_path = Path(custom_path)
+        if not log_path.is_absolute():
+            log_path = base_dir / log_path
+    else:
+        log_path = base_dir / "logs" / _TEMP_IMPORT_LOG_FILENAME
+
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    return log_path
+
+
+def _append_temp_import_log_entry(message: str) -> None:
+    log_path = _resolve_temp_import_log_path()
+    timestamp = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    try:
+        with log_path.open("a", encoding="utf-8") as handle:
+            handle.write(f"[{timestamp}] {message}\n")
+    except OSError as exc:  # pragma: no cover - logging safeguard
+        if has_app_context():
+            current_app.logger.warning(
+                "Impossible d'écrire dans le journal temporary_imports: %s", exc
+            )
 
 
 def _compile_expression(path: str) -> jmespath.parser.ParsedResult:
@@ -814,47 +849,95 @@ def run_fetch_job(
         TemporaryImport.query.filter_by(supplier_id=supplier_id).delete(synchronize_session=False)
 
         seen_keys: Set[Tuple[str, str, str]] = set()
+        seen_eans: Set[str] = set()
         temp_rows: List[Dict[str, Any]] = []
+        duplicate_count = 0
+        skipped_no_identity = 0
+        skipped_no_description = 0
+        inserted_count = 0
 
         for record in parsed_records:
             temp_row = _prepare_temp_row(record)
-            supplier_sku = temp_row.get("supplier_sku")
+            supplier_sku = (temp_row.get("supplier_sku") or "").strip()
+            ean_value = (temp_row.get("ean") or "").strip()
+            part_value = (temp_row.get("part_number") or "").strip()
+            description_value = (temp_row.get("description") or "").strip()
+            model_value = (temp_row.get("model") or "").strip()
             key = (
-                (temp_row.get("ean") or "").strip().lower(),
-                (temp_row.get("part_number") or "").strip().lower(),
-                (supplier_sku or "").strip().lower(),
+                ean_value.lower(),
+                part_value.lower(),
+                supplier_sku.lower(),
             )
             if not any(key):
                 fallback = _first_non_empty(
-                    temp_row.get("description"),
-                    temp_row.get("model"),
+                    description_value,
+                    model_value,
                     record.get("name"),
                     record.get("title"),
                     record.get("designation"),
                     supplier_sku,
                 ) or f"row-{len(temp_rows)}"
                 key = ("", "", fallback.lower())
-            if key in seen_keys:
-                continue
-            seen_keys.add(key)
+            is_duplicate = key in seen_keys
 
-            temp_rows.append(temp_row)
+            quantity_value = temp_row.get("quantity") or 0
+            price_value = temp_row.get("selling_price")
+            has_identity = any(
+                [description_value, model_value, ean_value, part_value, supplier_sku]
+            )
+            has_value = bool(quantity_value) or (
+                price_value is not None and price_value != 0
+            )
+            if not has_identity and not has_value:
+                skipped_no_identity += 1
+                continue
+
+            if not description_value:
+                skipped_no_description += 1
+                continue
+
+            if ean_value:
+                normalized_ean = ean_value.lower()
+                if normalized_ean in seen_eans:
+                    duplicate_count += 1
+                    continue
+
+            if is_duplicate:
+                duplicate_count += 1
+                continue
+
+            seen_keys.add(key)
+            if ean_value:
+                seen_eans.add(ean_value.lower())
+
+            cleaned_row = {
+                "description": description_value,
+                "model": model_value or None,
+                "quantity": quantity_value,
+                "selling_price": price_value,
+                "ean": ean_value or None,
+                "part_number": part_value or None,
+                "supplier_sku": supplier_sku or None,
+            }
+
+            temp_rows.append(cleaned_row)
+            inserted_count += 1
 
             parsed_item = ParsedItem(
                 job_id=job.id,
                 supplier_id=supplier_id,
-                ean=temp_row["ean"],
-                part_number=temp_row["part_number"],
+                ean=cleaned_row["ean"],
+                part_number=cleaned_row["part_number"],
                 supplier_sku=supplier_sku,
-                model=temp_row["model"],
-                description=temp_row["description"],
+                model=cleaned_row["model"],
+                description=cleaned_row["description"],
                 brand=_stringify(record.get("brand")),
                 color=_stringify(record.get("color")),
                 memory=_stringify(record.get("memory")),
                 ram=_stringify(record.get("ram")),
                 norme=_stringify(record.get("norme")),
                 device_type=_stringify(record.get("device_type")),
-                quantity=temp_row["quantity"],
+                quantity=quantity_value,
                 purchase_price=_coerce_first_float(
                     record.get("purchase_price"),
                     record.get("buy_price"),
@@ -875,12 +958,12 @@ def run_fetch_job(
 
             temp_import = TemporaryImport(
                 supplier_id=supplier_id,
-                description=temp_row["description"],
-                model=temp_row["model"],
-                quantity=temp_row["quantity"],
-                selling_price=temp_row["selling_price"],
-                ean=temp_row["ean"],
-                part_number=temp_row["part_number"],
+                description=cleaned_row["description"],
+                model=cleaned_row["model"],
+                quantity=quantity_value,
+                selling_price=price_value,
+                ean=cleaned_row["ean"],
+                part_number=cleaned_row["part_number"],
             )
             db.session.add(temp_import)
 
@@ -897,9 +980,49 @@ def run_fetch_job(
         job.error_message = None
         job.ended_at = datetime.utcnow()
         db.session.add(job)
+
+        params_used = job.params_used or {}
+        source_url = None
+        if isinstance(params_used, dict):
+            source_url = params_used.get("resolved_url")
+        if not source_url:
+            base_url = (endpoint.supplier_api.base_url or "").rstrip("/")
+            path = (endpoint.path or "").lstrip("/")
+            if base_url and path:
+                source_url = f"{base_url}/{path}"
+            else:
+                source_url = base_url or path or None
+
+        history = ImportHistory(
+            filename=source_url
+            or endpoint.path
+            or endpoint.name
+            or f"endpoint-{endpoint.id}",
+            supplier_id=supplier_id,
+            product_count=inserted_count,
+        )
+        db.session.add(history)
         db.session.commit()
 
         preview_rows = temp_rows[:50]
+
+        raw_count = len(items) if isinstance(items, list) else len(parsed_records)
+        parsed_count = len(parsed_records)
+        _append_temp_import_log_entry(
+            " ".join(
+                [
+                    f"job_id={job.id}",
+                    f"supplier_id={supplier_id}",
+                    f"endpoint_id={endpoint.id}",
+                    f"raw_count={raw_count}",
+                    f"parsed_count={parsed_count}",
+                    f"inserted_count={inserted_count}",
+                    f"skipped_no_identity={skipped_no_identity}",
+                    f"skipped_no_description={skipped_no_description}",
+                    f"duplicates={duplicate_count}",
+                ]
+            )
+        )
 
         mapping_summary = {
             "id": mapping.id,

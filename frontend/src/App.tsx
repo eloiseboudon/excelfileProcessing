@@ -1,4 +1,4 @@
-import { ChevronDown, LibraryBig, LogOut, Search, Settings, Upload } from 'lucide-react';
+import { ChevronDown, LibraryBig, LogOut, Search, Settings } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { fetchApitest, setAuthToken, setRefreshToken } from './api';
 import AdminPage from './components/AdminPage';
@@ -124,19 +124,18 @@ function App() {
                 </button>
                 {role !== 'client' && showProductsMenu && (
                   <div className="absolute mt-2 w-48 rounded-lg border border-zinc-700 bg-zinc-900 shadow-xl">
-                    <button
+                    {/* <button
                       onClick={() => {
                         setCurrentPage('products');
                         setShowProductsMenu(false);
                       }}
-                      className={`flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-zinc-800 ${
-                        currentPage === 'products' ? 'text-[#B8860B]' : 'text-white'
-                      }`}
+                      className={`flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-zinc-800 ${currentPage === 'products' ? 'text-[#B8860B]' : 'text-white'
+                        }`}
                     >
                       <LibraryBig className="w-4 h-4" />
                       <span>Produits</span>
-                    </button>
-                    <button
+                    </button> */}
+                    {/* <button
                       onClick={() => {
                         setCurrentPage('dataImport');
                         setShowProductsMenu(false);
@@ -147,6 +146,11 @@ function App() {
                     >
                       <Upload className="w-4 h-4" />
                       <span>Import</span>
+                    </button> */}
+                    <button className={`flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-zinc-800 ${currentPage === 'products' ? 'text-[#B8860B]' : 'text-white'
+                      }`}>
+
+                      <span>A venir</span>
                     </button>
                   </div>
                 )}
@@ -173,9 +177,8 @@ function App() {
                         setCurrentPage('admin');
                         setShowSettingsMenu(false);
                       }}
-                      className={`flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-zinc-800 ${
-                        currentPage === 'admin' ? 'text-[#B8860B]' : 'text-white'
-                      }`}
+                      className={`flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-zinc-800 ${currentPage === 'admin' ? 'text-[#B8860B]' : 'text-white'
+                        }`}
                     >
                       <Settings className="w-4 h-4" />
                       <span>Admin</span>
