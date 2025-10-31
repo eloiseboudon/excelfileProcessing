@@ -109,17 +109,18 @@ function App() {
 
               <div className="relative" ref={productsMenuRef}>
                 <button
-                  onClick={() => {
-                    setCurrentPage('products');
-                    setShowSettingsMenu(false);
-                    if (role !== 'client') {
-                      setShowProductsMenu((prev) => !prev);
-                    }
-                  }}
+                  // onClick={() => {
+                  //   setCurrentPage('products');
+                  //   setShowSettingsMenu(false);
+                  //   if (role !== 'client') {
+                  //     setShowProductsMenu((prev) => !prev);
+                  //   }
+                  // }}
                   className={`btn px-6 py-3 ${isProductsActive ? 'btn-primary' : 'btn-secondary'}`}
                 >
                   <LibraryBig className="w-5 h-5" />
-                  <span>Produits</span>
+                  {/* <span>Produits</span> */}
+                  <span>A venir</span>
                   {role !== 'client' && <ChevronDown className="w-4 h-4 ml-2" />}
                 </button>
                 {role !== 'client' && showProductsMenu && (
@@ -141,9 +142,8 @@ function App() {
                         setCurrentPage('dataImport');
                         setShowProductsMenu(false);
                       }}
-                      className={`flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-zinc-800 ${
-                        currentPage === 'dataImport' ? 'text-[#B8860B]' : 'text-white'
-                      }`}
+                      className={`flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-zinc-800 ${currentPage === 'dataImport' ? 'text-[#B8860B]' : 'text-white'
+                        }`}
                     >
                       <Upload className="w-4 h-4" />
                       <span>Import</span>
