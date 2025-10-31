@@ -21,6 +21,7 @@ from models import (
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from utils.auth import token_required
+from sqlalchemy.orm import joinedload
 from utils.calculations import recalculate_product_calculations
 from utils.etl import run_fetch_job
 
@@ -250,16 +251,48 @@ def list_product_calculations():
 
 @bp.route("/internal_products", methods=["GET"])
 def internal_products():
-    """Return internal products."""
-    internal_products = InternalProduct.query.all()
-    result = [
-        {
-            "id": i.id,
-            "product_id": i.product_id,
-            "odoo_id": i.odoo_id,
-        }
-        for i in internal_products
-    ]
+    """Return internal products with related product details."""
+
+    internal_products = InternalProduct.query.options(
+        joinedload(InternalProduct.product)
+        .joinedload(Product.brand),
+        joinedload(InternalProduct.product).joinedload(Product.memory),
+        joinedload(InternalProduct.product).joinedload(Product.color),
+        joinedload(InternalProduct.product).joinedload(Product.type),
+        joinedload(InternalProduct.product).joinedload(Product.RAM),
+        joinedload(InternalProduct.product).joinedload(Product.norme),
+    ).all()
+
+    result = []
+    for internal in internal_products:
+        product = internal.product
+        product_payload = None
+
+        if product is not None:
+            product_payload = {
+                "id": product.id,
+                "ean": product.ean,
+                "part_number": product.part_number,
+                "model": product.model,
+                "description": product.description,
+                "brand": product.brand.brand if product.brand else None,
+                "memory": product.memory.memory if product.memory else None,
+                "color": product.color.color if product.color else None,
+                "type": product.type.type if product.type else None,
+                "ram": product.RAM.ram if product.RAM else None,
+                "norme": product.norme.norme if product.norme else None,
+                "recommended_price": product.recommended_price,
+            }
+
+        result.append(
+            {
+                "id": internal.id,
+                "product_id": internal.product_id,
+                "odoo_id": internal.odoo_id,
+                "product": product_payload,
+            }
+        )
+
     return jsonify(result)
 
 
