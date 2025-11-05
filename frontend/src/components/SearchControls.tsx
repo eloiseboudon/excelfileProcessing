@@ -9,6 +9,16 @@ interface SearchControlsProps {
   onPriceRangeChange: (min: number, max: number) => void;
   allProducts: Array<{ name: string; price: number; brand: string }>;
   priceRange: { min: number; max: number };
+  suppliers: string[];
+  selectedSupplier: string;
+  onSupplierChange: (supplier: string) => void;
+  onlyInStock: boolean;
+  onOnlyInStockChange: (value: boolean) => void;
+  eanFilter: string;
+  onEanFilterChange: (value: string) => void;
+  sortOrder: 'asc' | 'desc';
+  onSortOrderChange: (order: 'asc' | 'desc') => void;
+  onResetFilters: () => void;
 }
 
 function SearchControls({
@@ -18,8 +28,19 @@ function SearchControls({
   maxPrice,
   onPriceRangeChange,
   allProducts,
-  priceRange
+  priceRange,
+  suppliers,
+  selectedSupplier,
+  onSupplierChange,
+  onlyInStock,
+  onOnlyInStockChange,
+  eanFilter,
+  onEanFilterChange,
+  sortOrder,
+  onSortOrderChange,
+  onResetFilters
 }: SearchControlsProps) {
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
@@ -218,96 +239,167 @@ function SearchControls({
         )}
       </div>
 
-      {/* Filtres de prix - TOUJOURS VISIBLES */}
-      <div className="bg-zinc-800 rounded-xl p-6 border border-zinc-600">
-        <div>
-          <label className="block text-sm font-medium text-zinc-300 mb-4">
-            💰 Gamme de prix: {minPrice}€ - {maxPrice}€
-          </label>
-          
-          <div className="relative mb-6">
-            {/* Curseur double pour la gamme de prix */}
-            <div className="relative h-2 bg-zinc-600 rounded-full">
-              <div
-                className="absolute h-2 bg-[#B8860B] rounded-full"
-                style={{
-                  left: `${((minPrice - priceRange.min) / (priceRange.max - priceRange.min)) * 100}%`,
-                  width: `${((maxPrice - minPrice) / (priceRange.max - priceRange.min)) * 100}%`
-                }}
-              />
-            </div>
-            
-            {/* Curseur minimum */}
-            <input
-              type="range"
-              min={priceRange.min}
-              max={priceRange.max}
-              value={minPrice}
-              onChange={(e) => {
-                const newMin = Math.min(Number(e.target.value), maxPrice - 1);
-                onPriceRangeChange(newMin, maxPrice);
-              }}
-              className="absolute top-0 w-full h-2 opacity-0 cursor-pointer"
-            />
-            
-            {/* Curseur maximum */}
-            <input
-              type="range"
-              min={priceRange.min}
-              max={priceRange.max}
-              value={maxPrice}
-              onChange={(e) => {
-                const newMax = Math.max(Number(e.target.value), minPrice + 1);
-                onPriceRangeChange(minPrice, newMax);
-              }}
-              className="absolute top-0 w-full h-2 opacity-0 cursor-pointer"
-            />
-          </div>
-          
-          {/* Inputs numériques pour prix précis */}
-          <div className="flex items-center space-x-4">
-            <div className="flex-1">
-              <label className="block text-xs text-zinc-400 mb-1">Prix minimum</label>
+      <div className="bg-zinc-800 rounded-xl p-6 border border-zinc-600 space-y-6">
+        <button
+          type="button"
+          onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+          className="flex items-center justify-between w-full text-left text-sm font-semibold text-zinc-300 uppercase tracking-wide"
+        >
+          <span>Filtres avancés</span>
+          <svg
+            className={`w-5 h-5 text-zinc-400 transform transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {showAdvancedFilters && (
+          <div className="space-y-6">
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs text-zinc-400 mb-2">Gamme de prix</label>
+            <div className="relative mb-4">
+              {/* Curseur double pour la gamme de prix */}
+              <div className="relative h-2 bg-zinc-600 rounded-full">
+                <div
+                  className="absolute h-2 bg-[#B8860B] rounded-full"
+                  style={{
+                    left: `${((minPrice - priceRange.min) / (priceRange.max - priceRange.min)) * 100}%`,
+                    width: `${((maxPrice - minPrice) / (priceRange.max - priceRange.min)) * 100}%`
+                  }}
+                />
+              </div>
+              
+              {/* Curseur minimum */}
               <input
-                type="number"
+                type="range"
+                min={priceRange.min}
+                max={priceRange.max}
                 value={minPrice}
                 onChange={(e) => {
-                  const newMin = Math.max(priceRange.min, Math.min(Number(e.target.value), maxPrice - 1));
+                  const newMin = Math.min(Number(e.target.value), maxPrice - 1);
                   onPriceRangeChange(newMin, maxPrice);
                 }}
-                className="w-full px-3 py-2 bg-zinc-700 border border-zinc-600 rounded-lg text-white text-sm focus:border-[#B8860B] focus:outline-none"
-                min={priceRange.min}
-                max={maxPrice - 1}
+                className="absolute top-0 w-full h-2 opacity-0 cursor-pointer"
               />
-            </div>
-            <div className="text-zinc-400 mt-6">-</div>
-            <div className="flex-1">
-              <label className="block text-xs text-zinc-400 mb-1">Prix maximum</label>
+              
+              {/* Curseur maximum */}
               <input
-                type="number"
+                type="range"
+                min={priceRange.min}
+                max={priceRange.max}
                 value={maxPrice}
                 onChange={(e) => {
-                  const newMax = Math.min(priceRange.max, Math.max(Number(e.target.value), minPrice + 1));
+                  const newMax = Math.max(Number(e.target.value), minPrice + 1);
                   onPriceRangeChange(minPrice, newMax);
                 }}
-                className="w-full px-3 py-2 bg-zinc-700 border border-zinc-600 rounded-lg text-white text-sm focus:border-[#B8860B] focus:outline-none"
-                min={minPrice + 1}
-                max={priceRange.max}
+                className="absolute top-0 w-full h-2 opacity-0 cursor-pointer"
               />
             </div>
-            <div className="mt-6">
-              <button
-                onClick={() => {
-                  onPriceRangeChange(priceRange.min, priceRange.max);
-                  onSearchChange('');
-                }}
-                className="px-4 py-2 bg-zinc-600 text-white rounded-lg hover:bg-zinc-500 transition-colors text-sm"
-              >
-                Reset
-              </button>
+            
+            {/* Inputs numériques pour prix précis */}
+            <div className="flex items-center space-x-3">
+              <div className="flex-1">
+                <input
+                  type="number"
+                  value={minPrice}
+                  onChange={(e) => {
+                    const newMin = Math.max(priceRange.min, Math.min(Number(e.target.value), maxPrice - 1));
+                    onPriceRangeChange(newMin, maxPrice);
+                  }}
+                  className="w-full px-3 py-2 bg-zinc-700 border border-zinc-600 rounded-lg text-white text-xs focus:border-[#B8860B] focus:outline-none"
+                  min={priceRange.min}
+                  max={maxPrice - 1}
+                />
+              </div>
+              <span className="text-xs text-zinc-400">à</span>
+              <div className="flex-1">
+                <input
+                  type="number"
+                  value={maxPrice}
+                  onChange={(e) => {
+                    const newMax = Math.min(priceRange.max, Math.max(Number(e.target.value), minPrice + 1));
+                    onPriceRangeChange(minPrice, newMax);
+                  }}
+                  className="w-full px-3 py-2 bg-zinc-700 border border-zinc-600 rounded-lg text-white text-xs focus:border-[#B8860B] focus:outline-none"
+                  min={minPrice + 1}
+                  max={priceRange.max}
+                />
+              </div>
+              <span className="text-xs text-zinc-400">€</span>
             </div>
           </div>
         </div>
+        
+        <div className="pt-4 border-t border-zinc-700">
+          <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">Fournisseur</label>
+            <select
+              value={selectedSupplier}
+              onChange={(event) => onSupplierChange(event.target.value)}
+              className="w-full px-3 py-2 bg-zinc-700 border border-zinc-600 rounded-lg text-white text-sm focus:border-[#B8860B] focus:outline-none"
+            >
+              <option value="all">Tous les fournisseurs</option>
+              {suppliers.map((supplier) => (
+                <option key={supplier} value={supplier}>
+                  {supplier}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">Disponibilité</label>
+            <label className="flex items-center gap-2 px-3 py-2 bg-zinc-700 border border-zinc-600 rounded-lg text-sm text-white">
+              <input
+                type="checkbox"
+                checked={onlyInStock}
+                onChange={(event) => onOnlyInStockChange(event.target.checked)}
+                className="h-4 w-4 rounded border-zinc-500 text-[#B8860B] focus:ring-[#B8860B]"
+              />
+              Stock disponible uniquement
+            </label>
+          </div>
+
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">EAN</label>
+            <input
+              type="text"
+              value={eanFilter}
+              onChange={(event) => onEanFilterChange(event.target.value)}
+              placeholder="Rechercher par EAN"
+              className="w-full px-3 py-2 bg-zinc-700 border border-zinc-600 rounded-lg text-white text-sm focus:border-[#B8860B] focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">Tri par prix</label>
+            <select
+              value={sortOrder}
+              onChange={(event) => onSortOrderChange(event.target.value as 'asc' | 'desc')}
+              className="w-full px-3 py-2 bg-zinc-700 border border-zinc-600 rounded-lg text-white text-sm focus:border-[#B8860B] focus:outline-none"
+            >
+              <option value="asc">Prix croissant</option>
+              <option value="desc">Prix décroissant</option>
+            </select>
+          </div>
+          </div>
+            </div>
+            
+            <div className="pt-4 border-t border-zinc-700">
+              <button
+                onClick={onResetFilters}
+                className="w-full py-2 bg-zinc-600 text-white rounded-lg hover:bg-zinc-500 transition-colors text-sm"
+              >
+                Réinitialiser les filtres
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
