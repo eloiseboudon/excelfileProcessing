@@ -29,7 +29,6 @@ dist-ssr
 .flake8
 
 frontend/.env
-frontend/package-lock.json
 
 backend/instance/
 backend/instance/*
