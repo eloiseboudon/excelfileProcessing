@@ -343,13 +343,33 @@ Le gabarit OpenAPI se trouve dans `backend/swagger_template.yml`.
 
 ## Verifications locales
 
+### Tests backend
+
+Le framework `pytest` est configure dans le backend (SQLite in-memory, pas besoin de PostgreSQL). Lancez les tests depuis le conteneur ou depuis un environnement local :
+
+```bash
+cd backend
+pip install -r requirements.txt
+python -m pytest tests/ -v
+```
+
+### Tests frontend
+
+Le framework `vitest` avec Testing Library est configure dans le frontend :
+
+```bash
+cd frontend
+npm install
+npm test          # execution unique
+npm run test:watch  # mode watch
+```
+
 ### Lint frontend
 
 Apres avoir installe les dependances, executez le linter :
 
 ```bash
 cd frontend
-npm install
 npm run lint
 ```
 
@@ -360,15 +380,6 @@ Pour verifier que le frontend compile sans erreur :
 ```bash
 cd frontend
 npm run build
-```
-
-### Tests Python
-
-Le framework `pytest` est configure dans le backend. Lancez les tests depuis le conteneur ou depuis un environnement local :
-
-```bash
-cd backend
-pytest
 ```
 
 ### Validation Docker

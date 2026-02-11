@@ -13,4 +13,6 @@ gunicorn>=21.2.0
 requests>=2.31
 jmespath>=1.0
 python-dateutil>=2.8
+pytest>=8.0
+pytest-flask>=1.3
 

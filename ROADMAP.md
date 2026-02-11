@@ -90,3 +90,27 @@ Traitement des fichiers Excel fournisseurs pour generation de documents prets a 
 - **Generation HTML** pour apercu navigateur
 
 Composants concernes : `FormattingPage`
+
+---
+
+## Tests automatises (implementee)
+
+Infrastructure de tests unitaires et d'integration pour le backend et le frontend, integree dans la CI GitHub Actions.
+
+### Backend (pytest)
+
+- **Infrastructure** : SQLite in-memory, fixtures `admin_user`, `client_user`, `admin_headers`
+- **Tests unitaires** : `utils/pricing.py` (seuils, TCP, marges, edge cases), `utils/auth.py` (JWT generation, decodage, expiration, decorator)
+- **Tests d'integration** : routes `POST /login`, CRUD `/users`, CRUD `/products`, operations en masse (`bulk_update`, `bulk_delete`)
+- **44 tests** dans 5 fichiers
+
+### Frontend (Vitest + Testing Library)
+
+- **Tests utils** : `date.ts`, `numbers.ts`, `text.ts`, `processing.ts`, `html.ts` (fonctions pures)
+- **Tests composants** : `LoginPage`, `NotificationProvider`, `App` (rendu, formulaires, navigation conditionnelle)
+- **78 tests** dans 8 fichiers
+
+### CI
+
+- Jobs `frontend` et `backend` parallelises dans `.github/workflows/ci.yml`
+- Tests executes automatiquement sur chaque push et pull request
