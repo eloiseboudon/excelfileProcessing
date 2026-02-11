@@ -86,14 +86,14 @@ function UserAdmin({ isVisible, onClose }: UserAdminProps) {
       <div className="flex justify-end mb-4">
         <button
           onClick={onClose}
-          className="px-3 py-1 bg-zinc-800 rounded hover:bg-zinc-700"
+          className="px-3 py-1 bg-[var(--color-bg-elevated)] rounded hover:bg-[var(--color-bg-input)]"
         >
           Fermer
         </button>
       </div>
       <div className="space-y-2">
         <div className="flex items-center space-x-2 font-semibold px-2">
-          <span className="w-10 text-zinc-400">ID</span>
+          <span className="w-10 text-[var(--color-text-muted)]">ID</span>
           <span className="flex-1">Username</span>
           <span className="flex-1">Nom</span>
           <span className="flex-1">Prénom</span>
@@ -102,49 +102,49 @@ function UserAdmin({ isVisible, onClose }: UserAdminProps) {
           <span className="w-16" />
         </div>
         {users.map(u => (
-          <div key={u.id} className="flex items-center space-x-2 bg-zinc-800 p-2 rounded">
-            <span className="w-10 text-zinc-400">{u.id > 0 ? u.id : '-'}</span>
+          <div key={u.id} className="flex items-center space-x-2 bg-[var(--color-bg-elevated)] p-2 rounded">
+            <span className="w-10 text-[var(--color-text-muted)]">{u.id > 0 ? u.id : '-'}</span>
             <input
               value={u.username}
               onChange={e => handleChange(u.id, 'username', e.target.value)}
               placeholder="username"
-              className="flex-1 px-2 py-1 bg-zinc-700 text-white rounded"
+              className="flex-1 px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
             />
 
             <input
               value={u.last_name}
               onChange={e => handleChange(u.id, 'last_name', e.target.value)}
               placeholder="nom"
-              className="flex-1 px-2 py-1 bg-zinc-700 text-white rounded"
+              className="flex-1 px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
             /> <input
               value={u.first_name}
               onChange={e => handleChange(u.id, 'first_name', e.target.value)}
               placeholder="prénom"
-              className="flex-1 px-2 py-1 bg-zinc-700 text-white rounded"
+              className="flex-1 px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
             />
             <input
               value={u.email}
               onChange={e => handleChange(u.id, 'email', e.target.value)}
               placeholder="email"
-              className="flex-1 px-2 py-1 bg-zinc-700 text-white rounded"
+              className="flex-1 px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
             />
             <select
               value={u.role}
               onChange={e => handleChange(u.id, 'role', e.target.value)}
-              className="w-40 px-2 py-1 bg-zinc-700 text-white rounded"
+              className="w-40 px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
             >
               <option value="client">client</option>
               <option value="admin">admin</option>
             </select>
             <button
               onClick={() => handleSave(u.id)}
-              className="p-2 bg-green-600 text-white rounded hover:bg-green-700"
+              className="p-2 bg-green-600 text-[var(--color-text-primary)] rounded hover:bg-green-700"
             >
               <Save className="w-4 h-4" />
             </button>
             <button
               onClick={() => handleDelete(u.id)}
-              className="p-2 bg-red-600 text-white rounded hover:bg-red-700"
+              className="p-2 bg-red-600 text-[var(--color-text-primary)] rounded hover:bg-red-700"
             >
               <Trash className="w-4 h-4" />
             </button>
@@ -154,7 +154,7 @@ function UserAdmin({ isVisible, onClose }: UserAdminProps) {
       <div className="flex justify-end mt-4">
         <button
           onClick={handleAdd}
-          className="flex items-center space-x-2 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+          className="flex items-center space-x-2 px-3 py-2 bg-green-600 text-[var(--color-text-primary)] rounded hover:bg-green-700"
         >
           <Plus className="w-4 h-4" />
           <span>Ajouter</span>

@@ -161,8 +161,8 @@ function SupplierPriceModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-      <div className="bg-zinc-900 p-6 rounded-lg border border-zinc-700 w-full max-w-5xl mx-4">
+    <div className="fixed inset-0 bg-[var(--color-bg-overlay)] flex items-center justify-center z-50">
+      <div className="bg-[var(--color-bg-surface)] p-6 rounded-lg border border-[var(--color-border-default)] w-full max-w-5xl mx-4">
         <h2 className="text-xl font-semibold mb-4">
           Dernières données calculées par fournisseur
         </h2>
@@ -176,7 +176,7 @@ function SupplierPriceModal({
                 step="0.01"
                 value={marginEuro}
                 onChange={(e) => handleEuroChange(e.target.value)}
-                className="rounded border border-zinc-600 bg-zinc-800 px-3 py-2"
+                className="rounded border border-[var(--color-border-strong)] bg-[var(--color-bg-elevated)] px-3 py-2"
               />
             </label>
             <label className="flex flex-col text-sm">
@@ -186,17 +186,17 @@ function SupplierPriceModal({
                 step="0.01"
                 value={marginPercent}
                 onChange={(e) => handlePercentChange(e.target.value)}
-                className="rounded border border-zinc-600 bg-zinc-800 px-3 py-2"
+                className="rounded border border-[var(--color-border-strong)] bg-[var(--color-bg-elevated)] px-3 py-2"
                 disabled={!baseCost}
               />
               {!baseCost && (
-                <span className="mt-1 text-xs text-zinc-400">
+                <span className="mt-1 text-xs text-[var(--color-text-muted)]">
                   Impossible de calculer le pourcentage : prix d&apos;achat ou TCP manquant.
                 </span>
               )}
             </label>
           </div>
-          <div className="flex flex-wrap items-center gap-4 text-sm text-zinc-300">
+          <div className="flex flex-wrap items-center gap-4 text-sm text-[var(--color-text-secondary)]">
             <span>Base (PA + TCP)&nbsp;: {formatCurrency(baseCost)}</span>
             <span>Prix de vente HT recalculé&nbsp;: {formatCurrency(computedRecommendedPrice)}</span>
           </div>

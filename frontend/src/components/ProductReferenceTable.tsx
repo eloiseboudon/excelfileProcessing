@@ -86,7 +86,7 @@ function ProductReferenceTable({
         <button
           onClick={() => onPageChange(Math.max(1, currentPage - 1))}
           disabled={currentPage === 1}
-          className="px-3 py-1 bg-zinc-800 rounded disabled:opacity-50"
+          className="px-3 py-1 bg-[var(--color-bg-elevated)] rounded disabled:opacity-50"
         >
           Précédent
         </button>
@@ -96,7 +96,7 @@ function ProductReferenceTable({
         <button
           onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
           disabled={currentPage === totalPages}
-          className="px-3 py-1 bg-zinc-800 rounded disabled:opacity-50"
+          className="px-3 py-1 bg-[var(--color-bg-elevated)] rounded disabled:opacity-50"
         >
           Suivant
         </button>
@@ -109,7 +109,7 @@ function ProductReferenceTable({
           id="rowsPerPage"
           value={rowsPerPage}
           onChange={(e) => onRowsPerPageChange(Number(e.target.value))}
-          className="bg-zinc-900 border border-zinc-600 rounded px-2 py-1"
+          className="bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded px-2 py-1"
         >
           <option value={10}>10</option>
           <option value={20}>20</option>
@@ -129,7 +129,7 @@ function ProductReferenceTable({
             onChange={(e) =>
               onChange(row.id, 'brand_id', e.target.value === '' ? null : Number(e.target.value))
             }
-            className="px-2 py-1 bg-zinc-700 rounded"
+            className="px-2 py-1 bg-[var(--color-bg-input)] rounded"
           >
             <option value="">null</option>
             {brands.map((b) => (
@@ -146,7 +146,7 @@ function ProductReferenceTable({
             onChange={(e) =>
               onChange(row.id, 'memory_id', e.target.value === '' ? null : Number(e.target.value))
             }
-            className="px-2 py-1 bg-zinc-700 rounded"
+            className="px-2 py-1 bg-[var(--color-bg-input)] rounded"
           >
             <option value="">null</option>
             {memories.map((m) => (
@@ -163,7 +163,7 @@ function ProductReferenceTable({
             onChange={(e) =>
               onChange(row.id, 'color_id', e.target.value === '' ? null : Number(e.target.value))
             }
-            className="px-2 py-1 bg-zinc-700 rounded"
+            className="px-2 py-1 bg-[var(--color-bg-input)] rounded"
           >
             <option value="">null</option>
             {colors.map((c) => (
@@ -180,7 +180,7 @@ function ProductReferenceTable({
             onChange={(e) =>
               onChange(row.id, 'type_id', e.target.value === '' ? null : Number(e.target.value))
             }
-            className="px-2 py-1 bg-zinc-700 rounded"
+            className="px-2 py-1 bg-[var(--color-bg-input)] rounded"
           >
             <option value="">null</option>
             {types.map((t) => (
@@ -197,7 +197,7 @@ function ProductReferenceTable({
             onChange={(e) =>
               onChange(row.id, 'ram_id', e.target.value === '' ? null : Number(e.target.value))
             }
-            className="px-2 py-1 bg-zinc-700 rounded"
+            className="px-2 py-1 bg-[var(--color-bg-input)] rounded"
           >
             <option value="">null</option>
             {rams.map((r) => (
@@ -214,7 +214,7 @@ function ProductReferenceTable({
             onChange={(e) =>
               onChange(row.id, 'norme_id', e.target.value === '' ? null : Number(e.target.value))
             }
-            className="px-2 py-1 bg-zinc-700 rounded"
+            className="px-2 py-1 bg-[var(--color-bg-input)] rounded"
           >
             <option value="">null</option>
             {normes.map((n) => (
@@ -229,7 +229,7 @@ function ProductReferenceTable({
           <input
             value={row.model}
             onChange={(e) => onChange(row.id, 'model', e.target.value)}
-            className="w-full px-2 py-1 bg-zinc-700 rounded"
+            className="w-full px-2 py-1 bg-[var(--color-bg-input)] rounded"
           />
         );
       case 'description':
@@ -237,7 +237,7 @@ function ProductReferenceTable({
           <input
             value={row.description}
             onChange={(e) => onChange(row.id, 'description', e.target.value)}
-            className="w-full px-2 py-1 bg-zinc-700 rounded"
+            className="w-full px-2 py-1 bg-[var(--color-bg-input)] rounded"
           />
         );
       case 'ean':
@@ -245,7 +245,7 @@ function ProductReferenceTable({
           <input
             value={row.ean ?? ''}
             onChange={(e) => onChange(row.id, 'ean', e.target.value)}
-            className="w-full px-2 py-1 bg-zinc-700 rounded"
+            className="w-full px-2 py-1 bg-[var(--color-bg-input)] rounded"
           />
         );
       default:
@@ -257,28 +257,28 @@ function ProductReferenceTable({
     <>
       {paginationControls}
       <div className="overflow-auto mt-4">
-        <table className="min-w-full text-sm text-left border border-zinc-700">
+        <table className="min-w-full text-sm text-left border border-[var(--color-border-default)]">
           <thead>
-            <tr className="bg-zinc-800">
-              <th className="px-3 py-2 border-b border-zinc-700 w-12" />
+            <tr className="bg-[var(--color-bg-elevated)]">
+              <th className="px-3 py-2 border-b border-[var(--color-border-default)] w-12" />
               {columns.map(
                 (col) =>
                   visibleColumns.includes(col.key) && (
-                    <th key={col.key} className="px-3 py-2 border-b border-zinc-700">
+                    <th key={col.key} className="px-3 py-2 border-b border-[var(--color-border-default)]">
                       {col.label}
                     </th>
                   )
               )}
-              <th className="px-3 py-2 border-b border-zinc-700 w-20 text-center">
+              <th className="px-3 py-2 border-b border-[var(--color-border-default)] w-20 text-center">
                 Actions
               </th>
             </tr>
             <tr>
-              <th className="px-3 py-1 border-b border-zinc-700" />
+              <th className="px-3 py-1 border-b border-[var(--color-border-default)]" />
               {columns.map(
                 (col) =>
                   visibleColumns.includes(col.key) && (
-                    <th key={col.key} className="px-3 py-1 border-b border-zinc-700">
+                    <th key={col.key} className="px-3 py-1 border-b border-[var(--color-border-default)]">
                       {['brand', 'memory', 'color', 'type', 'ram', 'norme'].includes(col.key) ? (
                         <MultiSelectFilter
                           options={getFilterOptions(col.key)}
@@ -294,19 +294,19 @@ function ProductReferenceTable({
                           onChange={(e) =>
                             onFilterChange({ ...filters, [col.key]: e.target.value })
                           }
-                          className="w-full px-2 py-1 bg-zinc-900 border border-zinc-600 rounded"
+                          className="w-full px-2 py-1 bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded"
                         />
                       )}
                     </th>
                   )
               )}
-              <th className="px-3 py-1 border-b border-zinc-700" />
+              <th className="px-3 py-1 border-b border-[var(--color-border-default)]" />
             </tr>
           </thead>
           <tbody>
             {paginatedData.map((row) => (
-              <tr key={String(row.id)} className="odd:bg-zinc-900 even:bg-zinc-800">
-                <td className="px-3 py-1 border-b border-zinc-700">
+              <tr key={String(row.id)} className="odd:bg-[var(--color-bg-surface)] even:bg-[var(--color-bg-elevated)]">
+                <td className="px-3 py-1 border-b border-[var(--color-border-default)]">
                   <input
                     type="checkbox"
                     checked={selectedProducts.includes(row.id)}
@@ -317,15 +317,15 @@ function ProductReferenceTable({
                 {columns.map(
                   (col) =>
                     visibleColumns.includes(col.key) && (
-                      <td key={col.key} className="px-3 py-1 border-b border-zinc-700">
+                      <td key={col.key} className="px-3 py-1 border-b border-[var(--color-border-default)]">
                         {renderCellContent(row, col.key)}
                       </td>
                     )
                 )}
-                <td className="px-3 py-1 border-b border-zinc-700 text-center">
+                <td className="px-3 py-1 border-b border-[var(--color-border-default)] text-center">
                   <button
                     onClick={() => onDelete(row.id)}
-                    className="inline-flex items-center justify-center w-8 h-8 rounded bg-red-600 text-white hover:bg-red-700"
+                    className="inline-flex items-center justify-center w-8 h-8 rounded bg-red-600 text-[var(--color-text-primary)] hover:bg-red-700"
                     title="Supprimer"
                   >
                     <Trash2 className="w-4 h-4" />

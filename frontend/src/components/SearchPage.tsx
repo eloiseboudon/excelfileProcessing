@@ -21,14 +21,14 @@ interface SearchProduct {
 
 
 const SUPPLIER_BADGE_STYLES = [
-  'bg-emerald-500/15 text-emerald-200 ring-emerald-500/40',
-  'bg-sky-500/15 text-sky-200 ring-sky-500/40',
-  'bg-violet-500/15 text-violet-200 ring-violet-500/40',
-  'bg-rose-500/15 text-rose-200 ring-rose-500/40',
-  'bg-amber-500/15 text-amber-200 ring-amber-500/40',
-  'bg-lime-500/15 text-lime-200 ring-lime-500/40',
-  'bg-cyan-500/15 text-cyan-200 ring-cyan-500/40',
-  'bg-fuchsia-500/15 text-fuchsia-200 ring-fuchsia-500/40',
+  'bg-emerald-500/15 text-emerald-700 dark:text-emerald-200 ring-emerald-500/40',
+  'bg-sky-500/15 text-sky-700 dark:text-sky-200 ring-sky-500/40',
+  'bg-violet-500/15 text-violet-700 dark:text-violet-200 ring-violet-500/40',
+  'bg-rose-500/15 text-rose-700 dark:text-rose-200 ring-rose-500/40',
+  'bg-amber-500/15 text-amber-700 dark:text-amber-200 ring-amber-500/40',
+  'bg-lime-500/15 text-lime-700 dark:text-lime-200 ring-lime-500/40',
+  'bg-cyan-500/15 text-cyan-700 dark:text-cyan-200 ring-cyan-500/40',
+  'bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-200 ring-fuchsia-500/40',
 ];
 
 function hashSupplierName(value: string): number {
@@ -64,7 +64,7 @@ function buildSearchIndex(...values: Array<string | null | undefined | string[]>
 
 function getSupplierBadgeClass(name: string | null): string {
   if (!name) {
-    return 'bg-zinc-700/40 text-zinc-300 ring-zinc-500/20';
+    return 'bg-[var(--color-bg-input)]/40 text-[var(--color-text-secondary)] ring-zinc-500/20';
   }
 
   const paletteIndex = hashSupplierName(name) % SUPPLIER_BADGE_STYLES.length;
@@ -187,17 +187,17 @@ function SearchPage() {
   return (
     <div className="max-w-7xl mx-auto w-full flex-1 px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-semibold text-white mb-2 flex items-center gap-3">
+        <h1 className="text-3xl font-semibold text-[var(--color-text-primary)] mb-2 flex items-center gap-3">
           <PackageSearch className="w-8 h-8 text-[#B8860B]" />
           Moteur de recherche produits
         </h1>
-        <p className="text-zinc-400 max-w-2xl">
+        <p className="text-[var(--color-text-muted)] max-w-2xl">
           Explorez l&apos;ensemble du catalogue, affinez vos recherches par prix ou mots-clés et accédez rapidement aux produits pertinents.
         </p>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20 text-zinc-400">
+        <div className="flex items-center justify-center py-20 text-[var(--color-text-muted)]">
           <Loader2 className="w-6 h-6 animate-spin mr-3" />
           Chargement des produits...
         </div>
@@ -225,14 +225,14 @@ function SearchPage() {
 
           <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-white">Résultats ({displayedProducts.length})</h2>
-            <span className="text-sm text-zinc-400">
+            <h2 className="text-xl font-semibold text-[var(--color-text-primary)]">Résultats ({displayedProducts.length})</h2>
+            <span className="text-sm text-[var(--color-text-muted)]">
               Gamme sélectionnée : {minPrice}€ - {maxPrice}€
             </span>
           </div>
 
           {displayedProducts.length === 0 ? (
-            <div className="rounded-xl border border-zinc-700 bg-zinc-900/60 px-6 py-12 text-center text-zinc-400">
+            <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-card)] px-6 py-12 text-center text-[var(--color-text-muted)]">
               Aucun produit ne correspond à votre recherche pour le moment.
             </div>
           ) : (
@@ -240,18 +240,18 @@ function SearchPage() {
               {displayedProducts.map((product) => (
                 <div
                   key={product.id}
-                  className="w-full rounded-xl border border-zinc-700/60 bg-zinc-900/60 p-5"
+                  className="w-full rounded-xl border border-[var(--color-border-default)]/60 bg-[var(--color-bg-card)] p-5"
                 >
                   <div className="flex items-start justify-between gap-6">
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-semibold text-white">{product.name}</h3>
+                      <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">{product.name}</h3>
                       {product.brand && (
                         <p className="mt-1 text-sm uppercase tracking-wide text-[#B8860B]">{product.brand}</p>
                       )}
                       {product.description && (
-                        <p className="mt-2 text-sm text-zinc-400 line-clamp-2">{product.description}</p>
+                        <p className="mt-2 text-sm text-[var(--color-text-muted)] line-clamp-2">{product.description}</p>
                       )}
-                      <div className="mt-3 flex items-center gap-4 text-xs text-zinc-400">
+                      <div className="mt-3 flex items-center gap-4 text-xs text-[var(--color-text-muted)]">
                         <span className="flex items-center gap-1.5">
                           <Boxes className="h-3.5 w-3.5" />
                           Stock: {typeof product.quantity === 'number' ? product.quantity : 'N/C'}

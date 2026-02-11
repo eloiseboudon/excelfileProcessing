@@ -9,6 +9,12 @@
   <link rel="icon" type="image/png" href="https://ajtpro.com/wp-content/uploads/2023/12/Logo-AJT-PRO-noir-or.png" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AJT Pro</title>
+  <script>
+    (function(){
+      var t = localStorage.getItem('ajtpro_theme');
+      if (t === 'dark' || !t) document.documentElement.classList.add('dark');
+    })();
+  </script>
 </head>
 
 <body>

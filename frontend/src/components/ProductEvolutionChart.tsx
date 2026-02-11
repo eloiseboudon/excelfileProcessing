@@ -19,7 +19,7 @@ function GroupedBarChart({
     return (
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="w-full h-80 bg-zinc-900 rounded"
+        className="w-full h-80 bg-[var(--color-bg-surface)] rounded"
       />
     );
   }
@@ -33,7 +33,7 @@ function GroupedBarChart({
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
-      className="w-full h-80 bg-zinc-900 rounded"
+      className="w-full h-80 bg-[var(--color-bg-surface)] rounded"
       preserveAspectRatio="xMidYMid meet"
     >
       {labels.map((l, i) => (
@@ -43,7 +43,7 @@ function GroupedBarChart({
           y={height - padding + 15}
           fontSize="10"
           textAnchor="middle"
-          fill="white"
+          fill="var(--color-chart-text)"
         >
           {l}
         </text>
@@ -75,13 +75,13 @@ function GroupedBarChart({
           y={height - padding - ((height - padding * 2) / 4) * i + 4}
           fontSize="10"
           textAnchor="end"
-          fill="white"
+          fill="var(--color-chart-text)"
         >
           {((maxVal / 4) * i).toFixed(0)}
         </text>
       ))}
-      <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="white" />
-      <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="white" />
+      <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="var(--color-chart-axis)" />
+      <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="var(--color-chart-axis)" />
     </svg>
   );
 }
@@ -95,7 +95,7 @@ function ProductEvolutionChart({ productSupplierSeries }: ProductEvolutionChartP
       </h2>
       <GroupedBarChart series={productSupplierSeries} />
       {productSupplierSeries.length === 0 && (
-        <p className="text-center text-sm text-zinc-400 mt-2">Pas de données</p>
+        <p className="text-center text-sm text-[var(--color-text-muted)] mt-2">Pas de données</p>
       )}
     </div>
   );

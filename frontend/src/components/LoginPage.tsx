@@ -22,22 +22,22 @@ export default function LoginPage({ onLogin }: Props) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-900 text-white">
-      <form onSubmit={handleSubmit} className="bg-zinc-800 p-6 rounded space-y-4 w-80">
+    <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg-surface)] text-[var(--color-text-primary)]">
+      <form onSubmit={handleSubmit} className="bg-[var(--color-bg-elevated)] p-6 rounded space-y-4 w-80">
         <h1 className="text-xl font-bold text-center">Connexion</h1>
         <input
           type="email"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full px-3 py-2 bg-zinc-700 rounded"
+          className="w-full px-3 py-2 bg-[var(--color-bg-input)] rounded"
         />
         <input
           type="password"
           placeholder="Mot de passe"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full px-3 py-2 bg-zinc-700 rounded"
+          className="w-full px-3 py-2 bg-[var(--color-bg-input)] rounded"
         />
         <button type="submit" className="btn btn-primary w-full">
           Se connecter

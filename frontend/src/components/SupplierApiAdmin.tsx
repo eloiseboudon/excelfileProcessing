@@ -125,7 +125,7 @@ function FieldCategoryBadge({ category }: { category: FieldCategory }) {
     },
     other: {
       label: 'Autre',
-      className: 'bg-zinc-700/40 text-zinc-200 border-zinc-500/40',
+      className: 'bg-[var(--color-bg-input)]/40 text-[var(--color-text-secondary)] border-zinc-500/40',
     },
   } satisfies Record<FieldCategory, { label: string; className: string }>;
 
@@ -633,7 +633,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
       <div className="flex items-center gap-3">
         <button
           onClick={onClose}
-          className="flex items-center gap-2 px-3 py-2 bg-zinc-800 rounded hover:bg-zinc-700 transition-colors"
+          className="flex items-center gap-2 px-3 py-2 bg-[var(--color-bg-elevated)] rounded hover:bg-[var(--color-bg-input)] transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Retour</span>
@@ -641,7 +641,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
         <h2 className="text-xl font-semibold">Gestion des API fournisseurs</h2>
       </div>
 
-      {loading && <p className="text-sm text-zinc-400">Chargement des configurations…</p>}
+      {loading && <p className="text-sm text-[var(--color-text-muted)]">Chargement des configurations…</p>}
       {error && (
         <div className="flex items-center gap-2 text-sm text-red-300 bg-red-500/10 border border-red-500/30 px-4 py-3 rounded-lg">
           <AlertCircle className="w-5 h-5" />
@@ -658,17 +658,17 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
       <div className="space-y-10">
         {configs.map((supplier) => (
           <div key={supplier.id} className="space-y-5">
-            <div className="flex items-center gap-3 border-b border-zinc-800/60 pb-3">
+            <div className="flex items-center gap-3 border-b border-[var(--color-border-subtle)]/60 pb-3">
               <div className="p-2 rounded-lg bg-[#B8860B]/10 text-[#B8860B]">
                 <Server className="w-5 h-5" />
               </div>
               <div className="flex-1">
                 <p className="text-xs uppercase text-zinc-500 tracking-wide">Fournisseur</p>
-                <h3 className="text-lg font-semibold text-white">{supplier.name}</h3>
+                <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">{supplier.name}</h3>
               </div>
               <button
                 onClick={() => handleAddApi(supplier.id)}
-                className="flex items-center gap-2 px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-500"
+                className="flex items-center gap-2 px-3 py-2 bg-emerald-600 text-[var(--color-text-primary)] rounded hover:bg-emerald-500"
               >
                 <Plus className="w-4 h-4" />
                 <span>Ajouter une API</span>
@@ -681,11 +681,11 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                   const fields = mapFieldsWithCategory(api.mapping?.fields);
 
                   return (
-                    <div key={api.id} className="bg-black/30 border border-zinc-800/60 rounded-xl">
-                      <div className="px-5 py-4 flex flex-col gap-4 border-b border-zinc-800/60">
+                    <div key={api.id} className="bg-[var(--color-bg-subtle)] border border-[var(--color-border-subtle)]/60 rounded-xl">
+                      <div className="px-5 py-4 flex flex-col gap-4 border-b border-[var(--color-border-subtle)]/60">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div className="flex flex-col gap-2">
-                            <label className="text-xs uppercase tracking-wide text-zinc-400">
+                            <label className="text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
                               Base URL
                             </label>
                             <input
@@ -694,11 +694,11 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                                 handleApiChange(supplier.id, api.id, 'base_url', e.target.value)
                               }
                               placeholder="https://api.fournisseur.com"
-                              className="px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-white placeholder:text-zinc-500"
+                              className="px-3 py-2 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]"
                             />
                           </div>
                           <div className="flex flex-col gap-2">
-                            <label className="text-xs uppercase tracking-wide text-zinc-400">
+                            <label className="text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
                               Authentification
                             </label>
                             <select
@@ -706,7 +706,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                               onChange={(e) =>
                                 handleApiChange(supplier.id, api.id, 'auth_type', e.target.value)
                               }
-                              className="px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-white"
+                              className="px-3 py-2 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] text-[var(--color-text-primary)]"
                             >
                               {AUTH_TYPE_OPTIONS.map((option) => (
                                 <option key={option.value} value={option.value}>
@@ -716,7 +716,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                             </select>
                           </div>
                           <div className="flex flex-col gap-2">
-                            <label className="text-xs uppercase tracking-wide text-zinc-400">
+                            <label className="text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
                               Limite/minute
                             </label>
                             <input
@@ -732,21 +732,21 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                                 )
                               }
                               placeholder="Illimité"
-                              className="px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-white placeholder:text-zinc-500"
+                              className="px-3 py-2 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]"
                             />
                           </div>
                         </div>
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => handleApiSave(supplier.id, api)}
-                            className="inline-flex items-center gap-2 px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-500"
+                            className="inline-flex items-center gap-2 px-3 py-2 bg-emerald-600 text-[var(--color-text-primary)] rounded hover:bg-emerald-500"
                           >
                             <Save className="w-4 h-4" />
                             <span>{api.id < 0 ? 'Créer' : 'Enregistrer'}</span>
                           </button>
                           <button
                             onClick={() => handleApiDelete(supplier.id, api)}
-                            className="inline-flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded hover:bg-red-500"
+                            className="inline-flex items-center gap-2 px-3 py-2 bg-red-600 text-[var(--color-text-primary)] rounded hover:bg-red-500"
                           >
                             <Trash2 className="w-4 h-4" />
                             <span>Supprimer</span>
@@ -757,12 +757,12 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                       <div className="p-5 space-y-6">
                         <section className="space-y-3">
                           <div className="flex items-center justify-between">
-                            <h4 className="text-sm text-zinc-400 uppercase tracking-wide">
+                            <h4 className="text-sm text-[var(--color-text-muted)] uppercase tracking-wide">
                               Endpoints
                             </h4>
                             <button
                               onClick={() => handleAddEndpoint(supplier.id, api)}
-                              className="flex items-center gap-2 px-3 py-2 bg-zinc-800 rounded hover:bg-zinc-700"
+                              className="flex items-center gap-2 px-3 py-2 bg-[var(--color-bg-elevated)] rounded hover:bg-[var(--color-bg-input)]"
                             >
                               <Plus className="w-4 h-4" />
                               <span>Ajouter un endpoint</span>
@@ -771,8 +771,8 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
 
                           {api.endpoints.length > 0 ? (
                             <div className="overflow-x-auto">
-                              <table className="min-w-full text-sm text-left text-zinc-200 border border-zinc-800/60 rounded-lg overflow-hidden">
-                                <thead className="bg-zinc-900/80 text-xs uppercase tracking-wide text-zinc-400">
+                              <table className="min-w-full text-sm text-left text-[var(--color-text-secondary)] border border-[var(--color-border-subtle)]/60 rounded-lg overflow-hidden">
+                                <thead className="bg-[var(--color-bg-surface)]/80 text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
                                   <tr>
                                     <th className="px-4 py-2 font-medium">Nom</th>
                                     <th className="px-4 py-2 font-medium">Méthode</th>
@@ -785,7 +785,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                                   {api.endpoints.map((endpoint) => (
                                     <tr
                                       key={endpoint.id}
-                                      className="border-t border-zinc-800/60 even:bg-black/20"
+                                      className="border-t border-[var(--color-border-subtle)]/60 even:bg-[var(--color-bg-faint)]"
                                     >
                                       <td className="px-4 py-2">
                                         <input
@@ -800,7 +800,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                                             )
                                           }
                                           placeholder="Nom"
-                                          className="w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-700 text-white placeholder:text-zinc-500"
+                                          className="w-full px-2 py-1 rounded bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]"
                                         />
                                       </td>
                                       <td className="px-4 py-2">
@@ -815,7 +815,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                                               e.target.value
                                             )
                                           }
-                                          className="px-2 py-1 rounded bg-zinc-900 border border-zinc-700 text-white"
+                                          className="px-2 py-1 rounded bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] text-[var(--color-text-primary)]"
                                         >
                                           {HTTP_METHODS.map((method) => (
                                             <option key={method} value={method}>
@@ -837,7 +837,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                                             )
                                           }
                                           placeholder="/v1/products"
-                                          className="w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-700 text-white placeholder:text-zinc-500"
+                                          className="w-full px-2 py-1 rounded bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]"
                                         />
                                       </td>
                                       <td className="px-4 py-2">
@@ -853,7 +853,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                                             )
                                           }
                                           placeholder="data.items"
-                                          className="w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-700 text-white placeholder:text-zinc-500"
+                                          className="w-full px-2 py-1 rounded bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]"
                                         />
                                       </td>
                                       <td className="px-4 py-2">
@@ -862,7 +862,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                                             onClick={() =>
                                               handleEndpointSave(supplier.id, api.id, endpoint)
                                             }
-                                            className="p-2 rounded bg-emerald-600 text-white hover:bg-emerald-500"
+                                            className="p-2 rounded bg-emerald-600 text-[var(--color-text-primary)] hover:bg-emerald-500"
                                           >
                                             <Save className="w-4 h-4" />
                                           </button>
@@ -870,7 +870,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                                             onClick={() =>
                                               handleEndpointDelete(supplier.id, api, endpoint)
                                             }
-                                            className="p-2 rounded bg-red-600 text-white hover:bg-red-500"
+                                            className="p-2 rounded bg-red-600 text-[var(--color-text-primary)] hover:bg-red-500"
                                           >
                                             <Trash2 className="w-4 h-4" />
                                           </button>
@@ -891,12 +891,12 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                         <section className="space-y-3">
                           <div className="flex items-center justify-between">
                             <div className="flex flex-col">
-                              <h4 className="text-sm text-zinc-400 uppercase tracking-wide">
+                              <h4 className="text-sm text-[var(--color-text-muted)] uppercase tracking-wide">
                                 Mapping des champs
                               </h4>
                               {api.mapping && (
-                                <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-zinc-400">
-                                  <span className="px-2 py-1 rounded-full border border-zinc-700 bg-zinc-900/70">
+                                <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
+                                  <span className="px-2 py-1 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]/70">
                                     Version {api.mapping.version}
                                   </span>
                                   {api.mapping.is_active ? (
@@ -904,21 +904,21 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                                       Actif
                                     </span>
                                   ) : (
-                                    <span className="px-2 py-1 rounded-full border border-zinc-700 bg-zinc-900/70">
+                                    <span className="px-2 py-1 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]/70">
                                       Inactif
                                     </span>
                                   )}
                                 </div>
                               )}
                               <p className="text-xs text-zinc-500 mt-1">
-                                Champs obligatoires : <code className="text-zinc-300">supplier_sku</code>,{' '}
-                                <code className="text-zinc-300">price</code> et{' '}
-                                <code className="text-zinc-300">quantity</code>.
+                                Champs obligatoires : <code className="text-[var(--color-text-secondary)]">supplier_sku</code>,{' '}
+                                <code className="text-[var(--color-text-secondary)]">price</code> et{' '}
+                                <code className="text-[var(--color-text-secondary)]">quantity</code>.
                               </p>
                             </div>
                             <button
                               onClick={() => handleAddField(supplier.id, api)}
-                              className="flex items-center gap-2 px-3 py-2 bg-zinc-800 rounded hover:bg-zinc-700"
+                              className="flex items-center gap-2 px-3 py-2 bg-[var(--color-bg-elevated)] rounded hover:bg-[var(--color-bg-input)]"
                             >
                               <Plus className="w-4 h-4" />
                               <span>Ajouter un champ</span>
@@ -927,8 +927,8 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
 
                           {fields.length > 0 ? (
                             <div className="overflow-x-auto">
-                              <table className="min-w-full text-sm text-left text-zinc-200 border border-zinc-800/60 rounded-lg overflow-hidden">
-                                <thead className="bg-zinc-900/80 text-xs uppercase tracking-wide text-zinc-400">
+                              <table className="min-w-full text-sm text-left text-[var(--color-text-secondary)] border border-[var(--color-border-subtle)]/60 rounded-lg overflow-hidden">
+                                <thead className="bg-[var(--color-bg-surface)]/80 text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
                                   <tr>
                                     <th className="px-4 py-2 font-medium">Champ cible</th>
                                     <th className="px-4 py-2 font-medium">Source</th>
@@ -940,7 +940,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                                   {fields.map((field) => (
                                     <tr
                                       key={field.id}
-                                      className="border-t border-zinc-800/60 even:bg-black/20"
+                                      className="border-t border-[var(--color-border-subtle)]/60 even:bg-[var(--color-bg-faint)]"
                                     >
                                       <td className="px-4 py-2">
                                         <input
@@ -955,7 +955,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                                             )
                                           }
                                           placeholder="supplier_sku"
-                                          className="w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-700 text-white placeholder:text-zinc-500"
+                                          className="w-full px-2 py-1 rounded bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]"
                                         />
                                       </td>
                                       <td className="px-4 py-2">
@@ -971,7 +971,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                                             )
                                           }
                                           placeholder="data.price"
-                                          className="w-full px-2 py-1 rounded bg-zinc-900 border border-zinc-700 text-white placeholder:text-zinc-500"
+                                          className="w-full px-2 py-1 rounded bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]"
                                         />
                                       </td>
                                       <td className="px-4 py-2">
@@ -981,13 +981,13 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                                         <div className="flex justify-end gap-2">
                                           <button
                                             onClick={() => handleFieldSave(supplier.id, api, field)}
-                                            className="p-2 rounded bg-emerald-600 text-white hover:bg-emerald-500"
+                                            className="p-2 rounded bg-emerald-600 text-[var(--color-text-primary)] hover:bg-emerald-500"
                                           >
                                             <Save className="w-4 h-4" />
                                           </button>
                                           <button
                                             onClick={() => handleFieldDelete(supplier.id, api, field)}
-                                            className="p-2 rounded bg-red-600 text-white hover:bg-red-500"
+                                            className="p-2 rounded bg-red-600 text-[var(--color-text-primary)] hover:bg-red-500"
                                           >
                                             <Trash2 className="w-4 h-4" />
                                           </button>

@@ -80,9 +80,9 @@ function App() {
   const isProductsActive = currentPage === 'products' || currentPage === 'dataImport';
 
   return (
-    <div className="min-h-screen text-white flex flex-col">
+    <div className="min-h-screen text-[var(--color-text-primary)] flex flex-col">
       {/* Navigation Header */}
-      <div className="bg-black/50 backdrop-blur border-b border-[#B8860B]/20">
+      <div className="bg-[var(--color-bg-nav)] backdrop-blur border-b border-[#B8860B]/20">
         <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center justify-between gap-2">
 
@@ -120,14 +120,14 @@ function App() {
                 <ChevronDown className="w-4 h-4 ml-2" />
               </button>
               {showSettingsMenu && (
-                <div className="absolute right-0 mt-2 w-48 rounded-lg border border-zinc-700 bg-zinc-900 shadow-xl">
+                <div className="absolute right-0 mt-2 w-48 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] shadow-xl">
                   {role !== 'client' && (
                     <button
                       onClick={() => {
                         setCurrentPage('admin');
                         setShowSettingsMenu(false);
                       }}
-                      className={`flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-zinc-800 ${currentPage === 'admin' ? 'text-[#B8860B]' : 'text-white'
+                      className={`flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-[var(--color-bg-elevated)] ${currentPage === 'admin' ? 'text-[#B8860B]' : 'text-[var(--color-text-primary)]'
                         }`}
                     >
                       <Settings className="w-4 h-4" />
@@ -136,7 +136,7 @@ function App() {
                   )}
                   <button
                     onClick={handleLogout}
-                    className="flex w-full items-center gap-2 px-4 py-3 text-left text-white hover:bg-zinc-800"
+                    className="flex w-full items-center gap-2 px-4 py-3 text-left text-[var(--color-text-primary)] hover:bg-[var(--color-bg-elevated)]"
                   >
                     <LogOut className="w-4 h-4" />
                     <span>Déconnexion</span>
@@ -165,7 +165,7 @@ function App() {
             Tester la connexion API
           </button>
           {apiTestMessage && (
-            <p className="mt-2 text-sm text-zinc-400">{apiTestMessage}</p>
+            <p className="mt-2 text-sm text-[var(--color-text-muted)]">{apiTestMessage}</p>
           )}
         </div>
       )}

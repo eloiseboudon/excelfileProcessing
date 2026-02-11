@@ -46,15 +46,15 @@ function ReportList({
   showPrice?: boolean;
 }) {
   return (
-    <div className="p-5 rounded-xl bg-black/30 border border-zinc-800/60">
+    <div className="p-5 rounded-xl bg-[var(--color-bg-subtle)] border border-[var(--color-border-subtle)]/60">
       <div className="flex items-center justify-between mb-4">
-        <h4 className="text-sm font-semibold text-zinc-200 uppercase tracking-wide">
+        <h4 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide">
           {title}
         </h4>
-        <span className="text-xs text-zinc-400">{items.length} élément{items.length > 1 ? 's' : ''}</span>
+        <span className="text-xs text-[var(--color-text-muted)]">{items.length} élément{items.length > 1 ? 's' : ''}</span>
       </div>
       {items.length === 0 ? (
-        <p className="text-sm text-zinc-400">{emptyMessage}</p>
+        <p className="text-sm text-[var(--color-text-muted)]">{emptyMessage}</p>
       ) : (
         <ul className="space-y-3 max-h-80 overflow-y-auto pr-2">
           {items.map((item, index) => {
@@ -68,25 +68,25 @@ function ReportList({
             return (
               <li
                 key={key || `entry-${index}`}
-                className="flex items-start justify-between gap-4 border border-zinc-800/60 rounded-lg px-3 py-2 bg-black/20"
+                className="flex items-start justify-between gap-4 border border-[var(--color-border-subtle)]/60 rounded-lg px-3 py-2 bg-[var(--color-bg-faint)]"
               >
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-zinc-100 truncate" title={label}>
+                  <p className="text-sm font-medium text-[var(--color-text-heading)] truncate" title={label}>
                     {label}
                   </p>
-                  <div className="text-xs text-zinc-400 space-x-2 mt-1">
+                  <div className="text-xs text-[var(--color-text-muted)] space-x-2 mt-1">
                     {item.ean ? <span>EAN : {item.ean}</span> : null}
                     {item.part_number ? <span>Réf : {item.part_number}</span> : null}
                     {item.supplier_sku ? <span>SKU fournisseur : {item.supplier_sku}</span> : null}
                   </div>
                   {item.reason ? (
-                    <p className="text-xs text-zinc-400 mt-2 leading-relaxed whitespace-pre-line">
+                    <p className="text-xs text-[var(--color-text-muted)] mt-2 leading-relaxed whitespace-pre-line">
                       {item.reason}
                     </p>
                   ) : null}
                 </div>
                 {showPrice && item.price != null ? (
-                  <span className="text-sm font-semibold text-white min-w-[80px] text-right">
+                  <span className="text-sm font-semibold text-[var(--color-text-primary)] min-w-[80px] text-right">
                     {item.price.toLocaleString('fr-FR', {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2
@@ -115,20 +115,20 @@ function RawDataPreview({ items }: { items: unknown[] | undefined }) {
   }, [entries, expanded]);
 
   return (
-    <div className="p-5 rounded-xl bg-black/30 border border-zinc-800/60">
+    <div className="p-5 rounded-xl bg-[var(--color-bg-subtle)] border border-[var(--color-border-subtle)]/60">
       <div className="flex items-center justify-between mb-4">
-        <h4 className="text-sm font-semibold text-zinc-200 uppercase tracking-wide">
+        <h4 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide">
           Données brutes de l'API
         </h4>
-        <span className="text-xs text-zinc-400">{entries.length} élément{entries.length > 1 ? 's' : ''}</span>
+        <span className="text-xs text-[var(--color-text-muted)]">{entries.length} élément{entries.length > 1 ? 's' : ''}</span>
       </div>
       {entries.length === 0 ? (
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-[var(--color-text-muted)]">
           Aucun échantillon de données brutes n'a été enregistré pour cette synchronisation.
         </p>
       ) : (
         <div className="space-y-3">
-          <pre className="text-xs text-left text-zinc-200 bg-black/40 border border-zinc-800/60 rounded-lg p-4 overflow-x-auto whitespace-pre-wrap break-words max-h-80">
+          <pre className="text-xs text-left text-[var(--color-text-secondary)] bg-[var(--color-bg-subtle)] border border-[var(--color-border-subtle)]/60 rounded-lg p-4 overflow-x-auto whitespace-pre-wrap break-words max-h-80">
             {visibleEntries
               .map((entry) => JSON.stringify(entry, null, 2))
               .join('\n\n')}
@@ -199,7 +199,7 @@ function SupplierApiReports() {
               <FileText className="w-6 h-6 text-[#B8860B]" />
               Rapports de synchronisation
             </h2>
-            <p className="text-sm text-zinc-400 mt-1">{subtitle}</p>
+            <p className="text-sm text-[var(--color-text-muted)] mt-1">{subtitle}</p>
           </div>
           <button
             onClick={loadReports}
@@ -219,14 +219,14 @@ function SupplierApiReports() {
         ) : null}
 
         {loading && !hasReports ? (
-          <div className="py-20 text-center text-sm text-zinc-400 flex flex-col items-center gap-3">
+          <div className="py-20 text-center text-sm text-[var(--color-text-muted)] flex flex-col items-center gap-3">
             <Loader2 className="w-5 h-5 animate-spin text-[#B8860B]" />
             <span>Chargement des rapports...</span>
           </div>
         ) : null}
 
         {!loading && !hasReports ? (
-          <div className="py-20 text-center text-sm text-zinc-400">
+          <div className="py-20 text-center text-sm text-[var(--color-text-muted)]">
             Aucun rapport n'est disponible pour le moment. Lancez une synchronisation pour générer un premier rapport.
           </div>
         ) : null}
@@ -253,24 +253,24 @@ function SupplierApiReports() {
             return (
               <div
                 key={report.job_id}
-                className="border border-zinc-800/60 rounded-xl bg-black/30 px-6 py-5"
+                className="border border-[var(--color-border-subtle)]/60 rounded-xl bg-[var(--color-bg-subtle)] px-6 py-5"
               >
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                   <div>
                     <p className="text-xs text-zinc-500 uppercase tracking-wide">Fournisseur</p>
-                    <h3 className="text-lg font-semibold text-zinc-100">
+                    <h3 className="text-lg font-semibold text-[var(--color-text-heading)]">
                       {report.supplier || 'Fournisseur'}
                     </h3>
                     <div className="mt-3 grid gap-3 sm:grid-cols-3">
                       {summaryItems.map((item) => (
                         <div
                           key={item.title}
-                          className="rounded-lg border border-zinc-800/60 bg-black/20 px-3 py-2"
+                          className="rounded-lg border border-[var(--color-border-subtle)]/60 bg-[var(--color-bg-faint)] px-3 py-2"
                         >
                           <p className="text-[11px] uppercase tracking-wide text-zinc-500">{item.title}</p>
                           <p
                             className={`text-lg font-semibold ${
-                              item.highlight ? 'text-zinc-100' : 'text-zinc-200'
+                              item.highlight ? 'text-[var(--color-text-heading)]' : 'text-[var(--color-text-secondary)]'
                             }`}
                           >
                             {item.count}
@@ -280,18 +280,18 @@ function SupplierApiReports() {
                     </div>
                   </div>
                   <div className="flex flex-col items-start gap-4 md:items-end">
-                    <div className="text-xs text-zinc-400 space-y-1 md:text-right">
+                    <div className="text-xs text-[var(--color-text-muted)] space-y-1 md:text-right">
                       <p>
                         Début :{' '}
-                        <span className="font-medium text-zinc-200">{formatDate(report.started_at)}</span>
+                        <span className="font-medium text-[var(--color-text-secondary)]">{formatDate(report.started_at)}</span>
                       </p>
                       <p>
                         Fin :{' '}
-                        <span className="font-medium text-zinc-200">{formatDate(report.ended_at)}</span>
+                        <span className="font-medium text-[var(--color-text-secondary)]">{formatDate(report.ended_at)}</span>
                       </p>
                       <p>
                         Mapping :{' '}
-                        <span className="font-medium text-zinc-200">
+                        <span className="font-medium text-[var(--color-text-secondary)]">
                           {describeMapping(report.mapping ?? null)}
                         </span>
                       </p>

@@ -33,12 +33,12 @@ function ProductReferenceForm({
         <div className="relative">
           <button
             onClick={onToggleColumnMenu}
-            className="px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700"
+            className="px-4 py-2 bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] rounded-lg hover:bg-[var(--color-bg-input)]"
           >
             Colonnes
           </button>
           {showColumnMenu && (
-            <div className="absolute z-10 mt-2 p-4 bg-zinc-900 border border-zinc-700 rounded shadow-xl grid grid-cols-2 gap-2">
+            <div className="absolute z-10 mt-2 p-4 bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded shadow-xl grid grid-cols-2 gap-2">
               {columns.map((col) => (
                 <label key={col.key} className="flex items-center space-x-2 text-sm">
                   <input
@@ -55,7 +55,7 @@ function ProductReferenceForm({
         </div>
         <button
           onClick={onAdd}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          className="px-4 py-2 bg-blue-600 text-[var(--color-text-primary)] rounded hover:bg-blue-700"
         >
           Ajouter
         </button>
@@ -65,7 +65,7 @@ function ProductReferenceForm({
           <button
             onClick={onBulkDelete}
             disabled={isBulkDeleting}
-            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-red-600 text-[var(--color-text-primary)] rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Supprimer produit(s)
           </button>
@@ -73,7 +73,7 @@ function ProductReferenceForm({
         <button
           onClick={onSave}
           disabled={!hasEdits}
-          className="px-4 py-2 bg-green-600 text-white rounded disabled:opacity-50 hover:bg-green-700"
+          className="px-4 py-2 bg-green-600 text-[var(--color-text-primary)] rounded disabled:opacity-50 hover:bg-green-700"
         >
           Enregistrer
         </button>

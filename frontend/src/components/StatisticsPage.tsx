@@ -73,7 +73,7 @@ function LineChart({ data }: { data: Point[] }) {
     return (
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="w-full h-80 bg-zinc-900 rounded"
+        className="w-full h-80 bg-[var(--color-bg-surface)] rounded"
       />
     );
   }
@@ -97,7 +97,7 @@ function LineChart({ data }: { data: Point[] }) {
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
-      className="w-full h-80 bg-zinc-900 rounded"
+      className="w-full h-80 bg-[var(--color-bg-surface)] rounded"
       preserveAspectRatio="xMidYMid meet"
     >
       {Array.from({ length: ticks + 1 }).map((_, i) => (
@@ -107,18 +107,18 @@ function LineChart({ data }: { data: Point[] }) {
           y1={height - padding - i * stepY}
           x2={width - padding}
           y2={height - padding - i * stepY}
-          stroke="#333"
+          stroke="var(--color-chart-grid)"
         />
       ))}
-      <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="white" />
-      <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="white" />
+      <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="var(--color-chart-axis)" />
+      <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="var(--color-chart-axis)" />
       {data.map((d, i) => (
-        <text key={d.label} x={padding + i * stepX} y={height - padding + 15} fontSize="10" textAnchor="middle" fill="white">
+        <text key={d.label} x={padding + i * stepX} y={height - padding + 15} fontSize="10" textAnchor="middle" fill="var(--color-chart-text)">
           {d.label}
         </text>
       ))}
       {Array.from({ length: ticks + 1 }).map((_, i) => (
-        <text key={i} x={padding - 5} y={height - padding - i * stepY + 4} fontSize="10" textAnchor="end" fill="white">
+        <text key={i} x={padding - 5} y={height - padding - i * stepY + 4} fontSize="10" textAnchor="end" fill="var(--color-chart-text)">
           {((maxVal / ticks) * i).toFixed(0)}
         </text>
       ))}
@@ -140,7 +140,7 @@ function MultiLineChart({ series }: { series: { name: string; data: Point[] }[] 
     return (
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="w-full h-80 bg-zinc-900 rounded"
+        className="w-full h-80 bg-[var(--color-bg-surface)] rounded"
       />
     );
   }
@@ -168,21 +168,21 @@ function MultiLineChart({ series }: { series: { name: string; data: Point[] }[] 
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
-      className="w-full h-80 bg-zinc-900 rounded"
+      className="w-full h-80 bg-[var(--color-bg-surface)] rounded"
       preserveAspectRatio="xMidYMid meet"
     >
       {Array.from({ length: ticks + 1 }).map((_, i) => (
-        <line key={i} x1={padding} y1={height - padding - i * stepY} x2={width - padding} y2={height - padding - i * stepY} stroke="#333" />
+        <line key={i} x1={padding} y1={height - padding - i * stepY} x2={width - padding} y2={height - padding - i * stepY} stroke="var(--color-chart-grid)" />
       ))}
-      <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="white" />
-      <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="white" />
+      <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="var(--color-chart-axis)" />
+      <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="var(--color-chart-axis)" />
       {labels.map((l, i) => (
-        <text key={l} x={padding + i * stepX} y={height - padding + 15} fontSize="10" textAnchor="middle" fill="white">
+        <text key={l} x={padding + i * stepX} y={height - padding + 15} fontSize="10" textAnchor="middle" fill="var(--color-chart-text)">
           {l}
         </text>
       ))}
       {Array.from({ length: ticks + 1 }).map((_, i) => (
-        <text key={i} x={padding - 5} y={height - padding - i * stepY + 4} fontSize="10" textAnchor="end" fill="white">
+        <text key={i} x={padding - 5} y={height - padding - i * stepY + 4} fontSize="10" textAnchor="end" fill="var(--color-chart-text)">
           {((maxVal / ticks) * i).toFixed(0)}
         </text>
       ))}
@@ -207,7 +207,7 @@ function BarChart({ data }: { data: Point[] }) {
     return (
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="w-full h-80 bg-zinc-900 rounded"
+        className="w-full h-80 bg-[var(--color-bg-surface)] rounded"
       />
     );
   }
@@ -218,7 +218,7 @@ function BarChart({ data }: { data: Point[] }) {
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
-      className="w-full h-80 bg-zinc-900 rounded"
+      className="w-full h-80 bg-[var(--color-bg-surface)] rounded"
       preserveAspectRatio="xMidYMid meet"
     >
       {data.map((d, i) => {
@@ -238,7 +238,7 @@ function BarChart({ data }: { data: Point[] }) {
               y={height - padding + 15}
               fontSize="10"
               textAnchor="middle"
-              fill="white"
+              fill="var(--color-chart-text)"
             >
               {d.label}
             </text>
@@ -252,13 +252,13 @@ function BarChart({ data }: { data: Point[] }) {
           y={height - padding - ((height - padding * 2) / 4) * i + 4}
           fontSize="10"
           textAnchor="end"
-          fill="white"
+          fill="var(--color-chart-text)"
         >
           {((maxVal / 4) * i).toFixed(0)}
         </text>
       ))}
-      <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="white" />
-      <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="white" />
+      <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="var(--color-chart-axis)" />
+      <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="var(--color-chart-axis)" />
     </svg>
   );
 }
@@ -272,7 +272,7 @@ function RangeChart({ data }: { data: { label: string; min: number; max: number 
     return (
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="w-full h-80 bg-zinc-900 rounded"
+        className="w-full h-80 bg-[var(--color-bg-surface)] rounded"
       />
     );
   }
@@ -283,7 +283,7 @@ function RangeChart({ data }: { data: { label: string; min: number; max: number 
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
-      className="w-full h-80 bg-zinc-900 rounded"
+      className="w-full h-80 bg-[var(--color-bg-surface)] rounded"
       preserveAspectRatio="xMidYMid meet"
     >
       {data.map((d, i) => {
@@ -293,14 +293,14 @@ function RangeChart({ data }: { data: { label: string; min: number; max: number 
         return (
           <g key={d.label}>
             <line x1={x} y1={yMin} x2={x} y2={yMax} stroke="#38bdf8" strokeWidth="4" />
-            <text x={x} y={height - padding + 15} fontSize="10" textAnchor="middle" fill="white">
+            <text x={x} y={height - padding + 15} fontSize="10" textAnchor="middle" fill="var(--color-chart-text)">
               {d.label}
             </text>
           </g>
         );
       })}
-      <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="white" />
-      <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="white" />
+      <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="var(--color-chart-axis)" />
+      <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="var(--color-chart-axis)" />
     </svg>
   );
 }
@@ -625,7 +625,7 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
       {onBack && (
         <button
           onClick={onBack}
-          className="flex items-center space-x-2 px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors mb-6"
+          className="flex items-center space-x-2 px-4 py-2 bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] rounded-lg hover:bg-[var(--color-bg-input)] transition-colors mb-6"
         >
           <ArrowLeft className="w-5 h-5" />
           <span>Retour</span>
@@ -665,7 +665,7 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
           <h2 className="font-semibold mb-2 flex items-center">Évolution du produit<InfoButton text="Comparer l'évolution du prix du produit selon les fournisseurs." /></h2>
           <MultiLineChart series={productSeries} />
           {productId && productSeries.length === 0 && (
-            <p className="text-center text-sm text-zinc-400 mt-2">
+            <p className="text-center text-sm text-[var(--color-text-muted)] mt-2">
               Pas de données pour ce produit
             </p>
           )}
@@ -720,7 +720,7 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
               </thead>
               <tbody>
                 {anomalies.map((a) => (
-                  <tr key={a.week} className="bg-zinc-800">
+                  <tr key={a.week} className="bg-[var(--color-bg-elevated)]">
                     <td>{a.week}</td>
                     <td className="text-red-400">{a.change.toFixed(1)}%</td>
                   </tr>
@@ -728,7 +728,7 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
               </tbody>
             </table>
           ) : (
-            <p className="text-center text-sm text-zinc-400">Aucune anomalie</p>
+            <p className="text-center text-sm text-[var(--color-text-muted)]">Aucune anomalie</p>
           )}
         </div>
         )}

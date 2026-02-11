@@ -5,7 +5,7 @@ function WeekToolbar() {
     <div className="mb-4">
       <div className="flex flex-col sm:flex-row sm:justify-between items-center gap-4">
         <div className="flex items-center gap-4">
-          <span className="text-zinc-400">Semaine en cours : {getCurrentWeekYear()}</span>
+          <span className="text-[var(--color-text-muted)]">Semaine en cours : {getCurrentWeekYear()}</span>
         </div>
       </div>
     </div>

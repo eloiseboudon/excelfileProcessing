@@ -43,7 +43,7 @@ function StatsFilters({
         <select
           value={supplierId}
           onChange={(e) => setSupplierId(e.target.value ? Number(e.target.value) : '')}
-          className="bg-zinc-900 border border-zinc-600 rounded px-2 py-1"
+          className="bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded px-2 py-1"
         >
           <option value="">Tous fournisseurs</option>
           {suppliers.map((s: any) => (
@@ -55,7 +55,7 @@ function StatsFilters({
         <select
           value={brandId}
           onChange={(e) => setBrandId(e.target.value ? Number(e.target.value) : '')}
-          className="bg-zinc-900 border border-zinc-600 rounded px-2 py-1"
+          className="bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded px-2 py-1"
         >
           <option value="">Toutes marques</option>
           {brands.map((b: any) => (
@@ -68,18 +68,18 @@ function StatsFilters({
           type="week"
           value={startWeek}
           onChange={(e) => setStartWeek(e.target.value)}
-          className="bg-zinc-900 border border-zinc-600 rounded px-2 py-1"
+          className="bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded px-2 py-1"
         />
         <input
           type="week"
           value={endWeek}
           onChange={(e) => setEndWeek(e.target.value)}
-          className="bg-zinc-900 border border-zinc-600 rounded px-2 py-1"
+          className="bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded px-2 py-1"
         />
         <select
           value={productId}
           onChange={(e) => setProductId(e.target.value ? Number(e.target.value) : '')}
-          className="bg-zinc-900 border border-zinc-600 rounded px-2 py-1"
+          className="bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded px-2 py-1"
         >
           <option value="">Choisir un produit</option>
           {filteredProducts.map((p) => (

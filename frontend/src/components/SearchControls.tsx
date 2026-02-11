@@ -160,14 +160,14 @@ function SearchControls({
       <div className="relative">
         <form onSubmit={handleSearchSubmit} className="relative">
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-zinc-400 w-5 h-5" />
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[var(--color-text-muted)] w-5 h-5" />
             <input
               ref={searchInputRef}
               type="text"
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
               onFocus={() => setShowSuggestions(true)}
-              className="w-full pl-12 pr-12 py-4 text-lg bg-zinc-800 border-2 border-zinc-600 rounded-xl text-white placeholder-zinc-400 focus:border-[#B8860B] focus:outline-none transition-all duration-200"
+              className="w-full pl-12 pr-12 py-4 text-lg bg-[var(--color-bg-elevated)] border-2 border-[var(--color-border-strong)] rounded-xl text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:border-[#B8860B] focus:outline-none transition-all duration-200"
               placeholder="🔍 Rechercher un produit... (ex: iPhone, Galaxy, Hotwav)"
             />
             {searchTerm && (
@@ -177,7 +177,7 @@ function SearchControls({
                   onSearchChange('');
                   setShowSuggestions(false);
                 }}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-zinc-400 hover:text-white transition-colors"
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -189,11 +189,11 @@ function SearchControls({
         {showSuggestions && suggestions.length > 0 && (
           <div
             ref={suggestionsRef}
-            className="absolute top-full left-0 right-0 mt-2 bg-zinc-800 border border-zinc-600 rounded-xl shadow-2xl z-50 max-h-80 overflow-y-auto"
+            className="absolute top-full left-0 right-0 mt-2 bg-[var(--color-bg-elevated)] border border-[var(--color-border-strong)] rounded-xl shadow-2xl z-50 max-h-80 overflow-y-auto"
           >
             {!searchTerm && searchHistory.length > 0 && (
-              <div className="p-3 border-b border-zinc-700">
-                <div className="flex items-center space-x-2 text-sm text-zinc-400 mb-2">
+              <div className="p-3 border-b border-[var(--color-border-default)]">
+                <div className="flex items-center space-x-2 text-sm text-[var(--color-text-muted)] mb-2">
                   <TrendingUp className="w-4 h-4" />
                   <span>Recherches récentes</span>
                 </div>
@@ -204,10 +204,10 @@ function SearchControls({
               <button
                 key={index}
                 onClick={() => handleSuggestionClick(suggestion)}
-                className="w-full text-left px-4 py-3 hover:bg-zinc-700 transition-colors border-b border-zinc-700 last:border-b-0"
+                className="w-full text-left px-4 py-3 hover:bg-[var(--color-bg-input)] transition-colors border-b border-[var(--color-border-default)] last:border-b-0"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-white">{suggestion}</span>
+                  <span className="text-[var(--color-text-primary)]">{suggestion}</span>
                   {searchHistory.includes(suggestion) && (
                     <TrendingUp className="w-4 h-4 text-[#B8860B]" />
                   )}
@@ -219,9 +219,9 @@ function SearchControls({
       </div>
 
       {/* Filtres de prix - TOUJOURS VISIBLES */}
-      <div className="bg-zinc-800 rounded-xl p-6 border border-zinc-600">
+      <div className="bg-[var(--color-bg-elevated)] rounded-xl p-6 border border-[var(--color-border-strong)]">
         <div>
-          <label className="block text-sm font-medium text-zinc-300 mb-4">
+          <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-4">
             💰 Gamme de prix: {minPrice}€ - {maxPrice}€
           </label>
           
@@ -267,7 +267,7 @@ function SearchControls({
           {/* Inputs numériques pour prix précis */}
           <div className="flex items-center space-x-4">
             <div className="flex-1">
-              <label className="block text-xs text-zinc-400 mb-1">Prix minimum</label>
+              <label className="block text-xs text-[var(--color-text-muted)] mb-1">Prix minimum</label>
               <input
                 type="number"
                 value={minPrice}
@@ -275,14 +275,14 @@ function SearchControls({
                   const newMin = Math.max(priceRange.min, Math.min(Number(e.target.value), maxPrice - 1));
                   onPriceRangeChange(newMin, maxPrice);
                 }}
-                className="w-full px-3 py-2 bg-zinc-700 border border-zinc-600 rounded-lg text-white text-sm focus:border-[#B8860B] focus:outline-none"
+                className="w-full px-3 py-2 bg-[var(--color-bg-input)] border border-[var(--color-border-strong)] rounded-lg text-[var(--color-text-primary)] text-sm focus:border-[#B8860B] focus:outline-none"
                 min={priceRange.min}
                 max={maxPrice - 1}
               />
             </div>
-            <div className="text-zinc-400 mt-6">-</div>
+            <div className="text-[var(--color-text-muted)] mt-6">-</div>
             <div className="flex-1">
-              <label className="block text-xs text-zinc-400 mb-1">Prix maximum</label>
+              <label className="block text-xs text-[var(--color-text-muted)] mb-1">Prix maximum</label>
               <input
                 type="number"
                 value={maxPrice}
@@ -290,7 +290,7 @@ function SearchControls({
                   const newMax = Math.min(priceRange.max, Math.max(Number(e.target.value), minPrice + 1));
                   onPriceRangeChange(minPrice, newMax);
                 }}
-                className="w-full px-3 py-2 bg-zinc-700 border border-zinc-600 rounded-lg text-white text-sm focus:border-[#B8860B] focus:outline-none"
+                className="w-full px-3 py-2 bg-[var(--color-bg-input)] border border-[var(--color-border-strong)] rounded-lg text-[var(--color-text-primary)] text-sm focus:border-[#B8860B] focus:outline-none"
                 min={minPrice + 1}
                 max={priceRange.max}
               />
@@ -301,7 +301,7 @@ function SearchControls({
                   onPriceRangeChange(priceRange.min, priceRange.max);
                   onSearchChange('');
                 }}
-                className="px-4 py-2 bg-zinc-600 text-white rounded-lg hover:bg-zinc-500 transition-colors text-sm"
+                className="px-4 py-2 bg-zinc-600 text-[var(--color-text-primary)] rounded-lg hover:bg-zinc-500 transition-colors text-sm"
               >
                 Reset
               </button>

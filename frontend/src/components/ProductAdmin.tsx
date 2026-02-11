@@ -162,7 +162,7 @@ function ProductAdmin() {
       <div className="flex justify-end mb-4">
         <button
           onClick={handleAdd}
-          className="flex items-center space-x-2 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+          className="flex items-center space-x-2 px-3 py-2 bg-green-600 text-[var(--color-text-primary)] rounded hover:bg-green-700"
         >
           <Plus className="w-4 h-4" />
           <span>Ajouter</span>
@@ -170,13 +170,13 @@ function ProductAdmin() {
       </div>
       <div className="space-y-2">
         {products.map((p) => (
-          <div key={p.id} className="flex items-center space-x-2 bg-zinc-800 p-2 rounded">
-            {/* <span className="w-10 text-zinc-400">{p.id > 0 ? p.id : '-'}</span> */}
+          <div key={p.id} className="flex items-center space-x-2 bg-[var(--color-bg-elevated)] p-2 rounded">
+            {/* <span className="w-10 text-[var(--color-text-muted)]">{p.id > 0 ? p.id : '-'}</span> */}
             {/* <input
               value={p.ean ?? ''}
               onChange={(e) => handleChange(p.id, 'ean', e.target.value)}
               placeholder="ean"
-              className="w-24 px-2 py-1 bg-zinc-700 rounded"
+              className="w-24 px-2 py-1 bg-[var(--color-bg-input)] rounded"
             /> */}
 
             <select
@@ -189,7 +189,7 @@ function ProductAdmin() {
                 )
               }
 
-              className="px-2 py-1 bg-zinc-700 rounded"
+              className="px-2 py-1 bg-[var(--color-bg-input)] rounded"
             >
               <option value="">null</option>
               {brands.map((b) => (
@@ -200,13 +200,13 @@ function ProductAdmin() {
               value={p.model}
               onChange={(e) => handleChange(p.id, 'model', e.target.value)}
               placeholder="model"
-              className="flex-1 px-2 py-1 bg-zinc-700 rounded"
+              className="flex-1 px-2 py-1 bg-[var(--color-bg-input)] rounded"
             />
             <input
               value={p.description}
               onChange={(e) => handleChange(p.id, 'description', e.target.value)}
               placeholder="description"
-              className="flex-1 px-2 py-1 bg-zinc-700 rounded"
+              className="flex-1 px-2 py-1 bg-[var(--color-bg-input)] rounded"
             />
 
             <select
@@ -219,7 +219,7 @@ function ProductAdmin() {
                 )
               }
 
-              className="px-2 py-1 bg-zinc-700 rounded"
+              className="px-2 py-1 bg-[var(--color-bg-input)] rounded"
             >
               <option value="">null</option>
               {memories.map((m) => (
@@ -236,7 +236,7 @@ function ProductAdmin() {
                 )
               }
 
-              className="px-2 py-1 bg-zinc-700 rounded"
+              className="px-2 py-1 bg-[var(--color-bg-input)] rounded"
             >
               <option value="">null</option>
               {colors.map((c) => (
@@ -253,7 +253,7 @@ function ProductAdmin() {
                 )
               }
 
-              className="px-2 py-1 bg-zinc-700 rounded"
+              className="px-2 py-1 bg-[var(--color-bg-input)] rounded"
             >
               <option value="">null</option>
               {types.map((t) => (
@@ -269,7 +269,7 @@ function ProductAdmin() {
                   e.target.value === '' ? null : Number(e.target.value)
                 )
               }
-              className="px-2 py-1 bg-zinc-700 rounded"
+              className="px-2 py-1 bg-[var(--color-bg-input)] rounded"
             >
               <option value="">null</option>
               {rams.map((r) => (
@@ -285,17 +285,17 @@ function ProductAdmin() {
                   e.target.value === '' ? null : Number(e.target.value)
                 )
               }
-              className="px-2 py-1 bg-zinc-700 rounded"
+              className="px-2 py-1 bg-[var(--color-bg-input)] rounded"
             >
               <option value="">null</option>
               {normes.map((n) => (
                 <option key={n.id} value={n.id}>{n.norme}</option>
               ))}
             </select>
-            <button onClick={() => handleSave(p.id)} className="p-2 bg-green-600 text-white rounded hover:bg-green-700">
+            <button onClick={() => handleSave(p.id)} className="p-2 bg-green-600 text-[var(--color-text-primary)] rounded hover:bg-green-700">
               <Save className="w-4 h-4" />
             </button>
-            <button onClick={() => handleDelete(p.id)} className="p-2 bg-red-600 text-white rounded hover:bg-red-700">
+            <button onClick={() => handleDelete(p.id)} className="p-2 bg-red-600 text-[var(--color-text-primary)] rounded hover:bg-red-700">
               <Trash2 className="w-4 h-4" />
             </button>
           </div>

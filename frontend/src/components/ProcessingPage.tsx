@@ -150,7 +150,7 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange, onRefreshCom
           </button>
         </div>
         {lastImportDate && (
-          <p className="text-sm text-zinc-400 mb-2">
+          <p className="text-sm text-[var(--color-text-muted)] mb-2">
             Dernier import : {getWeekYear(new Date(lastImportDate))} -{' '}
             {new Date(lastImportDate).toLocaleDateString('fr-FR',
               {
@@ -161,7 +161,7 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange, onRefreshCom
             )} </p>
         )}
         <div
-          className={`border-2 border-dashed rounded-xl p-8 transition-all duration-200 ${isDragging ? 'border-[#B8860B] bg-black/50' : 'border-zinc-700 hover:border-[#B8860B]/50'
+          className={`border-2 border-dashed rounded-xl p-8 transition-all duration-200 ${isDragging ? 'border-[#B8860B] bg-[var(--color-bg-nav)]' : 'border-[var(--color-border-default)] hover:border-[#B8860B]/50'
             }`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -169,7 +169,7 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange, onRefreshCom
         >
           <div className="flex flex-col items-center justify-center space-y-4">
             <FileUp className="w-12 h-12 text-[#B8860B]" />
-            <p className="text-lg text-zinc-300">Glissez votre fichier Excel ici ou</p>
+            <p className="text-lg text-[var(--color-text-secondary)]">Glissez votre fichier Excel ici ou</p>
             <label className="btn btn-primary cursor-pointer">
               Sélectionnez un fichier
               <input type="file" className="hidden" accept=".xlsx,.xls" onChange={handleFileChange} />
@@ -178,13 +178,13 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange, onRefreshCom
         </div>
         {file && (
           <>
-            <div className="mt-4 flex items-center space-x-3 p-4 bg-zinc-800/50 rounded-lg border border-zinc-700">
+            <div className="mt-4 flex items-center space-x-3 p-4 bg-[var(--color-bg-elevated)]/50 rounded-lg border border-[var(--color-border-default)]">
               <FileDown className="w-6 h-6 text-[#B8860B]" />
-              <span className="text-zinc-300 truncate flex-1">{file.name}</span>
+              <span className="text-[var(--color-text-secondary)] truncate flex-1">{file.name}</span>
               <button onClick={() => previewFile(file)} className="btn btn-secondary ml-auto">Prévisualiser</button>
             </div>
             {previewLoading && (
-              <p className="text-sm text-zinc-400 mt-2">Chargement de la prévisualisation...</p>
+              <p className="text-sm text-[var(--color-text-muted)] mt-2">Chargement de la prévisualisation...</p>
             )}
           </>
         )}
@@ -294,7 +294,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
     <div className="max-w-4xl mx-auto px-4 py-12">
       <h1 className="text-4xl font-bold text-center mb-2">Étape 1 - Calculs et Traitement</h1>
       <p className="text-center text-[#B8860B] mb-4">Traitez vos fichiers Excel avec calculs TCP et marges</p>
-      <p className="text-center text-zinc-400 mb-4">Semaine en cours : {getCurrentWeekYear()}</p>
+      <p className="text-center text-[var(--color-text-muted)] mb-4">Semaine en cours : {getCurrentWeekYear()}</p>
       <div className="flex justify-center mb-8">
         <button
           onClick={() => {
@@ -355,7 +355,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
           {processedFile && (
             <button
               onClick={onNext}
-              className="btn bg-green-600 hover:bg-green-700 text-white px-8 py-4 text-lg"
+              className="btn bg-green-600 hover:bg-green-700 text-[var(--color-text-primary)] px-8 py-4 text-lg"
             >
               <span>Passer à l'étape 2 - Mise en forme</span>
               <ChevronRight className="w-6 h-6" />

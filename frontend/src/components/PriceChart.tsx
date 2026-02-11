@@ -15,7 +15,7 @@ function LineChart({ data }: { data: Point[] }) {
     return (
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="w-full h-80 bg-zinc-900 rounded"
+        className="w-full h-80 bg-[var(--color-bg-surface)] rounded"
       />
     );
   }
@@ -39,7 +39,7 @@ function LineChart({ data }: { data: Point[] }) {
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
-      className="w-full h-80 bg-zinc-900 rounded"
+      className="w-full h-80 bg-[var(--color-bg-surface)] rounded"
       preserveAspectRatio="xMidYMid meet"
     >
       {Array.from({ length: ticks + 1 }).map((_, i) => (
@@ -49,18 +49,18 @@ function LineChart({ data }: { data: Point[] }) {
           y1={height - padding - i * stepY}
           x2={width - padding}
           y2={height - padding - i * stepY}
-          stroke="#333"
+          stroke="var(--color-chart-grid)"
         />
       ))}
-      <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="white" />
-      <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="white" />
+      <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="var(--color-chart-axis)" />
+      <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="var(--color-chart-axis)" />
       {data.map((d, i) => (
-        <text key={d.label} x={padding + i * stepX} y={height - padding + 15} fontSize="10" textAnchor="middle" fill="white">
+        <text key={d.label} x={padding + i * stepX} y={height - padding + 15} fontSize="10" textAnchor="middle" fill="var(--color-chart-text)">
           {d.label}
         </text>
       ))}
       {Array.from({ length: ticks + 1 }).map((_, i) => (
-        <text key={i} x={padding - 5} y={height - padding - i * stepY + 4} fontSize="10" textAnchor="end" fill="white">
+        <text key={i} x={padding - 5} y={height - padding - i * stepY + 4} fontSize="10" textAnchor="end" fill="var(--color-chart-text)">
           {((maxVal / ticks) * i).toFixed(0)}
         </text>
       ))}
@@ -81,7 +81,7 @@ function PriceChart({ globalData, brandId }: PriceChartProps) {
       </h2>
       <LineChart data={globalData} />
       {globalData.length === 0 && (
-        <p className="text-center text-sm text-zinc-400 mt-2">
+        <p className="text-center text-sm text-[var(--color-text-muted)] mt-2">
           {brandId ? 'Pas de données pour cette marque' : 'Pas de données'}
         </p>
       )}

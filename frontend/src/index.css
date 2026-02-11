@@ -2,6 +2,69 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Theme variables ─────────────────────────────────── */
+:root {
+  /* Backgrounds */
+  --color-bg-body-from: #f4f4f5;
+  --color-bg-body-via: #ffffff;
+  --color-bg-body-to: #e4e4e7;
+  --color-bg-surface: #f4f4f5;
+  --color-bg-elevated: #e4e4e7;
+  --color-bg-input: #ffffff;
+  --color-bg-card: rgb(255 255 255 / 0.8);
+  --color-bg-nav: rgb(255 255 255 / 0.8);
+  --color-bg-overlay: rgb(0 0 0 / 0.3);
+  --color-bg-subtle: rgb(0 0 0 / 0.05);
+  --color-bg-faint: rgb(0 0 0 / 0.03);
+
+  /* Text */
+  --color-text-primary: #18181b;
+  --color-text-heading: #27272a;
+  --color-text-secondary: #52525b;
+  --color-text-muted: #71717a;
+
+  /* Borders */
+  --color-border-default: #d4d4d8;
+  --color-border-subtle: #e4e4e7;
+  --color-border-strong: #a1a1aa;
+
+  /* Charts / SVG */
+  --color-chart-axis: #27272a;
+  --color-chart-text: #27272a;
+  --color-chart-grid: #d4d4d8;
+}
+
+.dark {
+  /* Backgrounds */
+  --color-bg-body-from: #000000;
+  --color-bg-body-via: #18181b;
+  --color-bg-body-to: #27272a;
+  --color-bg-surface: #18181b;
+  --color-bg-elevated: #27272a;
+  --color-bg-input: #3f3f46;
+  --color-bg-card: rgb(24 24 27 / 0.6);
+  --color-bg-nav: rgb(0 0 0 / 0.5);
+  --color-bg-overlay: rgb(0 0 0 / 0.7);
+  --color-bg-subtle: rgb(0 0 0 / 0.3);
+  --color-bg-faint: rgb(0 0 0 / 0.2);
+
+  /* Text */
+  --color-text-primary: #ffffff;
+  --color-text-heading: #f4f4f5;
+  --color-text-secondary: #d4d4d8;
+  --color-text-muted: #a1a1aa;
+
+  /* Borders */
+  --color-border-default: #3f3f46;
+  --color-border-subtle: #27272a;
+  --color-border-strong: #52525b;
+
+  /* Charts / SVG */
+  --color-chart-axis: #ffffff;
+  --color-chart-text: #ffffff;
+  --color-chart-grid: #333333;
+}
+
 @layer base {
   html {
     font-family: theme('fontFamily.sans');
@@ -9,11 +72,16 @@
 }
 
 body {
-  @apply bg-gradient-to-br from-black via-zinc-900 to-zinc-800 font-sans text-white;
+  background: linear-gradient(to bottom right, var(--color-bg-body-from), var(--color-bg-body-via), var(--color-bg-body-to));
+  color: var(--color-text-primary);
+  min-height: 100vh;
+  @apply font-sans;
 }
 
 .card {
-  @apply rounded-2xl bg-zinc-900/60 border border-gold/20 backdrop-blur-md shadow-xl;
+  background: var(--color-bg-card);
+  border-color: rgb(184 134 11 / 0.2);
+  @apply rounded-2xl border backdrop-blur-md shadow-xl;
 }
 
 /* Reusable button styles */
@@ -24,23 +92,29 @@ body {
   @apply bg-gold text-black hover:bg-gold/90;
 }
 .btn-secondary {
-  @apply bg-zinc-800 text-white hover:bg-zinc-700;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+}
+.btn-secondary:hover {
+  background: var(--color-bg-input);
 }
 
 /* Table styling */
 .table {
-  @apply min-w-full text-sm text-left border border-zinc-700;
+  border-color: var(--color-border-default);
+  @apply min-w-full text-sm text-left border;
 }
 .table thead {
-  @apply bg-zinc-800;
+  background: var(--color-bg-elevated);
 }
 .table th,
 .table td {
-  @apply px-3 py-2 border-b border-zinc-700;
+  border-color: var(--color-border-default);
+  @apply px-3 py-2 border-b;
 }
 .table tbody tr:nth-child(odd) {
-  @apply bg-zinc-900;
+  background: var(--color-bg-surface);
 }
 .table tbody tr:nth-child(even) {
-  @apply bg-zinc-800;
+  background: var(--color-bg-elevated);
 }

@@ -381,8 +381,8 @@ function FormattingPage({ onBack }: FormattingPageProps) {
         <div
           className={`border-2 border-dashed rounded-xl p-8 transition-all duration-200 ${
             isDragging
-              ? 'border-[#B8860B] bg-black/50'
-              : 'border-zinc-700 hover:border-[#B8860B]/50'
+              ? 'border-[#B8860B] bg-[var(--color-bg-nav)]'
+              : 'border-[var(--color-border-default)] hover:border-[#B8860B]/50'
           }`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -390,7 +390,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
         >
           <div className="flex flex-col items-center justify-center space-y-4">
             <FileUp className="w-12 h-12 text-[#B8860B]" />
-            <p className="text-lg text-zinc-300">
+            <p className="text-lg text-[var(--color-text-secondary)]">
               Glissez votre fichier traité de l'étape 1 ici ou
             </p>
             <label className="btn btn-primary cursor-pointer">
@@ -407,10 +407,10 @@ function FormattingPage({ onBack }: FormattingPageProps) {
 
         {file && (
           <div className="mt-8 space-y-4">
-            <div className="flex items-center justify-between p-4 bg-zinc-800/50 rounded-lg border border-zinc-700">
+            <div className="flex items-center justify-between p-4 bg-[var(--color-bg-elevated)]/50 rounded-lg border border-[var(--color-border-default)]">
               <div className="flex items-center space-x-3">
                 <FileDown className="w-6 h-6 text-[#B8860B]" />
-                <span className="text-zinc-300">{file.name}</span>
+                <span className="text-[var(--color-text-secondary)]">{file.name}</span>
               </div>
               <button
                 onClick={handleFormat}
@@ -460,7 +460,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
                     </div>
                     <button
                       onClick={handleDownloadHtml}
-                      className="btn bg-green-600 hover:bg-green-700 text-white"
+                      className="btn bg-green-600 hover:bg-green-700 text-[var(--color-text-primary)]"
                     >
                       <Download className="w-4 h-4" />
                     </button>
@@ -473,7 +473,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
                     </div>
                     <button
                       onClick={() => setShowPreview(!showPreview)}
-                      className="btn bg-blue-600 hover:bg-blue-700 text-white"
+                      className="btn bg-blue-600 hover:bg-blue-700 text-[var(--color-text-primary)]"
                     >
                       <Eye className="w-4 h-4" />
                     </button>
@@ -481,8 +481,8 @@ function FormattingPage({ onBack }: FormattingPageProps) {
                 </div>
 
                 {showPreview && (
-                  <div className="mt-8 p-6 bg-zinc-800/50 rounded-lg border border-zinc-700">
-                    <h3 className="text-xl font-semibold text-white mb-6">Prévisualisation de la grille tarifaire</h3>
+                  <div className="mt-8 p-6 bg-[var(--color-bg-elevated)]/50 rounded-lg border border-[var(--color-border-default)]">
+                    <h3 className="text-xl font-semibold text-[var(--color-text-primary)] mb-6">Prévisualisation de la grille tarifaire</h3>
 
                     <SearchControls
                       searchTerm={searchTerm}
@@ -531,31 +531,31 @@ function FormattingPage({ onBack }: FormattingPageProps) {
 
                     {/* Statistiques */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                      <div className="bg-zinc-700 rounded-lg p-4 text-center">
+                      <div className="bg-[var(--color-bg-input)] rounded-lg p-4 text-center">
                         <div className="text-2xl font-bold text-[#B8860B]">{previewData.length}</div>
-                        <div className="text-sm text-zinc-400">Total produits</div>
+                        <div className="text-sm text-[var(--color-text-muted)]">Total produits</div>
                       </div>
-                      <div className="bg-zinc-700 rounded-lg p-4 text-center">
+                      <div className="bg-[var(--color-bg-input)] rounded-lg p-4 text-center">
                         <div className="text-2xl font-bold text-[#B8860B]">{filteredProducts.length}</div>
-                        <div className="text-sm text-zinc-400">Affichés</div>
+                        <div className="text-sm text-[var(--color-text-muted)]">Affichés</div>
                       </div>
-                      <div className="bg-zinc-700 rounded-lg p-4 text-center">
+                      <div className="bg-[var(--color-bg-input)] rounded-lg p-4 text-center">
                         <div className="text-2xl font-bold text-[#B8860B]">
                           {filteredProducts.length > 0 ? Math.round(filteredProducts.reduce((sum, p) => sum + p.price, 0) / filteredProducts.length) : 0}€
                         </div>
-                        <div className="text-sm text-zinc-400">Prix moyen</div>
+                        <div className="text-sm text-[var(--color-text-muted)]">Prix moyen</div>
                       </div>
-                      <div className="bg-zinc-700 rounded-lg p-4 text-center">
+                      <div className="bg-[var(--color-bg-input)] rounded-lg p-4 text-center">
                         <div className="text-2xl font-bold text-[#B8860B]">{uniqueBrands.length}</div>
-                        <div className="text-sm text-zinc-400">Marques</div>
+                        <div className="text-sm text-[var(--color-text-muted)]">Marques</div>
                       </div>
                     </div>
 
                     {/* Grille de produits */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
                       {filteredProducts.map((product, index) => (
-                        <div key={index} className="bg-zinc-700 rounded-lg p-4 border border-zinc-600 hover:border-[#B8860B]/50 transition-colors">
-                          <div className="font-medium text-white mb-2 line-clamp-2">{product.name}</div>
+                        <div key={index} className="bg-[var(--color-bg-input)] rounded-lg p-4 border border-[var(--color-border-strong)] hover:border-[#B8860B]/50 transition-colors">
+                          <div className="font-medium text-[var(--color-text-primary)] mb-2 line-clamp-2">{product.name}</div>
                           <div className="flex items-center justify-between">
                             <div className="inline-block px-2 py-1 bg-[#B8860B]/20 text-[#B8860B] rounded text-sm">
                               {product.brand}
@@ -571,7 +571,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
                     {filteredProducts.length === 0 && (
                       <div className="text-center py-12">
                         <div className="text-6xl mb-4">🔍</div>
-                        <p className="text-zinc-400 text-lg">Aucun produit trouvé</p>
+                        <p className="text-[var(--color-text-muted)] text-lg">Aucun produit trouvé</p>
                         <p className="text-zinc-500 text-sm mt-2">Essayez de modifier vos critères de recherche</p>
                       </div>
                     )}

@@ -33,14 +33,14 @@ function MultiSelectFilter({ options, selected, onChange }: MultiSelectFilterPro
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="w-full px-2 py-1 bg-zinc-900 border border-zinc-600 rounded text-left overflow-hidden whitespace-nowrap text-ellipsis"
+        className="w-full px-2 py-1 bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded text-left overflow-hidden whitespace-nowrap text-ellipsis"
       >
         {selected.length ? selected.join(', ') : 'Tous'}
       </button>
       {open && (
-        <div className="absolute z-10 mt-1 max-h-60 overflow-auto bg-zinc-900 border border-zinc-600 rounded shadow-lg">
+        <div className="absolute z-10 mt-1 max-h-60 overflow-auto bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded shadow-lg">
           {options.map((opt) => (
-            <label key={opt} className="flex items-center space-x-2 px-2 py-1 hover:bg-zinc-800">
+            <label key={opt} className="flex items-center space-x-2 px-2 py-1 hover:bg-[var(--color-bg-elevated)]">
               <input
                 type="checkbox"
                 checked={selected.includes(opt)}

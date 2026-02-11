@@ -130,7 +130,7 @@ function TranslationAdmin({ isVisible, onClose }: TranslationAdminProps) {
             setTable(null);
             onClose();
           }}
-          className="px-3 py-1 bg-zinc-800 rounded hover:bg-zinc-700"
+          className="px-3 py-1 bg-[var(--color-bg-elevated)] rounded hover:bg-[var(--color-bg-input)]"
         >
           Fermer
         </button>
@@ -141,7 +141,7 @@ function TranslationAdmin({ isVisible, onClose }: TranslationAdminProps) {
             <button
               key={t.key}
               onClick={() => setTable(t.key)}
-              className="p-6 rounded-xl bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 flex items-center justify-center font-semibold"
+              className="p-6 rounded-xl bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] hover:bg-[var(--color-bg-input)] flex items-center justify-center font-semibold"
             >
               {t.label}
             </button>
@@ -151,36 +151,36 @@ function TranslationAdmin({ isVisible, onClose }: TranslationAdminProps) {
       {table && (
         <div>
           <div className="flex items-center mb-4 space-x-4">
-            <button onClick={() => setTable(null)} className="flex items-center space-x-2 px-3 py-2 bg-zinc-800 rounded hover:bg-zinc-700">
+            <button onClick={() => setTable(null)} className="flex items-center space-x-2 px-3 py-2 bg-[var(--color-bg-elevated)] rounded hover:bg-[var(--color-bg-input)]">
               <ArrowLeft className="w-4 h-4" />
               <span>Retour</span>
             </button>
             <h3 className="text-xl font-semibold">
               {TABLES.find((t) => t.key === table)?.label}
             </h3>
-            <button onClick={handleAdd} className="ml-auto flex items-center space-x-2 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+            <button onClick={handleAdd} className="ml-auto flex items-center space-x-2 px-3 py-2 bg-green-600 text-[var(--color-text-primary)] rounded hover:bg-green-700">
               <Plus className="w-4 h-4" />
               <span>Ajouter</span>
             </button>
           </div>
           <div className="space-y-2">
             {data.map((item) => (
-              <div key={item.id} className="flex items-center space-x-2 bg-zinc-800 p-2 rounded">
-                <span className="w-10 text-zinc-400">{item.id > 0 ? item.id : '-'}</span>
+              <div key={item.id} className="flex items-center space-x-2 bg-[var(--color-bg-elevated)] p-2 rounded">
+                <span className="w-10 text-[var(--color-text-muted)]">{item.id > 0 ? item.id : '-'}</span>
                 {displayedFields.map((f) => (
                   <input
                     key={f}
                     value={item[f] ?? ''}
                     placeholder={f}
                     onChange={(e) => handleChange(item.id, f, e.target.value)}
-                    className="flex-1 px-2 py-1 bg-zinc-700 text-white rounded placeholder:italic"
+                    className="flex-1 px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded placeholder:italic"
                   />
                 ))}
                 {table === 'color_translations' && (
                   <select
                     value={item.color_target_id ?? ''}
                     onChange={(e) => handleChange(item.id, 'color_target_id', e.target.value)}
-                    className="flex-1 px-2 py-1 bg-zinc-700 text-white rounded"
+                    className="flex-1 px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
                   >
                     {colors.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -189,10 +189,10 @@ function TranslationAdmin({ isVisible, onClose }: TranslationAdminProps) {
                     ))}
                   </select>
                 )}
-                <button onClick={() => handleSave(item.id)} className="p-2 bg-green-600 text-white rounded hover:bg-green-700">
+                <button onClick={() => handleSave(item.id)} className="p-2 bg-green-600 text-[var(--color-text-primary)] rounded hover:bg-green-700">
                   <Save className="w-4 h-4" />
                 </button>
-                <button onClick={() => handleDelete(item.id)} className="p-2 bg-red-600 text-white rounded hover:bg-red-700">
+                <button onClick={() => handleDelete(item.id)} className="p-2 bg-red-600 text-[var(--color-text-primary)] rounded hover:bg-red-700">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>

@@ -53,9 +53,9 @@ function ProductTable({
   return (
     <table className="table">
       <thead>
-        <tr className="bg-zinc-800">
+        <tr className="bg-[var(--color-bg-elevated)]">
           {role !== 'client' && (
-            <th className="px-3 py-2 border-b border-zinc-700 w-12">
+            <th className="px-3 py-2 border-b border-[var(--color-border-default)] w-12">
               <input
                 type="checkbox"
                 onChange={toggleSelectAllCurrentPage}
@@ -76,7 +76,7 @@ function ProductTable({
           {columns.map(
             (col) =>
               visibleColumns.includes(col.key) && (
-                <th key={col.key} className="px-3 py-2 border-b border-zinc-700">
+                <th key={col.key} className="px-3 py-2 border-b border-[var(--color-border-default)]">
                   {col.label}
                 </th>
               )
@@ -107,12 +107,12 @@ function ProductTable({
           return (
             <tr
               key={String(row.id)}
-              className={`odd:bg-zinc-900 even:bg-zinc-800 ${role !== 'client' ? 'cursor-pointer' : ''
+              className={`odd:bg-[var(--color-bg-surface)] even:bg-[var(--color-bg-elevated)] ${role !== 'client' ? 'cursor-pointer' : ''
                 } ${isSelected ? 'bg-indigo-900/40 ring-1 ring-indigo-500' : ''}`}
               onClick={() => role !== 'client' && setSelectedProduct(row)}
             >
               {role !== 'client' && (
-                <td className="px-3 py-1 border-b border-zinc-700">
+                <td className="px-3 py-1 border-b border-[var(--color-border-default)]">
                   <input
                     type="checkbox"
                     checked={isSelected}
@@ -136,7 +136,7 @@ function ProductTable({
                 return (
                   <td
                     key={col.key}
-                    className={`px-3 py-1 border-b border-zinc-700 ${isMin ? 'text-green-400' : ''}`}
+                    className={`px-3 py-1 border-b border-[var(--color-border-default)] ${isMin ? 'text-green-400' : ''}`}
                   >
                     {col.key === 'averagePrice' && role !== 'client' ? (
                       <input
@@ -153,7 +153,7 @@ function ProductTable({
                             )
                           );
                         }}
-                        className="w-20 px-1 bg-zinc-700 rounded"
+                        className="w-20 px-1 bg-[var(--color-bg-input)] rounded"
                       />
                     ) : col.key === 'averagePrice' ? (
                       row.averagePrice
@@ -195,7 +195,7 @@ function ProductTable({
                             )
                           );
                         }}
-                        className="w-20 px-1 bg-zinc-700 rounded"
+                        className="w-20 px-1 bg-[var(--color-bg-input)] rounded"
                       />
                     ) : col.key === 'marge' ? (
                       row.marge

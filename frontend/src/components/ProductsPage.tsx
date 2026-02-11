@@ -614,7 +614,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
           id="rowsPerPage"
           value={rowsPerPage}
           onChange={(e) => setRowsPerPage(Number(e.target.value))}
-          className="bg-zinc-900 border border-zinc-600 rounded px-2 py-1"
+          className="bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded px-2 py-1"
         >
           <option value={10}>10</option>
           <option value={20}>20</option>
@@ -665,7 +665,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
                 Colonnes
               </button>
               {showColumnMenu && (
-                <div className="absolute z-10 mt-2 p-4 bg-zinc-900 border border-zinc-700 rounded shadow-xl grid grid-cols-2 gap-2">
+                <div className="absolute z-10 mt-2 p-4 bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded shadow-xl grid grid-cols-2 gap-2">
                   {columns.map((col) => (
                     <label key={col.key} className="flex items-center space-x-2 text-sm">
                       <input
@@ -705,7 +705,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
                   </button>
                 )}
                 <div className="flex items-center gap-3">
-                  <span className="text-sm text-zinc-300">
+                  <span className="text-sm text-[var(--color-text-secondary)]">
                     {modifiedCount} produit{modifiedCount === 1 ? '' : 's'} modifié{modifiedCount === 1 ? '' : 's'}
                   </span>
                   <button

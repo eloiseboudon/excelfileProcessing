@@ -31,11 +31,11 @@ function ProductFilters({
 }: ProductFiltersProps) {
   return (
     <tr>
-      {role !== 'client' && <th className="px-3 py-1 border-b border-zinc-700"></th>}
+      {role !== 'client' && <th className="px-3 py-1 border-b border-[var(--color-border-default)]"></th>}
       {columns.map(
         (col) =>
           visibleColumns.includes(col.key) && (
-            <th key={col.key} className="px-3 py-1 border-b border-zinc-700">
+            <th key={col.key} className="px-3 py-1 border-b border-[var(--color-border-default)]">
               {baseColumns.some((c) => c.key === col.key) ? (
                 ['brand', 'memory', 'color', 'type', 'ram', 'norme'].includes(
                   col.key
@@ -66,7 +66,7 @@ function ProductFilters({
                     onChange={(e) =>
                       setFilters({ ...filters, [col.key]: e.target.value })
                     }
-                    className="w-full px-2 py-1 bg-zinc-900 border border-zinc-600 rounded"
+                    className="w-full px-2 py-1 bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded"
                   />
                 )
               ) : null}
