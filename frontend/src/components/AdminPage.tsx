@@ -1,13 +1,9 @@
-import { ArrowLeft, Settings } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { useState } from 'react';
 import ReferenceAdmin from './ReferenceAdmin';
 import SupplierApiAdmin from './SupplierApiAdmin';
 import TranslationAdmin from './TranslationAdmin';
 import UserAdmin from './UserAdmin';
-
-interface AdminPageProps {
-  onBack: () => void;
-}
 
 type AdminTab = 'references' | 'translations' | 'apis' | 'users';
 
@@ -18,18 +14,11 @@ const TABS: { key: AdminTab; label: string }[] = [
   { key: 'users', label: 'Utilisateurs' },
 ];
 
-function AdminPage({ onBack }: AdminPageProps) {
+function AdminPage() {
   const [tab, setTab] = useState<AdminTab>('references');
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-      <button
-        onClick={onBack}
-        className="btn btn-secondary mb-6"
-      >
-        <ArrowLeft className="w-5 h-5" />
-        <span>Retour</span>
-      </button>
       <div className="mb-8">
         <h1 className="text-3xl font-semibold text-[var(--color-text-heading)] flex items-center gap-3">
           <Settings className="w-8 h-8 text-[#B8860B]" />

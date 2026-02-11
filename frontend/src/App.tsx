@@ -1,4 +1,4 @@
-import { ChevronDown, LibraryBig, LogOut, Search, Settings } from 'lucide-react';
+import { ChevronDown, LibraryBig, LogOut, RefreshCw, Search, Settings } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { fetchApitest, setAuthToken, setRefreshToken } from './api';
 import AdminPage from './components/AdminPage';
@@ -10,7 +10,7 @@ import StatisticsPage from './components/StatisticsPage';
 
 function App() {
   const storedRole = localStorage.getItem('role');
-  const [currentPage, setCurrentPage] = useState<'search' | 'products' | 'dataImport' | 'statistics' | 'admin'>('search');
+  const [currentPage, setCurrentPage] = useState<'search' | 'products' | 'dataImport' | 'statistics' | 'admin' | 'sync'>('search');
   const [apiTestMessage, setApiTestMessage] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [role, setRole] = useState<string>(storedRole || '');
@@ -77,7 +77,8 @@ function App() {
     return <LoginPage onLogin={handleLogin} />;
   }
 
-  const isProductsActive = currentPage === 'products' || currentPage === 'dataImport';
+  const isProductsActive = currentPage === 'products';
+  const isSettingsActive = currentPage === 'admin' || currentPage === 'sync';
 
   return (
     <div className="min-h-screen text-[var(--color-text-primary)] flex flex-col">
@@ -119,7 +120,7 @@ function App() {
                 onClick={() => {
                   setShowSettingsMenu((prev) => !prev);
                 }}
-                className={`btn px-6 py-3 ${currentPage === 'admin' ? 'btn-primary' : 'btn-secondary'}`}
+                className={`btn px-6 py-3 ${isSettingsActive ? 'btn-primary' : 'btn-secondary'}`}
               >
                 <Settings className="w-5 h-5" />
                 <span>Paramètres</span>
@@ -128,17 +129,30 @@ function App() {
               {showSettingsMenu && (
                 <div className="absolute right-0 mt-2 w-48 rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] shadow-xl">
                   {role !== 'client' && (
-                    <button
-                      onClick={() => {
-                        setCurrentPage('admin');
-                        setShowSettingsMenu(false);
-                      }}
-                      className={`flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-[var(--color-bg-elevated)] ${currentPage === 'admin' ? 'text-[#B8860B]' : 'text-[var(--color-text-primary)]'
-                        }`}
-                    >
-                      <Settings className="w-4 h-4" />
-                      <span>Admin</span>
-                    </button>
+                    <>
+                      <button
+                        onClick={() => {
+                          setCurrentPage('admin');
+                          setShowSettingsMenu(false);
+                        }}
+                        className={`flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-[var(--color-bg-elevated)] ${currentPage === 'admin' ? 'text-[#B8860B]' : 'text-[var(--color-text-primary)]'
+                          }`}
+                      >
+                        <Settings className="w-4 h-4" />
+                        <span>Admin</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setCurrentPage('sync');
+                          setShowSettingsMenu(false);
+                        }}
+                        className={`flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-[var(--color-bg-elevated)] ${currentPage === 'sync' ? 'text-[#B8860B]' : 'text-[var(--color-text-primary)]'
+                          }`}
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        <span>Synchro</span>
+                      </button>
+                    </>
                   )}
                   <button
                     onClick={handleLogout}
@@ -158,11 +172,10 @@ function App() {
       {currentPage === 'search' && <SearchPage />}
       {role !== 'client' && currentPage === 'dataImport' && <DataImportPage />}
       {role !== 'client' && currentPage === 'statistics' && <StatisticsPage />}
-      {role !== 'client' && currentPage === 'admin' && (
-        <AdminPage onBack={() => setCurrentPage('dataImport')} />
-      )}
+      {role !== 'client' && currentPage === 'admin' && <AdminPage />}
+      {role !== 'client' && currentPage === 'sync' && <DataImportPage />}
       {role !== 'client' && currentPage === 'products' && <ProductsPage role={role} />}
-      {currentPage !== 'admin' && (
+      {currentPage !== 'admin' && currentPage !== 'sync' && (
         <div className="text-center mt-8 mb-6">
           <button
             onClick={handleApiTest}
