@@ -665,7 +665,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
                 Colonnes
               </button>
               {showColumnMenu && (
-                <div className="absolute z-10 mt-2 p-4 bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded shadow-xl grid grid-cols-2 gap-2">
+                <div className="absolute z-50 mt-2 p-4 min-w-[10rem] bg-[var(--color-bg-input)] text-[var(--color-text-primary)] border border-[var(--color-border-strong)] rounded-lg shadow-2xl flex flex-col gap-2">
                   {columns.map((col) => (
                     <label key={col.key} className="flex items-center space-x-2 text-sm">
                       <input

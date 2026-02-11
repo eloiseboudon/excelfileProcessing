@@ -98,14 +98,20 @@ function App() {
                 <span>Moteur de recherche</span>
               </button>
 
-              <div className="relative">
-                <button
-                  className={`btn px-6 py-3 ${isProductsActive ? 'btn-primary' : 'btn-secondary'}`}
-                >
-                  <LibraryBig className="w-5 h-5" />
-                  <span>A venir</span>
-                </button>
-              </div>
+              {role !== 'client' && (
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      setCurrentPage('products');
+                      setShowSettingsMenu(false);
+                    }}
+                    className={`btn px-6 py-3 ${isProductsActive ? 'btn-primary' : 'btn-secondary'}`}
+                  >
+                    <LibraryBig className="w-5 h-5" />
+                    <span>Produits</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="relative" ref={settingsMenuRef}>
@@ -155,7 +161,7 @@ function App() {
       {role !== 'client' && currentPage === 'admin' && (
         <AdminPage onBack={() => setCurrentPage('dataImport')} />
       )}
-      {currentPage === 'products' && <ProductsPage role={role} />}
+      {role !== 'client' && currentPage === 'products' && <ProductsPage role={role} />}
       {currentPage !== 'admin' && (
         <div className="text-center mt-8 mb-6">
           <button

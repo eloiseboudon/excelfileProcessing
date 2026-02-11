@@ -51,4 +51,18 @@ describe('App', () => {
     renderApp();
     expect(screen.getByText(/Paramètres/)).toBeInTheDocument();
   });
+
+  it('shows Produits button for admin users', () => {
+    localStorage.setItem('token', 'fake-jwt-token');
+    localStorage.setItem('role', 'admin');
+    renderApp();
+    expect(screen.getByText('Produits')).toBeInTheDocument();
+  });
+
+  it('does not show Produits button for client users', () => {
+    localStorage.setItem('token', 'fake-jwt-token');
+    localStorage.setItem('role', 'client');
+    renderApp();
+    expect(screen.queryByText('Produits')).not.toBeInTheDocument();
+  });
 });

@@ -4,7 +4,7 @@ Ce document recense les fonctionnalites prevues pour les prochaines versions. Le
 
 ---
 
-## Tableau referentiel produit
+## Tableau referentiel produit (implementee)
 
 Mise a disposition d'un tableau complet du referentiel produit avec :
 
@@ -122,7 +122,7 @@ Infrastructure de tests unitaires et d'integration pour le backend et le fronten
 
 - **Tests utils** : `date.ts`, `numbers.ts`, `text.ts`, `processing.ts`, `html.ts` (fonctions pures)
 - **Tests composants** : `LoginPage`, `NotificationProvider`, `App` (rendu, formulaires, navigation conditionnelle)
-- **78 tests** dans 8 fichiers
+- **108 tests** dans 11 fichiers
 
 ### CI/CD
 

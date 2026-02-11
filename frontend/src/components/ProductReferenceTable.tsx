@@ -109,7 +109,7 @@ function ProductReferenceTable({
           id="rowsPerPage"
           value={rowsPerPage}
           onChange={(e) => onRowsPerPageChange(Number(e.target.value))}
-          className="bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded px-2 py-1"
+          className="bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-strong)] rounded px-2 py-1"
         >
           <option value={10}>10</option>
           <option value={20}>20</option>
@@ -129,7 +129,7 @@ function ProductReferenceTable({
             onChange={(e) =>
               onChange(row.id, 'brand_id', e.target.value === '' ? null : Number(e.target.value))
             }
-            className="px-2 py-1 bg-[var(--color-bg-input)] rounded"
+            className="px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
           >
             <option value="">null</option>
             {brands.map((b) => (
@@ -146,7 +146,7 @@ function ProductReferenceTable({
             onChange={(e) =>
               onChange(row.id, 'memory_id', e.target.value === '' ? null : Number(e.target.value))
             }
-            className="px-2 py-1 bg-[var(--color-bg-input)] rounded"
+            className="px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
           >
             <option value="">null</option>
             {memories.map((m) => (
@@ -163,7 +163,7 @@ function ProductReferenceTable({
             onChange={(e) =>
               onChange(row.id, 'color_id', e.target.value === '' ? null : Number(e.target.value))
             }
-            className="px-2 py-1 bg-[var(--color-bg-input)] rounded"
+            className="px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
           >
             <option value="">null</option>
             {colors.map((c) => (
@@ -180,7 +180,7 @@ function ProductReferenceTable({
             onChange={(e) =>
               onChange(row.id, 'type_id', e.target.value === '' ? null : Number(e.target.value))
             }
-            className="px-2 py-1 bg-[var(--color-bg-input)] rounded"
+            className="px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
           >
             <option value="">null</option>
             {types.map((t) => (
@@ -197,7 +197,7 @@ function ProductReferenceTable({
             onChange={(e) =>
               onChange(row.id, 'ram_id', e.target.value === '' ? null : Number(e.target.value))
             }
-            className="px-2 py-1 bg-[var(--color-bg-input)] rounded"
+            className="px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
           >
             <option value="">null</option>
             {rams.map((r) => (
@@ -214,7 +214,7 @@ function ProductReferenceTable({
             onChange={(e) =>
               onChange(row.id, 'norme_id', e.target.value === '' ? null : Number(e.target.value))
             }
-            className="px-2 py-1 bg-[var(--color-bg-input)] rounded"
+            className="px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
           >
             <option value="">null</option>
             {normes.map((n) => (
@@ -229,7 +229,7 @@ function ProductReferenceTable({
           <input
             value={row.model}
             onChange={(e) => onChange(row.id, 'model', e.target.value)}
-            className="w-full px-2 py-1 bg-[var(--color-bg-input)] rounded"
+            className="w-full px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
           />
         );
       case 'description':
@@ -237,7 +237,7 @@ function ProductReferenceTable({
           <input
             value={row.description}
             onChange={(e) => onChange(row.id, 'description', e.target.value)}
-            className="w-full px-2 py-1 bg-[var(--color-bg-input)] rounded"
+            className="w-full px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
           />
         );
       case 'ean':
@@ -245,7 +245,7 @@ function ProductReferenceTable({
           <input
             value={row.ean ?? ''}
             onChange={(e) => onChange(row.id, 'ean', e.target.value)}
-            className="w-full px-2 py-1 bg-[var(--color-bg-input)] rounded"
+            className="w-full px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
           />
         );
       default:
@@ -294,7 +294,7 @@ function ProductReferenceTable({
                           onChange={(e) =>
                             onFilterChange({ ...filters, [col.key]: e.target.value })
                           }
-                          className="w-full px-2 py-1 bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded"
+                          className="w-full px-2 py-1 bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-strong)] rounded"
                         />
                       )}
                     </th>

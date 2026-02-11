@@ -260,6 +260,15 @@ Le projet dispose d'un pipeline GitHub Actions complet :
 - **CI** (`.github/workflows/ci.yml`) : tests frontend (Vitest) et backend (pytest) executes en parallele sur chaque push et pull request vers `main`. Un recap des resultats (tests passes/echoues) est affiche dans le Job Summary de chaque job.
 - **Deploy** (`.github/workflows/deploy.yml`) : deploiement automatique sur le VPS via SSH apres chaque push sur `main`.
 
+### Referentiel produit
+
+Tableau complet du referentiel produit accessible depuis le bouton "Produits" (role admin uniquement). Permet de :
+- Consulter, filtrer et rechercher l'ensemble des produits du referentiel
+- Editer les produits directement dans le tableau (marque, couleur, memoire, type, RAM, norme)
+- Creer de nouveaux produits via le formulaire integre
+- Supprimer des produits individuellement ou en masse
+- Configurer les colonnes visibles et la pagination
+
 ### Fonctionnalites en cours de developpement
 
 Les fonctionnalites suivantes sont codees mais pas encore exposees dans la navigation. Voir [ROADMAP.md](ROADMAP.md) pour le detail.
