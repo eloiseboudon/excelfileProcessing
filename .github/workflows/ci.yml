@@ -26,8 +26,30 @@ jobs:
         working-directory: frontend
 
       - name: Run tests
-        run: npm test
+        run: npx vitest run --reporter=verbose --reporter=json --outputFile=test-results.json
         working-directory: frontend
+
+      - name: Test summary
+        if: always()
+        working-directory: frontend
+        run: |
+          node << 'NODEEOF'
+          const fs = require('fs');
+          const r = JSON.parse(fs.readFileSync('test-results.json', 'utf8'));
+          const total = r.numTotalTests;
+          const passed = r.numPassedTests;
+          const failed = r.numFailedTests;
+          const duration = (r.testResults.reduce((s, t) => s + (t.endTime - t.startTime), 0) / 1000).toFixed(2);
+          const status = failed > 0 ? '❌' : '✅';
+          const summary = [
+            `## ${status} Frontend Tests`,
+            '',
+            '| Total | Passed | Failed | Duration |',
+            '|-------|--------|--------|----------|',
+            `| ${total} | ${passed} | ${failed} | ${duration}s |`,
+          ].join('\n');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
+          NODEEOF
 
       - name: Build
         run: npm run build
@@ -48,8 +70,35 @@ jobs:
         working-directory: backend
 
       - name: Run tests
-        run: pytest tests/ -v
+        run: pytest tests/ -v --junitxml=test-results.xml
         working-directory: backend
         env:
           DATABASE_URL: "sqlite:///:memory:"
           JWT_SECRET: "ci-test-secret"
+
+      - name: Test summary
+        if: always()
+        working-directory: backend
+        run: |
+          python3 << 'PYEOF'
+          import xml.etree.ElementTree as ET, os
+          tree = ET.parse('test-results.xml')
+          root = tree.getroot()
+          suite = root.find('testsuite')
+          total = int(suite.get('tests', 0))
+          failures = int(suite.get('failures', 0))
+          errors = int(suite.get('errors', 0))
+          failed = failures + errors
+          passed = total - failed
+          duration = float(suite.get('time', 0))
+          status = '❌' if failed > 0 else '✅'
+          lines = [
+              f'## {status} Backend Tests',
+              '',
+              '| Total | Passed | Failed | Duration |',
+              '|-------|--------|--------|----------|',
+              f'| {total} | {passed} | {failed} | {duration:.2f}s |',
+          ]
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+              f.write('\n'.join(lines))
+          PYEOF
