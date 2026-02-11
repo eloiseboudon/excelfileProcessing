@@ -18,17 +18,6 @@ interface Product {
   brand: string;
 }
 
-// interface HotwavProduct {
-//   nom: string;
-//   prix: number;
-// }
-
-// interface Accessory {
-//   nom: string;
-//   prix: number;
-//   marque: string;
-// }
-
 function FormattingPage({ onBack }: FormattingPageProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);

@@ -3,8 +3,9 @@ import { useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { fetchProductPriceSummary, updateProduct } from '../api';
 import { getCurrentTimestamp } from '../utils/date';
-import MultiSelectFilter from './MultiSelectFilter';
+import ProductEditModal from './ProductEditModal';
 import ProductReference from './ProductReference';
+import ProductTable from './ProductTable';
 import SupplierPriceModal from './SupplierPriceModal';
 import WeekToolbar from './WeekToolbar';
 
@@ -18,7 +19,7 @@ import {
 } from '../api';
 import { useNotification } from './NotificationProvider';
 
-interface AggregatedProduct {
+export interface AggregatedProduct {
   id: number;
   model: string | null;
   description: string | null;
@@ -719,197 +720,30 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
             )}
           </div>
           <div className="overflow-auto mt-4">
-            <table className="table">
-              <thead>
-                <tr className="bg-zinc-800">
-                  {role !== 'client' && (
-                    <th className="px-3 py-2 border-b border-zinc-700 w-12">
-                      <input
-                        type="checkbox"
-                        onChange={toggleSelectAllCurrentPage}
-                        checked={
-                          paginatedData.length > 0 &&
-                          paginatedData.every((row) => selectedSet.has(row.id))
-                        }
-                        aria-checked={
-                          paginatedData.some((row) => selectedSet.has(row.id)) &&
-                            !paginatedData.every((row) => selectedSet.has(row.id))
-                            ? 'mixed'
-                            : undefined
-                        }
-                        className="rounded"
-                      />
-                    </th>
-                  )}
-                  {columns.map(
-                    (col) =>
-                      visibleColumns.includes(col.key) && (
-                        <th key={col.key} className="px-3 py-2 border-b border-zinc-700">
-                          {col.label}
-                        </th>
-                      )
-                  )}
-                </tr>
-                <tr>
-                  {role !== 'client' && <th className="px-3 py-1 border-b border-zinc-700"></th>}
-                  {columns.map(
-                    (col) =>
-                      visibleColumns.includes(col.key) && (
-                        <th key={col.key} className="px-3 py-1 border-b border-zinc-700">
-                          {baseColumns.some((c) => c.key === col.key) ? (
-                            ['brand', 'memory', 'color', 'type', 'ram', 'norme'].includes(
-                              col.key
-                            ) ? (
-                              <MultiSelectFilter
-                                options={
-                                  col.key === 'brand'
-                                    ? brandOptions
-                                    : col.key === 'memory'
-                                      ? memoryOptions
-                                      : col.key === 'color'
-                                        ? colorOptions
-                                        : col.key === 'type'
-                                          ? typeOptions
-                                          : col.key === 'ram'
-                                            ? ramOptions
-                                            : normeOptions
-                                }
-                                selected={(filters[col.key] as string[]) || []}
-                                onChange={(selected) =>
-                                  setFilters({ ...filters, [col.key]: selected })
-                                }
-                              />
-                            ) : (
-                              <input
-                                type="text"
-                                value={(filters[col.key] as string) || ''}
-                                onChange={(e) =>
-                                  setFilters({ ...filters, [col.key]: e.target.value })
-                                }
-                                className="w-full px-2 py-1 bg-zinc-900 border border-zinc-600 rounded"
-                              />
-                            )
-                          ) : null}
-                        </th>
-                      )
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedData.map((row) => {
-                  const prices = suppliers.map((s) => row.buyPrices[s]);
-                  const validPrices = prices.filter((p) => typeof p === 'number') as number[];
-                  const minPrice = validPrices.length ? Math.min(...validPrices) : undefined;
-                  const baseBuyPrice = getBaseBuyPrice(row);
-                  const isSelected = selectedSet.has(row.id);
-                  return (
-                    <tr
-                      key={String(row.id)}
-                      className={`odd:bg-zinc-900 even:bg-zinc-800 ${role !== 'client' ? 'cursor-pointer' : ''
-                        } ${isSelected ? 'bg-indigo-900/40 ring-1 ring-indigo-500' : ''}`}
-                      onClick={() => role !== 'client' && setSelectedProduct(row)}
-                    >
-                      {role !== 'client' && (
-                        <td className="px-3 py-1 border-b border-zinc-700">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={() => toggleProductSelection(row.id)}
-                            className="rounded"
-                          />
-                        </td>
-                      )}
-                      {columns.map((col) => {
-                        if (!visibleColumns.includes(col.key)) return null;
-                        let value: any = (row as any)[col.key];
-                        if (col.key.startsWith('pa_')) {
-                          const supplierName = col.key.slice(3);
-                          value = row.buyPrices[supplierName];
-                        }
-                        const isMin =
-                          col.key.startsWith('pa_') &&
-                          typeof value === 'number' &&
-                          value === minPrice;
-                        return (
-                          <td
-                            key={col.key}
-                            className={`px-3 py-1 border-b border-zinc-700 ${isMin ? 'text-green-400' : ''}`}
-                          >
-                            {col.key === 'averagePrice' && role !== 'client' ? (
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={editedPrices[row.id] ?? row.averagePrice}
-                                onClick={(e) => e.stopPropagation()}
-                                onChange={(e) => {
-                                  const v = Number(e.target.value);
-                                  setEditedPrices((prev) => ({ ...prev, [row.id]: v }));
-                                  setData((prev) =>
-                                    prev.map((p) =>
-                                      p.id === row.id ? { ...p, averagePrice: v } : p
-                                    )
-                                  );
-                                }}
-                                className="w-20 px-1 bg-zinc-700 rounded"
-                              />
-                            ) : col.key === 'averagePrice' ? (
-                              row.averagePrice
-                            ) : col.key === 'marge' && role !== 'client' ? (
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={row.marge}
-                                onClick={(e) => e.stopPropagation()}
-                                onChange={(e) => {
-                                  const v = Number(e.target.value);
-                                  if (Number.isNaN(v)) {
-                                    return;
-                                  }
-                                  const tcpValue = Number.isFinite(row.tcp)
-                                    ? row.tcp
-                                    : row.averagePrice - row.marge - baseBuyPrice;
-                                  const newPrice = Number(
-                                    (tcpValue + baseBuyPrice + v).toFixed(2)
-                                  );
-                                  const baseCost = baseBuyPrice + tcpValue;
-                                  const newPercent = baseCost
-                                    ? Number(((v / baseCost) * 100).toFixed(4))
-                                    : null;
-                                  setEditedPrices((prev) => ({
-                                    ...prev,
-                                    [row.id]: newPrice,
-                                  }));
-                                  setData((prev) =>
-                                    prev.map((p) =>
-                                      p.id === row.id
-                                        ? {
-                                          ...p,
-                                          marge: v,
-                                          margePercent: newPercent,
-                                          averagePrice: newPrice,
-                                        }
-                                        : p
-                                    )
-                                  );
-                                }}
-                                className="w-20 px-1 bg-zinc-700 rounded"
-                              />
-                            ) : col.key === 'marge' ? (
-                              row.marge
-                            ) : value !== undefined ? (
-                              String(value)
-                            ) : (
-                              ''
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <ProductTable
+              columns={columns}
+              baseColumns={baseColumns}
+              visibleColumns={visibleColumns}
+              paginatedData={paginatedData}
+              suppliers={suppliers}
+              role={role}
+              editedPrices={editedPrices}
+              setEditedPrices={setEditedPrices}
+              setData={setData}
+              selectedSet={selectedSet}
+              toggleProductSelection={toggleProductSelection}
+              toggleSelectAllCurrentPage={toggleSelectAllCurrentPage}
+              setSelectedProduct={setSelectedProduct}
+              getBaseBuyPrice={getBaseBuyPrice}
+              filters={filters}
+              setFilters={setFilters}
+              brandOptions={brandOptions}
+              colorOptions={colorOptions}
+              memoryOptions={memoryOptions}
+              typeOptions={typeOptions}
+              ramOptions={ramOptions}
+              normeOptions={normeOptions}
+            />
           </div>
           <div className="mt-4">{paginationControls}</div>
         </>
@@ -934,35 +768,13 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
         />
       )}
       {showBulkMarginModal && (
-        <div className="fixed inset-0 z-20 flex items-center justify-center bg-black bg-opacity-70 px-4">
-          <div className="w-full max-w-sm rounded-lg border border-zinc-700 bg-zinc-900 p-6 shadow-xl">
-            <h2 className="text-lg font-semibold mb-2">Mise à jour de la marge</h2>
-            <p className="text-sm text-zinc-300 mb-4">
-              Appliquer une marge unique à {selectedCount}{' '}
-              produit{selectedCount === 1 ? '' : 's'} sélectionné{selectedCount === 1 ? '' : 's'}.
-            </p>
-            <label htmlFor="bulkMarginInput" className="block text-sm mb-2">
-              Nouvelle marge
-            </label>
-            <input
-              id="bulkMarginInput"
-              type="number"
-              step="0.01"
-              value={bulkMarginValue}
-              onChange={(e) => setBulkMarginValue(e.target.value)}
-              className="w-full rounded border border-zinc-600 bg-zinc-800 px-3 py-2"
-              autoFocus
-            />
-            <div className="mt-6 flex justify-end gap-2">
-              <button className="btn btn-secondary" onClick={closeBulkMarginModal}>
-                Annuler
-              </button>
-              <button className="btn btn-primary" onClick={applyBulkMargin}>
-                Appliquer
-              </button>
-            </div>
-          </div>
-        </div>
+        <ProductEditModal
+          selectedCount={selectedCount}
+          bulkMarginValue={bulkMarginValue}
+          setBulkMarginValue={setBulkMarginValue}
+          closeBulkMarginModal={closeBulkMarginModal}
+          applyBulkMargin={applyBulkMargin}
+        />
       )}
     </div>
   );

@@ -28,11 +28,6 @@ def create_app():
         expose_headers=["Content-Disposition"],
     )
 
-    @app.route("/")
-    def index():
-        """Health check route used outside of blueprints."""
-        return {"message": "Hello World"}
-
     database_url = os.getenv("DATABASE_URL")
     if not database_url:
         raise RuntimeError("DATABASE_URL environment variable is not set")

@@ -1,17 +1,11 @@
 import { useState } from 'react';
-import FormattingPage from './FormattingPage';
-import ProcessingPage from './ProcessingPage';
 import SupplierApiSyncPanel from './SupplierApiSyncPanel';
 import SupplierApiReports from './SupplierApiReports';
 
-type UpdateStep = 'processing' | 'formatting';
 type ImportTab = 'sync' | 'report';
 
 function DataImportPage() {
-  const [updateStep, setUpdateStep] = useState<UpdateStep>('processing');
   const [activeTab, setActiveTab] = useState<ImportTab>('sync');
-  // Temporary flag to hide the legacy "Calculs et traitements" workflow while preserving the code.
-  const showUpdateWorkflow = false;
 
   return (
     <div className="flex-1 flex flex-col">
@@ -45,15 +39,6 @@ function DataImportPage() {
           </div>
         </div>
         {activeTab === 'sync' ? <SupplierApiSyncPanel /> : <SupplierApiReports />}
-        {showUpdateWorkflow && (
-          <div className="mt-6">
-            {updateStep === 'processing' ? (
-              <ProcessingPage onNext={() => setUpdateStep('formatting')} />
-            ) : (
-              <FormattingPage onBack={() => setUpdateStep('processing')} />
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

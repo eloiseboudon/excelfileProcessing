@@ -1,4 +1,3 @@
-import { Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import {
   fetchProducts,
@@ -13,10 +12,11 @@ import {
   deleteProduct,
   bulkDeleteProducts,
 } from '../api';
-import MultiSelectFilter from './MultiSelectFilter';
 import { useNotification } from './NotificationProvider';
+import ProductReferenceForm from './ProductReferenceForm';
+import ProductReferenceTable from './ProductReferenceTable';
 
-interface ProductItem {
+export interface ProductItem {
   id: number;
   ean: string | null;
   model: string;
@@ -33,6 +33,11 @@ interface ProductItem {
   ram: string | null;
   norme_id: number | null;
   norme: string | null;
+}
+
+export interface Column {
+  key: string;
+  label: string;
 }
 
 function ProductReference() {
@@ -60,7 +65,7 @@ function ProductReference() {
   const [normeOptions, setNormeOptions] = useState<string[]>([]);
   const selectedCount = selectedProducts.length;
 
-  const columns: { key: string; label: string }[] = [
+  const columns: Column[] = [
     { key: 'id', label: 'ID' },
     { key: 'model', label: 'Modèle' },
     { key: 'description', label: 'Description' },
@@ -327,330 +332,55 @@ function ProductReference() {
     }
   };
 
-  const paginationControls = (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center space-x-2">
-        <button
-          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-          disabled={currentPage === 1}
-          className="px-3 py-1 bg-zinc-800 rounded disabled:opacity-50"
-        >
-          Précédent
-        </button>
-        <span>
-          Page {currentPage} / {totalPages}
-        </span>
-        <button
-          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-          disabled={currentPage === totalPages}
-          className="px-3 py-1 bg-zinc-800 rounded disabled:opacity-50"
-        >
-          Suivant
-        </button>
-      </div>
-      <div className="flex items-center space-x-2">
-        <label htmlFor="rowsPerPage" className="text-sm">
-          Lignes par page:
-        </label>
-        <select
-          id="rowsPerPage"
-          value={rowsPerPage}
-          onChange={(e) => setRowsPerPage(Number(e.target.value))}
-          className="bg-zinc-900 border border-zinc-600 rounded px-2 py-1"
-        >
-          <option value={10}>10</option>
-          <option value={20}>20</option>
-          <option value={50}>50</option>
-          <option value={100}>100</option>
-        </select>
-      </div>
-    </div>
-  );
-
   return (
     <div>
-      <div className="flex justify-between mb-4">
-        <div className="flex space-x-2">
-          <div className="relative">
-            <button
-              onClick={() => setShowColumnMenu((s) => !s)}
-              className="px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700"
-            >
-              Colonnes
-            </button>
-            {showColumnMenu && (
-              <div className="absolute z-10 mt-2 p-4 bg-zinc-900 border border-zinc-700 rounded shadow-xl grid grid-cols-2 gap-2">
-                {columns.map((col) => (
-                  <label key={col.key} className="flex items-center space-x-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={visibleColumns.includes(col.key)}
-                      onChange={() => toggleColumn(col.key)}
-                      className="rounded"
-                    />
-                    <span>{col.label}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-          <button
-            onClick={handleAdd}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Ajouter
-          </button>
-        </div>
-        <div className="flex space-x-2">
-          {selectedCount > 0 && (
-            <button
-              onClick={handleBulkDelete}
-              disabled={isBulkDeleting}
-              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Supprimer produit(s)
-            </button>
-          )}
-          <button
-            onClick={saveAll}
-            disabled={!Object.keys(edited).length}
-            className="px-4 py-2 bg-green-600 text-white rounded disabled:opacity-50 hover:bg-green-700"
-          >
-            Enregistrer
-          </button>
-        </div>
-      </div>
-      {paginationControls}
-      <div className="overflow-auto mt-4">
-        <table className="min-w-full text-sm text-left border border-zinc-700">
-          <thead>
-            <tr className="bg-zinc-800">
-              <th className="px-3 py-2 border-b border-zinc-700 w-12" />
-              {columns.map(
-                (col) =>
-                  visibleColumns.includes(col.key) && (
-                    <th key={col.key} className="px-3 py-2 border-b border-zinc-700">
-                      {col.label}
-                    </th>
-                  )
-              )}
-              <th className="px-3 py-2 border-b border-zinc-700 w-20 text-center">
-                Actions
-              </th>
-            </tr>
-            <tr>
-              <th className="px-3 py-1 border-b border-zinc-700" />
-              {columns.map(
-                (col) =>
-                  visibleColumns.includes(col.key) && (
-                    <th key={col.key} className="px-3 py-1 border-b border-zinc-700">
-                      {['brand', 'memory', 'color', 'type', 'ram', 'norme'].includes(col.key) ? (
-                        <MultiSelectFilter
-                          options={
-                            col.key === 'brand'
-                              ? brandOptions
-                              : col.key === 'memory'
-                              ? memoryOptions
-                              : col.key === 'color'
-                              ? colorOptions
-                              : col.key === 'type'
-                              ? typeOptions
-                              : col.key === 'ram'
-                              ? ramOptions
-                              : normeOptions
-                          }
-                          selected={(filters[col.key] as string[]) || []}
-                          onChange={(selected) =>
-                            setFilters({ ...filters, [col.key]: selected })
-                          }
-                        />
-                      ) : (
-                        <input
-                          type="text"
-                          value={(filters[col.key] as string) || ''}
-                          onChange={(e) =>
-                            setFilters({ ...filters, [col.key]: e.target.value })
-                          }
-                          className="w-full px-2 py-1 bg-zinc-900 border border-zinc-600 rounded"
-                        />
-                      )}
-                    </th>
-                  )
-              )}
-              <th className="px-3 py-1 border-b border-zinc-700" />
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedData.map((row) => (
-              <tr key={String(row.id)} className="odd:bg-zinc-900 even:bg-zinc-800">
-                <td className="px-3 py-1 border-b border-zinc-700">
-                  <input
-                    type="checkbox"
-                    checked={selectedProducts.includes(row.id)}
-                    onChange={() => toggleSelectProduct(row.id)}
-                    className="rounded"
-                  />
-                </td>
-                {columns.map(
-                  (col) =>
-                    visibleColumns.includes(col.key) && (
-                      <td key={col.key} className="px-3 py-1 border-b border-zinc-700">
-                        {col.key === 'brand' ? (
-                          <select
-                            value={row.brand_id ?? ''}
-                            onChange={(e) =>
-                              handleChange(
-                                row.id,
-                                'brand_id',
-                                e.target.value === '' ? null : Number(e.target.value)
-                              )
-                            }
-                            className="px-2 py-1 bg-zinc-700 rounded"
-                          >
-                            <option value="">null</option>
-                            {brands.map((b) => (
-                              <option key={b.id} value={b.id}>
-                                {b.brand}
-                              </option>
-                            ))}
-                          </select>
-                        ) : col.key === 'memory' ? (
-                          <select
-                            value={row.memory_id ?? ''}
-                            onChange={(e) =>
-                              handleChange(
-                                row.id,
-                                'memory_id',
-                                e.target.value === '' ? null : Number(e.target.value)
-                              )
-                            }
-                            className="px-2 py-1 bg-zinc-700 rounded"
-                          >
-                            <option value="">null</option>
-                            {memories.map((m) => (
-                              <option key={m.id} value={m.id}>
-                                {m.memory}
-                              </option>
-                            ))}
-                          </select>
-                        ) : col.key === 'color' ? (
-                          <select
-                            value={row.color_id ?? ''}
-                            onChange={(e) =>
-                              handleChange(
-                                row.id,
-                                'color_id',
-                                e.target.value === '' ? null : Number(e.target.value)
-                              )
-                            }
-                            className="px-2 py-1 bg-zinc-700 rounded"
-                          >
-                            <option value="">null</option>
-                            {colors.map((c) => (
-                              <option key={c.id} value={c.id}>
-                                {c.color}
-                              </option>
-                            ))}
-                          </select>
-                        ) : col.key === 'type' ? (
-                          <select
-                            value={row.type_id ?? ''}
-                            onChange={(e) =>
-                              handleChange(
-                                row.id,
-                                'type_id',
-                                e.target.value === '' ? null : Number(e.target.value)
-                              )
-                            }
-                            className="px-2 py-1 bg-zinc-700 rounded"
-                          >
-                            <option value="">null</option>
-                            {types.map((t) => (
-                              <option key={t.id} value={t.id}>
-                                {t.type}
-                              </option>
-                            ))}
-                          </select>
-                        ) : col.key === 'ram' ? (
-                          <select
-                            value={row.ram_id ?? ''}
-                            onChange={(e) =>
-                              handleChange(
-                                row.id,
-                                'ram_id',
-                                e.target.value === '' ? null : Number(e.target.value)
-                              )
-                            }
-                            className="px-2 py-1 bg-zinc-700 rounded"
-                          >
-                            <option value="">null</option>
-                            {rams.map((r) => (
-                              <option key={r.id} value={r.id}>
-                                {r.ram}
-                              </option>
-                            ))}
-                          </select>
-                        ) : col.key === 'norme' ? (
-                          <select
-                            value={row.norme_id ?? ''}
-                            onChange={(e) =>
-                              handleChange(
-                                row.id,
-                                'norme_id',
-                                e.target.value === '' ? null : Number(e.target.value)
-                              )
-                            }
-                            className="px-2 py-1 bg-zinc-700 rounded"
-                          >
-                            <option value="">null</option>
-                            {normes.map((n) => (
-                              <option key={n.id} value={n.id}>
-                                {n.norme}
-                              </option>
-                            ))}
-                          </select>
-                        ) : col.key === 'model' ? (
-                          <input
-                            value={row.model}
-                            onChange={(e) => handleChange(row.id, 'model', e.target.value)}
-                            className="w-full px-2 py-1 bg-zinc-700 rounded"
-                          />
-                        ) : col.key === 'description' ? (
-                          <input
-                            value={row.description}
-                            onChange={(e) => handleChange(row.id, 'description', e.target.value)}
-                            className="w-full px-2 py-1 bg-zinc-700 rounded"
-                          />
-                        ) : col.key === 'ean' ? (
-                          <input
-                            value={row.ean ?? ''}
-                            onChange={(e) => handleChange(row.id, 'ean', e.target.value)}
-                            className="w-full px-2 py-1 bg-zinc-700 rounded"
-                          />
-                      ) : (
-                          String((row as any)[col.key] ?? '')
-                        )}
-                      </td>
-                    )
-                )}
-                <td className="px-3 py-1 border-b border-zinc-700 text-center">
-                  <button
-                    onClick={() => handleDelete(row.id)}
-                    className="inline-flex items-center justify-center w-8 h-8 rounded bg-red-600 text-white hover:bg-red-700"
-                    title="Supprimer"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="mt-4">{paginationControls}</div>
+      <ProductReferenceForm
+        columns={columns}
+        visibleColumns={visibleColumns}
+        showColumnMenu={showColumnMenu}
+        onToggleColumnMenu={() => setShowColumnMenu((s) => !s)}
+        onToggleColumn={toggleColumn}
+        onAdd={handleAdd}
+        onSave={saveAll}
+        onBulkDelete={handleBulkDelete}
+        selectedCount={selectedCount}
+        isBulkDeleting={isBulkDeleting}
+        hasEdits={Object.keys(edited).length > 0}
+      />
+      <ProductReferenceTable
+        columns={columns}
+        visibleColumns={visibleColumns}
+        paginatedData={paginatedData}
+        filters={filters}
+        onFilterChange={setFilters}
+        filterOptions={{
+          brandOptions,
+          colorOptions,
+          memoryOptions,
+          typeOptions,
+          ramOptions,
+          normeOptions,
+        }}
+        referenceData={{
+          brands,
+          colors,
+          memories,
+          types,
+          rams,
+          normes,
+        }}
+        selectedProducts={selectedProducts}
+        onToggleSelectProduct={toggleSelectProduct}
+        onChange={handleChange}
+        onDelete={handleDelete}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        rowsPerPage={rowsPerPage}
+        onPageChange={setCurrentPage}
+        onRowsPerPageChange={setRowsPerPage}
+      />
     </div>
   );
 }
 
 export default ProductReference;
-

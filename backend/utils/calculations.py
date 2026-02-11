@@ -2,7 +2,6 @@ import math
 from datetime import datetime, timezone
 from typing import Dict, Iterable, Tuple
 
-import pandas as pd
 from models import (
     Brand,
     Color,
@@ -14,6 +13,7 @@ from models import (
     TemporaryImport,
     db,
 )
+from utils.pricing import compute_margin_prices
 
 
 def _load_mappings() -> Dict[str, Iterable[Tuple[str, int]]]:
@@ -121,64 +121,31 @@ def recalculate_product_calculations():
         else:
             tcp = memory_option.tcp_value
 
-        margin45 = price * 0.045
-        price_with_tcp = price + tcp + margin45
-
-        thresholds = [15, 29, 49, 79, 99, 129, 149, 179, 209, 299, 499, 799, 999]
-        margins = [
-            1.25,
-            1.22,
-            1.20,
-            1.18,
-            1.15,
-            1.11,
-            1.10,
-            1.09,
-            1.09,
-            1.08,
-            1.08,
-            1.07,
-            1.07,
-            1.06,
-        ]
-        price_with_margin = price
-        for i, t in enumerate(thresholds):
-            if price <= t:
-                price_with_margin = price * margins[i]
-                break
-        if price > thresholds[-1]:
-            price_with_margin = price * 1.06
+        (
+            margin45,
+            price_with_tcp,
+            price_with_margin,
+            max_price,
+            marge_value,
+            marge_percent,
+        ) = compute_margin_prices(price, tcp)
 
         # Vérifier que les valeurs ne sont pas NaN
-        if pd.isna(price_with_tcp) or pd.isna(price_with_margin):
+        if math.isnan(price_with_tcp) or math.isnan(price_with_margin):
             print(f"Valeurs NaN détectées pour le produit {product.id}")
             continue
-
-        try:
-            max_price = math.ceil(max(price_with_tcp, price_with_margin))
-        except ValueError as e:
-            print(f"Erreur de calcul pour le produit {product.id}: {str(e)}")
-            continue
-
-        marge_value = max_price - tcp - price
-        base_cost = price + tcp
-        marge_percent = (
-            round((marge_value / base_cost) * 100, 4)
-            if base_cost
-            else None
-        )
 
         calc = ProductCalculation(
             product_id=product.id,
             supplier_id=temp.supplier_id,
             price=round(price, 2),
             tcp=round(tcp, 2),
-            marge4_5=round(margin45, 2),
-            prixht_tcp_marge4_5=round(price_with_tcp, 2),
-            prixht_marge4_5=round(price_with_margin, 2),
+            marge4_5=margin45,
+            prixht_tcp_marge4_5=price_with_tcp,
+            prixht_marge4_5=price_with_margin,
             prixht_max=max_price,
             date=datetime.now(timezone.utc),
-            marge=round(marge_value, 2),
+            marge=marge_value,
             marge_percent=marge_percent,
             stock=temp.quantity,
         )
@@ -202,51 +169,21 @@ def update_product_calculations_for_memory_option(memory_option_id: int) -> None
     for calc in calcs:
         price = calc.price or 0
         tcp = option.tcp_value
-        margin45 = price * 0.045
-        price_with_tcp = price + tcp + margin45
-
-        thresholds = [15, 29, 49, 79, 99, 129, 149, 179, 209, 299, 499, 799, 999]
-        margins = [
-            1.25,
-            1.22,
-            1.20,
-            1.18,
-            1.15,
-            1.11,
-            1.10,
-            1.09,
-            1.09,
-            1.08,
-            1.08,
-            1.07,
-            1.07,
-            1.06,
-        ]
-
-        price_with_margin = price
-        for i, t in enumerate(thresholds):
-            if price <= t:
-                price_with_margin = price * margins[i]
-                break
-        if price > thresholds[-1]:
-            price_with_margin = price * 1.06
-
-        max_price = math.ceil(max(price_with_tcp, price_with_margin))
-
-        marge_value = max_price - tcp - price
-        base_cost = price + tcp
-        marge_percent = (
-            round((marge_value / base_cost) * 100, 4)
-            if base_cost
-            else None
-        )
+        (
+            margin45,
+            price_with_tcp,
+            price_with_margin,
+            max_price,
+            marge_value,
+            marge_percent,
+        ) = compute_margin_prices(price, tcp)
 
         calc.tcp = round(tcp, 2)
-        calc.marge4_5 = round(margin45, 2)
-        calc.prixht_tcp_marge4_5 = round(price_with_tcp, 2)
-        calc.prixht_marge4_5 = round(price_with_margin, 2)
+        calc.marge4_5 = margin45
+        calc.prixht_tcp_marge4_5 = price_with_tcp
+        calc.prixht_marge4_5 = price_with_margin
         calc.prixht_max = max_price
-        calc.marge = round(marge_value, 2)
+        calc.marge = marge_value
         calc.marge_percent = marge_percent
 
     if calcs:

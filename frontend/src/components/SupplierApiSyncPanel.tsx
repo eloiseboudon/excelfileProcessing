@@ -1,7 +1,7 @@
 import { RefreshCcw, Loader2, ShieldCheck, AlertCircle, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  fetchSupplierApiData,
+  refreshSupplierCatalog,
   fetchSuppliers,
   SupplierApiMappingSummary,
   SupplierApiRow,
@@ -66,7 +66,7 @@ function SupplierApiSyncPanel() {
     setLoadingSupplier(supplierId);
     setError(null);
     try {
-      const response = await fetchSupplierApiData(supplierId);
+      const response = await refreshSupplierCatalog(supplierId);
       const fallbackName = supplierMap[supplierId] || response.supplier || 'Fournisseur';
       const mapped = mapResponseToRows(response, fallbackName);
 

@@ -19,6 +19,37 @@ def _parse_week(w):
     return int(year_part), int(week_part)
 
 
+def _build_stats_query(filters):
+    """Build a filtered ProductCalculation query from common stat filters."""
+    query = ProductCalculation.query.join(Supplier).join(Product).join(Brand)
+
+    if filters.get("supplier_id"):
+        query = query.filter(ProductCalculation.supplier_id == filters["supplier_id"])
+    if filters.get("brand_id"):
+        query = query.filter(Product.brand_id == filters["brand_id"])
+    if filters.get("product_id"):
+        query = query.filter(Product.id == filters["product_id"])
+
+    start_week = filters.get("start_week")
+    if start_week:
+        sy, sw = _parse_week(start_week)
+        query = query.filter(
+            extract("year", ProductCalculation.date) * 100
+            + extract("week", ProductCalculation.date)
+            >= sy * 100 + sw
+        )
+    end_week = filters.get("end_week")
+    if end_week:
+        ey, ew = _parse_week(end_week)
+        query = query.filter(
+            extract("year", ProductCalculation.date) * 100
+            + extract("week", ProductCalculation.date)
+            <= ey * 100 + ew
+        )
+
+    return query
+
+
 @bp.route("/price_stats", methods=["GET"])
 @token_required("admin")
 def price_stats():
@@ -32,35 +63,16 @@ def price_stats():
         description: List of graph settings
     """
 
-    supplier_id = request.args.get("supplier_id", type=int)
-    brand_id = request.args.get("brand_id", type=int)
     product_id = request.args.get("product_id", type=int)
-    start_week = request.args.get("start_week")
-    end_week = request.args.get("end_week")
+    filters = {
+        "supplier_id": request.args.get("supplier_id", type=int),
+        "brand_id": request.args.get("brand_id", type=int),
+        "product_id": product_id,
+        "start_week": request.args.get("start_week"),
+        "end_week": request.args.get("end_week"),
+    }
 
-    query = ProductCalculation.query.join(Supplier).join(Product).join(Brand)
-
-    if supplier_id:
-        query = query.filter(ProductCalculation.supplier_id == supplier_id)
-    if brand_id:
-        query = query.filter(Product.brand_id == brand_id)
-    if product_id:
-        query = query.filter(Product.id == product_id)
-
-    if start_week:
-        sy, sw = _parse_week(start_week)
-        query = query.filter(
-            extract("year", ProductCalculation.date) * 100
-            + extract("week", ProductCalculation.date)
-            >= sy * 100 + sw
-        )
-    if end_week:
-        ey, ew = _parse_week(end_week)
-        query = query.filter(
-            extract("year", ProductCalculation.date) * 100
-            + extract("week", ProductCalculation.date)
-            <= ey * 100 + ew
-        )
+    query = _build_stats_query(filters)
 
     week_field = extract("week", ProductCalculation.date).label("week")
     year_field = extract("year", ProductCalculation.date).label("year")
@@ -122,31 +134,14 @@ def brand_supplier_average():
         description: Average price grouped by brand and supplier
     """
 
-    supplier_id = request.args.get("supplier_id", type=int)
-    brand_id = request.args.get("brand_id", type=int)
-    start_week = request.args.get("start_week")
-    end_week = request.args.get("end_week")
+    filters = {
+        "supplier_id": request.args.get("supplier_id", type=int),
+        "brand_id": request.args.get("brand_id", type=int),
+        "start_week": request.args.get("start_week"),
+        "end_week": request.args.get("end_week"),
+    }
 
-    query = ProductCalculation.query.join(Supplier).join(Product).join(Brand)
-
-    if supplier_id:
-        query = query.filter(ProductCalculation.supplier_id == supplier_id)
-    if brand_id:
-        query = query.filter(Product.brand_id == brand_id)
-    if start_week:
-        sy, sw = _parse_week(start_week)
-        query = query.filter(
-            extract("year", ProductCalculation.date) * 100
-            + extract("week", ProductCalculation.date)
-            >= sy * 100 + sw
-        )
-    if end_week:
-        ey, ew = _parse_week(end_week)
-        query = query.filter(
-            extract("year", ProductCalculation.date) * 100
-            + extract("week", ProductCalculation.date)
-            <= ey * 100 + ew
-        )
+    query = _build_stats_query(filters)
 
     results = (
         query.with_entities(
@@ -185,34 +180,15 @@ def product_supplier_average():
         description: Average price grouped by product and supplier
     """
 
-    supplier_id = request.args.get("supplier_id", type=int)
-    brand_id = request.args.get("brand_id", type=int)
-    product_id = request.args.get("product_id", type=int)
-    start_week = request.args.get("start_week")
-    end_week = request.args.get("end_week")
+    filters = {
+        "supplier_id": request.args.get("supplier_id", type=int),
+        "brand_id": request.args.get("brand_id", type=int),
+        "product_id": request.args.get("product_id", type=int),
+        "start_week": request.args.get("start_week"),
+        "end_week": request.args.get("end_week"),
+    }
 
-    query = ProductCalculation.query.join(Supplier).join(Product).join(Brand)
-
-    if supplier_id:
-        query = query.filter(ProductCalculation.supplier_id == supplier_id)
-    if brand_id:
-        query = query.filter(Product.brand_id == brand_id)
-    if product_id:
-        query = query.filter(Product.id == product_id)
-    if start_week:
-        sy, sw = _parse_week(start_week)
-        query = query.filter(
-            extract("year", ProductCalculation.date) * 100
-            + extract("week", ProductCalculation.date)
-            >= sy * 100 + sw
-        )
-    if end_week:
-        ey, ew = _parse_week(end_week)
-        query = query.filter(
-            extract("year", ProductCalculation.date) * 100
-            + extract("week", ProductCalculation.date)
-            <= ey * 100 + ew
-        )
+    query = _build_stats_query(filters)
 
     results = (
         query.with_entities(

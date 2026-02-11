@@ -25,11 +25,9 @@ dist-ssr
 .venv
 .env
 .env.dev
+.env.prod
 .flake8
 
-deploy.sh
-
-frontend/nginx.conf
 frontend/.env
 frontend/package-lock.json
 

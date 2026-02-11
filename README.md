@@ -1,257 +1,375 @@
-# AJT PRO - Système de Tarification avec Panier
+# AJT PRO -- Gestion de tarification
 
-Application de gestion des couts par fournisseurs et définition des prix de ventes
+Application de gestion tarifaire pour un revendeur de telephonie et electronique. AJT PRO croise les donnees produits issues d'Odoo avec les API fournisseurs afin de piloter les couts d'achat et de calculer les prix de vente. L'application permet d'importer les catalogues fournisseurs via API, de calculer les marges selon des seuils configurables et de gerer un referentiel produit complet.
 
-## Fonctionnalités
+---
 
-### 🔧 Traitement des données
-- Import de fichiers Excel **(validée)**
-- Calculs automatiques (TCP, marges) **(validée)**
-- Filtrage par marques **(validée)**
-- Exclusion configurable de certains produits **(validée)**
-- Nettoyage automatique et suppression des doublons **(validée)**
-- Export des données traitées **(validée)**
-- Rapprochement automatique avec les références **(validée)**
+## Table des matieres
 
-### 🎨 Mise en forme
-- A partir de la page produits ajout **(pas fait)**
-- Génération de fichiers Excel formatés **(pas fait)**
-- Création de pages web de consultation client **(pas fait)**
-- Interface moderne avec design professionnel **(en amélioration)**
-- Publication en ligne **(pas fait)**
+1. [Prerequis](#prerequis)
+2. [Installation et configuration](#installation-et-configuration)
+3. [Demarrage rapide](#demarrage-rapide)
+4. [Structure du projet](#structure-du-projet)
+5. [Fonctionnalites principales](#fonctionnalites-principales)
+6. [Scripts utilitaires](#scripts-utilitaires)
+7. [Migrations Alembic](#migrations-alembic)
+8. [Sauvegarde et restauration de la base](#sauvegarde-et-restauration-de-la-base)
+9. [Documentation API](#documentation-api)
+10. [Verifications locales](#verifications-locales)
 
-### ⚙️ Administration
-- Interface d'administration intuitive **(validée)**
-- Mise à jour en masse des produits **(validée)**
-- Ajout/modification/suppression de produits **(validée)**
-- Authentification par jeton avec rôles admin et client **(nouveau)**
+---
 
-### 📱 Produits
-- Affichage des produits **(validée)**
-- Vue filtrable et édition en masse du référentiel **(validée)**
-- Ajout/modification/suppression de produits **(validée)**
+## Prerequis
 
-### 📊 Statistiques
-- Graphiques dynamiques par semaine avec filtres fournisseur, marque et intervalle de semaines
-- Comparaison de l'évolution d'un produit selon les fournisseurs
-- Visualisations avancées : évolution relative, distribution des prix, écart-type, min/max, indice, corrélations et détection d'anomalies
-- Bouton d'information (i) expliquant chaque graphique
-- Filtre pour choisir les graphiques visibles, enregistré en base
+| Outil | Version minimale |
+|-------|-----------------|
+| Docker et Docker Compose | version recente |
+| Node.js | 18+ |
+| Python | 3.12 |
+| PostgreSQL | 16 (fourni via Docker) |
 
-## Fichier `.env`
+---
 
-Créez un fichier `.env` à la racine du projet avec vos identifiants Supabase :
+## Installation et configuration
+
+### 1. Cloner le depot
 
 ```bash
-VITE_SUPABASE_URL=<votre_url_supabase>
-VITE_SUPABASE_ANON_KEY=<votre_cle_anon>
+git clone <url-du-depot>
+cd ajtpro
+```
+
+### 2. Variables d'environnement
+
+Copiez le fichier d'exemple puis adaptez les valeurs a votre environnement.
+
+```bash
+cp .env.example .env
+```
+
+Contenu type du fichier `.env` :
+
+```bash
+FRONTEND_URL=http://localhost:5173
 VITE_API_BASE=http://localhost:5001
+FLASK_HOST=0.0.0.0
+PORT=5001
+DATABASE_URL=postgresql://postgres:postgres@postgres:5432/ajtpro
+FLASK_ENV=development
+FLASK_DEBUG=1
+POSTGRES_DB=ajtpro
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
 JWT_SECRET=change-me
 ```
 
-Ce fichier est ignoré par Git afin de protéger vos informations sensibles.
+**Points importants :**
 
-## Technologies utilisées
+- `FRONTEND_URL` doit correspondre exactement a l'origine du frontend (schema + domaine) pour que la politique CORS fonctionne.
+- `JWT_SECRET` doit etre remplace par une valeur aleatoire et securisee en production.
+- Le fichier `.env` est ignore par Git afin de proteger les informations sensibles.
 
-- **React 18** avec TypeScript
-- **Tailwind CSS** pour le design
-- **Lucide React** pour les icônes
-- **XLSX** pour la manipulation Excel
-- **Context API** pour la gestion d'état
+### 3. Identifiants par defaut
 
-## Installation
-
-```bash
-npm install
-npm run dev
-```
-
-> 💡 **Astuce** : ajoutez l'option `--host` à `npm run dev` (par exemple `npm run dev -- --host`) pour accéder à l'interface depuis un autre appareil du réseau local.
-
-## Structure du projet
-
-```
-src/
-├── components/
-│   ├── AdminPage.tsx          # Interface d'administration
-│   ├── FormattingPage.tsx     # Étape 2 - Mise en forme
-│   ├── ProcessingPage.tsx     # Étape 1 - Traitement
-│   ├── ProductsPage.tsx       # Visualisation des calculs
-│   ├── ProductAdmin.tsx       # Gestion des produits
-│   ├── ProductReference.tsx   # Référentiel produit filtrable
-│   ├── MultiSelectFilter.tsx  # Filtre multi-sélection
-│   ├── ReferenceAdmin.tsx     # Tables de référence
-│   ├── SearchControls.tsx     # Outils de recherche
-│   ├── TranslationAdmin.tsx   # Cohérence des couleurs
-│   ├── StatisticsPage.tsx     # Visualisation des statistiques
-│   └── WeekToolbar.tsx        # Outils hebdomadaires
-├── utils/
-│   ├── date.ts                # Fonctions de date
-│   ├── html.ts                # Génération HTML
-│   └── processing.ts          # Utilitaires de traitement
-├── api.ts                     # Appels API
-├── App.tsx                    # Application principale
-├── main.tsx                   # Point d'entrée
-├── index.css                  # Styles globaux
-└── vite-env.d.ts              # Types Vite
-```
-
-## Utilisation
-
-1. **Traitement** : Importez votre fichier Excel et lancez le traitement
-2. **Mise en forme** : Générez les fichiers formatés et la page client
-3. **Panier** : Les clients peuvent sélectionner des produits et passer commande
-4. **Administration** : Gérez les produits Hotwav via l'interface dédiée
-
-### Configurer un endpoint dans « Gestion des API fournisseurs »
-
-1. Ouvrez la page **Administration** puis cliquez sur **Gestion des API fournisseurs**.
-2. Sélectionnez le fournisseur concerné et ajoutez (ou éditez) une API.
-3. Renseignez les champs principaux du bloc API :
-   - **Base URL** : uniquement le domaine racine de l'API. Pour `https://api.yukatel.de/api/stock-list?...`, saisissez `https://api.yukatel.de`.
-   - **Authentification** : choisissez le type attendu par le fournisseur (`Aucune` si le jeton est déjà dans l'URL).
-   - **Limite/minute** : la limite de requêtes si elle est connue (laisser vide sinon).
-4. Dans la section **Endpoints**, ajoutez une ligne et remplissez :
-   - **Nom** : un libellé interne, par exemple `Stock Yukatel`.
-   - **Méthode** : choisissez `GET` pour l'URL d'exemple.
-   - **Chemin** : la partie restante de l'URL, y compris les paramètres de requête. Exemple : `/api/stock-list?vpnr=22366&authcode=22366-98e3387e-320c-11ef-87c1-0050568c8f1a`.
-   - **Chemin items** : indiquez le chemin JSON vers la liste d'articles si la réponse est imbriquée (laissez vide si les articles sont à la racine du JSON).
-5. Enregistrez l'endpoint puis l'API via les boutons **💾** ou **Enregistrer**.
-
-Ces informations correspondent aux champs visibles dans le composant `SupplierApiAdmin` qui gère l'écran « Gestion des API fournisseurs » du frontend.【F:frontend/src/components/SupplierApiAdmin.tsx†L559-L750】
-
-## Fonctionnalités avancées
-
-- **Responsive design** adapté mobile et desktop
-- **Recherche en temps réel** dans les produits
-- **Filtres par marque** pour navigation facile
-- **Animations fluides** et micro-interactions
-- **Gestion d'erreurs** complète
-- **Validation des formulaires**
-- **Confirmation de commande** automatique
-
-## Backend Python
-
-Un backend minimal en **Python** est fourni dans le dossier `backend`. Il utilise **Flask** et une base **PostgreSQL** pour stocker les produits traités.
-
-### Variables d'environnement du backend
-
-Un fichier d'exemple `backend/.env.example` est fourni. Copiez-le en `backend/.env` puis adaptez les valeurs à votre environnement avant de lancer le serveur.
-
-```bash
-cp backend/.env.example backend/.env
-# Éditez ensuite backend/.env avec vos identifiants locaux
-```
-
-### Installation et lancement
-
-```bash
-# Créer la base de données (PostgreSQL local)
-make db-create    # crée la base `ajtpro` si besoin
-
-make venv         # crée l'environnement virtuel et installe les dépendances
-# Créez un fichier `.env` contenant vos variables :
-# DATABASE_URL=postgresql://user:password@host:5432/ajtpro
-# FRONTEND_URL=http://votre-site.com
-# VITE_API_BASE=http://votre-backend:5001
-# FLASK_HOST=0.0.0.0
-# PORT=5001
-# Un fichier `.env.example` est fourni à titre d'exemple.
-make run          # démarre l'API Flask
-```
-
-### Identifiants par défaut
-
-Le script `backend/implement_tables.py` crée automatiquement un utilisateur
-**admin** pour faciliter le développement local.
+Le script `backend/scripts/database/implement_tables.py` cree automatiquement un utilisateur administrateur :
 
 - **Nom d'utilisateur** : `admin`
 - **Mot de passe** : `admin`
 
-Une documentation interactive est générée grâce à **Flasgger**. Une fois
-l'application lancée, ouvrez `http://localhost:5001/apidocs` pour consulter les
-endpoints disponibles. Le fichier `backend/swagger_template.yml` contient le
-gabarit OpenAPI utilisé pour initialiser Swagger UI.
+Changez ces identifiants des le premier deploiement en production.
 
-La variable `FRONTEND_URL` doit correspondre exactement à l'origine (schéma et
-domaine) de votre site frontend afin que la politique CORS fonctionne.
+---
 
-L'application expose notamment les routes :
+## Demarrage rapide
 
-- `GET /products` : liste l'ensemble des produits en base.
-- `POST /products` : ajout d'un produit au format JSON.
-- `POST /upload` : envoi d'un fichier Excel pour importer plusieurs produits.
-- `POST /import` : importe un fichier Excel dans `temp_imports` et crée les références
-  correspondantes.
-- `POST /import_preview` : renvoie un aperçu des 5 premières lignes valides avant import.
-- `GET /product_calculations/count` : renvoie le nombre de résultats de calcul disponibles.
+### Environnement de developpement
 
-Dans l'application React, le fichier traité est automatiquement transmis au backend via l'endpoint `/upload`. L'import du référentiel utilise quant à lui l'endpoint `/import`.
-
-### Importer un référentiel produit depuis un CSV
-
-Un script dédié permet d'insérer ou de mettre à jour massivement les produits de
-référence à partir d'un fichier CSV (par exemple le format `Nom;Modèle;Marque;…`
-fourni par vos partenaires).
+Le mode developpement utilise `docker-compose.yml` combine avec `docker-compose.override.yml`.
 
 ```bash
-python backend/scripts/database/import_reference_products.py \
-    /chemin/vers/produits.csv \
-    --default-tcp 0
+# Construire les images
+make docker-build
+
+# Demarrer tous les services en arriere-plan
+make docker-up
+
+# Consulter les logs d'un service
+make docker-logs SERVICE=backend
 ```
 
-Une cible Makefile est également disponible pour simplifier l'appel :
+Les services sont alors accessibles aux adresses suivantes :
+
+| Service | Adresse |
+|---------|---------|
+| Frontend (Vite) | http://localhost:5173 |
+| Backend (Flask) | http://localhost:5001 |
+| PostgreSQL | localhost:5432 |
+
+### Environnement de production
+
+Le mode production utilise `docker-compose.yml` combine avec `docker-compose.prod.yml`. Le backend tourne sous Gunicorn avec 4 workers ; le frontend est servi par Nginx. Des health checks sont configures sur tous les services.
 
 ```bash
-make import-reference-products CSV=/chemin/vers/produits.csv \
-    DELIMITER=';' DEFAULT_TCP=0
+# Demarrer en production
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 
-- Le délimiteur utilisé est `;` par défaut (modifiable avec `--delimiter`).
-- La valeur `--default-tcp` définit la valeur TCP attribuée aux nouvelles
-  capacités mémoire qui n'existent pas encore dans la table `memory_options`.
-- Le script crée automatiquement les entrées manquantes dans les tables de
-  référence (marques, couleurs, capacités, RAM, normes, types d'appareil).
+| Service | Port expose |
+|---------|------------|
+| Frontend (Nginx) | 3000 |
+| Backend (Gunicorn) | 8000 |
+| PostgreSQL | 5432 |
 
-Les lignes comportant un EAN existant sont mises à jour ; sinon, la correspondance
-se fait sur le couple Modèle/Marque. Un résumé des opérations est affiché en fin
-d'exécution.
+Le script `deploy.sh` automatise le deploiement complet en production.
 
-## Vérifications locales
+```bash
+./deploy.sh
+```
 
-Le projet fournit quelques commandes pour garder une base de code cohérente.
+### Arreter les services
 
-### Lint
+```bash
+make docker-down
+```
 
-Exécutez `npm run lint` après avoir installé les dépendances de développement (`npm install`). Sans ces packages, la commande peut échouer.
+---
+
+## Structure du projet
+
+```
+ajtpro/
+├── backend/
+│   ├── alembic/              # Migrations de base de donnees
+│   ├── routes/
+│   │   ├── auth.py           # Authentification (login, refresh, logout)
+│   │   ├── imports.py        # Import de fichiers et synchronisation API
+│   │   ├── main.py           # Route sante (/)
+│   │   ├── products.py       # CRUD produits et calculs
+│   │   ├── references.py     # Tables de reference (marques, couleurs, etc.)
+│   │   ├── settings.py       # Parametres utilisateur
+│   │   ├── stats.py          # Statistiques de prix
+│   │   └── users.py          # Gestion des utilisateurs
+│   ├── scripts/
+│   │   ├── database/         # Scripts d'import et initialisation
+│   │   └── run_supplier_api_sync_batch.py
+│   ├── utils/
+│   │   ├── auth.py           # Generation et validation JWT
+│   │   ├── calculations.py   # Calculs de prix et marges
+│   │   ├── etl.py            # Pipeline ETL synchronisation fournisseurs
+│   │   └── pricing.py        # Constantes et fonctions de tarification partagees
+│   ├── app.py                # Point d'entree Flask
+│   ├── models.py             # Modeles SQLAlchemy
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── AdminPage.tsx              # Administration generale
+│   │   │   ├── BrandSupplierChart.tsx     # Graphique marque/fournisseur
+│   │   │   ├── DataImportPage.tsx         # Import de donnees
+│   │   │   ├── FormattingPage.tsx         # Mise en forme
+│   │   │   ├── ImportPreviewModal.tsx     # Apercu avant import
+│   │   │   ├── InfoButton.tsx             # Bouton info (i)
+│   │   │   ├── LoginPage.tsx              # Page de connexion
+│   │   │   ├── MultiSelectFilter.tsx      # Filtre multi-selection
+│   │   │   ├── NotificationProvider.tsx   # Systeme de notifications
+│   │   │   ├── PriceChart.tsx             # Graphique prix global
+│   │   │   ├── ProcessingPage.tsx         # Traitement des donnees
+│   │   │   ├── ProductAdmin.tsx           # Administration produits
+│   │   │   ├── ProductEditModal.tsx       # Modale d'edition produit
+│   │   │   ├── ProductEvolutionChart.tsx  # Graphique evolution produit
+│   │   │   ├── ProductFilters.tsx         # Filtres produits
+│   │   │   ├── ProductReference.tsx       # Referentiel produit
+│   │   │   ├── ProductReferenceForm.tsx   # Formulaire referentiel
+│   │   │   ├── ProductReferenceTable.tsx  # Table referentiel
+│   │   │   ├── ProductTable.tsx           # Table produits
+│   │   │   ├── ProductsPage.tsx           # Page produits principale
+│   │   │   ├── ReferenceAdmin.tsx         # Admin tables de reference
+│   │   │   ├── SearchControls.tsx         # Controles de recherche
+│   │   │   ├── SearchPage.tsx             # Moteur de recherche
+│   │   │   ├── StatisticsPage.tsx         # Statistiques de prix
+│   │   │   ├── StatsFilters.tsx           # Filtres statistiques
+│   │   │   ├── SupplierApiAdmin.tsx       # Admin API fournisseurs
+│   │   │   ├── SupplierApiReports.tsx     # Rapports API
+│   │   │   ├── SupplierApiSyncPanel.tsx   # Panel synchronisation
+│   │   │   ├── SupplierPriceModal.tsx     # Modale prix fournisseur
+│   │   │   ├── TranslationAdmin.tsx       # Admin traductions/couleurs
+│   │   │   ├── UserAdmin.tsx              # Admin utilisateurs
+│   │   │   └── WeekToolbar.tsx            # Barre d'outils hebdomadaire
+│   │   ├── utils/
+│   │   │   ├── date.ts          # Fonctions de date
+│   │   │   ├── html.ts          # Generation HTML
+│   │   │   ├── numbers.ts       # Utilitaires numeriques
+│   │   │   ├── processing.ts    # Traitement et calculs
+│   │   │   └── text.ts          # Normalisation de texte
+│   │   ├── api.ts               # Client API centralise
+│   │   ├── App.tsx              # Application principale et routeur
+│   │   ├── main.tsx             # Point d'entree React
+│   │   └── index.css            # Styles Tailwind
+│   └── package.json
+├── docker-compose.yml           # Services de base
+├── docker-compose.override.yml  # Surcharges developpement
+├── docker-compose.prod.yml      # Configuration production
+├── Makefile                     # Commandes utilitaires
+├── deploy.sh                    # Script de deploiement
+├── save_db.sh                   # Sauvegarde base de donnees
+└── tips.md                      # Memo commandes Docker/Alembic
+```
+
+### Pile technique
+
+| Couche | Technologies |
+|--------|-------------|
+| Frontend | React 18, TypeScript, Vite, Tailwind CSS, Lucide React, XLSX, Recharts |
+| Backend | Python Flask, SQLAlchemy, PostgreSQL 16, Alembic, Gunicorn, Flasgger |
+| Deploiement | Docker Compose (dev + prod), Nginx, script `deploy.sh` |
+| Authentification | JWT (jetons d'acces + de rafraichissement) |
+
+---
+
+## Fonctionnalites principales
+
+**Synchronisation fournisseurs** -- Import automatique des catalogues via API REST avec mapping dynamique des champs.
+
+**Calcul de prix** -- Grille de marges configurable avec TCP, commission de 4.5 % et multiplicateurs par seuil de prix.
+
+**Moteur de recherche** -- Recherche full-text dans le catalogue avec filtres par prix.
+
+**Statistiques** -- Dix types de graphiques : evolution, distribution, correlation, detection d'anomalies, etc.
+
+**Referentiel produit** -- Gestion CRUD avec import CSV, marques, couleurs, capacites memoire, etc.
+
+**Import Excel** -- Traitement de fichiers Excel fournisseurs avec nettoyage et deduplication.
+
+**Administration** -- Gestion des utilisateurs (JWT avec roles), tables de reference, configuration des API fournisseurs.
+
+**Export** -- Generation de fichiers Excel formates prets a l'envoi.
+
+---
+
+## Scripts utilitaires
+
+### Makefile
+
+Les commandes principales du Makefile sont les suivantes :
+
+| Commande | Description |
+|----------|-------------|
+| `make docker-build` | Construire les images Docker |
+| `make docker-up` | Demarrer les services |
+| `make docker-down` | Arreter les services |
+| `make docker-logs SERVICE=x` | Afficher les logs d'un service |
+| `make shell-postgres` | Ouvrir un shell psql dans le conteneur PostgreSQL |
+| `make alembic-migrate MSG="message"` | Creer une nouvelle migration |
+| `make alembic-upgrade` | Appliquer les migrations en attente |
+| `make alembic-downgrade` | Annuler la derniere migration |
+| `make alembic-current` | Afficher la revision courante |
+| `make alembic-history` | Afficher l'historique des migrations |
+| `make import-reference-products CSV=chemin [DELIMITER=';'] [DEFAULT_TCP=0]` | Importer un referentiel produit depuis un CSV |
+| `make clean-branches` | Nettoyer les branches locales fusionnees |
+
+Il est aussi possible de cibler un service specifique pour `docker-build`, `docker-up` et `docker-down` en ajoutant `SERVICE=nom_du_service`.
+
+### deploy.sh
+
+Script de deploiement automatise pour l'environnement de production. Il orchestre la construction des images, l'application des migrations et le redemarrage des conteneurs.
+
+```bash
+./deploy.sh
+```
+
+### save_db.sh
+
+Script de sauvegarde et de restauration de la base de donnees PostgreSQL. Voir la section dediee ci-dessous.
+
+---
+
+## Migrations Alembic
+
+Le projet utilise Alembic pour versionner le schema de la base de donnees. Les fichiers de migration se trouvent dans `backend/alembic/`.
+
+```bash
+# Creer une nouvelle migration a partir des modifications des modeles
+make alembic-migrate MSG="description de la migration"
+
+# Appliquer toutes les migrations en attente
+make alembic-upgrade
+
+# Annuler la derniere migration
+make alembic-downgrade
+
+# Verifier la revision courante de la base
+make alembic-current
+
+# Afficher l'historique complet des migrations
+make alembic-history
+```
+
+---
+
+## Sauvegarde et restauration de la base
+
+Le script `save_db.sh` permet de sauvegarder et de restaurer la base de donnees PostgreSQL.
+
+```bash
+# Sauvegarder la base
+./save_db.sh
+
+# Restaurer une sauvegarde (consulter le script pour les options disponibles)
+./save_db.sh restore
+```
+
+---
+
+## Documentation API
+
+Une documentation interactive Swagger est generee automatiquement grace a Flasgger. Une fois le backend demarre, elle est accessible a l'adresse suivante :
+
+```
+http://localhost:5001/apidocs
+```
+
+Le gabarit OpenAPI se trouve dans `backend/swagger_template.yml`.
+
+---
+
+## Verifications locales
+
+### Lint frontend
+
+Apres avoir installe les dependances, executez le linter :
+
+```bash
+cd frontend
+npm install
+npm run lint
+```
+
+### Build frontend
+
+Pour verifier que le frontend compile sans erreur :
+
+```bash
+cd frontend
+npm run build
+```
 
 ### Tests Python
 
-Il n'existe pas encore de tests automatisés mais `pytest` est configuré pour unifier la procédure. Lancez simplement `pytest` pour vérifier qu'aucune erreur n'est remontée.
-
-### Docker
-
-Une configuration Docker est fournie pour lancer rapidement l'API Flask et la base PostgreSQL.
+Le framework `pytest` est configure dans le backend. Lancez les tests depuis le conteneur ou depuis un environnement local :
 
 ```bash
-# Construire les images pour tous les services
-make docker-build
-# ou seulement pour le frontend
-make docker-build SERVICE=frontend
-
-# Démarrer l'environnement en arrière-plan
-make docker-up
-# ou uniquement le frontend
-make docker-up SERVICE=frontend
-
-# Consulter les logs
-make docker-logs SERVICE=frontend
-
-# Arrêter les conteneurs
-make docker-down
-# ou uniquement le frontend
-make docker-down SERVICE=frontend
+cd backend
+pytest
 ```
 
-Par défaut l'image utilise **Python 3.12** et **PostgreSQL 16**. La base de données est accessible sur `localhost:5432` et l'API Flask sur `localhost:5001`.
-Le fichier `docker-compose.yml` définit également la variable `FRONTEND_URL` sur `http://localhost:5173`. Modifiez-la si votre application frontend tourne sur une autre URL afin que la politique CORS fonctionne correctement.
+### Validation Docker
+
+Pour verifier que l'ensemble de la pile demarre correctement :
+
+```bash
+make docker-build
+make docker-up
+# Verifier les logs
+make docker-logs SERVICE=backend
+make docker-logs SERVICE=frontend
+```

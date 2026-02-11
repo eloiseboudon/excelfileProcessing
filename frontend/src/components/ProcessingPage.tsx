@@ -14,7 +14,7 @@ import {
   fetchImportPreview,
   fetchLastImport,
   fetchSuppliers,
-  fetchSupplierApiData,
+  refreshSupplierCatalog,
   verifyImport
 } from '../api';
 import { getCurrentTimestamp, getCurrentWeekYear, getWeekYear } from '../utils/date';
@@ -110,7 +110,7 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange, onRefreshCom
   const handleRefresh = useCallback(async () => {
     setRefreshLoading(true);
     try {
-      const response = await fetchSupplierApiData(supplier.id);
+      const response = await refreshSupplierCatalog(supplier.id);
       const count =
         response.temporary_import_count ??
         response.items?.length ??

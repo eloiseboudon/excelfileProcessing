@@ -56,9 +56,6 @@ export async function login(email: string, password: string) {
     body: JSON.stringify({ email, password })
   });
   if (!res.ok) {
-    console.log("🔧 API base URL =", import.meta.env.VITE_API_BASE);
-    console.log("🔧 import.meta.env =", import.meta.env);
-
     throw new Error(await extractErrorMessage(res));
   }
   return res.json();
@@ -68,6 +65,39 @@ export async function login(email: string, password: string) {
 async function extractErrorMessage(res: Response): Promise<string> {
   const data = await res.json().catch(() => ({}));
   return data.message || data.error || 'Une erreur est survenue';
+}
+
+async function crudRequest(method: string, url: string, body?: unknown) {
+  const options: RequestInit = { method };
+  if (body !== undefined) {
+    options.headers = { 'Content-Type': 'application/json' };
+    options.body = JSON.stringify(body);
+  }
+  const res = await fetchWithAuth(url, options);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  if (method === 'DELETE' && res.status === 204) return;
+  return res.json();
+}
+
+interface StatsFilterParams {
+  supplierId?: number;
+  brandId?: number;
+  productId?: number;
+  startWeek?: string;
+  endWeek?: string;
+}
+
+function _buildStatsParams(params?: StatsFilterParams): string {
+  const search = new URLSearchParams();
+  if (params?.supplierId) search.set('supplier_id', String(params.supplierId));
+  if (params?.brandId) search.set('brand_id', String(params.brandId));
+  if (params?.productId) search.set('product_id', String(params.productId));
+  if (params?.startWeek) search.set('start_week', params.startWeek);
+  if (params?.endWeek) search.set('end_week', params.endWeek);
+  const query = search.toString();
+  return query ? `?${query}` : '';
 }
 
 export async function fetchApitest() {
@@ -262,8 +292,6 @@ export async function refreshSupplierCatalog(
   return res.json() as Promise<SupplierApiSyncResponse>;
 }
 
-export const fetchSupplierApiData = refreshSupplierCatalog;
-
 export async function fetchSupplierApiReports(limit = 20) {
   const params = new URLSearchParams({ limit: String(limit) });
   const res = await fetchWithAuth(`${API_BASE}/supplier_api/reports?${params.toString()}`);
@@ -274,15 +302,7 @@ export async function fetchSupplierApiReports(limit = 20) {
 }
 
 export async function createProduct(data: any) {
-  const res = await fetchWithAuth(`${API_BASE}/products`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
-  return res.json();
+  return crudRequest('POST', `${API_BASE}/products`, data);
 }
 
 export async function fetchSupplierApiConfigs() {
@@ -293,200 +313,60 @@ export async function fetchSupplierApiConfigs() {
   return res.json() as Promise<SupplierApiConfigSupplier[]>;
 }
 
-export async function createSupplierApi(
-  supplierId: number,
-  payload: SupplierApiPayload
-) {
-  const res = await fetchWithAuth(`${API_BASE}/supplier_api/${supplierId}/apis`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
-  return res.json();
+export async function createSupplierApi(supplierId: number, payload: SupplierApiPayload) {
+  return crudRequest('POST', `${API_BASE}/supplier_api/${supplierId}/apis`, payload);
 }
 
-export async function updateSupplierApi(
-  apiId: number,
-  payload: Partial<SupplierApiPayload>
-) {
-  const res = await fetchWithAuth(`${API_BASE}/supplier_api/apis/${apiId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
-  return res.json();
+export async function updateSupplierApi(apiId: number, payload: Partial<SupplierApiPayload>) {
+  return crudRequest('PATCH', `${API_BASE}/supplier_api/apis/${apiId}`, payload);
 }
 
 export async function deleteSupplierApi(apiId: number) {
-  const res = await fetchWithAuth(`${API_BASE}/supplier_api/apis/${apiId}`, {
-    method: 'DELETE'
-  });
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
+  return crudRequest('DELETE', `${API_BASE}/supplier_api/apis/${apiId}`);
 }
 
-export async function createSupplierApiEndpoint(
-  apiId: number,
-  payload: SupplierApiEndpointPayload
-) {
-  const res = await fetchWithAuth(
-    `${API_BASE}/supplier_api/apis/${apiId}/endpoints`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    }
-  );
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
-  return res.json();
+export async function createSupplierApiEndpoint(apiId: number, payload: SupplierApiEndpointPayload) {
+  return crudRequest('POST', `${API_BASE}/supplier_api/apis/${apiId}/endpoints`, payload);
 }
 
-export async function updateSupplierApiEndpoint(
-  endpointId: number,
-  payload: Partial<SupplierApiEndpointPayload>
-) {
-  const res = await fetchWithAuth(
-    `${API_BASE}/supplier_api/endpoints/${endpointId}`,
-    {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    }
-  );
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
-  return res.json();
+export async function updateSupplierApiEndpoint(endpointId: number, payload: Partial<SupplierApiEndpointPayload>) {
+  return crudRequest('PATCH', `${API_BASE}/supplier_api/endpoints/${endpointId}`, payload);
 }
 
 export async function deleteSupplierApiEndpoint(endpointId: number) {
-  const res = await fetchWithAuth(
-    `${API_BASE}/supplier_api/endpoints/${endpointId}`,
-    {
-      method: 'DELETE'
-    }
-  );
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
+  return crudRequest('DELETE', `${API_BASE}/supplier_api/endpoints/${endpointId}`);
 }
 
 export async function createSupplierApiMapping(apiId: number) {
-  const res = await fetchWithAuth(
-    `${API_BASE}/supplier_api/apis/${apiId}/mapping`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({})
-    }
-  );
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
-  return res.json();
+  return crudRequest('POST', `${API_BASE}/supplier_api/apis/${apiId}/mapping`, {});
 }
 
-export async function createSupplierApiField(
-  mappingId: number,
-  payload: SupplierApiFieldPayload
-) {
-  const res = await fetchWithAuth(
-    `${API_BASE}/supplier_api/mappings/${mappingId}/fields`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    }
-  );
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
-  return res.json();
+export async function createSupplierApiField(mappingId: number, payload: SupplierApiFieldPayload) {
+  return crudRequest('POST', `${API_BASE}/supplier_api/mappings/${mappingId}/fields`, payload);
 }
 
-export async function updateSupplierApiField(
-  fieldId: number,
-  payload: Partial<SupplierApiFieldPayload>
-) {
-  const res = await fetchWithAuth(
-    `${API_BASE}/supplier_api/fields/${fieldId}`,
-    {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    }
-  );
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
-  return res.json();
+export async function updateSupplierApiField(fieldId: number, payload: Partial<SupplierApiFieldPayload>) {
+  return crudRequest('PATCH', `${API_BASE}/supplier_api/fields/${fieldId}`, payload);
 }
 
 export async function deleteSupplierApiField(fieldId: number) {
-  const res = await fetchWithAuth(
-    `${API_BASE}/supplier_api/fields/${fieldId}`,
-    {
-      method: 'DELETE'
-    }
-  );
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
+  return crudRequest('DELETE', `${API_BASE}/supplier_api/fields/${fieldId}`);
 }
 
 export async function updateProduct(id: number, data: any) {
-  const res = await fetchWithAuth(`${API_BASE}/products/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
-  return res.json();
+  return crudRequest('PUT', `${API_BASE}/products/${id}`, data);
 }
 
 export async function bulkUpdateProducts(data: any[]) {
-  const res = await fetchWithAuth(`${API_BASE}/products/bulk_update`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
-  return res.json();
+  return crudRequest('PUT', `${API_BASE}/products/bulk_update`, data);
 }
 
 export async function deleteProduct(id: number) {
-  const res = await fetchWithAuth(`${API_BASE}/products/${id}`, {
-    method: 'DELETE'
-  });
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
-  return res.json();
+  return crudRequest('DELETE', `${API_BASE}/products/${id}`);
 }
 
 export async function bulkDeleteProducts(ids: number[]) {
-  const res = await fetchWithAuth(`${API_BASE}/products/bulk_delete`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids })
-  });
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
-  return res.json();
+  return crudRequest('POST', `${API_BASE}/products/bulk_delete`, { ids });
 }
 
 
@@ -600,39 +480,15 @@ export async function fetchReferenceTable(table: string) {
 }
 
 export async function updateReferenceItem(table: string, id: number, data: any) {
-  const res = await fetchWithAuth(`${API_BASE}/references/${table}/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
-  return res.json();
+  return crudRequest('PUT', `${API_BASE}/references/${table}/${id}`, data);
 }
 
 export async function createReferenceItem(table: string, data: any) {
-  const res = await fetchWithAuth(`${API_BASE}/references/${table}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
-  return res.json();
+  return crudRequest('POST', `${API_BASE}/references/${table}`, data);
 }
 
-
-
 export async function deleteReferenceItem(table: string, id: number) {
-  const res = await fetchWithAuth(`${API_BASE}/references/${table}/${id}`, {
-    method: 'DELETE'
-  });
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
-  return res.json();
+  return crudRequest('DELETE', `${API_BASE}/references/${table}/${id}`);
 }
 
 export async function fetchUsers() {
@@ -644,37 +500,15 @@ export async function fetchUsers() {
 }
 
 export async function updateUser(id: number, data: any) {
-  const res = await fetchWithAuth(`${API_BASE}/users/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
-  return res.json();
+  return crudRequest('PUT', `${API_BASE}/users/${id}`, data);
 }
 
 export async function createUser(data: any) {
-  const res = await fetchWithAuth(`${API_BASE}/users`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
-  return res.json();
+  return crudRequest('POST', `${API_BASE}/users`, data);
 }
 
 export async function deleteUser(id: number) {
-  const res = await fetchWithAuth(`${API_BASE}/users/${id}`, {
-    method: 'DELETE'
-  });
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
-  return res.json();
+  return crudRequest('DELETE', `${API_BASE}/users/${id}`);
 }
 
 export async function fetchBrands() {
@@ -726,65 +560,27 @@ export async function fetchDeviceTypes() {
   return res.json();
 }
 
-export async function fetchPriceStats(params?: {
-  supplierId?: number;
-  brandId?: number;
-  productId?: number;
-  startWeek?: string;
-  endWeek?: string;
-}) {
-  const search = new URLSearchParams();
-  if (params?.supplierId) search.set('supplier_id', String(params.supplierId));
-  if (params?.brandId) search.set('brand_id', String(params.brandId));
-  if (params?.productId) search.set('product_id', String(params.productId));
-  if (params?.startWeek) search.set('start_week', params.startWeek);
-  if (params?.endWeek) search.set('end_week', params.endWeek);
-  const query = search.toString();
-  const res = await fetchWithAuth(`${API_BASE}/price_stats${query ? `?${query}` : ''}`);
+export async function fetchPriceStats(params?: StatsFilterParams) {
+  const qs = _buildStatsParams(params);
+  const res = await fetchWithAuth(`${API_BASE}/price_stats${qs}`);
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
 
-export async function fetchBrandSupplierAverage(params?: {
-  supplierId?: number;
-  brandId?: number;
-  startWeek?: string;
-  endWeek?: string;
-}) {
-  const search = new URLSearchParams();
-  if (params?.supplierId) search.set('supplier_id', String(params.supplierId));
-  if (params?.brandId) search.set('brand_id', String(params.brandId));
-  if (params?.startWeek) search.set('start_week', params.startWeek);
-  if (params?.endWeek) search.set('end_week', params.endWeek);
-  const query = search.toString();
-  const res = await fetchWithAuth(
-    `${API_BASE}/brand_supplier_average${query ? `?${query}` : ''}`
-  );
+export async function fetchBrandSupplierAverage(params?: StatsFilterParams) {
+  const qs = _buildStatsParams(params);
+  const res = await fetchWithAuth(`${API_BASE}/brand_supplier_average${qs}`);
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
   return res.json();
 }
 
-export async function fetchProductSupplierAverage(params?: {
-  supplierId?: number;
-  brandId?: number;
-  productId?: number;
-  startWeek?: string;
-  endWeek?: string;
-}) {
-  const search = new URLSearchParams();
-  if (params?.supplierId) search.set('supplier_id', String(params.supplierId));
-  if (params?.brandId) search.set('brand_id', String(params.brandId));
-  if (params?.productId) search.set('product_id', String(params.productId));
-  if (params?.startWeek) search.set('start_week', params.startWeek);
-  if (params?.endWeek) search.set('end_week', params.endWeek);
-  const query = search.toString();
-  const res = await fetchWithAuth(
-    `${API_BASE}/product_supplier_average${query ? `?${query}` : ''}`
-  );
+export async function fetchProductSupplierAverage(params?: StatsFilterParams) {
+  const qs = _buildStatsParams(params);
+  const res = await fetchWithAuth(`${API_BASE}/product_supplier_average${qs}`);
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
@@ -800,13 +596,5 @@ export async function fetchGraphSettings() {
 }
 
 export async function updateGraphSetting(name: string, visible: boolean) {
-  const res = await fetchWithAuth(`${API_BASE}/graph_settings/${name}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ visible })
-  });
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
-  }
-  return res.json();
+  return crudRequest('PUT', `${API_BASE}/graph_settings/${name}`, { visible });
 }

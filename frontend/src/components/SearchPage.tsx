@@ -1,6 +1,7 @@
 import { Barcode, Boxes, Loader2, PackageSearch } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { fetchSearchCatalog } from '../api';
+import { normalizeText } from '../utils/text';
 import SearchControls from './SearchControls';
 
 interface SearchProduct {
@@ -36,13 +37,6 @@ function hashSupplierName(value: string): number {
     hash = (hash * 31 + value.charCodeAt(index)) % 2 ** 32;
   }
   return Math.abs(hash);
-}
-
-function normalizeText(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLowerCase();
 }
 
 function buildSearchIndex(...values: Array<string | null | undefined | string[]>): string {

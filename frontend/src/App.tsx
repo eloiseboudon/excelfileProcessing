@@ -14,9 +14,7 @@ function App() {
   const [apiTestMessage, setApiTestMessage] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [role, setRole] = useState<string>(storedRole || '');
-  const [showProductsMenu, setShowProductsMenu] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
-  const productsMenuRef = useRef<HTMLDivElement | null>(null);
   const settingsMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -63,12 +61,6 @@ function App() {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
-        productsMenuRef.current &&
-        !productsMenuRef.current.contains(event.target as Node)
-      ) {
-        setShowProductsMenu(false);
-      }
-      if (
         settingsMenuRef.current &&
         !settingsMenuRef.current.contains(event.target as Node)
       ) {
@@ -98,7 +90,6 @@ function App() {
               <button
                 onClick={() => {
                   setCurrentPage('search');
-                  setShowProductsMenu(false);
                   setShowSettingsMenu(false);
                 }}
                 className={`btn px-6 py-3 ${currentPage === 'search' ? 'btn-primary' : 'btn-secondary'}`}
@@ -107,60 +98,19 @@ function App() {
                 <span>Moteur de recherche</span>
               </button>
 
-              <div className="relative" ref={productsMenuRef}>
+              <div className="relative">
                 <button
-                  // onClick={() => {
-                  //   setCurrentPage('products');
-                  //   setShowSettingsMenu(false);
-                  //   if (role !== 'client') {
-                  //     setShowProductsMenu((prev) => !prev);
-                  //   }
-                  // }}
                   className={`btn px-6 py-3 ${isProductsActive ? 'btn-primary' : 'btn-secondary'}`}
                 >
                   <LibraryBig className="w-5 h-5" />
-                  {/* <span>Produits</span> */}
                   <span>A venir</span>
-                  {role !== 'client' && <ChevronDown className="w-4 h-4 ml-2" />}
                 </button>
-                {role !== 'client' && showProductsMenu && (
-                  <div className="absolute mt-2 w-48 rounded-lg border border-zinc-700 bg-zinc-900 shadow-xl">
-                    {/* <button
-                      onClick={() => {
-                        setCurrentPage('products');
-                        setShowProductsMenu(false);
-                      }}
-                      className={`flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-zinc-800 ${currentPage === 'products' ? 'text-[#B8860B]' : 'text-white'
-                        }`}
-                    >
-                      <LibraryBig className="w-4 h-4" />
-                      <span>Produits</span>
-                    </button> */}
-                    {/* <button
-                      onClick={() => {
-                        setCurrentPage('dataImport');
-                        setShowProductsMenu(false);
-                      }}
-                      className={`flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-zinc-800 ${currentPage === 'dataImport' ? 'text-[#B8860B]' : 'text-white'
-                        }`}
-                    >
-                      <Upload className="w-4 h-4" />
-                      <span>Import</span>
-                    </button> */}
-                    <button className={`flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-zinc-800 ${currentPage === 'products' ? 'text-[#B8860B]' : 'text-white'
-                      }`}>
-
-                      <span>A venir</span>
-                    </button>
-                  </div>
-                )}
               </div>
             </div>
 
             <div className="relative" ref={settingsMenuRef}>
               <button
                 onClick={() => {
-                  setShowProductsMenu(false);
                   setShowSettingsMenu((prev) => !prev);
                 }}
                 className={`btn px-6 py-3 ${currentPage === 'admin' ? 'btn-primary' : 'btn-secondary'}`}

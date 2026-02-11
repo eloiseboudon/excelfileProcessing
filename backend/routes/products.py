@@ -21,7 +21,6 @@ from models import (
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from utils.auth import token_required
-from sqlalchemy.orm import joinedload
 from utils.calculations import recalculate_product_calculations
 from utils.etl import run_fetch_job
 

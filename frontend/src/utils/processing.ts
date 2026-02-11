@@ -51,6 +51,10 @@ export function dedupeByLowestPrice(rows: ProductRow[]): ProductRow[] {
   return Array.from(map.values());
 }
 
+export const PRICE_THRESHOLDS = [15, 29, 49, 79, 99, 129, 149, 179, 209, 299, 499, 799, 999];
+export const PRICE_MULTIPLIERS = [1.25, 1.22, 1.20, 1.18, 1.15, 1.11, 1.10, 1.09, 1.09, 1.08, 1.08, 1.07, 1.07, 1.06];
+export const COMMISSION_RATE = 0.045;
+
 export function calculateRow(row: ProductRow): FinalRow {
   const price = row.purchasePrice;
   const nameUpper = row.name.toUpperCase();
@@ -58,19 +62,17 @@ export function calculateRow(row: ProductRow): FinalRow {
   if (nameUpper.includes('32GB')) tcp = 10;
   else if (nameUpper.includes('64GB')) tcp = 12;
   else if (['128GB', '256GB', '512GB', '1TB'].some(s => nameUpper.includes(s))) tcp = 14;
-  const margin45 = price * 0.045;
+  const margin45 = price * COMMISSION_RATE;
   const priceWithTcp = price + tcp + margin45;
-  const thresholds = [15, 29, 49, 79, 99, 129, 149, 179, 209, 299, 499, 799, 999];
-  const margins = [1.25, 1.22, 1.20, 1.18, 1.15, 1.11, 1.10, 1.09, 1.09, 1.08, 1.08, 1.07, 1.07, 1.06];
   let priceWithMargin = price;
-  for (let i = 0; i < thresholds.length; i++) {
-    if (price <= thresholds[i]) {
-      priceWithMargin = price * margins[i];
+  for (let i = 0; i < PRICE_THRESHOLDS.length; i++) {
+    if (price <= PRICE_THRESHOLDS[i]) {
+      priceWithMargin = price * PRICE_MULTIPLIERS[i];
       break;
     }
   }
-  if (price > thresholds[thresholds.length - 1]) {
-    priceWithMargin = price * 1.06;
+  if (price > PRICE_THRESHOLDS[PRICE_THRESHOLDS.length - 1]) {
+    priceWithMargin = price * PRICE_MULTIPLIERS[PRICE_MULTIPLIERS.length - 1];
   }
   const maxPrice = Math.ceil(Math.max(priceWithTcp, priceWithMargin));
   return {

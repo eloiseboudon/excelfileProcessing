@@ -392,18 +392,6 @@ class ImportHistory(db.Model):
     import_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
 
-class FormatImport(db.Model):
-    __tablename__ = "format_imports"
-
-    id = db.Column(db.Integer, primary_key=True)
-    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=True)
-    supplier = db.relationship(
-        "Supplier", backref=db.backref("format_imports", lazy=True)
-    )
-    column_name = db.Column(db.String(50), nullable=True)
-    column_order = db.Column(db.Integer, nullable=True)
-
-
 class GraphSetting(db.Model):
     __tablename__ = "graph_settings"
 

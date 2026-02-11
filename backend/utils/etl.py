@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timezone
-import math
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 from urllib.parse import urljoin
@@ -405,54 +404,7 @@ def _perform_request(
     return response
 
 
-_PRICE_THRESHOLDS = [15, 29, 49, 79, 99, 129, 149, 179, 209, 299, 499, 799, 999]
-_PRICE_MULTIPLIERS = [
-    1.25,
-    1.22,
-    1.20,
-    1.18,
-    1.15,
-    1.11,
-    1.10,
-    1.09,
-    1.09,
-    1.08,
-    1.08,
-    1.07,
-    1.07,
-    1.06,
-]
-
-
-def _compute_margin_prices(
-    price: float, tcp: float
-) -> tuple[float, float, float, float, float, float | None]:
-    margin45 = price * 0.045
-    price_with_tcp = price + tcp + margin45
-
-    price_with_margin = price
-    for threshold, multiplier in zip(_PRICE_THRESHOLDS, _PRICE_MULTIPLIERS):
-        if price <= threshold:
-            price_with_margin = price * multiplier
-            break
-    else:
-        price_with_margin = price * _PRICE_MULTIPLIERS[-1]
-
-    if price > _PRICE_THRESHOLDS[-1]:
-        price_with_margin = price * _PRICE_MULTIPLIERS[-1]
-
-    max_price = math.ceil(max(price_with_tcp, price_with_margin))
-    marge = max_price - tcp - price
-    base_cost = price + tcp
-    marge_percent = (marge / base_cost * 100) if base_cost else None
-    return (
-        round(margin45, 2),
-        round(price_with_tcp, 2),
-        round(price_with_margin, 2),
-        max_price,
-        round(marge, 2),
-        round(marge_percent, 4) if marge_percent is not None else None,
-    )
+from utils.pricing import compute_margin_prices as _compute_margin_prices
 
 
 def _prepare_temp_row(record: Dict[str, Any]) -> Dict[str, Any]:
@@ -744,15 +696,13 @@ def _update_product_prices_from_records(
     }
 
 
-def run_fetch_job(
+def _validate_fetch_params(
     job_id: int,
     supplier_id: int,
     endpoint_id: int,
     mapping_id: int,
-    *,
-    query_overrides: Optional[Dict[str, Any]] = None,
-    body_overrides: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+) -> Tuple[ApiFetchJob, ApiEndpoint, MappingVersion, Supplier]:
+    """Validate and load the entities required to run a fetch job."""
     job = ApiFetchJob.query.get(job_id)
     if not job:
         raise RuntimeError("Tâche introuvable")
@@ -780,6 +730,223 @@ def run_fetch_job(
     if not supplier:
         raise RuntimeError("Fournisseur introuvable")
 
+    return job, endpoint, mapping, supplier
+
+
+def _execute_api_request(
+    job: ApiFetchJob,
+    endpoint: ApiEndpoint,
+    final_query: Dict[str, Any],
+    final_body: Dict[str, Any],
+) -> Tuple[List[Dict[str, Any]], List[Any]]:
+    """Perform the HTTP request, store raw data, and extract items."""
+    response = _perform_request(endpoint.supplier_api, endpoint, final_query, final_body)
+    job.params_used = {
+        **(job.params_used or {}),
+        "resolved_url": response.url,
+        "status_code": response.status_code,
+    }
+    db.session.add(job)
+    content_type = response.headers.get("Content-Type", endpoint.content_type)
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        raise RuntimeError("Réponse JSON invalide reçue depuis l'API fournisseur") from exc
+
+    raw_entry = RawIngest(
+        job_id=job.id,
+        http_status=response.status_code,
+        payload=response.content,
+        content_type=content_type or "application/json",
+        page_index=0,
+    )
+    db.session.add(raw_entry)
+
+    items = _extract_items(payload, endpoint.items_path)
+    raw_samples = _prepare_api_raw_samples(items)
+    job.report_api_raw_items = raw_samples
+    db.session.add(job)
+    if not items:
+        raise RuntimeError("Aucune donnée exploitable retournée par l'API fournisseur")
+
+    return items, raw_samples
+
+
+def _parse_and_deduplicate(
+    items: List[Dict[str, Any]],
+    mapping: MappingVersion,
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Parse raw items through field mappings and return (parsed_records, field_maps)."""
+    field_maps = _prepare_field_maps(mapping)
+    if not field_maps:
+        raise RuntimeError("Aucun mapping de champs n'est défini pour cet endpoint")
+
+    normalized_targets = {
+        _normalize_target_field(field.target_field) for field in field_maps
+    }
+    if "supplier_sku" not in normalized_targets:
+        raise RuntimeError(
+            "Le mapping doit contenir un champ 'supplier_sku' pour identifier les produits"
+        )
+
+    parsed_records: List[Dict[str, Any]] = []
+    for item in items:
+        record: Dict[str, Any] = {}
+        for field in field_maps:
+            target_field = _normalize_target_field(field.target_field)
+            if not target_field:
+                continue
+            value = _search_path(item, field.source_path)
+            value = _apply_transforms(value, field.transform)
+            record[target_field] = value
+        parsed_records.append(record)
+
+    return parsed_records, field_maps
+
+
+def _persist_temporary_imports(
+    job: ApiFetchJob,
+    supplier_id: int,
+    parsed_records: List[Dict[str, Any]],
+) -> Tuple[List[Dict[str, Any]], int, int, int, int]:
+    """Deduplicate and persist temporary imports and parsed items."""
+    TemporaryImport.query.filter_by(supplier_id=supplier_id).delete(synchronize_session=False)
+
+    seen_keys: Set[Tuple[str, str, str]] = set()
+    seen_eans: Set[str] = set()
+    temp_rows: List[Dict[str, Any]] = []
+    duplicate_count = 0
+    skipped_no_identity = 0
+    skipped_no_description = 0
+    inserted_count = 0
+
+    for record in parsed_records:
+        temp_row = _prepare_temp_row(record)
+        supplier_sku = (temp_row.get("supplier_sku") or "").strip()
+        ean_value = (temp_row.get("ean") or "").strip()
+        part_value = (temp_row.get("part_number") or "").strip()
+        description_value = (temp_row.get("description") or "").strip()
+        model_value = (temp_row.get("model") or "").strip()
+        key = (
+            ean_value.lower(),
+            part_value.lower(),
+            supplier_sku.lower(),
+        )
+        if not any(key):
+            fallback = _first_non_empty(
+                description_value,
+                model_value,
+                record.get("name"),
+                record.get("title"),
+                record.get("designation"),
+                supplier_sku,
+            ) or f"row-{len(temp_rows)}"
+            key = ("", "", fallback.lower())
+        is_duplicate = key in seen_keys
+
+        quantity_value = temp_row.get("quantity") or 0
+        price_value = temp_row.get("selling_price")
+        has_identity = any(
+            [description_value, model_value, ean_value, part_value, supplier_sku]
+        )
+        has_value = bool(quantity_value) or (
+            price_value is not None and price_value != 0
+        )
+        if not has_identity and not has_value:
+            skipped_no_identity += 1
+            continue
+
+        if not description_value:
+            skipped_no_description += 1
+            continue
+
+        if ean_value:
+            normalized_ean = ean_value.lower()
+            if normalized_ean in seen_eans:
+                duplicate_count += 1
+                continue
+
+        if is_duplicate:
+            duplicate_count += 1
+            continue
+
+        seen_keys.add(key)
+        if ean_value:
+            seen_eans.add(ean_value.lower())
+
+        cleaned_row = {
+            "description": description_value,
+            "model": model_value or None,
+            "quantity": quantity_value,
+            "selling_price": price_value,
+            "ean": ean_value or None,
+            "part_number": part_value or None,
+            "supplier_sku": supplier_sku or None,
+        }
+
+        temp_rows.append(cleaned_row)
+        inserted_count += 1
+
+        parsed_item = ParsedItem(
+            job_id=job.id,
+            supplier_id=supplier_id,
+            ean=cleaned_row["ean"],
+            part_number=cleaned_row["part_number"],
+            supplier_sku=supplier_sku,
+            model=cleaned_row["model"],
+            description=cleaned_row["description"],
+            brand=_stringify(record.get("brand")),
+            color=_stringify(record.get("color")),
+            memory=_stringify(record.get("memory")),
+            ram=_stringify(record.get("ram")),
+            norme=_stringify(record.get("norme")),
+            device_type=_stringify(record.get("device_type")),
+            quantity=quantity_value,
+            purchase_price=_coerce_first_float(
+                record.get("purchase_price"),
+                record.get("buy_price"),
+                record.get("net_price"),
+                record.get("cost"),
+                record.get("price"),
+                record.get("selling_price"),
+            ),
+            currency=_stringify(record.get("currency")),
+            recommended_price=_coerce_first_float(
+                record.get("recommended_price"),
+                record.get("msrp"),
+                record.get("rrp"),
+            ),
+            updated_at=_parse_datetime(record.get("updated_at")),
+        )
+        db.session.add(parsed_item)
+
+        temp_import = TemporaryImport(
+            supplier_id=supplier_id,
+            description=cleaned_row["description"],
+            model=cleaned_row["model"],
+            quantity=quantity_value,
+            selling_price=price_value,
+            ean=cleaned_row["ean"],
+            part_number=cleaned_row["part_number"],
+        )
+        db.session.add(temp_import)
+
+    return temp_rows, inserted_count, duplicate_count, skipped_no_identity, skipped_no_description
+
+
+def run_fetch_job(
+    job_id: int,
+    supplier_id: int,
+    endpoint_id: int,
+    mapping_id: int,
+    *,
+    query_overrides: Optional[Dict[str, Any]] = None,
+    body_overrides: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    job, endpoint, mapping, supplier = _validate_fetch_params(
+        job_id, supplier_id, endpoint_id, mapping_id
+    )
+
     final_query = dict(endpoint.query_params or {})
     if query_overrides:
         final_query.update(query_overrides)
@@ -793,179 +960,17 @@ def run_fetch_job(
     db.session.commit()
 
     try:
-        response = _perform_request(endpoint.supplier_api, endpoint, final_query, final_body)
-        job.params_used = {
-            **(job.params_used or {}),
-            "resolved_url": response.url,
-            "status_code": response.status_code,
-        }
-        db.session.add(job)
-        content_type = response.headers.get("Content-Type", endpoint.content_type)
-        try:
-            payload = response.json()
-        except ValueError as exc:
-            raise RuntimeError("Réponse JSON invalide reçue depuis l'API fournisseur") from exc
+        items, raw_samples = _execute_api_request(job, endpoint, final_query, final_body)
 
-        raw_entry = RawIngest(
-            job_id=job.id,
-            http_status=response.status_code,
-            payload=response.content,
-            content_type=content_type or "application/json",
-            page_index=0,
-        )
-        db.session.add(raw_entry)
+        parsed_records, field_maps = _parse_and_deduplicate(items, mapping)
 
-        items = _extract_items(payload, endpoint.items_path)
-        raw_samples = _prepare_api_raw_samples(items)
-        job.report_api_raw_items = raw_samples
-        db.session.add(job)
-        if not items:
-            raise RuntimeError("Aucune donnée exploitable retournée par l'API fournisseur")
-
-        field_maps = _prepare_field_maps(mapping)
-        if not field_maps:
-            raise RuntimeError("Aucun mapping de champs n'est défini pour cet endpoint")
-
-        normalized_targets = {
-            _normalize_target_field(field.target_field) for field in field_maps
-        }
-        if "supplier_sku" not in normalized_targets:
-            raise RuntimeError(
-                "Le mapping doit contenir un champ 'supplier_sku' pour identifier les produits"
-            )
-
-        parsed_records: List[Dict[str, Any]] = []
-        for item in items:
-            record: Dict[str, Any] = {}
-            for field in field_maps:
-                target_field = _normalize_target_field(field.target_field)
-                if not target_field:
-                    continue
-                value = _search_path(item, field.source_path)
-                value = _apply_transforms(value, field.transform)
-                record[target_field] = value
-            parsed_records.append(record)
-
-        TemporaryImport.query.filter_by(supplier_id=supplier_id).delete(synchronize_session=False)
-
-        seen_keys: Set[Tuple[str, str, str]] = set()
-        seen_eans: Set[str] = set()
-        temp_rows: List[Dict[str, Any]] = []
-        duplicate_count = 0
-        skipped_no_identity = 0
-        skipped_no_description = 0
-        inserted_count = 0
-
-        for record in parsed_records:
-            temp_row = _prepare_temp_row(record)
-            supplier_sku = (temp_row.get("supplier_sku") or "").strip()
-            ean_value = (temp_row.get("ean") or "").strip()
-            part_value = (temp_row.get("part_number") or "").strip()
-            description_value = (temp_row.get("description") or "").strip()
-            model_value = (temp_row.get("model") or "").strip()
-            key = (
-                ean_value.lower(),
-                part_value.lower(),
-                supplier_sku.lower(),
-            )
-            if not any(key):
-                fallback = _first_non_empty(
-                    description_value,
-                    model_value,
-                    record.get("name"),
-                    record.get("title"),
-                    record.get("designation"),
-                    supplier_sku,
-                ) or f"row-{len(temp_rows)}"
-                key = ("", "", fallback.lower())
-            is_duplicate = key in seen_keys
-
-            quantity_value = temp_row.get("quantity") or 0
-            price_value = temp_row.get("selling_price")
-            has_identity = any(
-                [description_value, model_value, ean_value, part_value, supplier_sku]
-            )
-            has_value = bool(quantity_value) or (
-                price_value is not None and price_value != 0
-            )
-            if not has_identity and not has_value:
-                skipped_no_identity += 1
-                continue
-
-            if not description_value:
-                skipped_no_description += 1
-                continue
-
-            if ean_value:
-                normalized_ean = ean_value.lower()
-                if normalized_ean in seen_eans:
-                    duplicate_count += 1
-                    continue
-
-            if is_duplicate:
-                duplicate_count += 1
-                continue
-
-            seen_keys.add(key)
-            if ean_value:
-                seen_eans.add(ean_value.lower())
-
-            cleaned_row = {
-                "description": description_value,
-                "model": model_value or None,
-                "quantity": quantity_value,
-                "selling_price": price_value,
-                "ean": ean_value or None,
-                "part_number": part_value or None,
-                "supplier_sku": supplier_sku or None,
-            }
-
-            temp_rows.append(cleaned_row)
-            inserted_count += 1
-
-            parsed_item = ParsedItem(
-                job_id=job.id,
-                supplier_id=supplier_id,
-                ean=cleaned_row["ean"],
-                part_number=cleaned_row["part_number"],
-                supplier_sku=supplier_sku,
-                model=cleaned_row["model"],
-                description=cleaned_row["description"],
-                brand=_stringify(record.get("brand")),
-                color=_stringify(record.get("color")),
-                memory=_stringify(record.get("memory")),
-                ram=_stringify(record.get("ram")),
-                norme=_stringify(record.get("norme")),
-                device_type=_stringify(record.get("device_type")),
-                quantity=quantity_value,
-                purchase_price=_coerce_first_float(
-                    record.get("purchase_price"),
-                    record.get("buy_price"),
-                    record.get("net_price"),
-                    record.get("cost"),
-                    record.get("price"),
-                    record.get("selling_price"),
-                ),
-                currency=_stringify(record.get("currency")),
-                recommended_price=_coerce_first_float(
-                    record.get("recommended_price"),
-                    record.get("msrp"),
-                    record.get("rrp"),
-                ),
-                updated_at=_parse_datetime(record.get("updated_at")),
-            )
-            db.session.add(parsed_item)
-
-            temp_import = TemporaryImport(
-                supplier_id=supplier_id,
-                description=cleaned_row["description"],
-                model=cleaned_row["model"],
-                quantity=quantity_value,
-                selling_price=price_value,
-                ean=cleaned_row["ean"],
-                part_number=cleaned_row["part_number"],
-            )
-            db.session.add(temp_import)
+        (
+            temp_rows,
+            inserted_count,
+            duplicate_count,
+            skipped_no_identity,
+            skipped_no_description,
+        ) = _persist_temporary_imports(job, supplier_id, parsed_records)
 
         report_data = _update_product_prices_from_records(supplier_id, parsed_records)
 
