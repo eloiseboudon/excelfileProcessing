@@ -21,12 +21,12 @@ describe('LoginPage', () => {
 
   it('renders email input', () => {
     renderLogin();
-    expect(screen.getByPlaceholderText('Email')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('votre@email.com')).toBeInTheDocument();
   });
 
   it('renders password input', () => {
     renderLogin();
-    expect(screen.getByPlaceholderText('Mot de passe')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Votre mot de passe')).toBeInTheDocument();
   });
 
   it('renders submit button', () => {
@@ -36,13 +36,13 @@ describe('LoginPage', () => {
 
   it('email input has type email', () => {
     renderLogin();
-    const input = screen.getByPlaceholderText('Email');
+    const input = screen.getByPlaceholderText('votre@email.com');
     expect(input).toHaveAttribute('type', 'email');
   });
 
   it('password input has type password', () => {
     renderLogin();
-    const input = screen.getByPlaceholderText('Mot de passe');
+    const input = screen.getByPlaceholderText('Votre mot de passe');
     expect(input).toHaveAttribute('type', 'password');
   });
 });

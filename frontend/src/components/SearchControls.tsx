@@ -188,7 +188,7 @@ function SearchControls({
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
               onFocus={() => setShowSuggestions(true)}
-              className="w-full pl-12 pr-12 py-4 text-lg bg-[var(--color-bg-elevated)] border-2 border-[var(--color-border-strong)] rounded-md text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:border-[#B8860B] focus:outline-none transition-all duration-200"
+              className="w-full pl-12 pr-12 py-3 text-sm bg-[var(--color-bg-input)] border border-[var(--color-border-strong)] rounded-md text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:border-[#B8860B] focus:outline-none transition-all duration-200"
               placeholder="🔍 Rechercher un produit... (ex: iPhone, Galaxy, Hotwav)"
             />
             {searchTerm && (
@@ -239,7 +239,7 @@ function SearchControls({
         )}
       </div>
 
-      <div className="bg-[var(--color-bg-elevated)] rounded-md p-6 border border-[var(--color-border-strong)] space-y-6">
+      <div className="space-y-4">
         <button
           type="button"
           onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
@@ -393,7 +393,7 @@ function SearchControls({
             <div className="pt-4 border-t border-[var(--color-border-default)]">
               <button
                 onClick={onResetFilters}
-                className="w-full py-2 bg-[var(--color-border-strong)] text-[var(--color-text-primary)] rounded-md hover:bg-[var(--color-bg-input)] transition-colors text-sm"
+                className="btn btn-secondary w-full text-sm"
               >
                 Réinitialiser les filtres
               </button>

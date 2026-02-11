@@ -81,6 +81,7 @@ body {
 .card {
   background: var(--color-bg-card);
   border-color: rgb(184 134 11 / 0.2);
+  padding: 15px;
   @apply rounded-lg border backdrop-blur-md shadow-xl;
 }
 

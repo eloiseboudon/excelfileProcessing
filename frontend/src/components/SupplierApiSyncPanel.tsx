@@ -128,7 +128,7 @@ function SupplierApiSyncPanel() {
   }, [rows, mappingsBySupplier]);
 
   return (
-    <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <section className="mt-6">
       <div className="card">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           <div>
