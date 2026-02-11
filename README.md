@@ -249,6 +249,17 @@ Accessible depuis le menu Parametres (role admin uniquement) :
 - Jetons JWT (acces + rafraichissement)
 - Acces conditionnel selon le role (admin / client)
 
+### Theme Dark / Light
+
+L'application dispose d'un theme sombre (par defaut) et d'un theme clair. Un bouton flottant en bas a droite de l'ecran permet de basculer entre les deux. Le choix est persiste dans le `localStorage`.
+
+### CI/CD
+
+Le projet dispose d'un pipeline GitHub Actions complet :
+
+- **CI** (`.github/workflows/ci.yml`) : tests frontend (Vitest) et backend (pytest) executes en parallele sur chaque push et pull request vers `main`. Un recap des resultats (tests passes/echoues) est affiche dans le Job Summary de chaque job.
+- **Deploy** (`.github/workflows/deploy.yml`) : deploiement automatique sur le VPS via SSH apres chaque push sur `main`.
+
 ### Fonctionnalites en cours de developpement
 
 Les fonctionnalites suivantes sont codees mais pas encore exposees dans la navigation. Voir [ROADMAP.md](ROADMAP.md) pour le detail.

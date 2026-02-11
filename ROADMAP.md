@@ -93,6 +93,20 @@ Composants concernes : `FormattingPage`
 
 ---
 
+## Theme Dark / Light (implementee)
+
+Systeme de theme sombre et clair avec basculement dynamique.
+
+- **ThemeProvider** : contexte React + hook `useTheme()` pour acceder au theme courant et au toggle
+- **Persistance** : choix sauvegarde dans `localStorage` (cle `ajtpro_theme`, defaut : `dark`)
+- **Variables CSS** : 22 variables definies dans `index.css` (`:root` = light, `.dark` = dark) couvrant backgrounds, textes, bordures et graphiques
+- **Bouton flottant** : icone Soleil/Lune (lucide-react) en bas a droite de l'ecran
+- **Anti-flash** : script inline dans `index.html` pour appliquer le theme avant le premier rendu
+
+Composant concerne : `ThemeProvider`
+
+---
+
 ## Tests automatises (implementee)
 
 Infrastructure de tests unitaires et d'integration pour le backend et le frontend, integree dans la CI GitHub Actions.
@@ -110,7 +124,9 @@ Infrastructure de tests unitaires et d'integration pour le backend et le fronten
 - **Tests composants** : `LoginPage`, `NotificationProvider`, `App` (rendu, formulaires, navigation conditionnelle)
 - **78 tests** dans 8 fichiers
 
-### CI
+### CI/CD
 
 - Jobs `frontend` et `backend` parallelises dans `.github/workflows/ci.yml`
-- Tests executes automatiquement sur chaque push et pull request
+- Tests executes automatiquement sur chaque push et pull request vers `main`
+- **Job Summary** : recap des resultats (tests passes/echoues) affiche dans l'onglet Actions de GitHub
+- **Deploy** (`.github/workflows/deploy.yml`) : deploiement automatique sur le VPS via SSH apres chaque push sur `main`
