@@ -69,19 +69,6 @@ def main():
         """
         )
 
-        print("📄 Insertion des formats d'import...")
-        # Insérer les formats d'import
-        cur.execute(
-            """
-            INSERT INTO format_imports (supplier_id, column_name, column_order) VALUES
-            (1, 'description', 2),
-            (1, 'model', 2),
-            (1, 'quantity', 3),
-            (1, 'selling_price', 4),
-            (1, 'ean', 7);
-        """
-        )
-
         print("🏷️  Insertion des marques...")
         # Insérer les marques
         cur.execute(

@@ -103,7 +103,7 @@ Les services sont alors accessibles aux adresses suivantes :
 |---------|---------|
 | Frontend (Vite) | http://localhost:5173 |
 | Backend (Flask) | http://localhost:5001 |
-| PostgreSQL | localhost:5432 |
+| PostgreSQL | localhost:5433 |
 
 ### Environnement de production
 
@@ -118,7 +118,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 |---------|------------|
 | Frontend (Nginx) | 3000 |
 | Backend (Gunicorn) | 8000 |
-| PostgreSQL | 5432 |
+| PostgreSQL | 5433 |
 
 Le script `deploy.sh` automatise le deploiement complet en production.
 
@@ -226,23 +226,32 @@ ajtpro/
 
 ---
 
-## Fonctionnalites principales
+## Fonctionnalites disponibles
 
-**Synchronisation fournisseurs** -- Import automatique des catalogues via API REST avec mapping dynamique des champs.
+### Moteur de recherche
 
-**Calcul de prix** -- Grille de marges configurable avec TCP, commission de 4.5 % et multiplicateurs par seuil de prix.
+Page principale de l'application. Permet d'explorer l'ensemble du catalogue fournisseurs avec :
+- Recherche full-text (par nom, description, marque, fournisseur, EAN, reference)
+- Filtre par gamme de prix (curseur min/max)
+- Affichage des resultats tries par prix croissant avec badge fournisseur, stock et EAN
 
-**Moteur de recherche** -- Recherche full-text dans le catalogue avec filtres par prix.
+### Administration
 
-**Statistiques** -- Dix types de graphiques : evolution, distribution, correlation, detection d'anomalies, etc.
+Accessible depuis le menu Parametres (role admin uniquement) :
+- **Tables de reference** -- CRUD sur les marques, couleurs, options memoire, types d'appareils, options RAM, normes, exclusions
+- **Coherence des tables de reference** -- Gestion des traductions de couleurs (mapping couleur source vers couleur cible)
+- **Gestion API fournisseurs** -- Configuration des API fournisseurs : endpoints, champs de mapping, pagination, authentification
+- **Gestion utilisateurs** -- Creation et gestion des comptes avec roles (admin / client)
 
-**Referentiel produit** -- Gestion CRUD avec import CSV, marques, couleurs, capacites memoire, etc.
+### Authentification
 
-**Import Excel** -- Traitement de fichiers Excel fournisseurs avec nettoyage et deduplication.
+- Connexion par identifiant et mot de passe
+- Jetons JWT (acces + rafraichissement)
+- Acces conditionnel selon le role (admin / client)
 
-**Administration** -- Gestion des utilisateurs (JWT avec roles), tables de reference, configuration des API fournisseurs.
+### Fonctionnalites en cours de developpement
 
-**Export** -- Generation de fichiers Excel formates prets a l'envoi.
+Les fonctionnalites suivantes sont codees mais pas encore exposees dans la navigation. Voir [ROADMAP.md](ROADMAP.md) pour le detail.
 
 ---
 
