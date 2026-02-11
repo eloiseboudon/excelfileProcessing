@@ -86,6 +86,10 @@ function SearchPage() {
   const [priceRange, setPriceRange] = useState({ min: 0, max: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedSupplier, setSelectedSupplier] = useState('all');
+  const [onlyInStock, setOnlyInStock] = useState(false);
+  const [eanFilter, setEanFilter] = useState('');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
     setLoading(true);
@@ -162,26 +166,53 @@ function SearchPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const supplierOptions = useMemo(() => {
+    const uniqueSuppliers = new Set<string>();
+    products.forEach((product) => {
+      if (product.supplier) {
+        uniqueSuppliers.add(product.supplier);
+      }
+    });
+    return Array.from(uniqueSuppliers).sort((a, b) => a.localeCompare(b));
+  }, [products]);
+
   const displayedProducts = useMemo(() => {
     const normalizedTerm = normalizeText(searchTerm.trim());
     const termTokens = normalizedTerm
       .split(/[^a-z0-9]+/)
       .map((token) => token.trim())
       .filter((token) => token.length > 0);
+    const normalizedEanFilter = eanFilter.trim().toLowerCase();
 
     return products
       .filter((product) => {
         const matchesTerm =
           termTokens.length === 0 || termTokens.every((token) => product.searchIndex.includes(token));
         const matchesPrice = product.price >= minPrice && product.price <= maxPrice;
-        return matchesTerm && matchesPrice;
+        const matchesSupplier = selectedSupplier === 'all' || product.supplier === selectedSupplier;
+        const matchesStock =
+          !onlyInStock || (typeof product.quantity === 'number' && !Number.isNaN(product.quantity) && product.quantity > 0);
+        const matchesEan =
+          normalizedEanFilter.length === 0 ||
+          (typeof product.ean === 'string' && product.ean.toLowerCase().includes(normalizedEanFilter));
+        return matchesTerm && matchesPrice && matchesSupplier && matchesStock && matchesEan;
       })
-      .sort((a, b) => a.price - b.price);
-  }, [products, searchTerm, minPrice, maxPrice]);
+      .sort((a, b) => (sortOrder === 'asc' ? a.price - b.price : b.price - a.price));
+  }, [products, searchTerm, minPrice, maxPrice, selectedSupplier, onlyInStock, eanFilter, sortOrder]);
 
   const handlePriceRangeChange = (min: number, max: number) => {
     setMinPrice(Math.max(priceRange.min, Math.min(min, max - 1)));
     setMaxPrice(Math.min(priceRange.max, Math.max(max, min + 1)));
+  };
+
+  const handleResetFilters = () => {
+    setSearchTerm('');
+    setMinPrice(priceRange.min);
+    setMaxPrice(priceRange.max);
+    setSelectedSupplier('all');
+    setOnlyInStock(false);
+    setEanFilter('');
+    setSortOrder('asc');
   };
 
   return (
@@ -220,6 +251,16 @@ function SearchPage() {
                 brand: product.brand ?? 'Inconnu',
               }))}
               priceRange={priceRange}
+              suppliers={supplierOptions}
+              selectedSupplier={selectedSupplier}
+              onSupplierChange={setSelectedSupplier}
+              onlyInStock={onlyInStock}
+              onOnlyInStockChange={setOnlyInStock}
+              eanFilter={eanFilter}
+              onEanFilterChange={setEanFilter}
+              sortOrder={sortOrder}
+              onSortOrderChange={setSortOrder}
+              onResetFilters={handleResetFilters}
             />
           </div>
 
