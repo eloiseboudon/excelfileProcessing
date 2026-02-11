@@ -106,9 +106,9 @@ describe('ProductReference', () => {
   it('renders pagination controls', async () => {
     renderProductReference();
     await waitFor(() => {
-      expect(screen.getAllByText('Précédent').length).toBeGreaterThan(0);
+      expect(screen.getByLabelText('Page précédente')).toBeInTheDocument();
     });
-    expect(screen.getAllByText('Suivant').length).toBeGreaterThan(0);
+    expect(screen.getByLabelText('Page suivante')).toBeInTheDocument();
   });
 
   it('disables save button when no edits exist', () => {

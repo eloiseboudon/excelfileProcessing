@@ -28,55 +28,57 @@ function ProductReferenceForm({
   hasEdits,
 }: ProductReferenceFormProps) {
   return (
-    <div className="flex justify-between mb-4">
-      <div className="flex space-x-2">
-        <div className="relative">
+    <div className="card p-4 mb-6 overflow-visible relative z-20">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <button
+              onClick={onToggleColumnMenu}
+              className="btn btn-secondary text-sm"
+            >
+              Colonnes
+            </button>
+            {showColumnMenu && (
+              <div className="absolute z-50 mt-2 p-4 min-w-[10rem] bg-[var(--color-bg-input)] text-[var(--color-text-primary)] border border-[var(--color-border-strong)] rounded-lg shadow-2xl flex flex-col gap-2">
+                {columns.map((col) => (
+                  <label key={col.key} className="flex items-center space-x-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={visibleColumns.includes(col.key)}
+                      onChange={() => onToggleColumn(col.key)}
+                      className="rounded"
+                    />
+                    <span>{col.label}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
           <button
-            onClick={onToggleColumnMenu}
-            className="px-4 py-2 bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] rounded-lg hover:bg-[var(--color-bg-input)]"
+            onClick={onAdd}
+            className="btn btn-primary text-sm"
           >
-            Colonnes
+            Ajouter
           </button>
-          {showColumnMenu && (
-            <div className="absolute z-50 mt-2 p-4 min-w-[10rem] bg-[var(--color-bg-input)] text-[var(--color-text-primary)] border border-[var(--color-border-strong)] rounded-lg shadow-2xl flex flex-col gap-2">
-              {columns.map((col) => (
-                <label key={col.key} className="flex items-center space-x-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={visibleColumns.includes(col.key)}
-                    onChange={() => onToggleColumn(col.key)}
-                    className="rounded"
-                  />
-                  <span>{col.label}</span>
-                </label>
-              ))}
-            </div>
-          )}
         </div>
-        <button
-          onClick={onAdd}
-          className="px-4 py-2 bg-blue-600 text-[var(--color-text-primary)] rounded hover:bg-blue-700"
-        >
-          Ajouter
-        </button>
-      </div>
-      <div className="flex space-x-2">
-        {selectedCount > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {selectedCount > 0 && (
+            <button
+              onClick={onBulkDelete}
+              disabled={isBulkDeleting}
+              className="btn btn-secondary text-sm text-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Supprimer produit(s)
+            </button>
+          )}
           <button
-            onClick={onBulkDelete}
-            disabled={isBulkDeleting}
-            className="px-4 py-2 bg-red-600 text-[var(--color-text-primary)] rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={onSave}
+            disabled={!hasEdits}
+            className="btn btn-primary text-sm"
           >
-            Supprimer produit(s)
+            Enregistrer
           </button>
-        )}
-        <button
-          onClick={onSave}
-          disabled={!hasEdits}
-          className="px-4 py-2 bg-green-600 text-[var(--color-text-primary)] rounded disabled:opacity-50 hover:bg-green-700"
-        >
-          Enregistrer
-        </button>
+        </div>
       </div>
     </div>
   );

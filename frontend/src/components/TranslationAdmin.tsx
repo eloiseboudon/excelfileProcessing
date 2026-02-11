@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Save, Trash2, Plus, ArrowLeft } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ArrowLeft, Save, Trash2, Plus } from 'lucide-react';
 import {
   fetchReferenceTable,
   updateReferenceItem,
@@ -123,25 +123,14 @@ function TranslationAdmin({ isVisible, onClose }: TranslationAdminProps) {
       : fields;
 
   return (
-    <div className="mt-8">
-      <div className="flex justify-end mb-4">
-        <button
-          onClick={() => {
-            setTable(null);
-            onClose();
-          }}
-          className="px-3 py-1 bg-[var(--color-bg-elevated)] rounded hover:bg-[var(--color-bg-input)]"
-        >
-          Fermer
-        </button>
-      </div>
+    <div>
       {!table && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {TABLES.map((t) => (
             <button
               key={t.key}
               onClick={() => setTable(t.key)}
-              className="p-6 rounded-xl bg-[var(--color-bg-elevated)] border border-[var(--color-border-default)] hover:bg-[var(--color-bg-input)] flex items-center justify-center font-semibold"
+              className="card p-6 hover:bg-[var(--color-bg-elevated)] flex items-center justify-center font-semibold transition-colors"
             >
               {t.label}
             </button>
@@ -150,53 +139,59 @@ function TranslationAdmin({ isVisible, onClose }: TranslationAdminProps) {
       )}
       {table && (
         <div>
-          <div className="flex items-center mb-4 space-x-4">
-            <button onClick={() => setTable(null)} className="flex items-center space-x-2 px-3 py-2 bg-[var(--color-bg-elevated)] rounded hover:bg-[var(--color-bg-input)]">
-              <ArrowLeft className="w-4 h-4" />
-              <span>Retour</span>
-            </button>
-            <h3 className="text-xl font-semibold">
-              {TABLES.find((t) => t.key === table)?.label}
-            </h3>
-            <button onClick={handleAdd} className="ml-auto flex items-center space-x-2 px-3 py-2 bg-green-600 text-[var(--color-text-primary)] rounded hover:bg-green-700">
+          <div className="card p-4 mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-3">
+              <button onClick={() => setTable(null)} className="btn btn-secondary text-sm">
+                <ArrowLeft className="w-4 h-4" />
+                <span>Retour</span>
+              </button>
+              <h3 className="text-xl font-semibold">
+                {TABLES.find((t) => t.key === table)?.label}
+              </h3>
+            </div>
+            <button onClick={handleAdd} className="btn btn-primary text-sm">
               <Plus className="w-4 h-4" />
               <span>Ajouter</span>
             </button>
           </div>
-          <div className="space-y-2">
-            {data.map((item) => (
-              <div key={item.id} className="flex items-center space-x-2 bg-[var(--color-bg-elevated)] p-2 rounded">
-                <span className="w-10 text-[var(--color-text-muted)]">{item.id > 0 ? item.id : '-'}</span>
-                {displayedFields.map((f) => (
-                  <input
-                    key={f}
-                    value={item[f] ?? ''}
-                    placeholder={f}
-                    onChange={(e) => handleChange(item.id, f, e.target.value)}
-                    className="flex-1 px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded placeholder:italic"
-                  />
-                ))}
-                {table === 'color_translations' && (
-                  <select
-                    value={item.color_target_id ?? ''}
-                    onChange={(e) => handleChange(item.id, 'color_target_id', e.target.value)}
-                    className="flex-1 px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
-                  >
-                    {colors.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.color}
-                      </option>
-                    ))}
-                  </select>
-                )}
-                <button onClick={() => handleSave(item.id)} className="p-2 bg-green-600 text-[var(--color-text-primary)] rounded hover:bg-green-700">
-                  <Save className="w-4 h-4" />
-                </button>
-                <button onClick={() => handleDelete(item.id)} className="p-2 bg-red-600 text-[var(--color-text-primary)] rounded hover:bg-red-700">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
+          <div className="card overflow-hidden">
+            <div className="divide-y divide-[var(--color-border-subtle)]">
+              {data.map((item) => (
+                <div key={item.id} className="flex items-center space-x-2 px-4 py-2">
+                  <span className="w-10 text-[var(--color-text-muted)] text-sm">{item.id > 0 ? item.id : '-'}</span>
+                  {displayedFields.map((f) => (
+                    <input
+                      key={f}
+                      value={item[f] ?? ''}
+                      placeholder={f}
+                      onChange={(e) => handleChange(item.id, f, e.target.value)}
+                      className="flex-1 px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded placeholder:italic text-sm"
+                    />
+                  ))}
+                  {table === 'color_translations' && (
+                    <select
+                      value={item.color_target_id ?? ''}
+                      onChange={(e) => handleChange(item.id, 'color_target_id', e.target.value)}
+                      className="flex-1 px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded text-sm"
+                    >
+                      {colors.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.color}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => handleSave(item.id)} className="btn btn-primary p-1.5">
+                      <Save className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleDelete(item.id)} className="btn btn-secondary p-1.5 text-red-500">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -205,4 +200,3 @@ function TranslationAdmin({ isVisible, onClose }: TranslationAdminProps) {
 }
 
 export default TranslationAdmin;
-

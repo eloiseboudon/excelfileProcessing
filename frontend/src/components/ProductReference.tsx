@@ -373,6 +373,7 @@ function ProductReference() {
         onToggleSelectProduct={toggleSelectProduct}
         onChange={handleChange}
         onDelete={handleDelete}
+        filteredCount={filteredData.length}
         currentPage={currentPage}
         totalPages={totalPages}
         rowsPerPage={rowsPerPage}

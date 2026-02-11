@@ -93,6 +93,7 @@ const defaultProps = {
   onToggleSelectProduct: vi.fn(),
   onChange: vi.fn(),
   onDelete: vi.fn(),
+  filteredCount: 2,
   currentPage: 1,
   totalPages: 1,
   rowsPerPage: 20,
@@ -121,23 +122,17 @@ describe('ProductReferenceTable', () => {
 
   it('renders pagination info', () => {
     render(<ProductReferenceTable {...defaultProps} />);
-    expect(screen.getAllByText('Page 1 / 1').length).toBeGreaterThan(0);
+    expect(screen.getByText('1 / 1')).toBeInTheDocument();
   });
 
   it('disables previous button on first page', () => {
     render(<ProductReferenceTable {...defaultProps} />);
-    const prevButtons = screen.getAllByText('Précédent');
-    prevButtons.forEach((btn) => {
-      expect(btn).toBeDisabled();
-    });
+    expect(screen.getByLabelText('Page précédente')).toBeDisabled();
   });
 
   it('disables next button on last page', () => {
     render(<ProductReferenceTable {...defaultProps} />);
-    const nextButtons = screen.getAllByText('Suivant');
-    nextButtons.forEach((btn) => {
-      expect(btn).toBeDisabled();
-    });
+    expect(screen.getByLabelText('Page suivante')).toBeDisabled();
   });
 
   it('calls onPageChange when clicking next', async () => {
@@ -151,8 +146,7 @@ describe('ProductReferenceTable', () => {
         onPageChange={onPageChange}
       />
     );
-    const nextButtons = screen.getAllByText('Suivant');
-    await user.click(nextButtons[0]);
+    await user.click(screen.getByLabelText('Page suivante'));
     expect(onPageChange).toHaveBeenCalledWith(2);
   });
 

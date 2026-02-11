@@ -51,7 +51,7 @@ function ProductTable({
   normeOptions,
 }: ProductTableProps) {
   return (
-    <table className="table">
+    <table className="table border-0">
       <thead>
         <tr className="bg-[var(--color-bg-elevated)]">
           {role !== 'client' && (

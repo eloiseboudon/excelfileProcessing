@@ -1,13 +1,12 @@
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Package } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { fetchProductPriceSummary, updateProduct } from '../api';
-import { getCurrentTimestamp } from '../utils/date';
+import { getCurrentTimestamp, getCurrentWeekYear } from '../utils/date';
 import ProductEditModal from './ProductEditModal';
 import ProductReference from './ProductReference';
 import ProductTable from './ProductTable';
 import SupplierPriceModal from './SupplierPriceModal';
-import WeekToolbar from './WeekToolbar';
 
 import {
   fetchBrands,
@@ -587,47 +586,51 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
 
   const paginationControls = (
     <div className="flex items-center justify-between">
-      <div className="flex items-center space-x-2">
-        <button
-          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-          disabled={currentPage === 1}
-          className="btn btn-secondary px-3 py-1 disabled:opacity-50"
-        >
-          Précédent
-        </button>
-        <span>
-          Page {currentPage} / {totalPages}
+      <span className="text-sm text-[var(--color-text-muted)]">
+        {filteredData.length} résultat{filteredData.length === 1 ? '' : 's'}
+      </span>
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1">
+          <span className="text-sm text-[var(--color-text-secondary)] mr-1">Lignes</span>
+          <select
+            id="rowsPerPage"
+            value={rowsPerPage}
+            onChange={(e) => setRowsPerPage(Number(e.target.value))}
+            className="bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded px-2 py-1 text-sm"
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+        </div>
+        <span className="text-sm text-[var(--color-text-secondary)]">
+          {currentPage} / {totalPages}
         </span>
-        <button
-          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-          disabled={currentPage === totalPages}
-          className="btn btn-secondary px-3 py-1 disabled:opacity-50"
-        >
-          Suivant
-        </button>
-      </div>
-      <div className="flex items-center space-x-2">
-        <label htmlFor="rowsPerPage" className="text-sm">
-          Lignes par page:
-        </label>
-        <select
-          id="rowsPerPage"
-          value={rowsPerPage}
-          onChange={(e) => setRowsPerPage(Number(e.target.value))}
-          className="bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded px-2 py-1"
-        >
-          <option value={10}>10</option>
-          <option value={20}>20</option>
-          <option value={50}>50</option>
-          <option value={100}>100</option>
-        </select>
+        <div className="flex items-center">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="btn btn-secondary p-1.5 disabled:opacity-30"
+            aria-label="Page précédente"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="btn btn-secondary p-1.5 disabled:opacity-30"
+            aria-label="Page suivante"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-      <WeekToolbar />
       {onBack && (
         <button
           onClick={onBack}
@@ -637,115 +640,143 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
           <span>Retour</span>
         </button>
       )}
-      <h1 className="text-2xl font-bold text-center mb-4">Produits</h1>
-      <div className="flex justify-center space-x-4 mb-6">
-        <button
-          onClick={() => setTab('calculations')}
-          className={`btn ${tab === 'calculations' ? 'btn-primary' : 'btn-secondary'}`}
-        >
-          TCP/Marges
-        </button>
-        {role !== 'client' && (
+      <div className="mb-8">
+        <h1 className="text-3xl font-semibold text-[var(--color-text-heading)] flex items-center gap-3">
+          <Package className="w-8 h-8 text-[#B8860B]" />
+          Produits
+        </h1>
+        <p className="text-[var(--color-text-muted)] mt-1">
+          Gérez les prix, marges et le référentiel produits. Semaine en cours : {getCurrentWeekYear()}
+        </p>
+      </div>
+      <div className="border-b border-[var(--color-border-subtle)]/60 mb-6">
+        <nav className="flex gap-4">
           <button
-            onClick={() => setTab('reference')}
-            className={`btn ${tab === 'reference' ? 'btn-primary' : 'btn-secondary'}`}
+            type="button"
+            onClick={() => setTab('calculations')}
+            className={`px-2 pb-3 text-sm font-medium transition-colors border-b-2 ${
+              tab === 'calculations'
+                ? 'border-[#B8860B] text-[var(--color-text-heading)]'
+                : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
+            }`}
           >
-            Référentiel
+            TCP/Marges
           </button>
-        )}
+          {role !== 'client' && (
+            <button
+              type="button"
+              onClick={() => setTab('reference')}
+              className={`px-2 pb-3 text-sm font-medium transition-colors border-b-2 ${
+                tab === 'reference'
+                  ? 'border-[#B8860B] text-[var(--color-text-heading)]'
+                  : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
+              }`}
+            >
+              Référentiel
+            </button>
+          )}
+        </nav>
       </div>
       {tab === 'calculations' && (
         <>
-          {role !== 'client' && (
-            <div className="relative mb-4">
-              <button
-                onClick={() => setShowColumnMenu((s) => !s)}
-                className="btn btn-secondary"
-              >
-                Colonnes
-              </button>
-              {showColumnMenu && (
-                <div className="absolute z-50 mt-2 p-4 min-w-[10rem] bg-[var(--color-bg-input)] text-[var(--color-text-primary)] border border-[var(--color-border-strong)] rounded-lg shadow-2xl flex flex-col gap-2">
-                  {columns.map((col) => (
-                    <label key={col.key} className="flex items-center space-x-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={visibleColumns.includes(col.key)}
-                        onChange={() => toggleColumn(col.key)}
-                        className="rounded"
-                      />
-                      <span>{col.label}</span>
-                    </label>
-                  ))}
+          <div className="card p-4 mb-6 overflow-visible relative z-20">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-wrap items-center gap-2">
+                {role !== 'client' && (
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowColumnMenu((s) => !s)}
+                      className="btn btn-secondary text-sm"
+                    >
+                      Colonnes
+                    </button>
+                    {showColumnMenu && (
+                      <div className="absolute z-50 mt-2 p-4 min-w-[10rem] bg-[var(--color-bg-input)] text-[var(--color-text-primary)] border border-[var(--color-border-strong)] rounded-lg shadow-2xl flex flex-col gap-2">
+                        {columns.map((col) => (
+                          <label key={col.key} className="flex items-center space-x-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={visibleColumns.includes(col.key)}
+                              onChange={() => toggleColumn(col.key)}
+                              className="rounded"
+                            />
+                            <span>{col.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {role !== 'client' && (
+                  <div className="w-px h-6 bg-[var(--color-border-subtle)]" />
+                )}
+                <button onClick={handleExportExcel} className="btn btn-secondary text-sm">
+                  Export Excel
+                </button>
+                <button onClick={handleExportJSON} className="btn btn-secondary text-sm">
+                  Export JSON
+                </button>
+                <button onClick={handleExportHtml} className="btn btn-secondary text-sm">
+                  Génère HTML
+                </button>
+              </div>
+              {role !== 'client' && (
+                <div className="flex flex-col items-end gap-2 md:items-center md:flex-row md:gap-4">
+                  {selectedCount > 0 && (
+                    <button
+                      onClick={openBulkMarginModal}
+                      className="btn btn-secondary text-sm"
+                    >
+                      Mise à jour marge ({selectedCount})
+                    </button>
+                  )}
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-[var(--color-text-secondary)]">
+                      {modifiedCount} produit{modifiedCount === 1 ? '' : 's'} modifié{modifiedCount === 1 ? '' : 's'}
+                    </span>
+                    <button
+                      onClick={handleSavePrices}
+                      className="btn btn-primary text-sm"
+                      disabled={!hasEdits}
+                    >
+                      Enregistrer ({modifiedCount})
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
-          )}
-          {paginationControls}
-          <div className="flex flex-col gap-4 my-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-wrap gap-2">
-              <button onClick={handleExportExcel} className="btn btn-secondary">
-                Export Excel
-              </button>
-              <button onClick={handleExportJSON} className="btn btn-secondary">
-                Export JSON
-              </button>
-              <button onClick={handleExportHtml} className="btn btn-secondary">
-                Génère HTML
-              </button>
+          </div>
+          <div className="card overflow-hidden">
+            <div className="overflow-auto">
+              <ProductTable
+                columns={columns}
+                baseColumns={baseColumns}
+                visibleColumns={visibleColumns}
+                paginatedData={paginatedData}
+                suppliers={suppliers}
+                role={role}
+                editedPrices={editedPrices}
+                setEditedPrices={setEditedPrices}
+                setData={setData}
+                selectedSet={selectedSet}
+                toggleProductSelection={toggleProductSelection}
+                toggleSelectAllCurrentPage={toggleSelectAllCurrentPage}
+                setSelectedProduct={setSelectedProduct}
+                getBaseBuyPrice={getBaseBuyPrice}
+                filters={filters}
+                setFilters={setFilters}
+                brandOptions={brandOptions}
+                colorOptions={colorOptions}
+                memoryOptions={memoryOptions}
+                typeOptions={typeOptions}
+                ramOptions={ramOptions}
+                normeOptions={normeOptions}
+              />
             </div>
-            {role !== 'client' && (
-              <div className="flex flex-col items-end gap-2 md:items-center md:flex-row md:gap-4">
-                {selectedCount > 0 && (
-                  <button
-                    onClick={openBulkMarginModal}
-                    className="btn btn-secondary"
-                  >
-                    Mise à jour marge ({selectedCount})
-                  </button>
-                )}
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-[var(--color-text-secondary)]">
-                    {modifiedCount} produit{modifiedCount === 1 ? '' : 's'} modifié{modifiedCount === 1 ? '' : 's'}
-                  </span>
-                  <button
-                    onClick={handleSavePrices}
-                    className="btn btn-primary"
-                    disabled={!hasEdits}
-                  >
-                    Enregistrer ({modifiedCount})
-                  </button>
-                </div>
-              </div>
-            )}
+            <div className="px-4 py-3 border-t border-[var(--color-border-subtle)]">
+              {paginationControls}
+            </div>
           </div>
-          <div className="overflow-auto mt-4">
-            <ProductTable
-              columns={columns}
-              baseColumns={baseColumns}
-              visibleColumns={visibleColumns}
-              paginatedData={paginatedData}
-              suppliers={suppliers}
-              role={role}
-              editedPrices={editedPrices}
-              setEditedPrices={setEditedPrices}
-              setData={setData}
-              selectedSet={selectedSet}
-              toggleProductSelection={toggleProductSelection}
-              toggleSelectAllCurrentPage={toggleSelectAllCurrentPage}
-              setSelectedProduct={setSelectedProduct}
-              getBaseBuyPrice={getBaseBuyPrice}
-              filters={filters}
-              setFilters={setFilters}
-              brandOptions={brandOptions}
-              colorOptions={colorOptions}
-              memoryOptions={memoryOptions}
-              typeOptions={typeOptions}
-              ramOptions={ramOptions}
-              normeOptions={normeOptions}
-            />
-          </div>
-          <div className="mt-4">{paginationControls}</div>
         </>
       )}
       {tab === 'reference' && <ProductReference />}

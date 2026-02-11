@@ -1,4 +1,4 @@
-import { AlertCircle, ArrowLeft, Plus, Save, Server, Trash2 } from 'lucide-react';
+import { AlertCircle, Plus, Save, Server, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import {
   createSupplierApi,
@@ -629,17 +629,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
   }
 
   return (
-    <div className="mt-8 space-y-6">
-      <div className="flex items-center gap-3">
-        <button
-          onClick={onClose}
-          className="flex items-center gap-2 px-3 py-2 bg-[var(--color-bg-elevated)] rounded hover:bg-[var(--color-bg-input)] transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Retour</span>
-        </button>
-        <h2 className="text-xl font-semibold">Gestion des API fournisseurs</h2>
-      </div>
+    <div className="space-y-6">
 
       {loading && <p className="text-sm text-[var(--color-text-muted)]">Chargement des configurations…</p>}
       {error && (
@@ -668,7 +658,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
               </div>
               <button
                 onClick={() => handleAddApi(supplier.id)}
-                className="flex items-center gap-2 px-3 py-2 bg-emerald-600 text-[var(--color-text-primary)] rounded hover:bg-emerald-500"
+                className="btn btn-primary text-sm"
               >
                 <Plus className="w-4 h-4" />
                 <span>Ajouter une API</span>
@@ -739,14 +729,14 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => handleApiSave(supplier.id, api)}
-                            className="inline-flex items-center gap-2 px-3 py-2 bg-emerald-600 text-[var(--color-text-primary)] rounded hover:bg-emerald-500"
+                            className="btn btn-primary text-sm"
                           >
                             <Save className="w-4 h-4" />
                             <span>{api.id < 0 ? 'Créer' : 'Enregistrer'}</span>
                           </button>
                           <button
                             onClick={() => handleApiDelete(supplier.id, api)}
-                            className="inline-flex items-center gap-2 px-3 py-2 bg-red-600 text-[var(--color-text-primary)] rounded hover:bg-red-500"
+                            className="btn btn-secondary text-sm text-red-500"
                           >
                             <Trash2 className="w-4 h-4" />
                             <span>Supprimer</span>
@@ -762,7 +752,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                             </h4>
                             <button
                               onClick={() => handleAddEndpoint(supplier.id, api)}
-                              className="flex items-center gap-2 px-3 py-2 bg-[var(--color-bg-elevated)] rounded hover:bg-[var(--color-bg-input)]"
+                              className="btn btn-secondary text-sm"
                             >
                               <Plus className="w-4 h-4" />
                               <span>Ajouter un endpoint</span>
@@ -862,7 +852,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                                             onClick={() =>
                                               handleEndpointSave(supplier.id, api.id, endpoint)
                                             }
-                                            className="p-2 rounded bg-emerald-600 text-[var(--color-text-primary)] hover:bg-emerald-500"
+                                            className="btn btn-primary p-1.5"
                                           >
                                             <Save className="w-4 h-4" />
                                           </button>
@@ -870,7 +860,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                                             onClick={() =>
                                               handleEndpointDelete(supplier.id, api, endpoint)
                                             }
-                                            className="p-2 rounded bg-red-600 text-[var(--color-text-primary)] hover:bg-red-500"
+                                            className="btn btn-secondary p-1.5 text-red-500"
                                           >
                                             <Trash2 className="w-4 h-4" />
                                           </button>
@@ -918,7 +908,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                             </div>
                             <button
                               onClick={() => handleAddField(supplier.id, api)}
-                              className="flex items-center gap-2 px-3 py-2 bg-[var(--color-bg-elevated)] rounded hover:bg-[var(--color-bg-input)]"
+                              className="btn btn-secondary text-sm"
                             >
                               <Plus className="w-4 h-4" />
                               <span>Ajouter un champ</span>
@@ -981,13 +971,13 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                                         <div className="flex justify-end gap-2">
                                           <button
                                             onClick={() => handleFieldSave(supplier.id, api, field)}
-                                            className="p-2 rounded bg-emerald-600 text-[var(--color-text-primary)] hover:bg-emerald-500"
+                                            className="btn btn-primary p-1.5"
                                           >
                                             <Save className="w-4 h-4" />
                                           </button>
                                           <button
                                             onClick={() => handleFieldDelete(supplier.id, api, field)}
-                                            className="p-2 rounded bg-red-600 text-[var(--color-text-primary)] hover:bg-red-500"
+                                            className="btn btn-secondary p-1.5 text-red-500"
                                           >
                                             <Trash2 className="w-4 h-4" />
                                           </button>

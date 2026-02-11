@@ -1,4 +1,4 @@
-import { Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import MultiSelectFilter from './MultiSelectFilter';
 import type { ProductItem, Column } from './ProductReference';
 
@@ -32,6 +32,7 @@ interface ProductReferenceTableProps {
   onToggleSelectProduct: (id: number) => void;
   onChange: (id: number, field: keyof ProductItem, value: string | number | null) => void;
   onDelete: (id: number) => void;
+  filteredCount: number;
   currentPage: number;
   totalPages: number;
   rowsPerPage: number;
@@ -51,6 +52,7 @@ function ProductReferenceTable({
   onToggleSelectProduct,
   onChange,
   onDelete,
+  filteredCount,
   currentPage,
   totalPages,
   rowsPerPage,
@@ -82,40 +84,45 @@ function ProductReferenceTable({
 
   const paginationControls = (
     <div className="flex items-center justify-between">
-      <div className="flex items-center space-x-2">
-        <button
-          onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-          disabled={currentPage === 1}
-          className="px-3 py-1 bg-[var(--color-bg-elevated)] rounded disabled:opacity-50"
-        >
-          Précédent
-        </button>
-        <span>
-          Page {currentPage} / {totalPages}
+      <span className="text-sm text-[var(--color-text-muted)]">
+        {filteredCount} résultat{filteredCount === 1 ? '' : 's'}
+      </span>
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1">
+          <span className="text-sm text-[var(--color-text-secondary)] mr-1">Lignes</span>
+          <select
+            id="refRowsPerPage"
+            value={rowsPerPage}
+            onChange={(e) => onRowsPerPageChange(Number(e.target.value))}
+            className="bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-strong)] rounded px-2 py-1 text-sm"
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+        </div>
+        <span className="text-sm text-[var(--color-text-secondary)]">
+          {currentPage} / {totalPages}
         </span>
-        <button
-          onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-          disabled={currentPage === totalPages}
-          className="px-3 py-1 bg-[var(--color-bg-elevated)] rounded disabled:opacity-50"
-        >
-          Suivant
-        </button>
-      </div>
-      <div className="flex items-center space-x-2">
-        <label htmlFor="rowsPerPage" className="text-sm">
-          Lignes par page:
-        </label>
-        <select
-          id="rowsPerPage"
-          value={rowsPerPage}
-          onChange={(e) => onRowsPerPageChange(Number(e.target.value))}
-          className="bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-strong)] rounded px-2 py-1"
-        >
-          <option value={10}>10</option>
-          <option value={20}>20</option>
-          <option value={50}>50</option>
-          <option value={100}>100</option>
-        </select>
+        <div className="flex items-center">
+          <button
+            onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+            disabled={currentPage === 1}
+            className="btn btn-secondary p-1.5 disabled:opacity-30"
+            aria-label="Page précédente"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage === totalPages}
+            className="btn btn-secondary p-1.5 disabled:opacity-30"
+            aria-label="Page suivante"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -254,10 +261,9 @@ function ProductReferenceTable({
   };
 
   return (
-    <>
-      {paginationControls}
-      <div className="overflow-auto mt-4">
-        <table className="min-w-full text-sm text-left border border-[var(--color-border-default)]">
+    <div className="card overflow-hidden">
+      <div className="overflow-auto">
+        <table className="min-w-full text-sm text-left border-0">
           <thead>
             <tr className="bg-[var(--color-bg-elevated)]">
               <th className="px-3 py-2 border-b border-[var(--color-border-default)] w-12" />
@@ -325,7 +331,7 @@ function ProductReferenceTable({
                 <td className="px-3 py-1 border-b border-[var(--color-border-default)] text-center">
                   <button
                     onClick={() => onDelete(row.id)}
-                    className="inline-flex items-center justify-center w-8 h-8 rounded bg-red-600 text-[var(--color-text-primary)] hover:bg-red-700"
+                    className="btn btn-secondary p-1.5 text-red-500"
                     title="Supprimer"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -336,8 +342,10 @@ function ProductReferenceTable({
           </tbody>
         </table>
       </div>
-      <div className="mt-4">{paginationControls}</div>
-    </>
+      <div className="px-4 py-3 border-t border-[var(--color-border-subtle)]">
+        {paginationControls}
+      </div>
+    </div>
   );
 }
 

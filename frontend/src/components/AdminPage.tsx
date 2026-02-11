@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Settings } from 'lucide-react';
 import { useState } from 'react';
 import ReferenceAdmin from './ReferenceAdmin';
 import SupplierApiAdmin from './SupplierApiAdmin';
@@ -9,11 +9,17 @@ interface AdminPageProps {
   onBack: () => void;
 }
 
+type AdminTab = 'references' | 'translations' | 'apis' | 'users';
+
+const TABS: { key: AdminTab; label: string }[] = [
+  { key: 'references', label: 'Tables référence' },
+  { key: 'translations', label: 'Cohérence des tables' },
+  { key: 'apis', label: 'API fournisseurs' },
+  { key: 'users', label: 'Utilisateurs' },
+];
+
 function AdminPage({ onBack }: AdminPageProps) {
-  const [showReferences, setShowReferences] = useState(false);
-  const [showTranslations, setShowTranslations] = useState(false);
-  const [showUsers, setShowUsers] = useState(false);
-  const [showApiManagement, setShowApiManagement] = useState(false);
+  const [tab, setTab] = useState<AdminTab>('references');
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
@@ -24,49 +30,45 @@ function AdminPage({ onBack }: AdminPageProps) {
         <ArrowLeft className="w-5 h-5" />
         <span>Retour</span>
       </button>
-      <h1 className="text-4xl font-bold text-center mb-6">Administration</h1>
-      <div className="flex justify-center space-x-4">
-        <button
-          onClick={() => setShowReferences(true)}
-          className="btn btn-primary px-6 py-3"
-        >
-          Tables référence
-        </button>
-        <button
-          onClick={() => setShowTranslations(true)}
-          className="btn btn-primary px-6 py-3"
-        >
-          Cohérence des tables de référence
-        </button>
-        <button
-          onClick={() => setShowApiManagement(true)}
-          className="btn btn-primary px-6 py-3"
-        >
-          Gestion API fournisseurs
-        </button>
-        <button
-          onClick={() => setShowUsers(true)}
-          className="btn btn-primary px-6 py-3"
-        >
-          Gestion utilisateurs
-        </button>
+      <div className="mb-8">
+        <h1 className="text-3xl font-semibold text-[var(--color-text-heading)] flex items-center gap-3">
+          <Settings className="w-8 h-8 text-[#B8860B]" />
+          Administration
+        </h1>
+        <p className="text-[var(--color-text-muted)] mt-1">
+          Gérez les tables de référence, la cohérence des données, les API fournisseurs et les utilisateurs.
+        </p>
       </div>
-      <ReferenceAdmin
-        isVisible={showReferences}
-        onClose={() => setShowReferences(false)}
-      />
-      <TranslationAdmin
-        isVisible={showTranslations}
-        onClose={() => setShowTranslations(false)}
-      />
-      <SupplierApiAdmin
-        isVisible={showApiManagement}
-        onClose={() => setShowApiManagement(false)}
-      />
-      <UserAdmin
-        isVisible={showUsers}
-        onClose={() => setShowUsers(false)}
-      />
+      <div className="border-b border-[var(--color-border-subtle)]/60 mb-6">
+        <nav className="flex gap-4">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setTab(t.key)}
+              className={`px-2 pb-3 text-sm font-medium transition-colors border-b-2 ${
+                tab === t.key
+                  ? 'border-[#B8860B] text-[var(--color-text-heading)]'
+                  : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+      {tab === 'references' && (
+        <ReferenceAdmin isVisible onClose={() => setTab('references')} />
+      )}
+      {tab === 'translations' && (
+        <TranslationAdmin isVisible onClose={() => setTab('translations')} />
+      )}
+      {tab === 'apis' && (
+        <SupplierApiAdmin isVisible onClose={() => setTab('apis')} />
+      )}
+      {tab === 'users' && (
+        <UserAdmin isVisible onClose={() => setTab('users')} />
+      )}
     </div>
   );
 }

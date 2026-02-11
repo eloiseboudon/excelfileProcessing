@@ -82,83 +82,80 @@ function UserAdmin({ isVisible, onClose }: UserAdminProps) {
   if (!isVisible) return null;
 
   return (
-    <div className="mt-8">
-      <div className="flex justify-end mb-4">
-        <button
-          onClick={onClose}
-          className="px-3 py-1 bg-[var(--color-bg-elevated)] rounded hover:bg-[var(--color-bg-input)]"
-        >
-          Fermer
-        </button>
-      </div>
-      <div className="space-y-2">
-        <div className="flex items-center space-x-2 font-semibold px-2">
-          <span className="w-10 text-[var(--color-text-muted)]">ID</span>
-          <span className="flex-1">Username</span>
-          <span className="flex-1">Nom</span>
-          <span className="flex-1">Prénom</span>
-          <span className="flex-1">Email</span>
-          <span className="w-40">Rôle</span>
-          <span className="w-16" />
-        </div>
-        {users.map(u => (
-          <div key={u.id} className="flex items-center space-x-2 bg-[var(--color-bg-elevated)] p-2 rounded">
-            <span className="w-10 text-[var(--color-text-muted)]">{u.id > 0 ? u.id : '-'}</span>
-            <input
-              value={u.username}
-              onChange={e => handleChange(u.id, 'username', e.target.value)}
-              placeholder="username"
-              className="flex-1 px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
-            />
-
-            <input
-              value={u.last_name}
-              onChange={e => handleChange(u.id, 'last_name', e.target.value)}
-              placeholder="nom"
-              className="flex-1 px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
-            /> <input
-              value={u.first_name}
-              onChange={e => handleChange(u.id, 'first_name', e.target.value)}
-              placeholder="prénom"
-              className="flex-1 px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
-            />
-            <input
-              value={u.email}
-              onChange={e => handleChange(u.id, 'email', e.target.value)}
-              placeholder="email"
-              className="flex-1 px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
-            />
-            <select
-              value={u.role}
-              onChange={e => handleChange(u.id, 'role', e.target.value)}
-              className="w-40 px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
-            >
-              <option value="client">client</option>
-              <option value="admin">admin</option>
-            </select>
-            <button
-              onClick={() => handleSave(u.id)}
-              className="p-2 bg-green-600 text-[var(--color-text-primary)] rounded hover:bg-green-700"
-            >
-              <Save className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => handleDelete(u.id)}
-              className="p-2 bg-red-600 text-[var(--color-text-primary)] rounded hover:bg-red-700"
-            >
-              <Trash className="w-4 h-4" />
-            </button>
-          </div>
-        ))}
-      </div>
-      <div className="flex justify-end mt-4">
+    <div>
+      <div className="card p-4 mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <h3 className="text-xl font-semibold">Gestion des utilisateurs</h3>
         <button
           onClick={handleAdd}
-          className="flex items-center space-x-2 px-3 py-2 bg-green-600 text-[var(--color-text-primary)] rounded hover:bg-green-700"
+          className="btn btn-primary text-sm"
         >
           <Plus className="w-4 h-4" />
           <span>Ajouter</span>
         </button>
+      </div>
+      <div className="card overflow-hidden">
+        <div className="hidden md:flex items-center space-x-2 font-semibold px-4 py-3 border-b border-[var(--color-border-subtle)]">
+          <span className="w-10 text-[var(--color-text-muted)] text-sm">ID</span>
+          <span className="flex-1 text-sm">Username</span>
+          <span className="flex-1 text-sm">Nom</span>
+          <span className="flex-1 text-sm">Prénom</span>
+          <span className="flex-1 text-sm">Email</span>
+          <span className="w-40 text-sm">Rôle</span>
+          <span className="w-20" />
+        </div>
+        <div className="divide-y divide-[var(--color-border-subtle)]">
+          {users.map(u => (
+            <div key={u.id} className="flex items-center space-x-2 px-4 py-2">
+              <span className="w-10 text-[var(--color-text-muted)] text-sm">{u.id > 0 ? u.id : '-'}</span>
+              <input
+                value={u.username}
+                onChange={e => handleChange(u.id, 'username', e.target.value)}
+                placeholder="username"
+                className="flex-1 px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded text-sm"
+              />
+              <input
+                value={u.last_name}
+                onChange={e => handleChange(u.id, 'last_name', e.target.value)}
+                placeholder="nom"
+                className="flex-1 px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded text-sm"
+              />
+              <input
+                value={u.first_name}
+                onChange={e => handleChange(u.id, 'first_name', e.target.value)}
+                placeholder="prénom"
+                className="flex-1 px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded text-sm"
+              />
+              <input
+                value={u.email}
+                onChange={e => handleChange(u.id, 'email', e.target.value)}
+                placeholder="email"
+                className="flex-1 px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded text-sm"
+              />
+              <select
+                value={u.role}
+                onChange={e => handleChange(u.id, 'role', e.target.value)}
+                className="w-40 px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded text-sm"
+              >
+                <option value="client">client</option>
+                <option value="admin">admin</option>
+              </select>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => handleSave(u.id)}
+                  className="btn btn-primary p-1.5"
+                >
+                  <Save className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleDelete(u.id)}
+                  className="btn btn-secondary p-1.5 text-red-500"
+                >
+                  <Trash className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
