@@ -33,23 +33,15 @@ jobs:
         if: always()
         working-directory: frontend
         run: |
-          node << 'NODEEOF'
-          const fs = require('fs');
-          const r = JSON.parse(fs.readFileSync('test-results.json', 'utf8'));
-          const total = r.numTotalTests;
-          const passed = r.numPassedTests;
-          const failed = r.numFailedTests;
-          const duration = (r.testResults.reduce((s, t) => s + (t.endTime - t.startTime), 0) / 1000).toFixed(2);
-          const status = failed > 0 ? '❌' : '✅';
-          const summary = [
-            `## ${status} Frontend Tests`,
-            '',
-            '| Total | Passed | Failed | Duration |',
-            '|-------|--------|--------|----------|',
-            `| ${total} | ${passed} | ${failed} | ${duration}s |`,
-          ].join('\n');
-          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
-          NODEEOF
+          TOTAL=$(jq '.numTotalTests' test-results.json)
+          PASSED=$(jq '.numPassedTests' test-results.json)
+          FAILED=$(jq '.numFailedTests' test-results.json)
+          if [ "$FAILED" -gt 0 ]; then STATUS="❌"; else STATUS="✅"; fi
+          echo "## $STATUS Frontend Tests" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Total | Passed | Failed |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-------|--------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| $TOTAL | $PASSED | $FAILED |" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build
         run: npm run build
@@ -80,25 +72,15 @@ jobs:
         if: always()
         working-directory: backend
         run: |
-          python3 << 'PYEOF'
-          import xml.etree.ElementTree as ET, os
-          tree = ET.parse('test-results.xml')
-          root = tree.getroot()
-          suite = root.find('testsuite')
-          total = int(suite.get('tests', 0))
-          failures = int(suite.get('failures', 0))
-          errors = int(suite.get('errors', 0))
-          failed = failures + errors
-          passed = total - failed
-          duration = float(suite.get('time', 0))
-          status = '❌' if failed > 0 else '✅'
-          lines = [
-              f'## {status} Backend Tests',
-              '',
-              '| Total | Passed | Failed | Duration |',
-              '|-------|--------|--------|----------|',
-              f'| {total} | {passed} | {failed} | {duration:.2f}s |',
-          ]
-          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
-              f.write('\n'.join(lines))
-          PYEOF
+          TOTAL=$(python3 -c "import xml.etree.ElementTree as ET; print(ET.parse('test-results.xml').getroot().find('testsuite').get('tests',0))")
+          FAILURES=$(python3 -c "import xml.etree.ElementTree as ET; print(ET.parse('test-results.xml').getroot().find('testsuite').get('failures',0))")
+          ERRORS=$(python3 -c "import xml.etree.ElementTree as ET; print(ET.parse('test-results.xml').getroot().find('testsuite').get('errors',0))")
+          DURATION=$(python3 -c "import xml.etree.ElementTree as ET; print(f\"{float(ET.parse('test-results.xml').getroot().find('testsuite').get('time',0)):.2f}\")")
+          FAILED=$((FAILURES + ERRORS))
+          PASSED=$((TOTAL - FAILED))
+          if [ "$FAILED" -gt 0 ]; then STATUS="❌"; else STATUS="✅"; fi
+          echo "## $STATUS Backend Tests" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Total | Passed | Failed | Duration |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-------|--------|--------|----------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| $TOTAL | $PASSED | $FAILED | ${DURATION}s |" >> "$GITHUB_STEP_SUMMARY"
