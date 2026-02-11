@@ -165,7 +165,7 @@ ajtpro/
 │   │   ├── components/
 │   │   │   ├── AdminPage.tsx              # Administration generale
 │   │   │   ├── BrandSupplierChart.tsx     # Graphique marque/fournisseur
-│   │   │   ├── DataImportPage.tsx         # Import de donnees
+│   │   │   ├── DataImportPage.tsx         # Synchronisation fournisseurs (onglets Synchro/Rapports)
 │   │   │   ├── FormattingPage.tsx         # Mise en forme
 │   │   │   ├── ImportPreviewModal.tsx     # Apercu avant import
 │   │   │   ├── InfoButton.tsx             # Bouton info (i)
@@ -228,30 +228,41 @@ ajtpro/
 
 ## Fonctionnalites disponibles
 
+### Interface utilisateur
+
+L'ensemble de l'application suit un design system coherent de type admin dashboard :
+
+- **Navbar sticky** avec logo AJT Pro, liens de navigation style pill (fond dore quand actif), menu deroulant Parametres avec separateur, responsive (icones seules sur mobile)
+- **Design system** : classes utilitaires `.card` (rounded-lg, backdrop-blur, shadow-xl, padding 15px), `.btn` / `.btn-primary` / `.btn-secondary` (rounded-md), variables CSS pour les couleurs
+- **Pages structurees** : header avec icone doree + titre + description, onglets soulignes (border-b-2 doree), toolbar dans une card, contenu dans une card avec divide-y
+- **Theme Dark / Light** : theme sombre par defaut et theme clair. Bouton flottant en bas a droite. Choix persiste dans le `localStorage`
+
 ### Moteur de recherche
 
 Page principale de l'application. Permet d'explorer l'ensemble du catalogue fournisseurs avec :
-- Recherche full-text (par nom, description, marque, fournisseur, EAN, reference)
-- Filtre par gamme de prix (curseur min/max)
-- Affichage des resultats tries par prix croissant avec badge fournisseur, stock et EAN
+- Recherche full-text avec suggestions et historique (par nom, description, marque, fournisseur, EAN, reference)
+- Filtres avances : gamme de prix (curseur min/max), fournisseur, disponibilite stock, EAN, tri par prix
+- Resultats affiches dans une card avec header (nombre de resultats, gamme selectionnee), hover sur chaque ligne, badge fournisseur colore et prix
 
 ### Administration
 
-Accessible depuis le menu Parametres (role admin uniquement) :
-- **Tables de reference** -- CRUD sur les marques, couleurs, options memoire, types d'appareils, options RAM, normes, exclusions
-- **Coherence des tables de reference** -- Gestion des traductions de couleurs (mapping couleur source vers couleur cible)
-- **Gestion API fournisseurs** -- Configuration des API fournisseurs : endpoints, champs de mapping, pagination, authentification
-- **Gestion utilisateurs** -- Creation et gestion des comptes avec roles (admin / client)
+Accessible depuis le menu Parametres > Admin (role admin uniquement), avec 4 onglets :
+- **Tables de reference** -- CRUD sur les marques, couleurs, options memoire, types d'appareils, options RAM, normes, exclusions, fournisseurs, format imports
+- **Coherence des tables** -- Gestion des traductions de couleurs (mapping couleur source vers couleur cible)
+- **API fournisseurs** -- Configuration des API fournisseurs : endpoints, champs de mapping, pagination, authentification
+- **Utilisateurs** -- Creation et gestion des comptes avec roles (admin / client)
+
+### Synchronisation fournisseurs
+
+Accessible depuis le menu Parametres > Synchro (role admin uniquement), avec 2 onglets :
+- **Synchronisation** -- Declenchement manuel des fetches API par fournisseur, suivi du statut en temps reel
+- **Rapports** -- Historique des imports avec details (nombre de lignes, erreurs, doublons detectes)
 
 ### Authentification
 
-- Connexion par identifiant et mot de passe
+- Page de connexion avec logo AJT Pro, champs avec icones et labels
 - Jetons JWT (acces + rafraichissement)
 - Acces conditionnel selon le role (admin / client)
-
-### Theme Dark / Light
-
-L'application dispose d'un theme sombre (par defaut) et d'un theme clair. Un bouton flottant en bas a droite de l'ecran permet de basculer entre les deux. Le choix est persiste dans le `localStorage`.
 
 ### CI/CD
 
