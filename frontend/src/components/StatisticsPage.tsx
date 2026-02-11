@@ -625,7 +625,7 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
       {onBack && (
         <button
           onClick={onBack}
-          className="flex items-center space-x-2 px-4 py-2 bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] rounded-lg hover:bg-[var(--color-bg-input)] transition-colors mb-6"
+          className="flex items-center space-x-2 px-4 py-2 bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] rounded-md hover:bg-[var(--color-bg-input)] transition-colors mb-6"
         >
           <ArrowLeft className="w-5 h-5" />
           <span>Retour</span>

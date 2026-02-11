@@ -177,7 +177,7 @@ function SupplierApiSyncPanel() {
         </div>
 
         {error && (
-          <div className="mt-6 p-4 rounded-lg border border-red-500/30 bg-red-500/10 text-sm text-red-300 flex items-center gap-2">
+          <div className="mt-6 p-4 rounded-md border border-red-500/30 bg-red-500/10 text-sm text-red-300 flex items-center gap-2">
             <AlertCircle className="w-5 h-5" />
             <span>{error}</span>
           </div>
@@ -189,7 +189,7 @@ function SupplierApiSyncPanel() {
               {groupedRows.map(({ supplier_id, supplier, items, mapping }) => (
                 <div
                   key={supplier_id}
-                  className="border border-[var(--color-border-subtle)]/60 rounded-xl bg-[var(--color-bg-subtle)] divide-y divide-zinc-800/60"
+                  className="border border-[var(--color-border-subtle)]/60 rounded-md bg-[var(--color-bg-subtle)] divide-y divide-zinc-800/60"
                 >
                   <div className="px-5 py-4 flex flex-wrap items-center justify-between gap-3">
                     <div>
@@ -214,7 +214,7 @@ function SupplierApiSyncPanel() {
                         key={`${
                           row.supplier_id
                         }-${row.ean ?? row.part_number ?? row.supplier_sku ?? index}`}
-                        className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between bg-[var(--color-bg-faint)] rounded-lg p-4"
+                        className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between bg-[var(--color-bg-faint)] rounded-md p-4"
                       >
                         <div className="space-y-1">
                           <p className="text-base font-medium text-[var(--color-text-heading)]">
@@ -243,7 +243,7 @@ function SupplierApiSyncPanel() {
               ))}
             </div>
           ) : (
-            <div className="px-4 py-6 text-center text-sm text-[var(--color-text-muted)] border border-dashed border-[var(--color-border-subtle)]/60 rounded-xl">
+            <div className="px-4 py-6 text-center text-sm text-[var(--color-text-muted)] border border-dashed border-[var(--color-border-subtle)]/60 rounded-md">
               Aucune donnée temporaire. Lancez une synchronisation pour remplir la table.
             </div>
           )}

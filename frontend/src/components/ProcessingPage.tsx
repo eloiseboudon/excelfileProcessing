@@ -161,7 +161,7 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange, onRefreshCom
             )} </p>
         )}
         <div
-          className={`border-2 border-dashed rounded-xl p-8 transition-all duration-200 ${isDragging ? 'border-[#B8860B] bg-[var(--color-bg-nav)]' : 'border-[var(--color-border-default)] hover:border-[#B8860B]/50'
+          className={`border-2 border-dashed rounded-md p-8 transition-all duration-200 ${isDragging ? 'border-[#B8860B] bg-[var(--color-bg-nav)]' : 'border-[var(--color-border-default)] hover:border-[#B8860B]/50'
             }`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -178,7 +178,7 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange, onRefreshCom
         </div>
         {file && (
           <>
-            <div className="mt-4 flex items-center space-x-3 p-4 bg-[var(--color-bg-elevated)]/50 rounded-lg border border-[var(--color-border-default)]">
+            <div className="mt-4 flex items-center space-x-3 p-4 bg-[var(--color-bg-elevated)]/50 rounded-md border border-[var(--color-border-default)]">
               <FileDown className="w-6 h-6 text-[#B8860B]" />
               <span className="text-[var(--color-text-secondary)] truncate flex-1">{file.name}</span>
               <button onClick={() => previewFile(file)} className="btn btn-secondary ml-auto">Prévisualiser</button>
@@ -346,7 +346,7 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
         </button>
 
         {error && (
-          <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg w-full text-center">
+          <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-md w-full text-center">
             <p className="text-red-500">{error}</p>
           </div>
         )}

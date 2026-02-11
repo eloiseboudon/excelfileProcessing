@@ -379,7 +379,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
 
       <div className="card p-8">
         <div
-          className={`border-2 border-dashed rounded-xl p-8 transition-all duration-200 ${
+          className={`border-2 border-dashed rounded-md p-8 transition-all duration-200 ${
             isDragging
               ? 'border-[#B8860B] bg-[var(--color-bg-nav)]'
               : 'border-[var(--color-border-default)] hover:border-[#B8860B]/50'
@@ -407,7 +407,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
 
         {file && (
           <div className="mt-8 space-y-4">
-            <div className="flex items-center justify-between p-4 bg-[var(--color-bg-elevated)]/50 rounded-lg border border-[var(--color-border-default)]">
+            <div className="flex items-center justify-between p-4 bg-[var(--color-bg-elevated)]/50 rounded-md border border-[var(--color-border-default)]">
               <div className="flex items-center space-x-3">
                 <FileDown className="w-6 h-6 text-[#B8860B]" />
                 <span className="text-[var(--color-text-secondary)]">{file.name}</span>
@@ -432,7 +432,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
             </div>
 
             {error && (
-              <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+              <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-md">
                 <p className="text-red-500">{error}</p>
               </div>
             )}
@@ -440,7 +440,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
             {formattedFile && htmlFile && (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="flex items-center justify-between p-4 bg-[#B8860B]/10 rounded-lg border border-[#B8860B]/30">
+                  <div className="flex items-center justify-between p-4 bg-[#B8860B]/10 rounded-md border border-[#B8860B]/30">
                     <div className="flex items-center space-x-3">
                       <FileDown className="w-6 h-6 text-[#B8860B]" />
                       <span className="text-[#B8860B]">Excel formaté</span>
@@ -453,7 +453,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
                     </button>
                   </div>
 
-                  <div className="flex items-center justify-between p-4 bg-green-500/10 rounded-lg border border-green-500/30">
+                  <div className="flex items-center justify-between p-4 bg-green-500/10 rounded-md border border-green-500/30">
                     <div className="flex items-center space-x-3">
                       <Globe className="w-6 h-6 text-green-500" />
                       <span className="text-green-500">Page web</span>
@@ -466,7 +466,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
                     </button>
                   </div>
 
-                  <div className="flex items-center justify-between p-4 bg-blue-500/10 rounded-lg border border-blue-500/30">
+                  <div className="flex items-center justify-between p-4 bg-blue-500/10 rounded-md border border-blue-500/30">
                     <div className="flex items-center space-x-3">
                       <Eye className="w-6 h-6 text-blue-500" />
                       <span className="text-blue-500">Prévisualiser</span>
@@ -481,7 +481,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
                 </div>
 
                 {showPreview && (
-                  <div className="mt-8 p-6 bg-[var(--color-bg-elevated)]/50 rounded-lg border border-[var(--color-border-default)]">
+                  <div className="mt-8 p-6 bg-[var(--color-bg-elevated)]/50 rounded-md border border-[var(--color-border-default)]">
                     <h3 className="text-xl font-semibold text-[var(--color-text-primary)] mb-6">Prévisualisation de la grille tarifaire</h3>
 
                     <SearchControls
@@ -531,21 +531,21 @@ function FormattingPage({ onBack }: FormattingPageProps) {
 
                     {/* Statistiques */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                      <div className="bg-[var(--color-bg-input)] rounded-lg p-4 text-center">
+                      <div className="bg-[var(--color-bg-input)] rounded-md p-4 text-center">
                         <div className="text-2xl font-bold text-[#B8860B]">{previewData.length}</div>
                         <div className="text-sm text-[var(--color-text-muted)]">Total produits</div>
                       </div>
-                      <div className="bg-[var(--color-bg-input)] rounded-lg p-4 text-center">
+                      <div className="bg-[var(--color-bg-input)] rounded-md p-4 text-center">
                         <div className="text-2xl font-bold text-[#B8860B]">{filteredProducts.length}</div>
                         <div className="text-sm text-[var(--color-text-muted)]">Affichés</div>
                       </div>
-                      <div className="bg-[var(--color-bg-input)] rounded-lg p-4 text-center">
+                      <div className="bg-[var(--color-bg-input)] rounded-md p-4 text-center">
                         <div className="text-2xl font-bold text-[#B8860B]">
                           {filteredProducts.length > 0 ? Math.round(filteredProducts.reduce((sum, p) => sum + p.price, 0) / filteredProducts.length) : 0}€
                         </div>
                         <div className="text-sm text-[var(--color-text-muted)]">Prix moyen</div>
                       </div>
-                      <div className="bg-[var(--color-bg-input)] rounded-lg p-4 text-center">
+                      <div className="bg-[var(--color-bg-input)] rounded-md p-4 text-center">
                         <div className="text-2xl font-bold text-[#B8860B]">{uniqueBrands.length}</div>
                         <div className="text-sm text-[var(--color-text-muted)]">Marques</div>
                       </div>
@@ -554,7 +554,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
                     {/* Grille de produits */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
                       {filteredProducts.map((product, index) => (
-                        <div key={index} className="bg-[var(--color-bg-input)] rounded-lg p-4 border border-[var(--color-border-strong)] hover:border-[#B8860B]/50 transition-colors">
+                        <div key={index} className="bg-[var(--color-bg-input)] rounded-md p-4 border border-[var(--color-border-strong)] hover:border-[#B8860B]/50 transition-colors">
                           <div className="font-medium text-[var(--color-text-primary)] mb-2 line-clamp-2">{product.name}</div>
                           <div className="flex items-center justify-between">
                             <div className="inline-block px-2 py-1 bg-[#B8860B]/20 text-[#B8860B] rounded text-sm">
@@ -577,7 +577,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
                     )}
 
                     {/* Note tarifaire */}
-                    <div className="mt-6 p-4 bg-[#B8860B]/10 border border-[#B8860B]/30 rounded-lg text-center">
+                    <div className="mt-6 p-4 bg-[#B8860B]/10 border border-[#B8860B]/30 rounded-md text-center">
                       <p className="text-[#B8860B] font-medium">
                         📋 Tarif HT TCP incluse / hors DEEE de 2,56€ HT par pièce / FRANCO 1000€ HT ou 20€ de frais de port
                       </p>

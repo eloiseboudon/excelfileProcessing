@@ -233,7 +233,7 @@ function SearchPage() {
           Chargement des produits...
         </div>
       ) : error ? (
-        <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-6 py-4 text-red-200">
+        <div className="rounded-md border border-red-500/40 bg-red-500/10 px-6 py-4 text-red-200">
           {error}
         </div>
       ) : (
@@ -273,7 +273,7 @@ function SearchPage() {
           </div>
 
           {displayedProducts.length === 0 ? (
-            <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-card)] px-6 py-12 text-center text-[var(--color-text-muted)]">
+            <div className="rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-card)] px-6 py-12 text-center text-[var(--color-text-muted)]">
               Aucun produit ne correspond à votre recherche pour le moment.
             </div>
           ) : (
@@ -281,7 +281,7 @@ function SearchPage() {
               {displayedProducts.map((product) => (
                 <div
                   key={product.id}
-                  className="w-full rounded-xl border border-[var(--color-border-default)]/60 bg-[var(--color-bg-card)] p-5"
+                  className="w-full rounded-md border border-[var(--color-border-default)]/60 bg-[var(--color-bg-card)] p-5"
                 >
                   <div className="flex items-start justify-between gap-6">
                     <div className="flex-1 min-w-0">
@@ -311,7 +311,7 @@ function SearchPage() {
                       >
                         {product.supplier ?? 'Fournisseur inconnu'}
                       </span>
-                      <div className="rounded-lg bg-[#B8860B]/10 px-4 py-2 text-[#B8860B] font-semibold whitespace-nowrap">
+                      <div className="rounded-md bg-[#B8860B]/10 px-4 py-2 text-[#B8860B] font-semibold whitespace-nowrap">
                         {product.hasPrice ? `${product.price.toFixed(2)}€` : 'Prix N/C'}
                       </div>
                     </div>

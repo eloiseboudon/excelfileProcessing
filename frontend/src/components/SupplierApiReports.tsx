@@ -46,7 +46,7 @@ function ReportList({
   showPrice?: boolean;
 }) {
   return (
-    <div className="p-5 rounded-xl bg-[var(--color-bg-subtle)] border border-[var(--color-border-subtle)]/60">
+    <div className="p-5 rounded-md bg-[var(--color-bg-subtle)] border border-[var(--color-border-subtle)]/60">
       <div className="flex items-center justify-between mb-4">
         <h4 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide">
           {title}
@@ -68,7 +68,7 @@ function ReportList({
             return (
               <li
                 key={key || `entry-${index}`}
-                className="flex items-start justify-between gap-4 border border-[var(--color-border-subtle)]/60 rounded-lg px-3 py-2 bg-[var(--color-bg-faint)]"
+                className="flex items-start justify-between gap-4 border border-[var(--color-border-subtle)]/60 rounded-md px-3 py-2 bg-[var(--color-bg-faint)]"
               >
                 <div className="flex-1">
                   <p className="text-sm font-medium text-[var(--color-text-heading)] truncate" title={label}>
@@ -115,7 +115,7 @@ function RawDataPreview({ items }: { items: unknown[] | undefined }) {
   }, [entries, expanded]);
 
   return (
-    <div className="p-5 rounded-xl bg-[var(--color-bg-subtle)] border border-[var(--color-border-subtle)]/60">
+    <div className="p-5 rounded-md bg-[var(--color-bg-subtle)] border border-[var(--color-border-subtle)]/60">
       <div className="flex items-center justify-between mb-4">
         <h4 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide">
           Données brutes de l'API
@@ -128,7 +128,7 @@ function RawDataPreview({ items }: { items: unknown[] | undefined }) {
         </p>
       ) : (
         <div className="space-y-3">
-          <pre className="text-xs text-left text-[var(--color-text-secondary)] bg-[var(--color-bg-subtle)] border border-[var(--color-border-subtle)]/60 rounded-lg p-4 overflow-x-auto whitespace-pre-wrap break-words max-h-80">
+          <pre className="text-xs text-left text-[var(--color-text-secondary)] bg-[var(--color-bg-subtle)] border border-[var(--color-border-subtle)]/60 rounded-md p-4 overflow-x-auto whitespace-pre-wrap break-words max-h-80">
             {visibleEntries
               .map((entry) => JSON.stringify(entry, null, 2))
               .join('\n\n')}
@@ -212,7 +212,7 @@ function SupplierApiReports() {
         </div>
 
         {error ? (
-          <div className="p-4 rounded-lg border border-red-500/30 bg-red-500/10 text-sm text-red-300 flex items-center gap-2 mb-6">
+          <div className="p-4 rounded-md border border-red-500/30 bg-red-500/10 text-sm text-red-300 flex items-center gap-2 mb-6">
             <AlertCircle className="w-5 h-5" />
             <span>{error}</span>
           </div>
@@ -253,7 +253,7 @@ function SupplierApiReports() {
             return (
               <div
                 key={report.job_id}
-                className="border border-[var(--color-border-subtle)]/60 rounded-xl bg-[var(--color-bg-subtle)] px-6 py-5"
+                className="border border-[var(--color-border-subtle)]/60 rounded-md bg-[var(--color-bg-subtle)] px-6 py-5"
               >
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                   <div>
@@ -265,7 +265,7 @@ function SupplierApiReports() {
                       {summaryItems.map((item) => (
                         <div
                           key={item.title}
-                          className="rounded-lg border border-[var(--color-border-subtle)]/60 bg-[var(--color-bg-faint)] px-3 py-2"
+                          className="rounded-md border border-[var(--color-border-subtle)]/60 bg-[var(--color-bg-faint)] px-3 py-2"
                         >
                           <p className="text-[11px] uppercase tracking-wide text-zinc-500">{item.title}</p>
                           <p

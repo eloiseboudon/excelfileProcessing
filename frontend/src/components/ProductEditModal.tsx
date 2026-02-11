@@ -15,7 +15,7 @@ function ProductEditModal({
 }: ProductEditModalProps) {
   return (
     <div className="fixed inset-0 z-20 flex items-center justify-center bg-[var(--color-bg-overlay)] px-4">
-      <div className="w-full max-w-sm rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6 shadow-xl">
+      <div className="w-full max-w-sm rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6 shadow-xl">
         <h2 className="text-lg font-semibold mb-2">Mise à jour de la marge</h2>
         <p className="text-sm text-[var(--color-text-secondary)] mb-4">
           Appliquer une marge unique à {selectedCount}{' '}

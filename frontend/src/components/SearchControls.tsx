@@ -188,7 +188,7 @@ function SearchControls({
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
               onFocus={() => setShowSuggestions(true)}
-              className="w-full pl-12 pr-12 py-4 text-lg bg-[var(--color-bg-elevated)] border-2 border-[var(--color-border-strong)] rounded-xl text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:border-[#B8860B] focus:outline-none transition-all duration-200"
+              className="w-full pl-12 pr-12 py-4 text-lg bg-[var(--color-bg-elevated)] border-2 border-[var(--color-border-strong)] rounded-md text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:border-[#B8860B] focus:outline-none transition-all duration-200"
               placeholder="🔍 Rechercher un produit... (ex: iPhone, Galaxy, Hotwav)"
             />
             {searchTerm && (
@@ -210,7 +210,7 @@ function SearchControls({
         {showSuggestions && suggestions.length > 0 && (
           <div
             ref={suggestionsRef}
-            className="absolute top-full left-0 right-0 mt-2 bg-[var(--color-bg-elevated)] border border-[var(--color-border-strong)] rounded-xl shadow-2xl z-50 max-h-80 overflow-y-auto"
+            className="absolute top-full left-0 right-0 mt-2 bg-[var(--color-bg-elevated)] border border-[var(--color-border-strong)] rounded-md shadow-2xl z-50 max-h-80 overflow-y-auto"
           >
             {!searchTerm && searchHistory.length > 0 && (
               <div className="p-3 border-b border-[var(--color-border-default)]">
@@ -239,7 +239,7 @@ function SearchControls({
         )}
       </div>
 
-      <div className="bg-[var(--color-bg-elevated)] rounded-xl p-6 border border-[var(--color-border-strong)] space-y-6">
+      <div className="bg-[var(--color-bg-elevated)] rounded-md p-6 border border-[var(--color-border-strong)] space-y-6">
         <button
           type="button"
           onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
@@ -310,7 +310,7 @@ function SearchControls({
                     const newMin = Math.max(priceRange.min, Math.min(Number(e.target.value), maxPrice - 1));
                     onPriceRangeChange(newMin, maxPrice);
                   }}
-                  className="w-full px-3 py-2 bg-[var(--color-bg-input)] border border-[var(--color-border-strong)] rounded-lg text-[var(--color-text-primary)] text-xs focus:border-[#B8860B] focus:outline-none"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-input)] border border-[var(--color-border-strong)] rounded-md text-[var(--color-text-primary)] text-xs focus:border-[#B8860B] focus:outline-none"
                   min={priceRange.min}
                   max={maxPrice - 1}
                 />
@@ -324,7 +324,7 @@ function SearchControls({
                     const newMax = Math.min(priceRange.max, Math.max(Number(e.target.value), minPrice + 1));
                     onPriceRangeChange(minPrice, newMax);
                   }}
-                  className="w-full px-3 py-2 bg-[var(--color-bg-input)] border border-[var(--color-border-strong)] rounded-lg text-[var(--color-text-primary)] text-xs focus:border-[#B8860B] focus:outline-none"
+                  className="w-full px-3 py-2 bg-[var(--color-bg-input)] border border-[var(--color-border-strong)] rounded-md text-[var(--color-text-primary)] text-xs focus:border-[#B8860B] focus:outline-none"
                   min={minPrice + 1}
                   max={priceRange.max}
                 />
@@ -341,7 +341,7 @@ function SearchControls({
             <select
               value={selectedSupplier}
               onChange={(event) => onSupplierChange(event.target.value)}
-              className="w-full px-3 py-2 bg-[var(--color-bg-input)] border border-[var(--color-border-strong)] rounded-lg text-[var(--color-text-primary)] text-sm focus:border-[#B8860B] focus:outline-none"
+              className="w-full px-3 py-2 bg-[var(--color-bg-input)] border border-[var(--color-border-strong)] rounded-md text-[var(--color-text-primary)] text-sm focus:border-[#B8860B] focus:outline-none"
             >
               <option value="all">Tous les fournisseurs</option>
               {suppliers.map((supplier) => (
@@ -354,7 +354,7 @@ function SearchControls({
 
           <div>
             <label className="block text-xs text-[var(--color-text-muted)] mb-1">Disponibilité</label>
-            <label className="flex items-center gap-2 px-3 py-2 bg-[var(--color-bg-input)] border border-[var(--color-border-strong)] rounded-lg text-sm text-[var(--color-text-primary)]">
+            <label className="flex items-center gap-2 px-3 py-2 bg-[var(--color-bg-input)] border border-[var(--color-border-strong)] rounded-md text-sm text-[var(--color-text-primary)]">
               <input
                 type="checkbox"
                 checked={onlyInStock}
@@ -372,7 +372,7 @@ function SearchControls({
               value={eanFilter}
               onChange={(event) => onEanFilterChange(event.target.value)}
               placeholder="Rechercher par EAN"
-              className="w-full px-3 py-2 bg-[var(--color-bg-input)] border border-[var(--color-border-strong)] rounded-lg text-[var(--color-text-primary)] text-sm focus:border-[#B8860B] focus:outline-none"
+              className="w-full px-3 py-2 bg-[var(--color-bg-input)] border border-[var(--color-border-strong)] rounded-md text-[var(--color-text-primary)] text-sm focus:border-[#B8860B] focus:outline-none"
             />
           </div>
 
@@ -381,7 +381,7 @@ function SearchControls({
             <select
               value={sortOrder}
               onChange={(event) => onSortOrderChange(event.target.value as 'asc' | 'desc')}
-              className="w-full px-3 py-2 bg-[var(--color-bg-input)] border border-[var(--color-border-strong)] rounded-lg text-[var(--color-text-primary)] text-sm focus:border-[#B8860B] focus:outline-none"
+              className="w-full px-3 py-2 bg-[var(--color-bg-input)] border border-[var(--color-border-strong)] rounded-md text-[var(--color-text-primary)] text-sm focus:border-[#B8860B] focus:outline-none"
             >
               <option value="asc">Prix croissant</option>
               <option value="desc">Prix décroissant</option>
@@ -393,7 +393,7 @@ function SearchControls({
             <div className="pt-4 border-t border-[var(--color-border-default)]">
               <button
                 onClick={onResetFilters}
-                className="w-full py-2 bg-[var(--color-border-strong)] text-[var(--color-text-primary)] rounded-lg hover:bg-[var(--color-bg-input)] transition-colors text-sm"
+                className="w-full py-2 bg-[var(--color-border-strong)] text-[var(--color-text-primary)] rounded-md hover:bg-[var(--color-bg-input)] transition-colors text-sm"
               >
                 Réinitialiser les filtres
               </button>

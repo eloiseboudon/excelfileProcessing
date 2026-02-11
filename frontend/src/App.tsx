@@ -126,7 +126,7 @@ function App() {
                 <ChevronDown className="w-4 h-4 ml-2" />
               </button>
               {showSettingsMenu && (
-                <div className="absolute right-0 mt-2 w-48 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] shadow-xl">
+                <div className="absolute right-0 mt-2 w-48 rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] shadow-xl">
                   {role !== 'client' && (
                     <button
                       onClick={() => {

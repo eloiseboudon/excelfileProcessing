@@ -633,7 +633,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
 
       {loading && <p className="text-sm text-[var(--color-text-muted)]">Chargement des configurations…</p>}
       {error && (
-        <div className="flex items-center gap-2 text-sm text-red-300 bg-red-500/10 border border-red-500/30 px-4 py-3 rounded-lg">
+        <div className="flex items-center gap-2 text-sm text-red-300 bg-red-500/10 border border-red-500/30 px-4 py-3 rounded-md">
           <AlertCircle className="w-5 h-5" />
           <span>{error}</span>
         </div>
@@ -649,7 +649,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
         {configs.map((supplier) => (
           <div key={supplier.id} className="space-y-5">
             <div className="flex items-center gap-3 border-b border-[var(--color-border-subtle)]/60 pb-3">
-              <div className="p-2 rounded-lg bg-[#B8860B]/10 text-[#B8860B]">
+              <div className="p-2 rounded-md bg-[#B8860B]/10 text-[#B8860B]">
                 <Server className="w-5 h-5" />
               </div>
               <div className="flex-1">
@@ -671,7 +671,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                   const fields = mapFieldsWithCategory(api.mapping?.fields);
 
                   return (
-                    <div key={api.id} className="bg-[var(--color-bg-subtle)] border border-[var(--color-border-subtle)]/60 rounded-xl">
+                    <div key={api.id} className="bg-[var(--color-bg-subtle)] border border-[var(--color-border-subtle)]/60 rounded-md">
                       <div className="px-5 py-4 flex flex-col gap-4 border-b border-[var(--color-border-subtle)]/60">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div className="flex flex-col gap-2">
@@ -684,7 +684,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                                 handleApiChange(supplier.id, api.id, 'base_url', e.target.value)
                               }
                               placeholder="https://api.fournisseur.com"
-                              className="px-3 py-2 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]"
+                              className="px-3 py-2 rounded-md bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]"
                             />
                           </div>
                           <div className="flex flex-col gap-2">
@@ -696,7 +696,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                               onChange={(e) =>
                                 handleApiChange(supplier.id, api.id, 'auth_type', e.target.value)
                               }
-                              className="px-3 py-2 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] text-[var(--color-text-primary)]"
+                              className="px-3 py-2 rounded-md bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] text-[var(--color-text-primary)]"
                             >
                               {AUTH_TYPE_OPTIONS.map((option) => (
                                 <option key={option.value} value={option.value}>
@@ -722,7 +722,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                                 )
                               }
                               placeholder="Illimité"
-                              className="px-3 py-2 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]"
+                              className="px-3 py-2 rounded-md bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]"
                             />
                           </div>
                         </div>
@@ -761,7 +761,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
 
                           {api.endpoints.length > 0 ? (
                             <div className="overflow-x-auto">
-                              <table className="min-w-full text-sm text-left text-[var(--color-text-secondary)] border border-[var(--color-border-subtle)]/60 rounded-lg overflow-hidden">
+                              <table className="min-w-full text-sm text-left text-[var(--color-text-secondary)] border border-[var(--color-border-subtle)]/60 rounded-md overflow-hidden">
                                 <thead className="bg-[var(--color-bg-surface)]/80 text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
                                   <tr>
                                     <th className="px-4 py-2 font-medium">Nom</th>
@@ -917,7 +917,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
 
                           {fields.length > 0 ? (
                             <div className="overflow-x-auto">
-                              <table className="min-w-full text-sm text-left text-[var(--color-text-secondary)] border border-[var(--color-border-subtle)]/60 rounded-lg overflow-hidden">
+                              <table className="min-w-full text-sm text-left text-[var(--color-text-secondary)] border border-[var(--color-border-subtle)]/60 rounded-md overflow-hidden">
                                 <thead className="bg-[var(--color-bg-surface)]/80 text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
                                   <tr>
                                     <th className="px-4 py-2 font-medium">Champ cible</th>

@@ -162,7 +162,7 @@ function SupplierPriceModal({
 
   return (
     <div className="fixed inset-0 bg-[var(--color-bg-overlay)] flex items-center justify-center z-50">
-      <div className="bg-[var(--color-bg-surface)] p-6 rounded-lg border border-[var(--color-border-default)] w-full max-w-5xl mx-4">
+      <div className="bg-[var(--color-bg-surface)] p-6 rounded-md border border-[var(--color-border-default)] w-full max-w-5xl mx-4">
         <h2 className="text-xl font-semibold mb-4">
           Dernières données calculées par fournisseur
         </h2>
