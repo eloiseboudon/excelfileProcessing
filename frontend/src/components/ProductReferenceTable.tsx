@@ -136,7 +136,7 @@ function ProductReferenceTable({
             onChange={(e) =>
               onChange(row.id, 'brand_id', e.target.value === '' ? null : Number(e.target.value))
             }
-            className="px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
+            className="px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded"
           >
             <option value="">null</option>
             {brands.map((b) => (
@@ -153,7 +153,7 @@ function ProductReferenceTable({
             onChange={(e) =>
               onChange(row.id, 'memory_id', e.target.value === '' ? null : Number(e.target.value))
             }
-            className="px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
+            className="px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded"
           >
             <option value="">null</option>
             {memories.map((m) => (
@@ -170,7 +170,7 @@ function ProductReferenceTable({
             onChange={(e) =>
               onChange(row.id, 'color_id', e.target.value === '' ? null : Number(e.target.value))
             }
-            className="px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
+            className="px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded"
           >
             <option value="">null</option>
             {colors.map((c) => (
@@ -187,7 +187,7 @@ function ProductReferenceTable({
             onChange={(e) =>
               onChange(row.id, 'type_id', e.target.value === '' ? null : Number(e.target.value))
             }
-            className="px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
+            className="px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded"
           >
             <option value="">null</option>
             {types.map((t) => (
@@ -204,7 +204,7 @@ function ProductReferenceTable({
             onChange={(e) =>
               onChange(row.id, 'ram_id', e.target.value === '' ? null : Number(e.target.value))
             }
-            className="px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
+            className="px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded"
           >
             <option value="">null</option>
             {rams.map((r) => (
@@ -221,7 +221,7 @@ function ProductReferenceTable({
             onChange={(e) =>
               onChange(row.id, 'norme_id', e.target.value === '' ? null : Number(e.target.value))
             }
-            className="px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
+            className="px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded"
           >
             <option value="">null</option>
             {normes.map((n) => (
@@ -236,7 +236,7 @@ function ProductReferenceTable({
           <input
             value={row.model}
             onChange={(e) => onChange(row.id, 'model', e.target.value)}
-            className="w-full px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
+            className="w-full px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded"
           />
         );
       case 'description':
@@ -244,7 +244,7 @@ function ProductReferenceTable({
           <input
             value={row.description}
             onChange={(e) => onChange(row.id, 'description', e.target.value)}
-            className="w-full px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
+            className="w-full px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded"
           />
         );
       case 'ean':
@@ -252,7 +252,7 @@ function ProductReferenceTable({
           <input
             value={row.ean ?? ''}
             onChange={(e) => onChange(row.id, 'ean', e.target.value)}
-            className="w-full px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded"
+            className="w-full px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] rounded"
           />
         );
       default:
@@ -311,7 +311,7 @@ function ProductReferenceTable({
           </thead>
           <tbody>
             {paginatedData.map((row) => (
-              <tr key={String(row.id)} className="odd:bg-[var(--color-bg-surface)] even:bg-[var(--color-bg-elevated)]">
+              <tr key={String(row.id)} className="odd:bg-[var(--color-bg-surface)] even:bg-[var(--color-bg-elevated)] hover:bg-[var(--color-bg-elevated)]/80">
                 <td className="px-3 py-1 border-b border-[var(--color-border-default)]">
                   <input
                     type="checkbox"

@@ -107,8 +107,8 @@ function ProductTable({
           return (
             <tr
               key={String(row.id)}
-              className={`odd:bg-[var(--color-bg-surface)] even:bg-[var(--color-bg-elevated)] ${role !== 'client' ? 'cursor-pointer' : ''
-                } ${isSelected ? 'bg-indigo-900/40 ring-1 ring-indigo-500' : ''}`}
+              className={`odd:bg-[var(--color-bg-surface)] even:bg-[var(--color-bg-elevated)] hover:bg-[var(--color-bg-elevated)]/80 ${role !== 'client' ? 'cursor-pointer' : ''
+                } ${isSelected ? 'bg-[#B8860B]/10 ring-1 ring-[#B8860B]/40' : ''}`}
               onClick={() => role !== 'client' && setSelectedProduct(row)}
             >
               {role !== 'client' && (
@@ -153,7 +153,7 @@ function ProductTable({
                             )
                           );
                         }}
-                        className="w-20 px-1 bg-[var(--color-bg-input)] rounded"
+                        className="w-20 px-2 py-1 bg-[var(--color-bg-input)] border border-[var(--color-border-default)] rounded text-[var(--color-text-primary)]"
                       />
                     ) : col.key === 'averagePrice' ? (
                       row.averagePrice
@@ -195,7 +195,7 @@ function ProductTable({
                             )
                           );
                         }}
-                        className="w-20 px-1 bg-[var(--color-bg-input)] rounded"
+                        className="w-20 px-2 py-1 bg-[var(--color-bg-input)] border border-[var(--color-border-default)] rounded text-[var(--color-text-primary)]"
                       />
                     ) : col.key === 'marge' ? (
                       row.marge
