@@ -110,6 +110,7 @@ Refonte complete de l'interface utilisateur avec un design system coherent sur t
 - **Mise en Forme** : header avec icone, zone de telechargement dans une card, previsualisation dans une card, boutons homogenes
 - **API fournisseurs** : messages d'erreur avec variables CSS, textes muted uniformises
 - **Arrondis reduits** : cards rounded-lg (8px), boutons/inputs rounded-md (6px) pour un rendu plus professionnel
+- **Layout centralise** : wrapper `<main>` unique dans `App.tsx` avec `max-w-7xl mx-auto px-4 sm:px-6 lg:px-8`, suppression des wrappers individuels dans chaque page pour garantir un alignement parfait navbar/contenu
 
 Fichiers concernes : `App.tsx`, `LoginPage.tsx`, `SearchPage.tsx`, `SearchControls.tsx`, `ProductsPage.tsx`, `AdminPage.tsx`, `DataImportPage.tsx`, `ReferenceAdmin.tsx`, `TranslationAdmin.tsx`, `UserAdmin.tsx`, `SupplierApiAdmin.tsx`, `StatisticsPage.tsx`, `StatsFilters.tsx`, `PriceChart.tsx`, `BrandSupplierChart.tsx`, `ProductEvolutionChart.tsx`, `FormattingPage.tsx`, `ProcessingPage.tsx`, `index.css`
 
