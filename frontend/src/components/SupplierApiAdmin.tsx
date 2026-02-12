@@ -633,14 +633,14 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
 
       {loading && <p className="text-sm text-[var(--color-text-muted)]">Chargement des configurations…</p>}
       {error && (
-        <div className="flex items-center gap-2 text-sm text-red-300 bg-red-500/10 border border-red-500/30 px-4 py-3 rounded-md">
+        <div className="flex items-center gap-2 text-sm text-red-400 bg-[var(--color-bg-elevated)] border border-red-500/30 px-4 py-3 rounded-md">
           <AlertCircle className="w-5 h-5" />
           <span>{error}</span>
         </div>
       )}
 
       {!loading && !error && configs.length === 0 && (
-        <p className="text-sm text-zinc-500 italic">
+        <p className="text-sm text-[var(--color-text-muted)] italic">
           Aucun fournisseur ne possède de configuration API pour le moment.
         </p>
       )}
@@ -653,7 +653,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                 <Server className="w-5 h-5" />
               </div>
               <div className="flex-1">
-                <p className="text-xs uppercase text-zinc-500 tracking-wide">Fournisseur</p>
+                <p className="text-xs uppercase text-[var(--color-text-muted)] tracking-wide">Fournisseur</p>
                 <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">{supplier.name}</h3>
               </div>
               <button
@@ -872,7 +872,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                               </table>
                             </div>
                           ) : (
-                            <p className="text-sm text-zinc-500 italic">
+                            <p className="text-sm text-[var(--color-text-muted)] italic">
                               Aucun endpoint configuré. Ajoutez-en un pour commencer.
                             </p>
                           )}
@@ -900,7 +900,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                                   )}
                                 </div>
                               )}
-                              <p className="text-xs text-zinc-500 mt-1">
+                              <p className="text-xs text-[var(--color-text-muted)] mt-1">
                                 Champs obligatoires : <code className="text-[var(--color-text-secondary)]">supplier_sku</code>,{' '}
                                 <code className="text-[var(--color-text-secondary)]">price</code> et{' '}
                                 <code className="text-[var(--color-text-secondary)]">quantity</code>.
@@ -989,7 +989,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                               </table>
                             </div>
                           ) : (
-                            <p className="text-sm text-zinc-500 italic">
+                            <p className="text-sm text-[var(--color-text-muted)] italic">
                               Aucun mapping actif pour cette API. Ajoutez un champ pour démarrer le mapping.
                             </p>
                           )}
@@ -1000,7 +1000,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                 })}
               </div>
             ) : (
-              <p className="text-sm text-zinc-500 italic">
+              <p className="text-sm text-[var(--color-text-muted)] italic">
                 Aucun API configuré pour ce fournisseur.
               </p>
             )}

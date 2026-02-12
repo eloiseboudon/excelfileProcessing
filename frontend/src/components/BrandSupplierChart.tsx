@@ -28,7 +28,7 @@ function GroupedBarChart({
   const maxVal = Math.max(...all.map((d) => d.value)) * 1.1;
   const stepX = (width - padding * 2) / labels.length;
   const barWidth = (stepX - 10) / series.length;
-  const colors = ['#f97316', '#38bdf8', '#22c55e', '#e879f9', '#facc15', '#f43f5e'];
+  const colors = ['#B8860B', '#38bdf8', '#22c55e', '#e879f9', '#facc15', '#f43f5e'];
 
   return (
     <svg

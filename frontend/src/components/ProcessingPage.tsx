@@ -1,6 +1,7 @@
 import {
   ArrowRight,
   ChevronRight,
+  Cog,
   Download,
   FileDown,
   FileUp,
@@ -291,10 +292,16 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
   }, [suppliers, refreshLastImports]);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12">
-      <h1 className="text-4xl font-bold text-center mb-2">Étape 1 - Calculs et Traitement</h1>
-      <p className="text-center text-[#B8860B] mb-4">Traitez vos fichiers Excel avec calculs TCP et marges</p>
-      <p className="text-center text-[var(--color-text-muted)] mb-4">Semaine en cours : {getCurrentWeekYear()}</p>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-semibold text-[var(--color-text-heading)] flex items-center gap-3">
+          <Cog className="w-8 h-8 text-[#B8860B]" />
+          Calculs et Traitement
+        </h1>
+        <p className="text-[var(--color-text-muted)] mt-1">
+          Traitez vos fichiers Excel avec calculs TCP et marges. Semaine en cours : {getCurrentWeekYear()}
+        </p>
+      </div>
       <div className="flex justify-center mb-8">
         <button
           onClick={() => {
@@ -346,8 +353,8 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
         </button>
 
         {error && (
-          <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-md w-full text-center">
-            <p className="text-red-500">{error}</p>
+          <div className="p-4 bg-[var(--color-bg-elevated)] border border-red-500/30 rounded-md w-full text-center">
+            <p className="text-red-400">{error}</p>
           </div>
         )}
 
@@ -355,20 +362,20 @@ function ProcessingPage({ onNext }: ProcessingPageProps) {
           {processedFile && (
             <button
               onClick={onNext}
-              className="btn bg-green-600 hover:bg-green-700 text-[var(--color-text-primary)] px-8 py-4 text-lg"
+              className="btn btn-primary px-8 py-4 text-lg"
             >
-              <span>Passer à l'étape 2 - Mise en forme</span>
+              <span>Passer à la mise en forme</span>
               <ChevronRight className="w-6 h-6" />
             </button>
           )}
         </div>
       </div>
 
-      <div className="mt-8 text-center text-sm text-zinc-500">
+      <div className="mt-8 text-center text-sm text-[var(--color-text-muted)]">
         <p>Formats supportés: .xlsx, .xls</p>
         <p className="mt-2">Marques traitées: Apple, Samsung, Xiaomi, JBL, Google, Honor, Nothing, TCL, XO</p>
         <p className="mt-2">Exclusions: Mac, Backbone, Bulk, OH25B, Soundbar</p>
-        <p className="mt-2 text-[#B8860B]">✅ Nettoyage automatique des données et suppression des doublons</p>
+        <p className="mt-2 text-[#B8860B]">Nettoyage automatique des données et suppression des doublons</p>
       </div>
     </div>
   );

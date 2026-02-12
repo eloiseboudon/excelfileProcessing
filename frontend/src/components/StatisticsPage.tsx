@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, BarChart3 } from 'lucide-react';
 import InfoButton from './InfoButton';
 import StatsFilters from './StatsFilters';
 import PriceChart from './PriceChart';
@@ -122,9 +122,9 @@ function LineChart({ data }: { data: Point[] }) {
           {((maxVal / ticks) * i).toFixed(0)}
         </text>
       ))}
-      <path d={path} fill="none" stroke="orange" strokeWidth="2" />
+      <path d={path} fill="none" stroke="#B8860B" strokeWidth="2" />
       {points.map((p, i) => (
-        <circle key={i} cx={p.x} cy={p.y} r={3} fill="orange" />
+        <circle key={i} cx={p.x} cy={p.y} r={3} fill="#B8860B" />
       ))}
     </svg>
   );
@@ -150,7 +150,7 @@ function MultiLineChart({ series }: { series: { name: string; data: Point[] }[] 
   const stepX = (width - padding * 2) / Math.max(1, labels.length - 1);
   const ticks = 4;
   const stepY = (height - padding * 2) / ticks;
-  const colors = ['#f97316', '#38bdf8', '#22c55e', '#e879f9', '#facc15', '#f43f5e'];
+  const colors = ['#B8860B', '#38bdf8', '#22c55e', '#e879f9', '#facc15', '#f43f5e'];
 
   const seriesPaths = series.map((s, idx) => {
     const pts = labels.map((l) => {
@@ -231,7 +231,7 @@ function BarChart({ data }: { data: Point[] }) {
               y={height - padding - barH}
               width={stepX - 10}
               height={barH}
-              fill="#f97316"
+              fill="#B8860B"
             />
             <text
               x={x + stepX / 2}
@@ -292,7 +292,7 @@ function RangeChart({ data }: { data: { label: string; min: number; max: number 
         const yMax = height - padding - (d.max / maxVal) * (height - padding * 2);
         return (
           <g key={d.label}>
-            <line x1={x} y1={yMin} x2={x} y2={yMax} stroke="#38bdf8" strokeWidth="4" />
+            <line x1={x} y1={yMin} x2={x} y2={yMax} stroke="#B8860B" strokeWidth="4" />
             <text x={x} y={height - padding + 15} fontSize="10" textAnchor="middle" fill="var(--color-chart-text)">
               {d.label}
             </text>
@@ -621,17 +621,27 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
   }, [globalData]);
 
   return (
-    <div className="max-w-7xl mx-auto px-1 sm:px-2 py-6 sm:py-8">
-      {onBack && (
-        <button
-          onClick={onBack}
-          className="flex items-center space-x-2 px-4 py-2 bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] rounded-md hover:bg-[var(--color-bg-input)] transition-colors mb-6"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span>Retour</span>
-        </button>
-      )}
-      <h1 className="text-2xl font-bold text-center mb-4">Statistiques de prix</h1>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-semibold text-[var(--color-text-heading)] flex items-center gap-3">
+            <BarChart3 className="w-8 h-8 text-[#B8860B]" />
+            Statistiques de prix
+          </h1>
+          <p className="text-[var(--color-text-muted)] mt-1">
+            Analyse graphique des prix, marges et tendances fournisseurs
+          </p>
+        </div>
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="btn btn-secondary"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span>Retour</span>
+          </button>
+        )}
+      </div>
       <StatsFilters
         supplierId={supplierId}
         setSupplierId={setSupplierId}
@@ -650,18 +660,24 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
         toggleGraph={toggleGraph}
         graphOptions={GRAPH_OPTIONS}
       />
-      <div className="overflow-x-auto space-y-8">
+      <div className="space-y-6">
         {graphVisible.global && (
-          <PriceChart globalData={globalData} brandId={brandId} />
+          <div className="card overflow-hidden">
+            <PriceChart globalData={globalData} brandId={brandId} />
+          </div>
         )}
         {graphVisible.brandSupplier && (
-          <BrandSupplierChart brandSupplierSeries={brandSupplierSeries} />
+          <div className="card overflow-hidden">
+            <BrandSupplierChart brandSupplierSeries={brandSupplierSeries} />
+          </div>
         )}
         {graphVisible.productSupplier && (
-          <ProductEvolutionChart productSupplierSeries={productSupplierSeries} />
+          <div className="card overflow-hidden">
+            <ProductEvolutionChart productSupplierSeries={productSupplierSeries} />
+          </div>
         )}
         {graphVisible.product && (
-        <div>
+        <div className="card overflow-hidden">
           <h2 className="font-semibold mb-2 flex items-center">Évolution du produit<InfoButton text="Comparer l'évolution du prix du produit selon les fournisseurs." /></h2>
           <MultiLineChart series={productSeries} />
           {productId && productSeries.length === 0 && (
@@ -672,46 +688,46 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
         </div>
         )}
         {graphVisible.relative && (
-        <div>
+        <div className="card overflow-hidden">
           <h2 className="font-semibold mb-2 flex items-center">Évolution relative (%)<InfoButton text="Variation en pourcentage d'une semaine sur l'autre." /></h2>
           <LineChart data={relativeData} />
         </div>
         )}
         {graphVisible.distribution && (
-        <div>
+        <div className="card overflow-hidden">
           <h2 className="font-semibold mb-2 flex items-center">Distribution des prix<InfoButton text="Répartition des prix moyens pour identifier les valeurs atypiques." /></h2>
           <BarChart data={distributionData} />
         </div>
         )}
         {graphVisible.stdev && (
-        <div>
+        <div className="card overflow-hidden">
           <h2 className="font-semibold mb-2 flex items-center">Écart-type par fournisseur<InfoButton text="Mesure la dispersion des prix pour chaque fournisseur." /></h2>
           <BarChart data={stdevData} />
         </div>
         )}
         {graphVisible.range && (
-        <div>
+        <div className="card overflow-hidden">
           <h2 className="font-semibold mb-2 flex items-center">Prix min/max par semaine<InfoButton text="Fourchette des prix observés chaque semaine." /></h2>
           <RangeChart data={rangeData} />
         </div>
         )}
         {graphVisible.index && (
-        <div>
+        <div className="card overflow-hidden">
           <h2 className="font-semibold mb-2 flex items-center">Indice des prix (base 100)<InfoButton text="Indice basé sur la première semaine pour suivre l'évolution globale." /></h2>
           <LineChart data={priceIndexData} />
         </div>
         )}
         {graphVisible.correlation && (
-        <div>
+        <div className="card overflow-hidden">
           <h2 className="font-semibold mb-2 flex items-center">Corrélation des prix<InfoButton text="Met en évidence les fournisseurs ayant des évolutions similaires." /></h2>
           <Heatmap labels={correlationMatrix.labels} matrix={correlationMatrix.matrix} />
         </div>
         )}
         {graphVisible.anomalies && (
-        <div>
+        <div className="card overflow-hidden">
           <h2 className="font-semibold mb-2 flex items-center">Anomalies détectées<InfoButton text="Signale les variations supérieures à 20\u00a0% d'une semaine sur l'autre." /></h2>
           {anomalies.length ? (
-            <table className="w-full text-sm text-center">
+            <table className="table border-0">
               <thead>
                 <tr>
                   <th>Semaine</th>
@@ -720,7 +736,7 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
               </thead>
               <tbody>
                 {anomalies.map((a) => (
-                  <tr key={a.week} className="bg-[var(--color-bg-elevated)]">
+                  <tr key={a.week}>
                     <td>{a.week}</td>
                     <td className="text-red-400">{a.change.toFixed(1)}%</td>
                   </tr>

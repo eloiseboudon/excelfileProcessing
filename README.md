@@ -233,8 +233,8 @@ ajtpro/
 L'ensemble de l'application suit un design system coherent de type admin dashboard :
 
 - **Navbar sticky** avec logo AJT Pro, liens de navigation style pill (fond dore quand actif), menu deroulant Parametres avec separateur, responsive (icones seules sur mobile)
-- **Design system** : classes utilitaires `.card` (rounded-lg, backdrop-blur, shadow-xl, padding 15px), `.btn` / `.btn-primary` / `.btn-secondary` (rounded-md), variables CSS pour les couleurs
-- **Pages structurees** : header avec icone doree + titre + description, onglets soulignes (border-b-2 doree), toolbar dans une card, contenu dans une card avec divide-y
+- **Design system** : classes utilitaires `.card` (rounded-lg, backdrop-blur, shadow-xl, padding 15px), `.btn` / `.btn-primary` / `.btn-secondary` (rounded-md), variables CSS pour les couleurs, palette graphiques doree (#B8860B)
+- **Pages structurees** : header avec icone doree + titre + description, onglets soulignes (border-b-2 doree), toolbar dans une card, contenu dans une card avec divide-y. Coherence appliquee sur toutes les pages (recherche, produits, statistiques, traitement, mise en forme, admin, synchro)
 - **Theme Dark / Light** : theme sombre par defaut et theme clair. Bouton flottant en bas a droite. Choix persiste dans le `localStorage`
 
 ### Moteur de recherche

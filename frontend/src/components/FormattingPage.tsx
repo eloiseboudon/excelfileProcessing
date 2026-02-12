@@ -1,12 +1,11 @@
 import React, { useState, useCallback } from 'react';
-import { FileUp, FileDown, ArrowLeft, Loader2, Download, Globe, Eye } from 'lucide-react';
+import { FileUp, FileDown, ArrowLeft, Loader2, Download, Globe, Eye, FileText } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import SearchControls from './SearchControls';
 import { createImport } from '../api';
 import { useNotification } from './NotificationProvider';
 import { determineBrand, generatePricingHtml } from '../utils/html';
 import { getCurrentWeekYear } from '../utils/date';
-import WeekToolbar from './WeekToolbar';
 
 interface FormattingPageProps {
   onBack: () => void;
@@ -357,24 +356,24 @@ function FormattingPage({ onBack }: FormattingPageProps) {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-      <WeekToolbar />
       <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-semibold text-[var(--color-text-heading)] flex items-center gap-3">
+            <FileText className="w-8 h-8 text-[#B8860B]" />
+            Mise en Forme
+          </h1>
+          <p className="text-[var(--color-text-muted)] mt-1">
+            Générez vos fichiers Excel formatés et pages web. Semaine en cours : {getCurrentWeekYear()}
+          </p>
+        </div>
         <button
           onClick={onBack}
           className="btn btn-secondary"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span>Retour à l'étape 1</span>
+          <span>Retour</span>
         </button>
-
       </div>
-
-      <h1 className="text-4xl font-bold text-center mb-2">
-        Étape 2 - Mise en Forme
-      </h1>
-      <p className="text-center text-[#B8860B] mb-4">
-        Générez vos fichiers Excel formatés et pages web
-      </p>
 
 
       <div className="card p-8">
@@ -432,8 +431,8 @@ function FormattingPage({ onBack }: FormattingPageProps) {
             </div>
 
             {error && (
-              <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-md">
-                <p className="text-red-500">{error}</p>
+              <div className="p-4 bg-[var(--color-bg-elevated)] border border-red-500/30 rounded-md">
+                <p className="text-red-400">{error}</p>
               </div>
             )}
 
@@ -453,27 +452,27 @@ function FormattingPage({ onBack }: FormattingPageProps) {
                     </button>
                   </div>
 
-                  <div className="flex items-center justify-between p-4 bg-green-500/10 rounded-md border border-green-500/30">
+                  <div className="flex items-center justify-between p-4 bg-[var(--color-bg-elevated)]/50 rounded-md border border-[var(--color-border-default)]">
                     <div className="flex items-center space-x-3">
-                      <Globe className="w-6 h-6 text-green-500" />
-                      <span className="text-green-500">Page web</span>
+                      <Globe className="w-6 h-6 text-[#B8860B]" />
+                      <span className="text-[var(--color-text-primary)]">Page web</span>
                     </div>
                     <button
                       onClick={handleDownloadHtml}
-                      className="btn bg-green-600 hover:bg-green-700 text-[var(--color-text-primary)]"
+                      className="btn btn-primary"
                     >
                       <Download className="w-4 h-4" />
                     </button>
                   </div>
 
-                  <div className="flex items-center justify-between p-4 bg-blue-500/10 rounded-md border border-blue-500/30">
+                  <div className="flex items-center justify-between p-4 bg-[var(--color-bg-elevated)]/50 rounded-md border border-[var(--color-border-default)]">
                     <div className="flex items-center space-x-3">
-                      <Eye className="w-6 h-6 text-blue-500" />
-                      <span className="text-blue-500">Prévisualiser</span>
+                      <Eye className="w-6 h-6 text-[#B8860B]" />
+                      <span className="text-[var(--color-text-primary)]">Prévisualiser</span>
                     </div>
                     <button
                       onClick={() => setShowPreview(!showPreview)}
-                      className="btn bg-blue-600 hover:bg-blue-700 text-[var(--color-text-primary)]"
+                      className="btn btn-secondary"
                     >
                       <Eye className="w-4 h-4" />
                     </button>
@@ -481,8 +480,8 @@ function FormattingPage({ onBack }: FormattingPageProps) {
                 </div>
 
                 {showPreview && (
-                  <div className="mt-8 p-6 bg-[var(--color-bg-elevated)]/50 rounded-md border border-[var(--color-border-default)]">
-                    <h3 className="text-xl font-semibold text-[var(--color-text-primary)] mb-6">Prévisualisation de la grille tarifaire</h3>
+                  <div className="card mt-8">
+                    <h3 className="text-xl font-semibold text-[var(--color-text-heading)] mb-6">Prévisualisation de la grille tarifaire</h3>
 
                     <SearchControls
                       searchTerm={searchTerm}
@@ -572,7 +571,7 @@ function FormattingPage({ onBack }: FormattingPageProps) {
                       <div className="text-center py-12">
                         <div className="text-6xl mb-4">🔍</div>
                         <p className="text-[var(--color-text-muted)] text-lg">Aucun produit trouvé</p>
-                        <p className="text-zinc-500 text-sm mt-2">Essayez de modifier vos critères de recherche</p>
+                        <p className="text-[var(--color-text-muted)] text-sm mt-2">Essayez de modifier vos critères de recherche</p>
                       </div>
                     )}
 
@@ -589,9 +588,9 @@ function FormattingPage({ onBack }: FormattingPageProps) {
           </div>
         )}
 
-        <div className="mt-8 text-center text-sm text-zinc-500">
+        <div className="mt-8 text-center text-sm text-[var(--color-text-muted)]">
           <p>Formats supportés: .xlsx, .xls</p>
-          <p className="mt-2 text-[#B8860B]">✅ Organisation par marque avec mise en forme professionnelle</p>
+          <p className="mt-2 text-[#B8860B]">Organisation par marque avec mise en forme professionnelle</p>
         </div>
       </div>
 

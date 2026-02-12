@@ -38,12 +38,12 @@ function StatsFilters({
   graphOptions,
 }: StatsFiltersProps) {
   return (
-    <>
-      <div className="flex flex-wrap gap-4 mb-6 items-end">
+    <div className="card mb-6 space-y-4">
+      <div className="flex flex-wrap gap-4 items-end">
         <select
           value={supplierId}
           onChange={(e) => setSupplierId(e.target.value ? Number(e.target.value) : '')}
-          className="bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded px-2 py-1"
+          className="bg-[var(--color-bg-input)] border border-[var(--color-border-strong)] rounded-md px-3 py-2 text-sm"
         >
           <option value="">Tous fournisseurs</option>
           {suppliers.map((s: any) => (
@@ -55,7 +55,7 @@ function StatsFilters({
         <select
           value={brandId}
           onChange={(e) => setBrandId(e.target.value ? Number(e.target.value) : '')}
-          className="bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded px-2 py-1"
+          className="bg-[var(--color-bg-input)] border border-[var(--color-border-strong)] rounded-md px-3 py-2 text-sm"
         >
           <option value="">Toutes marques</option>
           {brands.map((b: any) => (
@@ -68,18 +68,18 @@ function StatsFilters({
           type="week"
           value={startWeek}
           onChange={(e) => setStartWeek(e.target.value)}
-          className="bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded px-2 py-1"
+          className="bg-[var(--color-bg-input)] border border-[var(--color-border-strong)] rounded-md px-3 py-2 text-sm"
         />
         <input
           type="week"
           value={endWeek}
           onChange={(e) => setEndWeek(e.target.value)}
-          className="bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded px-2 py-1"
+          className="bg-[var(--color-bg-input)] border border-[var(--color-border-strong)] rounded-md px-3 py-2 text-sm"
         />
         <select
           value={productId}
           onChange={(e) => setProductId(e.target.value ? Number(e.target.value) : '')}
-          className="bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded px-2 py-1"
+          className="bg-[var(--color-bg-input)] border border-[var(--color-border-strong)] rounded-md px-3 py-2 text-sm"
         >
           <option value="">Choisir un produit</option>
           {filteredProducts.map((p) => (
@@ -89,20 +89,20 @@ function StatsFilters({
           ))}
         </select>
       </div>
-      <div className="flex flex-wrap gap-4 mb-6">
+      <div className="flex flex-wrap gap-4 pt-3 border-t border-[var(--color-border-subtle)]">
         {graphOptions.map((opt) => (
           <label key={opt.key} className="flex items-center space-x-1 text-sm">
             <input
               type="checkbox"
               checked={graphVisible[opt.key] ?? true}
               onChange={() => toggleGraph(opt.key)}
-              className="accent-orange-500"
+              className="accent-[#B8860B]"
             />
             <span>{opt.label}</span>
           </label>
         ))}
       </div>
-    </>
+    </div>
   );
 }
 

@@ -64,9 +64,9 @@ function LineChart({ data }: { data: Point[] }) {
           {((maxVal / ticks) * i).toFixed(0)}
         </text>
       ))}
-      <path d={path} fill="none" stroke="orange" strokeWidth="2" />
+      <path d={path} fill="none" stroke="#B8860B" strokeWidth="2" />
       {points.map((p, i) => (
-        <circle key={i} cx={p.x} cy={p.y} r={3} fill="orange" />
+        <circle key={i} cx={p.x} cy={p.y} r={3} fill="#B8860B" />
       ))}
     </svg>
   );

@@ -105,9 +105,13 @@ Refonte complete de l'interface utilisateur avec un design system coherent sur t
 - **Page Produits** : onglets TCP/Marges et Referentiel, toolbar regroupee dans une card, pagination compacte avec chevrons
 - **Administration** : 4 onglets (Tables reference, Coherence, API fournisseurs, Utilisateurs), suppression du bouton Retour
 - **Synchronisation** : accessible via Parametres > Synchro, header avec icone, 2 onglets (Synchronisation, Rapports)
+- **Statistiques** : header avec icone, filtres dans une card, chaque graphique dans une card, couleur primaire doree (#B8860B), table anomalies stylisee
+- **Calculs et Traitement** : header avec icone, zones d'import dans des cards, boutons design system
+- **Mise en Forme** : header avec icone, zone de telechargement dans une card, previsualisation dans une card, boutons homogenes
+- **API fournisseurs** : messages d'erreur avec variables CSS, textes muted uniformises
 - **Arrondis reduits** : cards rounded-lg (8px), boutons/inputs rounded-md (6px) pour un rendu plus professionnel
 
-Fichiers concernes : `App.tsx`, `LoginPage.tsx`, `SearchPage.tsx`, `SearchControls.tsx`, `ProductsPage.tsx`, `AdminPage.tsx`, `DataImportPage.tsx`, `ReferenceAdmin.tsx`, `TranslationAdmin.tsx`, `UserAdmin.tsx`, `SupplierApiAdmin.tsx`, `index.css`
+Fichiers concernes : `App.tsx`, `LoginPage.tsx`, `SearchPage.tsx`, `SearchControls.tsx`, `ProductsPage.tsx`, `AdminPage.tsx`, `DataImportPage.tsx`, `ReferenceAdmin.tsx`, `TranslationAdmin.tsx`, `UserAdmin.tsx`, `SupplierApiAdmin.tsx`, `StatisticsPage.tsx`, `StatsFilters.tsx`, `PriceChart.tsx`, `BrandSupplierChart.tsx`, `ProductEvolutionChart.tsx`, `FormattingPage.tsx`, `ProcessingPage.tsx`, `index.css`
 
 ---
 
