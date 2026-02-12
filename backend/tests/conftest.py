@@ -1,7 +1,7 @@
 import os
 
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
-os.environ["JWT_SECRET"] = "test-secret"
+os.environ["JWT_SECRET"] = "test-secret-key-with-at-least-32-bytes!"
 
 # Map PostgreSQL JSONB to SQLite-compatible JSON before importing models
 from sqlalchemy.dialects.postgresql import JSONB

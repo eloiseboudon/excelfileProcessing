@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 from flask_sqlalchemy import SQLAlchemy
@@ -98,7 +98,7 @@ class MappingVersion(db.Model):
     )
     version = db.Column(db.Integer, nullable=False, default=1)
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class FieldMap(db.Model):
@@ -132,7 +132,7 @@ class ApiFetchJob(db.Model):
         db.ForeignKey("mapping_versions.id", ondelete="SET NULL"),
         nullable=True,
     )
-    started_at = db.Column(db.DateTime, default=datetime.utcnow)
+    started_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     ended_at = db.Column(db.DateTime, nullable=True)
     status = db.Column(db.String(20), default="running")
     error_message = db.Column(db.Text, nullable=True)
@@ -153,7 +153,7 @@ class RawIngest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     job_id = db.Column(db.Integer, db.ForeignKey("api_fetch_jobs.id"), nullable=False)
     job = db.relationship("ApiFetchJob", backref=db.backref("raw_chunks", lazy=True))
-    fetched_at = db.Column(db.DateTime, default=datetime.utcnow)
+    fetched_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     http_status = db.Column(db.Integer, nullable=True)
     payload = db.Column(db.LargeBinary, nullable=False)
     content_type = db.Column(db.String(50), nullable=False)
@@ -218,7 +218,7 @@ class SupplierProductRef(db.Model):
     part_number = db.Column(db.String(120), nullable=True)
     supplier_sku = db.Column(db.String(120), nullable=True)
 
-    last_seen_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_seen_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class TemporaryImport(db.Model):
@@ -375,7 +375,7 @@ class ProductCalculation(db.Model):
     prixht_tcp_marge4_5 = db.Column(db.Float, nullable=False)
     prixht_marge4_5 = db.Column(db.Float, nullable=False)
     prixht_max = db.Column(db.Float, nullable=False)
-    date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    date = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     stock = db.Column(db.Integer, nullable=True)
 
 
@@ -389,7 +389,7 @@ class ImportHistory(db.Model):
         "Supplier", backref=db.backref("import_histories", lazy=True)
     )
     product_count = db.Column(db.Integer, nullable=False)
-    import_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    import_date = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
 
 class GraphSetting(db.Model):
@@ -442,9 +442,9 @@ class OdooConfig(db.Model):
     auto_sync_enabled = db.Column(db.Boolean, default=False)
     auto_sync_interval_minutes = db.Column(db.Integer, default=1440)
     last_auto_sync_at = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(
-        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
     )
 
 
@@ -452,7 +452,7 @@ class OdooSyncJob(db.Model):
     __tablename__ = "odoo_sync_jobs"
 
     id = db.Column(db.Integer, primary_key=True)
-    started_at = db.Column(db.DateTime, default=datetime.utcnow)
+    started_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     ended_at = db.Column(db.DateTime, nullable=True)
     status = db.Column(db.String(20), default="running")
     trigger = db.Column(db.String(20), default="manual")

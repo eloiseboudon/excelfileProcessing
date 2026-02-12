@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from flask import Blueprint, jsonify, request
@@ -234,7 +234,7 @@ def create_supplier_api(supplier_id: int):
       400:
         description: Validation error for the provided payload
     """
-    supplier = Supplier.query.get_or_404(supplier_id)
+    supplier = db.get_or_404(Supplier, supplier_id)
     payload = request.get_json(silent=True) or {}
 
     base_url = (payload.get("base_url") or "").strip()
@@ -294,7 +294,7 @@ def update_supplier_api(api_id: int):
       400:
         description: Invalid data provided for the update
     """
-    api = SupplierAPI.query.get_or_404(api_id)
+    api = db.get_or_404(SupplierAPI, api_id)
     payload = request.get_json(silent=True) or {}
 
     if "base_url" in payload:
@@ -344,7 +344,7 @@ def delete_supplier_api(api_id: int):
       400:
         description: API cannot be deleted because of existing dependencies
     """
-    api = SupplierAPI.query.get_or_404(api_id)
+    api = db.get_or_404(SupplierAPI, api_id)
 
     if ApiFetchJob.query.filter_by(supplier_api_id=api_id).first():
         return (
@@ -405,7 +405,7 @@ def create_supplier_api_endpoint(api_id: int):
       400:
         description: Validation error for the endpoint payload
     """
-    api = SupplierAPI.query.get_or_404(api_id)
+    api = db.get_or_404(SupplierAPI, api_id)
     payload = request.get_json(silent=True) or {}
 
     name = (payload.get("name") or "").strip()
@@ -460,7 +460,7 @@ def update_supplier_api_endpoint(endpoint_id: int):
       400:
         description: Validation error for the endpoint payload
     """
-    endpoint = ApiEndpoint.query.get_or_404(endpoint_id)
+    endpoint = db.get_or_404(ApiEndpoint, endpoint_id)
     payload = request.get_json(silent=True) or {}
 
     if "name" in payload:
@@ -508,7 +508,7 @@ def delete_supplier_api_endpoint(endpoint_id: int):
       400:
         description: Endpoint cannot be deleted due to existing dependencies
     """
-    endpoint = ApiEndpoint.query.get_or_404(endpoint_id)
+    endpoint = db.get_or_404(ApiEndpoint, endpoint_id)
 
     if ApiFetchJob.query.filter_by(endpoint_id=endpoint_id).first():
         return (
@@ -565,7 +565,7 @@ def create_supplier_api_mapping(api_id: int):
       400:
         description: Invalid mapping payload
     """
-    SupplierAPI.query.get_or_404(api_id)
+    db.get_or_404(SupplierAPI, api_id)
     payload = request.get_json(silent=True) or {}
 
     is_active = payload.get("is_active", True)
@@ -647,7 +647,7 @@ def create_supplier_api_field(mapping_id: int):
       400:
         description: Missing field details
     """
-    mapping = MappingVersion.query.get_or_404(mapping_id)
+    mapping = db.get_or_404(MappingVersion, mapping_id)
     payload = request.get_json(silent=True) or {}
 
     target_field = (payload.get("target_field") or "").strip()
@@ -702,7 +702,7 @@ def update_supplier_api_field(field_id: int):
       400:
         description: Invalid field update payload
     """
-    field = FieldMap.query.get_or_404(field_id)
+    field = db.get_or_404(FieldMap, field_id)
     payload = request.get_json(silent=True) or {}
 
     if "target_field" in payload:
@@ -743,7 +743,7 @@ def delete_supplier_api_field(field_id: int):
       204:
         description: Field successfully deleted
     """
-    field = FieldMap.query.get_or_404(field_id)
+    field = db.get_or_404(FieldMap, field_id)
     db.session.delete(field)
     db.session.commit()
     return ("", 204)
@@ -832,7 +832,7 @@ def verify_import(supplier_id):
         ImportHistory.query.filter_by(supplier_id=supplier_id)
         .filter(
             extract("week", ImportHistory.import_date)
-            == extract("week", datetime.utcnow())
+            == extract("week", datetime.now(timezone.utc))
         )
         .first()
     )
@@ -878,7 +878,7 @@ def fetch_supplier_api(supplier_id: int):
         description: Upstream supplier API error
     """
 
-    supplier = Supplier.query.get(supplier_id)
+    supplier = db.session.get(Supplier, supplier_id)
     if not supplier:
         return jsonify({"error": "Fournisseur introuvable"}), 404
 

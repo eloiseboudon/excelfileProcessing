@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 import jwt
-from models import User
+from models import User, db
 from utils.auth import (
     generate_access_token,
     generate_refresh_token,
@@ -94,7 +94,7 @@ def refresh():
     except jwt.InvalidTokenError:
         return jsonify({"error": "Token invalide"}), 401
 
-    user = User.query.get(payload.get("user_id"))
+    user = db.session.get(User, payload.get("user_id"))
     if not user:
         return jsonify({"error": "Utilisateur introuvable"}), 401
 

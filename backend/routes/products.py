@@ -26,7 +26,7 @@ from utils.etl import run_fetch_job
 
 
 def _start_of_day_utc() -> datetime:
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     return now.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
@@ -199,7 +199,7 @@ def list_product_calculations():
       200:
         description: Calculated prices for all products
     """
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     start_of_week = now - timedelta(days=now.weekday())
     start_of_week = start_of_week.replace(hour=0, minute=0, second=0, microsecond=0)
     end_of_week = start_of_week + timedelta(days=7)
@@ -393,7 +393,7 @@ def product_price_summary():
         item["average_price"] = round(avg, 2)
         if item["recommended_price"] is None:
             item["recommended_price"] = item["average_price"]
-            prod = Product.query.get(item["id"])
+            prod = db.session.get(Product, item["id"])
             if prod:
                 prod.recommended_price = item["recommended_price"]
         buy_prices = [
@@ -676,7 +676,7 @@ def update_product(product_id):
       200:
         description: Update status
     """
-    product = Product.query.get_or_404(product_id)
+    product = db.get_or_404(Product, product_id)
     data = request.get_json(silent=True) or {}
     for field in [
         "ean",
@@ -811,7 +811,7 @@ def bulk_update_products():
         pid = item.get("id")
         if not pid:
             continue
-        product = Product.query.get(pid)
+        product = db.session.get(Product, pid)
         if not product:
             continue
         for field in fields:
@@ -879,7 +879,7 @@ def delete_product(product_id):
       200:
         description: Deletion status
     """
-    product = Product.query.get_or_404(product_id)
+    product = db.get_or_404(Product, product_id)
 
     # Supprimer explicitement les calculs associés afin d'éviter
     # que SQLAlchemy ne tente de remettre leur clé étrangère à NULL,

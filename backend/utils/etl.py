@@ -69,7 +69,7 @@ def _resolve_temp_import_log_path() -> Path:
 
 def _append_temp_import_log_entry(message: str) -> None:
     log_path = _resolve_temp_import_log_path()
-    timestamp = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    timestamp = datetime.now(timezone.utc).replace(microsecond=0).isoformat() + "Z"
     try:
         with log_path.open("a", encoding="utf-8") as handle:
             handle.write(f"[{timestamp}] {message}\n")
@@ -492,7 +492,7 @@ def _update_product_prices_from_records(
     api_missing_entries: List[Dict[str, Any]] = []
     unmatched_keys: Set[tuple] = set()
     product_ids_to_fetch: Set[int] = set()
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     for record in records:
         product_id = _coerce_int(record.get("product_id"))
@@ -703,7 +703,7 @@ def _validate_fetch_params(
     mapping_id: int,
 ) -> Tuple[ApiFetchJob, ApiEndpoint, MappingVersion, Supplier]:
     """Validate and load the entities required to run a fetch job."""
-    job = ApiFetchJob.query.get(job_id)
+    job = db.session.get(ApiFetchJob, job_id)
     if not job:
         raise RuntimeError("Tâche introuvable")
 
@@ -726,7 +726,7 @@ def _validate_fetch_params(
     if job.mapping_version_id != mapping.id:
         job.mapping_version_id = mapping.id
 
-    supplier = Supplier.query.get(supplier_id)
+    supplier = db.session.get(Supplier, supplier_id)
     if not supplier:
         raise RuntimeError("Fournisseur introuvable")
 
@@ -983,7 +983,7 @@ def run_fetch_job(
 
         job.status = "success"
         job.error_message = None
-        job.ended_at = datetime.utcnow()
+        job.ended_at = datetime.now(timezone.utc)
         db.session.add(job)
 
         params_used = job.params_used or {}
@@ -1055,11 +1055,11 @@ def run_fetch_job(
         db.session.rollback()
         message = str(exc)
         current_app.logger.exception("Échec de la synchronisation API fournisseur: %s", exc)
-        job = ApiFetchJob.query.get(job_id)
+        job = db.session.get(ApiFetchJob, job_id)
         if job:
             job.status = "failed"
             job.error_message = message
-            job.ended_at = datetime.utcnow()
+            job.ended_at = datetime.now(timezone.utc)
             db.session.add(job)
             db.session.commit()
         raise RuntimeError(message) from exc

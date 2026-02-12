@@ -133,7 +133,7 @@ def update_user(user_id):
       200:
         description: Confirmation that the user has been updated
     """
-    user = User.query.get_or_404(user_id)
+    user = db.get_or_404(User, user_id)
     data = request.json or {}
     if "username" in data:
         user.username = data["username"]
@@ -166,7 +166,7 @@ def delete_user(user_id):
       200:
         description: Confirmation that the user has been deleted
     """
-    user = User.query.get_or_404(user_id)
+    user = db.get_or_404(User, user_id)
     db.session.delete(user)
     db.session.commit()
     return jsonify({"status": "success"})

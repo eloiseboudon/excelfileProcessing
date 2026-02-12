@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import xmlrpc.client
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from models import (
@@ -307,7 +307,7 @@ def _process_single_product(
 # ---------------------------------------------------------------------------
 def run_odoo_sync(job_id: int) -> None:
     """Run a full Odoo product synchronization for the given job."""
-    job = OdooSyncJob.query.get(job_id)
+    job = db.session.get(OdooSyncJob, job_id)
     if not job:
         logger.error("OdooSyncJob %s not found", job_id)
         return
@@ -449,7 +449,7 @@ def run_odoo_sync(job_id: int) -> None:
         job.report_unchanged = reports["unchanged"]
         job.report_errors = reports["errors"]
         job.status = "success"
-        job.ended_at = datetime.utcnow()
+        job.ended_at = datetime.now(timezone.utc)
         db.session.commit()
 
     except Exception as e:
@@ -457,5 +457,5 @@ def run_odoo_sync(job_id: int) -> None:
         db.session.rollback()
         job.status = "failed"
         job.error_message = str(e)
-        job.ended_at = datetime.utcnow()
+        job.ended_at = datetime.now(timezone.utc)
         db.session.commit()

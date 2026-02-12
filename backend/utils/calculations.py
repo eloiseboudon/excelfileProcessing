@@ -158,7 +158,7 @@ def recalculate_product_calculations():
 
 def update_product_calculations_for_memory_option(memory_option_id: int) -> None:
     """Update ProductCalculation rows when a memory option's TCP changes."""
-    option = MemoryOption.query.get(memory_option_id)
+    option = db.session.get(MemoryOption, memory_option_id)
     if not option:
         return
 

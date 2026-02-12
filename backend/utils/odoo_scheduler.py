@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ class OdooScheduler:
                 return
 
             interval = timedelta(minutes=config.auto_sync_interval_minutes or 1440)
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
 
             if config.last_auto_sync_at and (now - config.last_auto_sync_at) < interval:
                 return

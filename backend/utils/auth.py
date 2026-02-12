@@ -5,7 +5,7 @@ import datetime
 import jwt
 from flask import request, jsonify
 from functools import wraps
-from models import User
+from models import User, db
 
 SECRET_KEY = os.getenv("JWT_SECRET", "secret-key")
 TOKEN_EXPIRATION = int(os.getenv("JWT_EXPIRE", "3600"))
@@ -22,7 +22,7 @@ def _generate_token(user: User, token_type: str) -> str:
     payload = {
         "user_id": user.id,
         "type": token_type,
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(seconds=expire),
+        "exp": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=expire),
     }
     if token_type == "access":
         payload["role"] = user.role
@@ -66,7 +66,7 @@ def token_required(role: str | None = None):
                 return jsonify({"error": "Token expiré"}), 401
             except jwt.InvalidTokenError:
                 return jsonify({"error": "Token invalide"}), 401
-            user = User.query.get(data.get("user_id"))
+            user = db.session.get(User, data.get("user_id"))
             if not user:
                 return jsonify({"error": "Utilisateur introuvable"}), 401
             if role and user.role != role:

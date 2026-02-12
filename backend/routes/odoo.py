@@ -1,7 +1,7 @@
 """Routes for Odoo synchronization configuration and job management."""
 
 import threading
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
 
@@ -73,7 +73,7 @@ def update_config():
         config.login = login
         if password and password != "********":
             config.password = password
-        config.updated_at = datetime.utcnow()
+        config.updated_at = datetime.now(timezone.utc)
     else:
         if not password:
             return jsonify({"error": "Mot de passe requis"}), 400
@@ -208,7 +208,7 @@ def get_job(job_id):
       404:
         description: Job not found
     """
-    job = OdooSyncJob.query.get(job_id)
+    job = db.session.get(OdooSyncJob, job_id)
     if not job:
         return jsonify({"error": "Job introuvable"}), 404
     return jsonify(
@@ -262,7 +262,7 @@ def update_auto_sync():
             return jsonify({"error": "Intervalle minimum : 15 minutes"}), 400
         config.auto_sync_interval_minutes = interval
 
-    config.updated_at = datetime.utcnow()
+    config.updated_at = datetime.now(timezone.utc)
     db.session.commit()
     return jsonify(
         {

@@ -146,7 +146,7 @@ def update_reference_item(table, item_id):
     model = _model_mapping().get(table)
     if not model:
         return jsonify({"error": "Table inconnue"}), 400
-    item = model.query.get_or_404(item_id)
+    item = db.get_or_404(model, item_id)
     data = request.json or {}
     if table == "suppliers":
         data = _sanitize_supplier_data(data)
@@ -233,7 +233,7 @@ def delete_reference_item(table, item_id):
     model = _model_mapping().get(table)
     if not model:
         return jsonify({"error": "Table inconnue"}), 400
-    item = model.query.get_or_404(item_id)
+    item = db.get_or_404(model, item_id)
     db.session.delete(item)
     try:
         db.session.commit()
