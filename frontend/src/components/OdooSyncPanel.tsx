@@ -1,5 +1,7 @@
 import {
   CheckCircle,
+  Eye,
+  EyeOff,
   ChevronDown,
   ChevronRight,
   Clock,
@@ -62,6 +64,7 @@ function OdooSyncPanel() {
   const [config, setConfig] = useState<OdooConfigData | null>(null);
   const [form, setForm] = useState({ url: '', database: '', login: '', password: '' });
   const [saving, setSaving] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Test connection state
   const [testing, setTesting] = useState(false);
@@ -268,13 +271,22 @@ function OdooSyncPanel() {
             <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
               Mot de passe
             </label>
-            <input
-              type="password"
-              className="w-full px-3 py-2 rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-input)] text-[var(--color-text-primary)] text-sm"
-              placeholder="••••••••"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                className="w-full px-3 pr-10 py-2 rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-input)] text-[var(--color-text-primary)] text-sm"
+                placeholder="••••••••"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
         </div>
 
