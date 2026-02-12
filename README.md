@@ -67,7 +67,7 @@ ENABLE_ODOO_SCHEDULER=false
 **Points importants :**
 
 - `FRONTEND_URL` doit correspondre exactement a l'origine du frontend (schema + domaine) pour que la politique CORS fonctionne.
-- `JWT_SECRET` doit etre remplace par une valeur aleatoire et securisee en production.
+- `JWT_SECRET` doit etre remplace par une valeur aleatoire et securisee en production (minimum 32 caracteres pour SHA-256).
 - Le fichier `.env` est ignore par Git afin de proteger les informations sensibles.
 
 ### 3. Identifiants par defaut
@@ -287,7 +287,7 @@ Variable d'environnement : `ENABLE_ODOO_SCHEDULER=true` pour activer le planific
 
 Le projet dispose d'un pipeline GitHub Actions complet :
 
-- **CI** (`.github/workflows/ci.yml`) : tests frontend (Vitest) et backend (pytest) executes en parallele sur chaque push et pull request vers `main`. Un recap des resultats (tests passes/echoues) est affiche dans le Job Summary de chaque job.
+- **CI** (`.github/workflows/ci.yml`) : tests frontend (Vitest) et backend (pytest) executes en parallele sur chaque push et pull request vers `main`. Un recap des resultats (tests passes/echoues) est affiche dans le Job Summary de chaque job. Le secret JWT de test fait 32+ octets pour eviter les warnings `InsecureKeyLengthWarning`.
 - **Deploy** (`.github/workflows/deploy.yml`) : deploiement automatique sur le VPS via SSH apres chaque push sur `main`.
 
 ### Referentiel produit
