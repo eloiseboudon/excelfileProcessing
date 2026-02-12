@@ -649,7 +649,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
           Gérez les prix, marges et le référentiel produits. Semaine en cours : {getCurrentWeekYear()}
         </p>
       </div>
-      <div className="border-b border-[var(--color-border-subtle)]/60 mb-6">
+      <div className="border-b border-[var(--color-border-subtle)] mb-6">
         <nav className="flex gap-4">
           <button
             type="button"

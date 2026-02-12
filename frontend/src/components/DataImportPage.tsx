@@ -20,7 +20,7 @@ function DataImportPage() {
           Synchronisez les données fournisseurs et consultez les rapports.
         </p>
       </div>
-      <div className="border-b border-[var(--color-border-subtle)]/60 mb-6">
+      <div className="border-b border-[var(--color-border-subtle)] mb-6">
         <nav className="flex gap-4" aria-label="Import navigation">
           <button
             type="button"

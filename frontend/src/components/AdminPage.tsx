@@ -28,7 +28,7 @@ function AdminPage() {
           Gérez les tables de référence, la cohérence des données, les API fournisseurs et les utilisateurs.
         </p>
       </div>
-      <div className="border-b border-[var(--color-border-subtle)]/60 mb-6">
+      <div className="border-b border-[var(--color-border-subtle)] mb-6">
         <nav className="flex gap-4">
           {TABS.map((t) => (
             <button

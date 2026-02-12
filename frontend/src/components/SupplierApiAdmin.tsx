@@ -648,7 +648,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
       <div className="space-y-10">
         {configs.map((supplier) => (
           <div key={supplier.id} className="space-y-5">
-            <div className="flex items-center gap-3 border-b border-[var(--color-border-subtle)]/60 pb-3">
+            <div className="flex items-center gap-3 border-b border-[var(--color-border-subtle)] pb-3">
               <div className="p-2 rounded-md bg-[#B8860B]/10 text-[#B8860B]">
                 <Server className="w-5 h-5" />
               </div>
@@ -671,8 +671,8 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                   const fields = mapFieldsWithCategory(api.mapping?.fields);
 
                   return (
-                    <div key={api.id} className="bg-[var(--color-bg-subtle)] border border-[var(--color-border-subtle)]/60 rounded-md">
-                      <div className="px-5 py-4 flex flex-col gap-4 border-b border-[var(--color-border-subtle)]/60">
+                    <div key={api.id} className="bg-[var(--color-bg-subtle)] border border-[#B8860B]/20 rounded-lg">
+                      <div className="px-5 py-4 flex flex-col gap-4 border-b border-[var(--color-border-subtle)]">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div className="flex flex-col gap-2">
                             <label className="text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
@@ -761,7 +761,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
 
                           {api.endpoints.length > 0 ? (
                             <div className="overflow-x-auto">
-                              <table className="min-w-full text-sm text-left text-[var(--color-text-secondary)] border border-[var(--color-border-subtle)]/60 rounded-md overflow-hidden">
+                              <table className="min-w-full text-sm text-left text-[var(--color-text-secondary)] border border-[var(--color-border-subtle)] rounded-md overflow-hidden">
                                 <thead className="bg-[var(--color-bg-surface)]/80 text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
                                   <tr>
                                     <th className="px-4 py-2 font-medium">Nom</th>
@@ -775,7 +775,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                                   {api.endpoints.map((endpoint) => (
                                     <tr
                                       key={endpoint.id}
-                                      className="border-t border-[var(--color-border-subtle)]/60 even:bg-[var(--color-bg-faint)]"
+                                      className="border-t border-[var(--color-border-subtle)] even:bg-[var(--color-bg-faint)]"
                                     >
                                       <td className="px-4 py-2">
                                         <input
@@ -917,7 +917,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
 
                           {fields.length > 0 ? (
                             <div className="overflow-x-auto">
-                              <table className="min-w-full text-sm text-left text-[var(--color-text-secondary)] border border-[var(--color-border-subtle)]/60 rounded-md overflow-hidden">
+                              <table className="min-w-full text-sm text-left text-[var(--color-text-secondary)] border border-[var(--color-border-subtle)] rounded-md overflow-hidden">
                                 <thead className="bg-[var(--color-bg-surface)]/80 text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
                                   <tr>
                                     <th className="px-4 py-2 font-medium">Champ cible</th>
@@ -930,7 +930,7 @@ function SupplierApiAdmin({ isVisible, onClose }: SupplierApiAdminProps) {
                                   {fields.map((field) => (
                                     <tr
                                       key={field.id}
-                                      className="border-t border-[var(--color-border-subtle)]/60 even:bg-[var(--color-bg-faint)]"
+                                      className="border-t border-[var(--color-border-subtle)] even:bg-[var(--color-bg-faint)]"
                                     >
                                       <td className="px-4 py-2">
                                         <input

@@ -189,7 +189,7 @@ function SupplierApiSyncPanel() {
               {groupedRows.map(({ supplier_id, supplier, items, mapping }) => (
                 <div
                   key={supplier_id}
-                  className="border border-[var(--color-border-subtle)]/60 rounded-md bg-[var(--color-bg-subtle)] divide-y divide-zinc-800/60"
+                  className="border border-[var(--color-border-subtle)] rounded-md bg-[var(--color-bg-subtle)] divide-y divide-[var(--color-border-subtle)]"
                 >
                   <div className="px-5 py-4 flex flex-wrap items-center justify-between gap-3">
                     <div>
@@ -243,7 +243,7 @@ function SupplierApiSyncPanel() {
               ))}
             </div>
           ) : (
-            <div className="px-4 py-6 text-center text-sm text-[var(--color-text-muted)] border border-dashed border-[var(--color-border-subtle)]/60 rounded-md">
+            <div className="px-4 py-6 text-center text-sm text-[var(--color-text-muted)] border border-dashed border-[var(--color-border-subtle)] rounded-md">
               Aucune donnée temporaire. Lancez une synchronisation pour remplir la table.
             </div>
           )}
