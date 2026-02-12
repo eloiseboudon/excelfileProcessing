@@ -108,7 +108,7 @@ Refonte complete de l'interface utilisateur avec un design system coherent sur t
 - **Statistiques** : header avec icone, filtres dans une card, chaque graphique dans une card, couleur primaire doree (#B8860B), table anomalies stylisee
 - **Calculs et Traitement** : header avec icone, zones d'import dans des cards, boutons design system
 - **Mise en Forme** : header avec icone, zone de telechargement dans une card, previsualisation dans une card, boutons homogenes
-- **API fournisseurs** : messages d'erreur avec variables CSS, textes muted uniformises
+- **API fournisseurs** : messages d'erreur avec variables CSS, textes muted uniformises, bordure doree `#B8860B/20` sur les conteneurs API (coherence `.card`), suppression des modificateurs d'opacite `/60` sur `border-subtle` (fallback blanc en dark mode)
 - **Arrondis reduits** : cards rounded-lg (8px), boutons/inputs rounded-md (6px) pour un rendu plus professionnel
 - **Layout centralise** : wrapper `<main>` unique dans `App.tsx` avec `max-w-7xl mx-auto px-4 sm:px-6 lg:px-8`, suppression des wrappers individuels dans chaque page pour garantir un alignement parfait navbar/contenu
 

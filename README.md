@@ -239,7 +239,7 @@ L'ensemble de l'application suit un design system coherent de type admin dashboa
 
 - **Navbar sticky** avec logo AJT Pro, liens de navigation style pill (fond dore quand actif), menu deroulant Parametres avec separateur, responsive (icones seules sur mobile)
 - **Layout centralise** : un unique wrapper `<main>` dans `App.tsx` porte les classes `max-w-7xl mx-auto px-4 sm:px-6 lg:px-8`, identiques a celles du header. Toutes les pages heritent de ce conteneur, garantissant un alignement parfait navbar/contenu sur tous les breakpoints
-- **Design system** : classes utilitaires `.card` (rounded-lg, backdrop-blur, shadow-xl, padding 15px), `.btn` / `.btn-primary` / `.btn-secondary` (rounded-md), variables CSS pour les couleurs, palette graphiques doree (#B8860B)
+- **Design system** : classes utilitaires `.card` (rounded-lg, backdrop-blur, shadow-xl, padding 15px, bordure doree `#B8860B/20`), `.btn` / `.btn-primary` / `.btn-secondary` (rounded-md), variables CSS pour les couleurs (bordures via `--color-border-subtle` et `--color-border-default`, sans modificateurs d'opacite), palette graphiques doree (#B8860B)
 - **Pages structurees** : header avec icone doree + titre + description, onglets soulignes (border-b-2 doree), toolbar dans une card, contenu dans une card avec divide-y. Coherence appliquee sur toutes les pages (recherche, produits, statistiques, traitement, mise en forme, admin, synchro)
 - **Theme Dark / Light** : theme sombre par defaut et theme clair. Bouton flottant en bas a droite. Choix persiste dans le `localStorage`
 
