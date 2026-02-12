@@ -216,7 +216,7 @@ function SearchPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto w-full flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+    <div>
       <div className="mb-8">
         <h1 className="text-3xl font-semibold text-[var(--color-text-heading)] flex items-center gap-3">
           <PackageSearch className="w-8 h-8 text-[#B8860B]" />

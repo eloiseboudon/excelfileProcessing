@@ -10,7 +10,7 @@ function DataImportPage() {
   const [activeTab, setActiveTab] = useState<ImportTab>('sync');
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+    <div>
       <div className="mb-8">
         <h1 className="text-3xl font-semibold text-[var(--color-text-heading)] flex items-center gap-3">
           <RefreshCw className="w-8 h-8 text-[#B8860B]" />

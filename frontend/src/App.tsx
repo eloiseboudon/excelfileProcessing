@@ -219,25 +219,29 @@ function App() {
       </header>
 
       {/* Page Content */}
-      {currentPage === 'search' && <SearchPage />}
-      {role !== 'client' && currentPage === 'dataImport' && <DataImportPage />}
-      {role !== 'client' && currentPage === 'statistics' && <StatisticsPage />}
-      {role !== 'client' && currentPage === 'admin' && <AdminPage />}
-      {role !== 'client' && currentPage === 'sync' && <DataImportPage />}
-      {role !== 'client' && currentPage === 'products' && <ProductsPage role={role} />}
-      {currentPage !== 'admin' && currentPage !== 'sync' && (
-        <div className="text-center mt-8 mb-6">
-          <button
-            onClick={handleApiTest}
-            className="btn btn-primary"
-          >
-            Tester la connexion API
-          </button>
-          {apiTestMessage && (
-            <p className="mt-2 text-sm text-[var(--color-text-muted)]">{apiTestMessage}</p>
+      <main className="flex-1">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+          {currentPage === 'search' && <SearchPage />}
+          {role !== 'client' && currentPage === 'dataImport' && <DataImportPage />}
+          {role !== 'client' && currentPage === 'statistics' && <StatisticsPage />}
+          {role !== 'client' && currentPage === 'admin' && <AdminPage />}
+          {role !== 'client' && currentPage === 'sync' && <DataImportPage />}
+          {role !== 'client' && currentPage === 'products' && <ProductsPage role={role} />}
+          {currentPage !== 'admin' && currentPage !== 'sync' && (
+            <div className="text-center mt-8 mb-6">
+              <button
+                onClick={handleApiTest}
+                className="btn btn-primary"
+              >
+                Tester la connexion API
+              </button>
+              {apiTestMessage && (
+                <p className="mt-2 text-sm text-[var(--color-text-muted)]">{apiTestMessage}</p>
+              )}
+            </div>
           )}
         </div>
-      )}
+      </main>
     </div>
   );
 }
