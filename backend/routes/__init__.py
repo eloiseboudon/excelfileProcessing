@@ -1,4 +1,4 @@
-from . import imports, products, references, main, stats, settings, auth, users
+from . import imports, products, references, main, stats, settings, auth, users, odoo
 
 
 def register_routes(app):
@@ -10,3 +10,4 @@ def register_routes(app):
     app.register_blueprint(settings.bp)
     app.register_blueprint(auth.bp)
     app.register_blueprint(users.bp)
+    app.register_blueprint(odoo.bp)

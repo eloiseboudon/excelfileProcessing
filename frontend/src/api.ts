@@ -598,3 +598,106 @@ export async function fetchGraphSettings() {
 export async function updateGraphSetting(name: string, visible: boolean) {
   return crudRequest('PUT', `${API_BASE}/graph_settings/${name}`, { visible });
 }
+
+// ---------------------------------------------------------------------------
+// Odoo Sync
+// ---------------------------------------------------------------------------
+
+export interface OdooConfigData {
+  configured: boolean;
+  url?: string;
+  database?: string;
+  login?: string;
+  password?: string;
+  auto_sync_enabled?: boolean;
+  auto_sync_interval_minutes?: number;
+  last_auto_sync_at?: string | null;
+}
+
+export interface OdooTestResult {
+  server_version: string;
+  uid: number;
+  product_count: number;
+}
+
+export interface OdooSyncReportItem {
+  odoo_id: string;
+  name: string;
+  ean?: string;
+  part_number?: string;
+  error?: string;
+}
+
+export interface OdooSyncReport {
+  report_created?: OdooSyncReportItem[];
+  report_updated?: OdooSyncReportItem[];
+  report_unchanged?: OdooSyncReportItem[];
+  report_errors?: OdooSyncReportItem[];
+}
+
+export interface OdooSyncJobResponse {
+  id: number;
+  started_at: string | null;
+  ended_at: string | null;
+  status: string;
+  trigger: string;
+  error_message: string | null;
+  total_odoo_products: number;
+  created_count: number;
+  updated_count: number;
+  unchanged_count: number;
+  error_count: number;
+  report_created?: OdooSyncReportItem[];
+  report_updated?: OdooSyncReportItem[];
+  report_unchanged?: OdooSyncReportItem[];
+  report_errors?: OdooSyncReportItem[];
+}
+
+export async function fetchOdooConfig() {
+  const res = await fetchWithAuth(`${API_BASE}/odoo/config`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<OdooConfigData>;
+}
+
+export async function updateOdooConfig(data: { url: string; database: string; login: string; password: string }) {
+  return crudRequest('PUT', `${API_BASE}/odoo/config`, data);
+}
+
+export async function testOdooConnection() {
+  const res = await fetchWithAuth(`${API_BASE}/odoo/test`, { method: 'POST' });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<OdooTestResult>;
+}
+
+export async function triggerOdooSync() {
+  const res = await fetchWithAuth(`${API_BASE}/odoo/sync`, { method: 'POST' });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<{ job_id: number; status: string }>;
+}
+
+export async function fetchOdooSyncJobs(limit = 20) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  const res = await fetchWithAuth(`${API_BASE}/odoo/jobs?${params.toString()}`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<OdooSyncJobResponse[]>;
+}
+
+export async function fetchOdooSyncJob(jobId: number) {
+  const res = await fetchWithAuth(`${API_BASE}/odoo/jobs/${jobId}`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<OdooSyncJobResponse>;
+}
+
+export async function updateOdooAutoSync(data: { enabled?: boolean; interval_minutes?: number }) {
+  return crudRequest('PUT', `${API_BASE}/odoo/auto-sync`, data);
+}

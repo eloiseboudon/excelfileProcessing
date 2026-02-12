@@ -129,6 +129,23 @@ Composant concerne : `ThemeProvider`
 
 ---
 
+## Synchronisation Odoo (implementee)
+
+Synchronisation du referentiel produit avec l'ERP Odoo 17 via API XML-RPC :
+
+- **Configuration** : URL, base de donnees, identifiants Odoo, configurable depuis l'interface
+- **Test de connexion** : verification de la connexion avec affichage version serveur et nombre de produits
+- **Mapping complet** : nom, EAN, reference interne, prix, marque, couleur, memoire, RAM, type, norme
+- **Creation automatique** des references manquantes (marques, couleurs, etc.)
+- **Rapports detailles** : produits crees, mis a jour, inchanges, erreurs
+- **Synchronisation manuelle** : bouton de declenchement dans l'interface
+- **Synchronisation automatique** : planificateur configurable (intervalle minimum 15 min)
+- **Historique** : suivi de tous les jobs de synchronisation avec rapports expansibles
+
+Composants concernes : `OdooSyncPanel`, `DataImportPage`
+
+---
+
 ## Tests automatises (implementee)
 
 Infrastructure de tests unitaires et d'integration pour le backend et le frontend, integree dans la CI GitHub Actions.

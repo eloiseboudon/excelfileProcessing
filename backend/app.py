@@ -39,6 +39,14 @@ def create_app():
         db.create_all()
 
     register_routes(app)
+
+    # Start Odoo auto-sync scheduler if opted-in
+    if os.getenv("ENABLE_ODOO_SCHEDULER", "").lower() == "true":
+        from utils.odoo_scheduler import OdooScheduler
+
+        scheduler = OdooScheduler(app)
+        scheduler.start()
+
     return app
 
 

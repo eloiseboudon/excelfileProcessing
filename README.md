@@ -61,6 +61,7 @@ POSTGRES_DB=ajtpro
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 JWT_SECRET=change-me
+ENABLE_ODOO_SCHEDULER=false
 ```
 
 **Points importants :**
@@ -144,6 +145,7 @@ ajtpro/
 │   │   ├── auth.py           # Authentification (login, refresh, logout)
 │   │   ├── imports.py        # Import de fichiers et synchronisation API
 │   │   ├── main.py           # Route sante (/)
+│   │   ├── odoo.py           # Synchronisation Odoo (config, test, sync, jobs)
 │   │   ├── products.py       # CRUD produits et calculs
 │   │   ├── references.py     # Tables de reference (marques, couleurs, etc.)
 │   │   ├── settings.py       # Parametres utilisateur
@@ -156,6 +158,8 @@ ajtpro/
 │   │   ├── auth.py           # Generation et validation JWT
 │   │   ├── calculations.py   # Calculs de prix et marges
 │   │   ├── etl.py            # Pipeline ETL synchronisation fournisseurs
+│   │   ├── odoo_scheduler.py # Planificateur synchro auto Odoo
+│   │   ├── odoo_sync.py      # Client XML-RPC et moteur synchro Odoo
 │   │   └── pricing.py        # Constantes et fonctions de tarification partagees
 │   ├── app.py                # Point d'entree Flask
 │   ├── models.py             # Modeles SQLAlchemy
@@ -165,13 +169,14 @@ ajtpro/
 │   │   ├── components/
 │   │   │   ├── AdminPage.tsx              # Administration generale
 │   │   │   ├── BrandSupplierChart.tsx     # Graphique marque/fournisseur
-│   │   │   ├── DataImportPage.tsx         # Synchronisation fournisseurs (onglets Synchro/Rapports)
+│   │   │   ├── DataImportPage.tsx         # Synchronisation fournisseurs (onglets Synchro/Rapports/Odoo)
 │   │   │   ├── FormattingPage.tsx         # Mise en forme
 │   │   │   ├── ImportPreviewModal.tsx     # Apercu avant import
 │   │   │   ├── InfoButton.tsx             # Bouton info (i)
 │   │   │   ├── LoginPage.tsx              # Page de connexion
 │   │   │   ├── MultiSelectFilter.tsx      # Filtre multi-selection
 │   │   │   ├── NotificationProvider.tsx   # Systeme de notifications
+│   │   │   ├── OdooSyncPanel.tsx         # Synchronisation Odoo (config, sync, historique)
 │   │   │   ├── PriceChart.tsx             # Graphique prix global
 │   │   │   ├── ProcessingPage.tsx         # Traitement des donnees
 │   │   │   ├── ProductAdmin.tsx           # Administration produits
@@ -254,9 +259,22 @@ Accessible depuis le menu Parametres > Admin (role admin uniquement), avec 4 ong
 
 ### Synchronisation fournisseurs
 
-Accessible depuis le menu Parametres > Synchro (role admin uniquement), avec 2 onglets :
+Accessible depuis le menu Parametres > Synchro (role admin uniquement), avec 3 onglets :
 - **Synchronisation** -- Declenchement manuel des fetches API par fournisseur, suivi du statut en temps reel
 - **Rapports** -- Historique des imports avec details (nombre de lignes, erreurs, doublons detectes)
+- **Odoo** -- Synchronisation du referentiel produit avec Odoo 17 via XML-RPC
+
+### Synchronisation Odoo
+
+Synchronisation automatique ou manuelle des produits depuis l'ERP Odoo 17 :
+- **Configuration** dans l'interface (URL, base de donnees, identifiants)
+- **Test de connexion** avant synchronisation (version serveur, nombre de produits)
+- **Mapping complet** : nom, EAN, reference, prix, marque, couleur, memoire, RAM, type, norme
+- **Creation automatique** des references manquantes (marques, couleurs, types, etc.)
+- **Synchronisation automatique** configurable (intervalle minimum 15 min)
+- **Historique** des jobs avec rapports detailles expansibles
+
+Variable d'environnement : `ENABLE_ODOO_SCHEDULER=true` pour activer le planificateur automatique (desactive par defaut)
 
 ### Authentification
 

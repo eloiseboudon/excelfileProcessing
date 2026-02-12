@@ -429,3 +429,40 @@ class InternalProduct(db.Model):
     product = db.relationship(
         "Product", backref=db.backref("internal_products", lazy=True)
     )
+
+
+class OdooConfig(db.Model):
+    __tablename__ = "odoo_configs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    url = db.Column(db.String(255), nullable=False)
+    database = db.Column(db.String(100), nullable=False)
+    login = db.Column(db.String(100), nullable=False)
+    password = db.Column(db.String(255), nullable=False)
+    auto_sync_enabled = db.Column(db.Boolean, default=False)
+    auto_sync_interval_minutes = db.Column(db.Integer, default=1440)
+    last_auto_sync_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+
+class OdooSyncJob(db.Model):
+    __tablename__ = "odoo_sync_jobs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    started_at = db.Column(db.DateTime, default=datetime.utcnow)
+    ended_at = db.Column(db.DateTime, nullable=True)
+    status = db.Column(db.String(20), default="running")
+    trigger = db.Column(db.String(20), default="manual")
+    error_message = db.Column(db.Text, nullable=True)
+    total_odoo_products = db.Column(db.Integer, default=0)
+    created_count = db.Column(db.Integer, default=0)
+    updated_count = db.Column(db.Integer, default=0)
+    unchanged_count = db.Column(db.Integer, default=0)
+    error_count = db.Column(db.Integer, default=0)
+    report_created = db.Column(JSONB, nullable=True)
+    report_updated = db.Column(JSONB, nullable=True)
+    report_unchanged = db.Column(JSONB, nullable=True)
+    report_errors = db.Column(JSONB, nullable=True)
