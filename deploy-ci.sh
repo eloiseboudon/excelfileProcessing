@@ -52,6 +52,11 @@ cd "$APP_DIR"
 log "Arret des containers..."
 docker compose -f "$COMPOSE_FILE" down --remove-orphans || warn "Erreur lors de l'arret (non critique)"
 
+# Nettoyage des conteneurs nommes et du reseau si le down n'a pas suffi
+log "Nettoyage des conteneurs residuels..."
+docker rm -f postgres_prod ajt_backend_prod ajt_frontend_prod 2>/dev/null || true
+docker network rm ajtpro_default 2>/dev/null || true
+
 # 6. Rebuild des images
 log "Rebuild des images Docker..."
 docker compose -f "$COMPOSE_FILE" build --no-cache
