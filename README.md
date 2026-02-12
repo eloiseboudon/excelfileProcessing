@@ -268,7 +268,7 @@ Accessible depuis le menu Parametres > Synchro (role admin uniquement), avec 3 o
 ### Synchronisation Odoo
 
 Synchronisation automatique ou manuelle des produits depuis l'ERP Odoo 17 :
-- **Configuration** dans l'interface (URL, base de donnees, identifiants)
+- **Configuration** dans l'interface (URL, base de donnees, identifiants, toggle visibilite mot de passe)
 - **Test de connexion** avant synchronisation (version serveur, nombre de produits)
 - **Mapping complet** : nom, EAN, reference, prix, marque, couleur, memoire, RAM, type, norme
 - **Creation automatique** des references manquantes (marques, couleurs, types, etc.)
@@ -279,7 +279,7 @@ Variable d'environnement : `ENABLE_ODOO_SCHEDULER=true` pour activer le planific
 
 ### Authentification
 
-- Page de connexion avec logo AJT Pro, champs avec icones et labels
+- Page de connexion avec logo AJT Pro, champs avec icones et labels, toggle visibilite mot de passe (icone oeil)
 - Jetons JWT (acces + rafraichissement)
 - Acces conditionnel selon le role (admin / client)
 
