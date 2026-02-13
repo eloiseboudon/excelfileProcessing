@@ -4,6 +4,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: ajt_backend_prod
+    env_file:
+      - .env
     environment:
       FLASK_ENV: production
       FLASK_DEBUG: 0
