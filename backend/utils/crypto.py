@@ -2,7 +2,7 @@
 
 import os
 
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 
 
 def _get_fernet() -> Fernet:
@@ -18,5 +18,14 @@ def encrypt_value(plaintext: str) -> str:
 
 
 def decrypt_value(token: str) -> str:
-    """Decrypt a Fernet token and return the plaintext string."""
-    return _get_fernet().decrypt(token.encode()).decode()
+    """Decrypt a Fernet token and return the plaintext string.
+
+    Falls back to returning the raw value if it is not a Fernet token
+    (plaintext not yet encrypted by the migration).
+    """
+    if not token.startswith("gAAAAA"):
+        return token
+    try:
+        return _get_fernet().decrypt(token.encode()).decode()
+    except InvalidToken:
+        return token
