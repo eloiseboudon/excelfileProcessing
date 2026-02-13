@@ -9,6 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect
 from sqlalchemy.dialects.postgresql import JSONB
 
 
@@ -20,6 +21,10 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
+    conn = op.get_bind()
+    existing = inspect(conn).get_table_names()
+    if "odoo_configs" in existing:
+        return
     op.create_table(
         "odoo_configs",
         sa.Column("id", sa.Integer(), primary_key=True),
