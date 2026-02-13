@@ -61,6 +61,7 @@ POSTGRES_DB=ajtpro
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 JWT_SECRET=change-me
+ODOO_ENCRYPTION_KEY=<cle-fernet-generee>
 ENABLE_ODOO_SCHEDULER=false
 ```
 
@@ -68,6 +69,7 @@ ENABLE_ODOO_SCHEDULER=false
 
 - `FRONTEND_URL` doit correspondre exactement a l'origine du frontend (schema + domaine) pour que la politique CORS fonctionne.
 - `JWT_SECRET` doit etre remplace par une valeur aleatoire et securisee en production (minimum 32 caracteres pour SHA-256).
+- `ODOO_ENCRYPTION_KEY` est la cle Fernet utilisee pour chiffrer le mot de passe Odoo en base. Generez-la avec : `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
 - Le fichier `.env` est ignore par Git afin de proteger les informations sensibles.
 
 ### 3. Identifiants par defaut
@@ -158,6 +160,7 @@ ajtpro/
 │   │   ├── auth.py           # Generation et validation JWT
 │   │   ├── calculations.py   # Calculs de prix et marges
 │   │   ├── etl.py            # Pipeline ETL synchronisation fournisseurs
+│   │   ├── crypto.py          # Chiffrement/dechiffrement Fernet (mot de passe Odoo)
 │   │   ├── odoo_scheduler.py # Planificateur synchro auto Odoo
 │   │   ├── odoo_sync.py      # Client XML-RPC et moteur synchro Odoo
 │   │   └── pricing.py        # Constantes et fonctions de tarification partagees
@@ -225,7 +228,7 @@ ajtpro/
 | Couche | Technologies |
 |--------|-------------|
 | Frontend | React 18, TypeScript, Vite, Tailwind CSS, Lucide React, XLSX, Recharts |
-| Backend | Python Flask, SQLAlchemy, PostgreSQL 16, Alembic, Gunicorn, Flasgger |
+| Backend | Python Flask, SQLAlchemy, PostgreSQL 16, Alembic, Gunicorn, Flasgger, Cryptography (Fernet) |
 | Deploiement | Docker Compose (dev + prod), Nginx, script `deploy.sh` |
 | Authentification | JWT (jetons d'acces + de rafraichissement) |
 
@@ -268,7 +271,7 @@ Accessible depuis le menu Parametres > Synchro (role admin uniquement), avec 3 o
 ### Synchronisation Odoo
 
 Synchronisation automatique ou manuelle des produits depuis l'ERP Odoo 17 :
-- **Configuration** dans l'interface (URL, base de donnees, identifiants, toggle visibilite mot de passe)
+- **Configuration** dans l'interface (URL, base de donnees, identifiants, toggle visibilite mot de passe). Le mot de passe est chiffre en base avec Fernet (AES-128-CBC + HMAC)
 - **Test de connexion** avant synchronisation (version serveur, nombre de produits)
 - **Mapping complet** : nom, EAN, reference, prix, marque, couleur, memoire, RAM, type, norme
 - **Creation automatique** des references manquantes (marques, couleurs, types, etc.)

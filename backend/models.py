@@ -5,6 +5,8 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.dialects.postgresql import JSONB
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from utils.crypto import decrypt_value, encrypt_value
+
 db = SQLAlchemy()
 
 
@@ -438,7 +440,7 @@ class OdooConfig(db.Model):
     url = db.Column(db.String(255), nullable=False)
     database = db.Column(db.String(100), nullable=False)
     login = db.Column(db.String(100), nullable=False)
-    password = db.Column(db.String(255), nullable=False)
+    _encrypted_password = db.Column("password", db.String(500), nullable=False)
     auto_sync_enabled = db.Column(db.Boolean, default=False)
     auto_sync_interval_minutes = db.Column(db.Integer, default=1440)
     last_auto_sync_at = db.Column(db.DateTime, nullable=True)
@@ -446,6 +448,16 @@ class OdooConfig(db.Model):
     updated_at = db.Column(
         db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
     )
+
+    @property
+    def password(self):
+        """Decrypt and return the plaintext password."""
+        return decrypt_value(self._encrypted_password)
+
+    @password.setter
+    def password(self, plaintext):
+        """Encrypt and store the password."""
+        self._encrypted_password = encrypt_value(plaintext)
 
 
 class OdooSyncJob(db.Model):

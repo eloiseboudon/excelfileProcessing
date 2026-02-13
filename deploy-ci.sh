@@ -41,14 +41,25 @@ for envfile in .env backend/.env frontend/.env; do
     fi
 done
 
-# 4. Build frontend
+# 4. Injection des secrets dans .env
+if [ -n "${ODOO_ENCRYPTION_KEY:-}" ]; then
+    if grep -q "^ODOO_ENCRYPTION_KEY=" "$APP_DIR/.env" 2>/dev/null; then
+        sed -i "s|^ODOO_ENCRYPTION_KEY=.*|ODOO_ENCRYPTION_KEY=${ODOO_ENCRYPTION_KEY}|" "$APP_DIR/.env"
+        log "ODOO_ENCRYPTION_KEY mise a jour dans .env"
+    else
+        echo "ODOO_ENCRYPTION_KEY=${ODOO_ENCRYPTION_KEY}" >> "$APP_DIR/.env"
+        log "ODOO_ENCRYPTION_KEY ajoutee dans .env"
+    fi
+fi
+
+# 5. Build frontend
 log "Build du frontend..."
 cd "$APP_DIR/frontend"
 npm ci
 npm run build
 cd "$APP_DIR"
 
-# 5. Arret des containers
+# 6. Arret des containers
 log "Arret des containers..."
 docker compose -f "$COMPOSE_FILE" down --remove-orphans || warn "Erreur lors de l'arret (non critique)"
 
@@ -57,22 +68,22 @@ log "Nettoyage des conteneurs residuels..."
 docker rm -f postgres_prod ajt_backend_prod ajt_frontend_prod 2>/dev/null || true
 docker network rm ajtpro_default 2>/dev/null || true
 
-# 6. Rebuild des images
+# 7. Rebuild des images
 log "Rebuild des images Docker..."
 docker compose -f "$COMPOSE_FILE" build --no-cache
 
-# 7. Demarrage des containers
+# 8. Demarrage des containers
 log "Demarrage des containers..."
 docker compose -f "$COMPOSE_FILE" up -d
 
-# 8. Attente + migrations Alembic
+# 9. Attente + migrations Alembic
 log "Attente que les services demarrent (30s)..."
 sleep 30
 
 log "Application des migrations Alembic..."
 docker compose -f "$COMPOSE_FILE" exec -T backend alembic upgrade head || warn "Migrations echouees ou non necessaires"
 
-# 9. Health checks
+# 10. Health checks
 log "Health checks..."
 HEALTH_OK=true
 
@@ -100,7 +111,7 @@ for i in $(seq 1 10); do
     sleep 5
 done
 
-# 10. Resume
+# 11. Resume
 echo ""
 log "===== DEPLOIEMENT TERMINE ====="
 log "Commit  : $(git rev-parse --short HEAD)"
