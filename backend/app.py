@@ -33,6 +33,10 @@ def create_app():
         raise RuntimeError("DATABASE_URL environment variable is not set")
     app.config["SQLALCHEMY_DATABASE_URI"] = database_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    if database_url.startswith("sqlite"):
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+            "connect_args": {"cached_statements": 512},
+        }
     db.init_app(app)
 
     with app.app_context():

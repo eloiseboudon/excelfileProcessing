@@ -137,8 +137,11 @@ Synchronisation du referentiel produit avec l'ERP Odoo 17 via API XML-RPC :
 - **Configuration** : URL, base de donnees, identifiants Odoo, configurable depuis l'interface. Mot de passe chiffre en base avec Fernet (AES-128-CBC + HMAC)
 - **Test de connexion** : verification de la connexion avec affichage version serveur et nombre de produits
 - **Mapping complet** : nom, EAN, reference interne, prix, marque, couleur, memoire, RAM, type, norme
+- **Extraction du nom de modele** : le nom complet Odoo est conserve dans `description` ; le nom de modele epure (sans marque, couleur, memoire, RAM, norme) est extrait automatiquement dans `model` par suppression avec word boundaries regex (ex: "Apple iPhone 15 128GB Black" → model "iPhone 15")
+- **Parsing intelligent des noms** : extraction automatique des champs de reference (marque, couleur, memoire, RAM, norme, type) depuis le nom du produit quand les attributs Odoo sont absents. Utilise le substring matching contre les tables de reference avec priorite au match le plus long. Supporte les synonymes de couleurs via ColorTranslation
 - **Creation automatique** des references manquantes (marques, couleurs, etc.)
-- **Rapports detailles** : produits crees, mis a jour, inchanges, erreurs
+- **Rapports detailles** : produits crees, mis a jour, inchanges, supprimes, erreurs
+- **Suppression des orphelins** : les produits lies a Odoo mais absents de la synchronisation sont supprimes physiquement (references fournisseurs detachees, calculs supprimes). Compteur orange et rapport detaille dans l'historique
 - **Synchronisation manuelle** : bouton de declenchement dans l'interface
 - **Synchronisation automatique** : planificateur configurable (intervalle minimum 15 min)
 - **Historique** : suivi de tous les jobs de synchronisation avec rapports expansibles
@@ -156,7 +159,7 @@ Infrastructure de tests unitaires et d'integration pour le backend et le fronten
 - **Infrastructure** : SQLite in-memory, fixtures `admin_user`, `client_user`, `admin_headers`
 - **Tests unitaires** : `utils/pricing.py` (seuils, TCP, marges, edge cases), `utils/auth.py` (JWT generation, decodage, expiration, decorator)
 - **Tests d'integration** : routes `POST /login`, CRUD `/users`, CRUD `/products`, operations en masse (`bulk_update`, `bulk_delete`), routes Odoo (config, test connexion, sync, jobs, auto-sync)
-- **67 tests** dans 6 fichiers
+- **71 tests** dans 6 fichiers
 - **Zero warning applicatif** : `datetime.utcnow()` remplace par `datetime.now(timezone.utc)`, `Query.get()` remplace par `db.session.get()`, secret JWT >= 32 octets
 
 ### Frontend (Vitest + Testing Library)

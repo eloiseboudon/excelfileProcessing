@@ -158,8 +158,15 @@ function OdooSyncPanel() {
             setSyncing(false);
             loadJobs();
             if (detail.status === 'success') {
+              const parts = [
+                `${detail.created_count} créés`,
+                `${detail.updated_count} mis à jour`,
+              ];
+              if (detail.deleted_count > 0) {
+                parts.push(`${detail.deleted_count} supprimés`);
+              }
               notify(
-                `Synchronisation terminée : ${detail.created_count} créés, ${detail.updated_count} mis à jour`,
+                `Synchronisation terminée : ${parts.join(', ')}`,
                 'success'
               );
             } else {
@@ -376,7 +383,7 @@ function OdooSyncPanel() {
         </button>
 
         {syncResult && (
-          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-3">
             <div className="text-center p-3 rounded-lg bg-green-500/10">
               <div className="text-2xl font-bold text-green-500">{syncResult.created_count}</div>
               <div className="text-xs text-[var(--color-text-muted)]">Créés</div>
@@ -388,6 +395,10 @@ function OdooSyncPanel() {
             <div className="text-center p-3 rounded-lg bg-[var(--color-bg-elevated)]">
               <div className="text-2xl font-bold text-[var(--color-text-muted)]">{syncResult.unchanged_count}</div>
               <div className="text-xs text-[var(--color-text-muted)]">Inchangés</div>
+            </div>
+            <div className="text-center p-3 rounded-lg bg-orange-500/10">
+              <div className="text-2xl font-bold text-orange-400">{syncResult.deleted_count}</div>
+              <div className="text-xs text-[var(--color-text-muted)]">Supprimés</div>
             </div>
             <div className="text-center p-3 rounded-lg bg-red-500/10">
               <div className="text-2xl font-bold text-red-400">{syncResult.error_count}</div>
@@ -443,6 +454,9 @@ function OdooSyncPanel() {
                           <span className="text-green-500">{job.created_count} créés</span>
                           <span className="text-blue-400">{job.updated_count} MAJ</span>
                           <span className="text-[var(--color-text-muted)]">{job.unchanged_count} id.</span>
+                          {job.deleted_count > 0 && (
+                            <span className="text-orange-400">{job.deleted_count} suppr.</span>
+                          )}
                           {job.error_count > 0 && (
                             <span className="text-red-400">{job.error_count} err.</span>
                           )}
@@ -490,6 +504,13 @@ function OdooSyncPanel() {
                         title="Produits mis à jour"
                         items={jobDetail.report_updated}
                         color="text-blue-400"
+                      />
+                    )}
+                    {jobDetail.report_deleted && jobDetail.report_deleted.length > 0 && (
+                      <ReportSection
+                        title="Produits supprimés"
+                        items={jobDetail.report_deleted}
+                        color="text-orange-400"
                       />
                     )}
                     {jobDetail.report_errors && jobDetail.report_errors.length > 0 && (

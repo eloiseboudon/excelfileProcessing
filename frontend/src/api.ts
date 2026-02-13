@@ -633,6 +633,7 @@ export interface OdooSyncReport {
   report_updated?: OdooSyncReportItem[];
   report_unchanged?: OdooSyncReportItem[];
   report_errors?: OdooSyncReportItem[];
+  report_deleted?: OdooSyncReportItem[];
 }
 
 export interface OdooSyncJobResponse {
@@ -647,10 +648,12 @@ export interface OdooSyncJobResponse {
   updated_count: number;
   unchanged_count: number;
   error_count: number;
+  deleted_count: number;
   report_created?: OdooSyncReportItem[];
   report_updated?: OdooSyncReportItem[];
   report_unchanged?: OdooSyncReportItem[];
   report_errors?: OdooSyncReportItem[];
+  report_deleted?: OdooSyncReportItem[];
 }
 
 export async function fetchOdooConfig() {

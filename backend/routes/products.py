@@ -449,7 +449,7 @@ def list_products():
       200:
         description: A list of products
     """
-    products = Product.query.join(Brand).order_by(Brand.brand, Product.model).all()
+    products = Product.query.outerjoin(Brand).order_by(Brand.brand, Product.model).all()
     result = [
         {
             "id": p.id,

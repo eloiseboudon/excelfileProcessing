@@ -188,6 +188,7 @@ def list_jobs():
                 "updated_count": j.updated_count,
                 "unchanged_count": j.unchanged_count,
                 "error_count": j.error_count,
+                "deleted_count": j.deleted_count,
             }
             for j in jobs
         ]
@@ -224,10 +225,12 @@ def get_job(job_id):
             "updated_count": job.updated_count,
             "unchanged_count": job.unchanged_count,
             "error_count": job.error_count,
+            "deleted_count": job.deleted_count,
             "report_created": job.report_created,
             "report_updated": job.report_updated,
             "report_unchanged": job.report_unchanged,
             "report_errors": job.report_errors,
+            "report_deleted": job.report_deleted,
         }
     )
 

@@ -274,9 +274,12 @@ Synchronisation automatique ou manuelle des produits depuis l'ERP Odoo 17 :
 - **Configuration** dans l'interface (URL, base de donnees, identifiants, toggle visibilite mot de passe). Le mot de passe est chiffre en base avec Fernet (AES-128-CBC + HMAC)
 - **Test de connexion** avant synchronisation (version serveur, nombre de produits)
 - **Mapping complet** : nom, EAN, reference, prix, marque, couleur, memoire, RAM, type, norme
+- **Extraction du nom de modele** : le nom complet Odoo est stocke dans `description` et le nom de modele epure (sans marque, couleur, memoire, RAM, norme) est extrait dans `model` via suppression par word boundaries (ex: "Apple iPhone 15 128GB Black" → model "iPhone 15", description "Apple iPhone 15 128GB Black")
+- **Parsing intelligent des noms** : quand les attributs Odoo sont absents, les champs (marque, couleur, memoire, RAM, norme, type) sont extraits automatiquement du nom du produit par substring matching contre les tables de reference. Les synonymes de couleurs (ColorTranslation) sont pris en compte. Le match le plus long est prioritaire (ex: "Bleu Nuit" avant "Bleu")
 - **Creation automatique** des references manquantes (marques, couleurs, types, etc.)
 - **Synchronisation automatique** configurable (intervalle minimum 15 min)
 - **Historique** des jobs avec rapports detailles expansibles
+- **Suppression des orphelins** : les produits lies a Odoo mais absents de la synchronisation sont supprimes physiquement (references fournisseurs detachees). Compteur et rapport detaille visibles dans l'historique
 
 Variable d'environnement : `ENABLE_ODOO_SCHEDULER=true` pour activer le planificateur automatique (desactive par defaut)
 
