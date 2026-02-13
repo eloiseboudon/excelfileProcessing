@@ -14,7 +14,10 @@ from models import (
     OdooConfig,
     OdooSyncJob,
     Product,
+    ProductCalculation,
     RAMOption,
+    Supplier,
+    SupplierProductRef,
     db,
 )
 
@@ -372,3 +375,121 @@ class TestProcessSingleProduct:
             product_by_pn={},
         )
         assert status == "unchanged"
+
+
+# ---------------------------------------------------------------------------
+# Orphan deletion tests
+# ---------------------------------------------------------------------------
+class TestOrphanDeletion:
+    """Tests for orphan product deletion during Odoo sync."""
+
+    def test_orphan_product_deleted(self, app):
+        """Product+InternalProduct+ProductCalculation are deleted for orphans."""
+        from utils.odoo_sync import _delete_orphaned_products
+
+        product = Product(model="Orphan Phone", ean="0000000000001")
+        db.session.add(product)
+        db.session.flush()
+        link = InternalProduct(product_id=product.id, odoo_id="999")
+        db.session.add(link)
+        calc = ProductCalculation(
+            product_id=product.id, price=100, tcp=90, marge4_5=10,
+            prixht_tcp_marge4_5=80, prixht_marge4_5=85, prixht_max=95,
+        )
+        db.session.add(calc)
+        db.session.commit()
+        product_id = product.id
+
+        internal_by_odoo_id = {"999": link}
+        seen_odoo_ids = set()  # empty → 999 is orphaned
+        counters = {"deleted": 0, "error": 0}
+        reports = {"deleted": [], "errors": []}
+
+        _delete_orphaned_products(internal_by_odoo_id, seen_odoo_ids, counters, reports)
+        db.session.commit()
+
+        assert counters["deleted"] == 1
+        assert len(reports["deleted"]) == 1
+        assert reports["deleted"][0]["odoo_id"] == "999"
+
+        assert db.session.get(Product, product_id) is None
+        assert InternalProduct.query.filter_by(odoo_id="999").first() is None
+        assert ProductCalculation.query.filter_by(product_id=product_id).first() is None
+
+    def test_orphan_preserves_supplier_ref(self, app):
+        """SupplierProductRef.product_id is set to NULL when product is orphaned."""
+        from utils.odoo_sync import _delete_orphaned_products
+
+        supplier = Supplier(name="Test Supplier")
+        db.session.add(supplier)
+        db.session.flush()
+
+        product = Product(model="Orphan Phone 2", ean="0000000000002")
+        db.session.add(product)
+        db.session.flush()
+        link = InternalProduct(product_id=product.id, odoo_id="888")
+        db.session.add(link)
+        ref = SupplierProductRef(
+            supplier_id=supplier.id,
+            product_id=product.id,
+            ean="0000000000002",
+        )
+        db.session.add(ref)
+        db.session.commit()
+        ref_id = ref.id
+
+        internal_by_odoo_id = {"888": link}
+        seen_odoo_ids = set()
+        counters = {"deleted": 0, "error": 0}
+        reports = {"deleted": [], "errors": []}
+
+        _delete_orphaned_products(internal_by_odoo_id, seen_odoo_ids, counters, reports)
+        db.session.commit()
+
+        ref = db.session.get(SupplierProductRef, ref_id)
+        assert ref is not None
+        assert ref.product_id is None
+
+    def test_non_odoo_products_not_deleted(self, app):
+        """Products without InternalProduct link are not deleted."""
+        from utils.odoo_sync import _delete_orphaned_products
+
+        product = Product(model="Standalone Product", ean="0000000000003")
+        db.session.add(product)
+        db.session.commit()
+        product_id = product.id
+
+        # No entries in internal_by_odoo_id → nothing to orphan
+        internal_by_odoo_id = {}
+        seen_odoo_ids = set()
+        counters = {"deleted": 0, "error": 0}
+        reports = {"deleted": [], "errors": []}
+
+        _delete_orphaned_products(internal_by_odoo_id, seen_odoo_ids, counters, reports)
+        db.session.commit()
+
+        assert db.session.get(Product, product_id) is not None
+        assert counters["deleted"] == 0
+
+    def test_seen_product_not_deleted(self, app):
+        """Products seen during sync are NOT deleted."""
+        from utils.odoo_sync import _delete_orphaned_products
+
+        product = Product(model="Still In Odoo", ean="0000000000004")
+        db.session.add(product)
+        db.session.flush()
+        link = InternalProduct(product_id=product.id, odoo_id="777")
+        db.session.add(link)
+        db.session.commit()
+        product_id = product.id
+
+        internal_by_odoo_id = {"777": link}
+        seen_odoo_ids = {"777"}  # seen → not orphaned
+        counters = {"deleted": 0, "error": 0}
+        reports = {"deleted": [], "errors": []}
+
+        _delete_orphaned_products(internal_by_odoo_id, seen_odoo_ids, counters, reports)
+        db.session.commit()
+
+        assert db.session.get(Product, product_id) is not None
+        assert counters["deleted"] == 0

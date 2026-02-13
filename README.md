@@ -277,6 +277,7 @@ Synchronisation automatique ou manuelle des produits depuis l'ERP Odoo 17 :
 - **Creation automatique** des references manquantes (marques, couleurs, types, etc.)
 - **Synchronisation automatique** configurable (intervalle minimum 15 min)
 - **Historique** des jobs avec rapports detailles expansibles
+- **Suppression des orphelins** : les produits lies a Odoo mais absents de la synchronisation sont supprimes physiquement (references fournisseurs detachees). Compteur et rapport detaille visibles dans l'historique
 
 Variable d'environnement : `ENABLE_ODOO_SCHEDULER=true` pour activer le planificateur automatique (desactive par defaut)
 

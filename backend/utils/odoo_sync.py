@@ -17,7 +17,9 @@ from models import (
     OdooConfig,
     OdooSyncJob,
     Product,
+    ProductCalculation,
     RAMOption,
+    SupplierProductRef,
     db,
 )
 
@@ -303,6 +305,60 @@ def _process_single_product(
 
 
 # ---------------------------------------------------------------------------
+# Orphan deletion
+# ---------------------------------------------------------------------------
+def _delete_orphaned_products(
+    internal_by_odoo_id: Dict[str, InternalProduct],
+    seen_odoo_ids: set,
+    counters: Dict[str, int],
+    reports: Dict[str, list],
+) -> None:
+    """Delete products linked to Odoo that are no longer present in the sync."""
+    orphaned_ids = set(internal_by_odoo_id.keys()) - seen_odoo_ids
+    for orphan_odoo_id in orphaned_ids:
+        try:
+            internal = internal_by_odoo_id[orphan_odoo_id]
+            product = internal.product
+            product_id = product.id
+            report_item = {
+                "odoo_id": orphan_odoo_id,
+                "name": product.model or "",
+                "ean": product.ean or "",
+                "part_number": product.part_number or "",
+            }
+
+            # Detach supplier refs (set product_id to NULL)
+            SupplierProductRef.query.filter_by(product_id=product_id).update(
+                {"product_id": None}
+            )
+            # Delete product calculations
+            ProductCalculation.query.filter_by(product_id=product_id).delete()
+            # Delete internal product link
+            db.session.delete(internal)
+            # Delete product
+            db.session.delete(product)
+
+            counters["deleted"] += 1
+            if len(reports["deleted"]) < MAX_REPORT_ITEMS:
+                reports["deleted"].append(report_item)
+        except Exception as e:
+            counters["error"] += 1
+            if len(reports["errors"]) < MAX_REPORT_ITEMS:
+                reports["errors"].append(
+                    {
+                        "odoo_id": orphan_odoo_id,
+                        "name": internal_by_odoo_id[orphan_odoo_id].product.model
+                        if orphan_odoo_id in internal_by_odoo_id
+                        else "",
+                        "error": f"Suppression échouée: {e}",
+                    }
+                )
+            logger.warning(
+                "Error deleting orphan product odoo_id=%s: %s", orphan_odoo_id, e
+            )
+
+
+# ---------------------------------------------------------------------------
 # Main sync function
 # ---------------------------------------------------------------------------
 def run_odoo_sync(job_id: int) -> None:
@@ -398,15 +454,18 @@ def run_odoo_sync(job_id: int) -> None:
         }
 
         # Process each product
-        counters = {"created": 0, "updated": 0, "unchanged": 0, "error": 0}
+        counters = {"created": 0, "updated": 0, "unchanged": 0, "error": 0, "deleted": 0}
         reports: Dict[str, list] = {
             "created": [],
             "updated": [],
             "unchanged": [],
             "errors": [],
+            "deleted": [],
         }
 
+        seen_odoo_ids: set = set()
         for odoo_product in all_products:
+            seen_odoo_ids.add(str(odoo_product["id"]))
             try:
                 status, report_item = _process_single_product(
                     odoo_product,
@@ -437,6 +496,11 @@ def run_odoo_sync(job_id: int) -> None:
                     )
                 logger.warning("Error processing product %s: %s", odoo_product.get("id"), e)
 
+        # Delete orphaned products (linked to Odoo but no longer present)
+        _delete_orphaned_products(
+            internal_by_odoo_id, seen_odoo_ids, counters, reports,
+        )
+
         db.session.commit()
 
         # Finalize job
@@ -444,10 +508,12 @@ def run_odoo_sync(job_id: int) -> None:
         job.updated_count = counters["updated"]
         job.unchanged_count = counters["unchanged"]
         job.error_count = counters["error"]
+        job.deleted_count = counters["deleted"]
         job.report_created = reports["created"]
         job.report_updated = reports["updated"]
         job.report_unchanged = reports["unchanged"]
         job.report_errors = reports["errors"]
+        job.report_deleted = reports["deleted"]
         job.status = "success"
         job.ended_at = datetime.now(timezone.utc)
         db.session.commit()

@@ -138,7 +138,8 @@ Synchronisation du referentiel produit avec l'ERP Odoo 17 via API XML-RPC :
 - **Test de connexion** : verification de la connexion avec affichage version serveur et nombre de produits
 - **Mapping complet** : nom, EAN, reference interne, prix, marque, couleur, memoire, RAM, type, norme
 - **Creation automatique** des references manquantes (marques, couleurs, etc.)
-- **Rapports detailles** : produits crees, mis a jour, inchanges, erreurs
+- **Rapports detailles** : produits crees, mis a jour, inchanges, supprimes, erreurs
+- **Suppression des orphelins** : les produits lies a Odoo mais absents de la synchronisation sont supprimes physiquement (references fournisseurs detachees, calculs supprimes). Compteur orange et rapport detaille dans l'historique
 - **Synchronisation manuelle** : bouton de declenchement dans l'interface
 - **Synchronisation automatique** : planificateur configurable (intervalle minimum 15 min)
 - **Historique** : suivi de tous les jobs de synchronisation avec rapports expansibles
@@ -156,7 +157,7 @@ Infrastructure de tests unitaires et d'integration pour le backend et le fronten
 - **Infrastructure** : SQLite in-memory, fixtures `admin_user`, `client_user`, `admin_headers`
 - **Tests unitaires** : `utils/pricing.py` (seuils, TCP, marges, edge cases), `utils/auth.py` (JWT generation, decodage, expiration, decorator)
 - **Tests d'integration** : routes `POST /login`, CRUD `/users`, CRUD `/products`, operations en masse (`bulk_update`, `bulk_delete`), routes Odoo (config, test connexion, sync, jobs, auto-sync)
-- **67 tests** dans 6 fichiers
+- **71 tests** dans 6 fichiers
 - **Zero warning applicatif** : `datetime.utcnow()` remplace par `datetime.now(timezone.utc)`, `Query.get()` remplace par `db.session.get()`, secret JWT >= 32 octets
 
 ### Frontend (Vitest + Testing Library)

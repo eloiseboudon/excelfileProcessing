@@ -478,3 +478,5 @@ class OdooSyncJob(db.Model):
     report_updated = db.Column(JSONB, nullable=True)
     report_unchanged = db.Column(JSONB, nullable=True)
     report_errors = db.Column(JSONB, nullable=True)
+    deleted_count = db.Column(db.Integer, default=0)
+    report_deleted = db.Column(JSONB, nullable=True)
