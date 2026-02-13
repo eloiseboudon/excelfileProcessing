@@ -381,17 +381,27 @@ def run_odoo_sync(job_id: int) -> None:
         total_count = client.search_count("product.product", domain)
         job.total_odoo_products = total_count
 
-        # Fetch fields for products
+        # Detect available fields on product.product
+        available_fields = set(
+            client.execute_kw(
+                "product.product", "fields_get", [], {"attributes": ["string"]},
+            ).keys()
+        )
+
+        # Build fields list, skipping optional fields not present on this Odoo
         product_fields = [
             "id",
             "name",
             "barcode",
             "default_code",
             "list_price",
-            "product_brand_id",
             "categ_id",
             "product_template_attribute_value_ids",
         ]
+        optional_fields = ["product_brand_id"]
+        for f in optional_fields:
+            if f in available_fields:
+                product_fields.append(f)
 
         # Fetch all products in batches
         all_products: List[dict] = []
