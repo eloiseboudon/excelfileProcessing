@@ -134,7 +134,7 @@ Composant concerne : `ThemeProvider`
 
 Synchronisation du referentiel produit avec l'ERP Odoo 17 via API XML-RPC :
 
-- **Configuration** : URL, base de donnees, identifiants Odoo, configurable depuis l'interface
+- **Configuration** : URL, base de donnees, identifiants Odoo, configurable depuis l'interface. Mot de passe chiffre en base avec Fernet (AES-128-CBC + HMAC)
 - **Test de connexion** : verification de la connexion avec affichage version serveur et nombre de produits
 - **Mapping complet** : nom, EAN, reference interne, prix, marque, couleur, memoire, RAM, type, norme
 - **Creation automatique** des references manquantes (marques, couleurs, etc.)
