@@ -334,8 +334,8 @@ class Product(db.Model):
     ean = db.Column(db.String(20), nullable=True)
     part_number = db.Column(db.String(120), nullable=True)
 
-    model = db.Column(db.String(250), nullable=True)
-    description = db.Column(db.String(120), nullable=True)
+    model = db.Column(db.String(500), nullable=True)
+    description = db.Column(db.String(500), nullable=True)
 
     brand_id = db.Column(db.Integer, db.ForeignKey("brands.id"), nullable=True)
     brand = db.relationship("Brand", backref=db.backref("products", lazy=True))

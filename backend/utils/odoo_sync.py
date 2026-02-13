@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import xmlrpc.client
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
@@ -10,6 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from models import (
     Brand,
     Color,
+    ColorTranslation,
     DeviceType,
     InternalProduct,
     MemoryOption,
@@ -170,6 +172,86 @@ def _classify_attributes(
 
 
 # ---------------------------------------------------------------------------
+# Name-based fallback parsing
+# ---------------------------------------------------------------------------
+def _parse_name_fallback(
+    name: str,
+    brand_id: Optional[int],
+    color_id: Optional[int],
+    memory_id: Optional[int],
+    ram_id: Optional[int],
+    norme_id: Optional[int],
+    type_id: Optional[int],
+    brand_lookup: Dict[str, int],
+    color_lookup: Dict[str, int],
+    color_translation_lookup: Dict[str, int],
+    memory_lookup: Dict[str, int],
+    ram_lookup: Dict[str, int],
+    norme_lookup: Dict[str, int],
+    type_lookup: Dict[str, int],
+) -> Tuple[dict, List[str]]:
+    """Parse product name to extract missing reference fields via substring matching.
+
+    For each field still None, search for a matching key in the corresponding
+    lookup dict.  Keys are tried longest-first so that "bleu nuit" matches
+    before "bleu" and "128 go" before "128".
+
+    Returns (result_dict, matched_strings) where matched_strings contains the
+    lookup keys that were found in the name (used later for model name extraction).
+    """
+    name_lower = name.lower()
+    result: dict = {}
+    matched_strings: List[str] = []
+
+    def _find_in(lookup: Dict[str, int]) -> Optional[int]:
+        for key in sorted(lookup, key=len, reverse=True):
+            # Skip purely numeric keys — too ambiguous in product names
+            # (e.g. "12" could be RAM or model number as in "iPhone 12")
+            if key.strip().isdigit():
+                continue
+            if re.search(r"\b" + re.escape(key) + r"\b", name_lower):
+                matched_strings.append(key)
+                return lookup[key]
+        return None
+
+    if brand_id is None:
+        result["brand_id"] = _find_in(brand_lookup)
+    if color_id is None:
+        found = _find_in(color_translation_lookup)
+        if found is None:
+            found = _find_in(color_lookup)
+        result["color_id"] = found
+    if memory_id is None:
+        result["memory_id"] = _find_in(memory_lookup)
+    if ram_id is None:
+        result["ram_id"] = _find_in(ram_lookup)
+    if norme_id is None:
+        result["norme_id"] = _find_in(norme_lookup)
+    if type_id is None:
+        result["type_id"] = _find_in(type_lookup)
+
+    return result, matched_strings
+
+
+def _extract_model_name(name: str, parts_to_remove: List[str]) -> str:
+    """Extract the model name by removing brand, color, memory, etc. from the full name.
+
+    Parts are removed longest-first to avoid partial matches (e.g. "128GB" before "128").
+    Word boundaries prevent matching inside compound words (e.g. "black" won't match "BlackBerry").
+    """
+    result = name
+    for part in sorted((p for p in parts_to_remove if p), key=len, reverse=True):
+        # Skip purely numeric parts — likely model version numbers (e.g. "12" in "iPhone 12")
+        if part.strip().isdigit():
+            continue
+        result = re.sub(
+            r"\b" + re.escape(part) + r"\b", "", result, count=1, flags=re.IGNORECASE,
+        )
+    result = " ".join(result.split()).strip()
+    return result if result else name
+
+
+# ---------------------------------------------------------------------------
 # Single product processing
 # ---------------------------------------------------------------------------
 def _process_single_product(
@@ -184,6 +266,7 @@ def _process_single_product(
     internal_by_odoo_id: Dict[str, InternalProduct],
     product_by_ean: Dict[str, Product],
     product_by_pn: Dict[str, Product],
+    color_translation_lookup: Optional[Dict[str, int]] = None,
 ) -> Tuple[str, dict]:
     """Process a single Odoo product. Returns (status, report_item).
 
@@ -242,9 +325,34 @@ def _process_single_product(
     if "norme" in attrs:
         norme_id = _find_or_create(NormeOption, "norme", attrs["norme"], norme_lookup)
 
+    # Fallback: parse product name for missing fields
+    fallback, fallback_matched = _parse_name_fallback(
+        name, brand_id, color_id, memory_id, ram_id, norme_id, type_id,
+        brand_lookup, color_lookup, color_translation_lookup or {},
+        memory_lookup, ram_lookup, norme_lookup, type_lookup,
+    )
+    brand_id = brand_id or fallback.get("brand_id")
+    color_id = color_id or fallback.get("color_id")
+    memory_id = memory_id or fallback.get("memory_id")
+    ram_id = ram_id or fallback.get("ram_id")
+    norme_id = norme_id or fallback.get("norme_id")
+    type_id = type_id or fallback.get("type_id")
+
+    # Extract model name by removing brand, attributes, and fallback matches
+    parts_to_remove: List[str] = list(fallback_matched)
+    if brand_tuple and isinstance(brand_tuple, (list, tuple)) and len(brand_tuple) == 2:
+        brand_name = str(brand_tuple[1]).strip()
+        if brand_name:
+            parts_to_remove.append(brand_name)
+    for attr_val in attrs.values():
+        parts_to_remove.append(attr_val)
+
+    model_name = _extract_model_name(name, parts_to_remove)
+
     # Build product field dict
     product_fields = {
-        "model": name,
+        "model": model_name,
+        "description": name,
         "ean": barcode or None,
         "part_number": default_code or None,
         "recommended_price": list_price if list_price else None,
@@ -448,6 +556,11 @@ def run_odoo_sync(job_id: int) -> None:
         ram_lookup = _build_lookup(RAMOption, "ram")
         norme_lookup = _build_lookup(NormeOption, "norme")
         type_lookup = _build_lookup(DeviceType, "type")
+        color_translation_lookup: Dict[str, int] = {
+            t.color_source.lower(): t.color_target_id
+            for t in ColorTranslation.query.all()
+            if t.color_source
+        }
 
         # Pre-load internal products and product lookups
         internal_by_odoo_id: Dict[str, InternalProduct] = {
@@ -489,6 +602,7 @@ def run_odoo_sync(job_id: int) -> None:
                     internal_by_odoo_id,
                     product_by_ean,
                     product_by_pn,
+                    color_translation_lookup,
                 )
                 counters[status] += 1
                 report_key = "errors" if status == "error" else status
