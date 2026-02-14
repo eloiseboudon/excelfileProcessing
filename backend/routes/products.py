@@ -317,7 +317,15 @@ def internal_products():
 @token_required()
 def product_price_summary():
     """Return latest supplier prices and average per product."""
+    try:
+        return _product_price_summary_inner()
+    except Exception:
+        logger.exception("Erreur dans product_price_summary")
+        db.session.rollback()
+        return jsonify({"error": "Erreur interne lors du calcul des prix"}), 500
 
+
+def _product_price_summary_inner():
     subq = (
         db.session.query(
             ProductCalculation.product_id,
@@ -358,7 +366,7 @@ def product_price_summary():
                 "ram": p.RAM.ram if p.RAM else None,
                 "norme": p.norme.norme if p.norme else None,
                 "supplier_prices": {},
-                "recommended_price": p.recommended_price,
+                "recommended_price": _safe_float(p.recommended_price, default=None),
                 "buy_price": {},
                 "stock_levels": {},
                 "latest_calculations": {},
@@ -400,12 +408,14 @@ def product_price_summary():
                     _safe_float(calc.prixht_max, default=0)
                     or _safe_float(calc.prixht_marge4_5, default=0)
                     or _safe_float(calc.prixht_tcp_marge4_5, default=0)
-                    or data[pid]["recommended_price"]
+                    or _safe_float(data[pid]["recommended_price"], default=None)
                 )
                 data[pid]["recommended_price"] = preferred_price
                 data[pid]["tcp"] = _safe_float(calc.tcp)
-                data[pid]["latest_margin"] = _safe_float(calc.marge)
-                data[pid]["latest_margin_percent"] = _safe_float(calc.marge_percent)
+                data[pid]["latest_margin"] = _safe_float(calc.marge, default=None)
+                data[pid]["latest_margin_percent"] = _safe_float(
+                    calc.marge_percent, default=None
+                )
 
     result = []
     for item in data.values():
