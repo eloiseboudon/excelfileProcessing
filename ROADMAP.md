@@ -63,11 +63,12 @@ Module d'analyse graphique recentre sur les donnees brutes du catalogue fourniss
 | Evolution des prix par fournisseur | `product_calculations` | Prix moyen par fournisseur par semaine avec legendes couleur (MultiLineChart) |
 | Nombre de produits par fournisseur | `supplier_catalog` | Nombre de references dans le catalogue de chaque fournisseur (BarChart gold) |
 | Repartition des prix | `supplier_catalog` | Distribution des prix par tranche, comparee entre fournisseurs (GroupedBarChart) |
+| Comparaison prix produit par fournisseur | `product_calculations` | Prix moyen d'un produit specifique compare entre fournisseurs au fil des semaines (MultiLineChart, visible quand un produit est selectionne) |
 
 Fonctionnalites :
-- **Filtres simplifies** : fournisseur optionnel + plage de semaines (pour l'evolution uniquement)
+- **Filtres** : fournisseur optionnel, produit optionnel + plage de semaines (pour l'evolution uniquement)
 - **Legendes** sous les graphiques multi-series (nom fournisseur + pastille couleur)
-- **4 endpoints API** : `/supplier_avg_price`, `/supplier_product_count`, `/supplier_price_distribution`, `/supplier_price_evolution`
+- **4 endpoints API** : `/supplier_avg_price`, `/supplier_product_count`, `/supplier_price_distribution`, `/supplier_price_evolution` (supporte filtre `product_id`)
 
 Composants concernes : `StatisticsPage`, `StatsFilters`
 

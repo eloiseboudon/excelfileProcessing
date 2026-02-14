@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import StatisticsPage from '../StatisticsPage';
 
 vi.mock('../../api', () => ({
   fetchSuppliers: vi.fn(),
+  fetchProducts: vi.fn(),
   fetchSupplierAvgPrice: vi.fn(),
   fetchSupplierProductCount: vi.fn(),
   fetchSupplierPriceDistribution: vi.fn(),
@@ -12,6 +13,7 @@ vi.mock('../../api', () => ({
 
 import {
   fetchSuppliers,
+  fetchProducts,
   fetchSupplierAvgPrice,
   fetchSupplierProductCount,
   fetchSupplierPriceDistribution,
@@ -19,6 +21,7 @@ import {
 } from '../../api';
 
 const mockFetchSuppliers = fetchSuppliers as ReturnType<typeof vi.fn>;
+const mockFetchProducts = fetchProducts as ReturnType<typeof vi.fn>;
 const mockAvgPrice = fetchSupplierAvgPrice as ReturnType<typeof vi.fn>;
 const mockProductCount = fetchSupplierProductCount as ReturnType<typeof vi.fn>;
 const mockDistribution = fetchSupplierPriceDistribution as ReturnType<typeof vi.fn>;
@@ -32,6 +35,7 @@ describe('StatisticsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFetchSuppliers.mockResolvedValue([]);
+    mockFetchProducts.mockResolvedValue([]);
     mockAvgPrice.mockResolvedValue([]);
     mockProductCount.mockResolvedValue([]);
     mockDistribution.mockResolvedValue([]);
@@ -63,5 +67,34 @@ describe('StatisticsPage', () => {
     });
     screen.getByText('Retour').click();
     expect(onBack).toHaveBeenCalledOnce();
+  });
+
+  it('shows placeholder then chart when a model is selected', async () => {
+    mockFetchProducts.mockResolvedValue([
+      { id: 1, model: 'iPhone 15' },
+      { id: 2, model: 'Galaxy S24' },
+      { id: 3, model: 'iPhone 15' },
+    ]);
+    mockEvolution.mockResolvedValue([
+      { supplier: 'SupA', week: 'S01-2025', avg_price: 100 },
+      { supplier: 'SupB', week: 'S01-2025', avg_price: 110 },
+    ]);
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Comparaison prix produit par fournisseur')).toBeDefined();
+      expect(screen.getByText('Selectionnez un produit pour afficher la comparaison')).toBeDefined();
+    });
+
+    const productSelect = screen.getByDisplayValue('Selectionner un produit');
+    const options = productSelect.querySelectorAll('option');
+    expect(options.length).toBe(3);
+
+    fireEvent.change(productSelect, { target: { value: 'iPhone 15' } });
+
+    await waitFor(() => {
+      expect(screen.queryByText('Selectionnez un produit pour afficher la comparaison')).toBeNull();
+    });
   });
 });

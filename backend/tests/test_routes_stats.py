@@ -122,6 +122,17 @@ def test_supplier_price_evolution(client, admin_headers, product_calcs):
     assert "SupplierB" in suppliers_in_data
 
 
+def test_supplier_price_evolution_with_model(client, admin_headers, product_calcs):
+    rv = client.get(
+        "/supplier_price_evolution?model=Phone", headers=admin_headers
+    )
+    assert rv.status_code == 200
+    data = rv.get_json()
+    assert len(data) >= 1
+    suppliers_in_data = {d["supplier"] for d in data}
+    assert "SupplierA" in suppliers_in_data
+
+
 def test_supplier_price_evolution_empty(client, admin_headers):
     rv = client.get("/supplier_price_evolution", headers=admin_headers)
     assert rv.status_code == 200

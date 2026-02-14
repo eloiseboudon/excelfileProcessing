@@ -4,6 +4,7 @@ import StatsFilters from './StatsFilters';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   fetchSuppliers,
+  fetchProducts,
   fetchSupplierAvgPrice,
   fetchSupplierProductCount,
   fetchSupplierPriceDistribution,
@@ -265,12 +266,15 @@ function Legend({ items }: { items: { name: string; color: string }[] }) {
 
 function StatisticsPage({ onBack }: StatisticsPageProps) {
   const [suppliers, setSuppliers] = useState<{ id: number; name: string }[]>([]);
+  const [models, setModels] = useState<string[]>([]);
   const [avgPriceData, setAvgPriceData] = useState<SupplierAvg[]>([]);
   const [productCountData, setProductCountData] = useState<SupplierCount[]>([]);
   const [distributionData, setDistributionData] = useState<SupplierPrices[]>([]);
   const [evolutionData, setEvolutionData] = useState<SupplierEvolution[]>([]);
+  const [productEvolutionData, setProductEvolutionData] = useState<SupplierEvolution[]>([]);
 
   const [supplierId, setSupplierId] = useState<number | ''>('');
+  const [selectedModel, setSelectedModel] = useState('');
   const [startWeek, setStartWeek] = useState('');
   const [endWeek, setEndWeek] = useState('');
 
@@ -278,6 +282,12 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
     fetchSuppliers()
       .then((s) => setSuppliers(s as { id: number; name: string }[]))
       .catch(() => setSuppliers([]));
+    fetchProducts()
+      .then((p: { id: number; model: string }[]) => {
+        const unique = Array.from(new Set(p.map((x) => x.model).filter(Boolean))).sort();
+        setModels(unique);
+      })
+      .catch(() => setModels([]));
     fetchSupplierAvgPrice()
       .then(setAvgPriceData)
       .catch(() => setAvgPriceData([]));
@@ -308,6 +318,24 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
   useEffect(() => {
     loadEvolution();
   }, [loadEvolution]);
+
+  const loadProductEvolution = useCallback(() => {
+    if (!selectedModel) {
+      setProductEvolutionData([]);
+      return;
+    }
+    fetchSupplierPriceEvolution({
+      model: selectedModel,
+      startWeek: toApiWeek(startWeek),
+      endWeek: toApiWeek(endWeek),
+    })
+      .then(setProductEvolutionData)
+      .catch(() => setProductEvolutionData([]));
+  }, [selectedModel, startWeek, endWeek]);
+
+  useEffect(() => {
+    loadProductEvolution();
+  }, [loadProductEvolution]);
 
   // ── Derived chart data ──────────────────────────────────────────
 
@@ -363,6 +391,23 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
   const evolutionLegend = useMemo(
     () => evolutionSeries.map((s, i) => ({ name: s.name, color: COLORS[i % COLORS.length] })),
     [evolutionSeries],
+  );
+
+  const productEvolutionSeries = useMemo(() => {
+    const map: Record<string, Point[]> = {};
+    productEvolutionData.forEach((d) => {
+      if (!map[d.supplier]) map[d.supplier] = [];
+      map[d.supplier].push({ label: d.week, value: d.avg_price });
+    });
+    return Object.entries(map).map(([name, data]) => ({
+      name,
+      data: data.sort((a, b) => a.label.localeCompare(b.label)),
+    }));
+  }, [productEvolutionData]);
+
+  const productEvolutionLegend = useMemo(
+    () => productEvolutionSeries.map((s, i) => ({ name: s.name, color: COLORS[i % COLORS.length] })),
+    [productEvolutionSeries],
   );
 
   const distributionLegend = useMemo(
@@ -423,6 +468,39 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
           {evolutionSeries.length > 0 && <Legend items={evolutionLegend} />}
           {evolutionSeries.length === 0 && (
             <p className="text-center text-sm text-[var(--color-text-muted)] mt-2">Pas de donnees</p>
+          )}
+        </div>
+
+        {/* Comparaison prix produit par fournisseur */}
+        <div className="card overflow-hidden">
+          <div className="flex flex-wrap items-center gap-4 mb-2">
+            <h2 className="font-semibold flex items-center">
+              Comparaison prix produit par fournisseur
+              <InfoButton text="Prix moyen du produit selectionne compare entre fournisseurs au fil des semaines." />
+            </h2>
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="bg-[var(--color-bg-input)] border border-[var(--color-border-strong)] rounded-md px-3 py-2 text-sm"
+            >
+              <option value="">Selectionner un produit</option>
+              {models.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </div>
+          {selectedModel ? (
+            <>
+              <MultiLineChart series={productEvolutionSeries} />
+              {productEvolutionSeries.length > 0 && <Legend items={productEvolutionLegend} />}
+              {productEvolutionSeries.length === 0 && (
+                <p className="text-center text-sm text-[var(--color-text-muted)] mt-2">Pas de donnees pour ce produit</p>
+              )}
+            </>
+          ) : (
+            <p className="text-center text-sm text-[var(--color-text-muted)] py-8">Selectionnez un produit pour afficher la comparaison</p>
           )}
         </div>
 
