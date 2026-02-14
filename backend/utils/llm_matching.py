@@ -513,7 +513,10 @@ def create_product_from_extraction(
 # Function 7: run_matching_job
 # ---------------------------------------------------------------------------
 
-def run_matching_job(supplier_id: Optional[int] = None) -> Dict[str, Any]:
+def run_matching_job(
+    supplier_id: Optional[int] = None,
+    limit: Optional[int] = None,
+) -> Dict[str, Any]:
     """Orchestrate the full LLM matching process.
 
     1. Load unmatched TemporaryImports (no SupplierProductRef)
@@ -601,6 +604,12 @@ def run_matching_job(supplier_id: Optional[int] = None) -> Dict[str, Any]:
         else:
             original_label = first_ti.description or first_ti.model or ""
             labels_to_extract.append((normalized, original_label, temp_imports))
+
+    # Apply limit to labels_to_extract (batching)
+    total_to_extract = len(labels_to_extract)
+    if limit is not None and limit > 0 and len(labels_to_extract) > limit:
+        labels_to_extract = labels_to_extract[:limit]
+    remaining = total_to_extract - len(labels_to_extract)
 
     # Step 3: Load products for scoring
     all_products = Product.query.all()
@@ -694,6 +703,7 @@ def run_matching_job(supplier_id: Optional[int] = None) -> Dict[str, Any]:
         "error_message": error_message,
         "cost_estimate": cost_estimate,
         "duration_seconds": duration,
+        "remaining": remaining,
     }
 
 

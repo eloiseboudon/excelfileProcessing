@@ -33,6 +33,12 @@ def run_matching():
     """Launch LLM matching on unmatched temporary imports."""
     data = request.get_json(silent=True) or {}
     supplier_id = data.get("supplier_id")
+    limit = data.get("limit")
+    if limit is not None:
+        try:
+            limit = int(limit)
+        except (TypeError, ValueError):
+            limit = None
 
     if supplier_id is not None:
         supplier = db.session.get(Supplier, supplier_id)
@@ -40,7 +46,7 @@ def run_matching():
             return jsonify({"error": "Fournisseur introuvable"}), 404
 
     try:
-        report = run_matching_job(supplier_id=supplier_id)
+        report = run_matching_job(supplier_id=supplier_id, limit=limit)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     except Exception as exc:

@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import logging
 import math
 from datetime import datetime, timezone
 from typing import Dict, Iterable, Tuple
+
+logger = logging.getLogger(__name__)
 
 from models import (
     Brand,
@@ -96,76 +99,93 @@ def recalculate_product_calculations():
     for lc in LabelCache.query.filter(LabelCache.product_id.isnot(None)).all():
         label_cache_map[(lc.supplier_id, lc.normalized_label)] = lc.product_id
 
+    def _is_invalid(value: float) -> bool:
+        """Return True if value is NaN or Inf."""
+        return math.isnan(value) or math.isinf(value)
+
     for temp in temps:
-        product = None
-        ean = (temp.ean or "").strip() if temp.ean else ""
-        if ean:
-            product = Product.query.filter(Product.ean == ean).first()
+        try:
+            product = None
+            ean = (temp.ean or "").strip() if temp.ean else ""
+            if ean:
+                product = Product.query.filter(Product.ean == ean).first()
 
-        if not product:
-            query = Product.query
-            if temp.model is not None:
-                if temp.brand_id is not None:
-                    query = query.filter(Product.brand_id == temp.brand_id)
-                if temp.memory_id is not None:
-                    query = query.filter(Product.memory_id == temp.memory_id)
-                if temp.color_id is not None:
-                    query = query.filter(Product.color_id == temp.color_id)
-                query = query.filter(Product.model.ilike(f"%{temp.model}%"))
-            product = query.first()
+            if not product:
+                query = Product.query
+                if temp.model is not None:
+                    if temp.brand_id is not None:
+                        query = query.filter(Product.brand_id == temp.brand_id)
+                    if temp.memory_id is not None:
+                        query = query.filter(Product.memory_id == temp.memory_id)
+                    if temp.color_id is not None:
+                        query = query.filter(Product.color_id == temp.color_id)
+                    query = query.filter(Product.model.ilike(f"%{temp.model}%"))
+                product = query.first()
 
-        # Fallback: LabelCache lookup for LLM-matched products
-        if not product and temp.supplier_id:
-            raw_label = temp.description or temp.model or ""
-            if raw_label:
-                normalized = normalize_label(raw_label)
-                cached_product_id = label_cache_map.get(
-                    (temp.supplier_id, normalized)
+            # Fallback: LabelCache lookup for LLM-matched products
+            if not product and temp.supplier_id:
+                raw_label = temp.description or temp.model or ""
+                if raw_label:
+                    normalized = normalize_label(raw_label)
+                    cached_product_id = label_cache_map.get(
+                        (temp.supplier_id, normalized)
+                    )
+                    if cached_product_id:
+                        product = db.session.get(Product, cached_product_id)
+
+            if not product:
+                continue
+
+            price = temp.selling_price or 0
+            memory = (product.memory.memory or "").upper() if product.memory else ""
+
+            memory_option = MemoryOption.query.filter_by(memory=memory).first()
+            if not memory_option:
+                tcp = 0
+            else:
+                tcp = memory_option.tcp_value
+
+            (
+                margin45,
+                price_with_tcp,
+                price_with_margin,
+                max_price,
+                marge_value,
+                marge_percent,
+            ) = compute_margin_prices(price, tcp)
+
+            # Vérifier que les valeurs ne sont pas NaN ou Inf
+            numeric_values = [
+                margin45, price_with_tcp, price_with_margin,
+                max_price, marge_value, marge_percent,
+            ]
+            if any(_is_invalid(v) for v in numeric_values):
+                logger.warning(
+                    "Valeurs NaN/Inf detectees pour le produit %s (temp_id=%s)",
+                    product.id, temp.id,
                 )
-                if cached_product_id:
-                    product = db.session.get(Product, cached_product_id)
+                continue
 
-        if not product:
+            calc = ProductCalculation(
+                product_id=product.id,
+                supplier_id=temp.supplier_id,
+                price=round(price, 2),
+                tcp=round(tcp, 2),
+                marge4_5=margin45,
+                prixht_tcp_marge4_5=price_with_tcp,
+                prixht_marge4_5=price_with_margin,
+                prixht_max=max_price,
+                date=datetime.now(timezone.utc),
+                marge=marge_value,
+                marge_percent=marge_percent,
+                stock=temp.quantity,
+            )
+            db.session.add(calc)
+        except Exception:
+            logger.exception(
+                "Erreur lors du calcul pour temp_id=%s", temp.id,
+            )
             continue
-
-        price = temp.selling_price or 0
-        memory = product.memory.memory.upper() if product.memory else ""
-
-        memory_option = MemoryOption.query.filter_by(memory=memory).first()
-        if not memory_option:
-            tcp = 0
-        else:
-            tcp = memory_option.tcp_value
-
-        (
-            margin45,
-            price_with_tcp,
-            price_with_margin,
-            max_price,
-            marge_value,
-            marge_percent,
-        ) = compute_margin_prices(price, tcp)
-
-        # Vérifier que les valeurs ne sont pas NaN
-        if math.isnan(price_with_tcp) or math.isnan(price_with_margin):
-            print(f"Valeurs NaN détectées pour le produit {product.id}")
-            continue
-
-        calc = ProductCalculation(
-            product_id=product.id,
-            supplier_id=temp.supplier_id,
-            price=round(price, 2),
-            tcp=round(tcp, 2),
-            marge4_5=margin45,
-            prixht_tcp_marge4_5=price_with_tcp,
-            prixht_marge4_5=price_with_margin,
-            prixht_max=max_price,
-            date=datetime.now(timezone.utc),
-            marge=marge_value,
-            marge_percent=marge_percent,
-            stock=temp.quantity,
-        )
-        db.session.add(calc)
 
     db.session.commit()
 

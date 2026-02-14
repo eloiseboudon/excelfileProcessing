@@ -1,3 +1,5 @@
+import logging
+import math
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import Dict, Set
@@ -107,6 +109,22 @@ def _ensure_daily_supplier_cache() -> None:
                 endpoint_id=endpoint.id,
                 mapping_id=mapping.id,
             )
+
+logger = logging.getLogger(__name__)
+
+
+def _safe_float(value: object, default: float = 0.0) -> float:
+    """Return value as float, coercing NaN/Inf to default."""
+    if value is None:
+        return default
+    try:
+        f = float(value)
+    except (TypeError, ValueError):
+        return default
+    if math.isnan(f) or math.isinf(f):
+        return default
+    return f
+
 
 bp = Blueprint("products", __name__)
 
@@ -326,6 +344,8 @@ def product_price_summary():
     for calc in latest:
         pid = calc.product_id
         p = calc.product
+        if p is None:
+            continue
         if pid not in data:
             data[pid] = {
                 "id": pid,
@@ -350,41 +370,42 @@ def product_price_summary():
                 "latest_date": None,
             }
         supplier = calc.supplier.name if calc.supplier else ""
-        data[pid]["supplier_prices"][supplier] = calc.prixht_max
-        data[pid]["buy_price"][supplier] = calc.price
+        data[pid]["supplier_prices"][supplier] = _safe_float(calc.prixht_max)
+        data[pid]["buy_price"][supplier] = _safe_float(calc.price)
         data[pid]["stock_levels"][supplier] = calc.stock
         data[pid]["latest_calculations"][supplier] = {
-            "price": calc.price,
-            "tcp": calc.tcp,
-            "marge4_5": calc.marge4_5,
-            "marge": calc.marge,
-            "marge_percent": calc.marge_percent,
-            "prixht_tcp_marge4_5": calc.prixht_tcp_marge4_5,
-            "prixht_marge4_5": calc.prixht_marge4_5,
-            "prixht_max": calc.prixht_max,
+            "price": _safe_float(calc.price),
+            "tcp": _safe_float(calc.tcp),
+            "marge4_5": _safe_float(calc.marge4_5),
+            "marge": _safe_float(calc.marge),
+            "marge_percent": _safe_float(calc.marge_percent),
+            "prixht_tcp_marge4_5": _safe_float(calc.prixht_tcp_marge4_5),
+            "prixht_marge4_5": _safe_float(calc.prixht_marge4_5),
+            "prixht_max": _safe_float(calc.prixht_max),
             "stock": calc.stock,
             "date": calc.date.isoformat() if calc.date else None,
         }
         if calc.price is not None:
             current_min = data[pid]["min_buy_price_value"]
-            if current_min is None or calc.price < current_min:
-                data[pid]["min_buy_price_value"] = calc.price
-                data[pid]["min_buy_margin"] = calc.marge
+            price_val = _safe_float(calc.price)
+            if current_min is None or price_val < current_min:
+                data[pid]["min_buy_price_value"] = price_val
+                data[pid]["min_buy_margin"] = _safe_float(calc.marge)
 
         if calc.date is not None:
             latest_date = data[pid]["latest_date"]
             if latest_date is None or calc.date > latest_date:
                 data[pid]["latest_date"] = calc.date
                 preferred_price = (
-                    calc.prixht_max
-                    or calc.prixht_marge4_5
-                    or calc.prixht_tcp_marge4_5
+                    _safe_float(calc.prixht_max, default=0)
+                    or _safe_float(calc.prixht_marge4_5, default=0)
+                    or _safe_float(calc.prixht_tcp_marge4_5, default=0)
                     or data[pid]["recommended_price"]
                 )
                 data[pid]["recommended_price"] = preferred_price
-                data[pid]["tcp"] = calc.tcp or 0
-                data[pid]["latest_margin"] = calc.marge
-                data[pid]["latest_margin_percent"] = calc.marge_percent
+                data[pid]["tcp"] = _safe_float(calc.tcp)
+                data[pid]["latest_margin"] = _safe_float(calc.marge)
+                data[pid]["latest_margin_percent"] = _safe_float(calc.marge_percent)
 
     result = []
     for item in data.values():
@@ -487,7 +508,11 @@ def calculate_products():
       200:
         description: Calculation summary
     """
-    recalculate_product_calculations()
+    try:
+        recalculate_product_calculations()
+    except Exception as exc:
+        logger.exception("Erreur lors du calcul des produits")
+        return jsonify({"error": f"Erreur lors du calcul : {exc}"}), 500
     count = ProductCalculation.query.count()
     return jsonify({"status": "success", "created": count})
 

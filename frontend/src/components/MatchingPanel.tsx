@@ -34,6 +34,7 @@ function MatchingPanel() {
   // Run state
   const [running, setRunning] = useState(false);
   const [report, setReport] = useState<MatchingReport | null>(null);
+  const [matchLimit, setMatchLimit] = useState<number | undefined>(50);
 
   // Pending matches
   const [pending, setPending] = useState<PendingMatchItem[]>([]);
@@ -87,7 +88,7 @@ function MatchingPanel() {
     setReport(null);
     setError(null);
     try {
-      const result = await runMatching(selectedSupplier);
+      const result = await runMatching(selectedSupplier, matchLimit);
       setReport(result);
       notify(
         `Rapprochement termine : ${result.auto_matched} matches, ${result.pending_review} en attente, ${result.auto_created} crees`,
@@ -176,6 +177,19 @@ function MatchingPanel() {
               </option>
             ))}
           </select>
+          <select
+            value={matchLimit ?? ''}
+            onChange={(e) => {
+              const val = e.target.value;
+              setMatchLimit(val ? Number(val) : undefined);
+            }}
+            className="rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] px-3 py-2 text-sm"
+          >
+            <option value="50">50 produits</option>
+            <option value="100">100 produits</option>
+            <option value="200">200 produits</option>
+            <option value="">Tous</option>
+          </select>
           <button
             type="button"
             onClick={handleRun}
@@ -218,6 +232,14 @@ function MatchingPanel() {
                 value={`${report.cost_estimate.toFixed(4)} €`}
               />
             </div>
+            {report.remaining > 0 && (
+              <div className="mt-3 flex items-center gap-2 p-3 rounded-md bg-[var(--color-bg-elevated)] border border-[var(--color-border-subtle)]">
+                <AlertTriangle className="w-4 h-4 text-[#B8860B] shrink-0" />
+                <p className="text-sm text-[var(--color-text-primary)]">
+                  {report.remaining} produit{report.remaining > 1 ? 's' : ''} restant{report.remaining > 1 ? 's' : ''} a traiter. Relancez le rapprochement pour continuer.
+                </p>
+              </div>
+            )}
             {report.errors > 0 && report.error_message && (
               <div className="mt-3 flex items-start gap-2 p-3 rounded-md bg-[var(--color-bg-elevated)] border border-red-500/30">
                 <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />

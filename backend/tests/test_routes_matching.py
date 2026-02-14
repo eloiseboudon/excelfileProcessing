@@ -124,7 +124,7 @@ class TestRunMatching:
         assert rv.status_code == 200
         data = rv.get_json()
         assert data["total_labels"] == 10
-        mock_run.assert_called_once_with(supplier_id=None)
+        mock_run.assert_called_once_with(supplier_id=None, limit=None)
 
     @patch("routes.matching.run_matching_job")
     def test_run_with_supplier(self, mock_run, client, admin_headers, supplier):
@@ -137,7 +137,23 @@ class TestRunMatching:
             data=json.dumps({"supplier_id": supplier.id}),
         )
         assert rv.status_code == 200
-        mock_run.assert_called_once_with(supplier_id=supplier.id)
+        mock_run.assert_called_once_with(supplier_id=supplier.id, limit=None)
+
+    @patch("routes.matching.run_matching_job")
+    def test_run_with_limit(self, mock_run, client, admin_headers):
+        mock_run.return_value = {"total_labels": 5, "from_cache": 0, "llm_calls": 1,
+                                  "auto_matched": 3, "pending_review": 1, "auto_created": 1,
+                                  "errors": 0, "cost_estimate": 0, "duration_seconds": 1,
+                                  "remaining": 10}
+        rv = client.post(
+            "/matching/run",
+            headers=admin_headers,
+            data=json.dumps({"limit": 50}),
+        )
+        assert rv.status_code == 200
+        mock_run.assert_called_once_with(supplier_id=None, limit=50)
+        data = rv.get_json()
+        assert data["remaining"] == 10
 
     def test_run_invalid_supplier(self, client, admin_headers):
         rv = client.post(

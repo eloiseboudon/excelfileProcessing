@@ -720,6 +720,7 @@ export interface MatchingReport {
   error_message?: string;
   cost_estimate: number;
   duration_seconds: number;
+  remaining: number;
 }
 
 export interface MatchingCandidate {
@@ -781,8 +782,10 @@ export interface CacheList {
   per_page: number;
 }
 
-export async function runMatching(supplierId?: number) {
-  const body = supplierId ? { supplier_id: supplierId } : {};
+export async function runMatching(supplierId?: number, limit?: number) {
+  const body: Record<string, unknown> = {};
+  if (supplierId) body.supplier_id = supplierId;
+  if (limit) body.limit = limit;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000);
   try {
