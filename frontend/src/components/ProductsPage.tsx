@@ -1,11 +1,12 @@
 import { ArrowLeft, ChevronLeft, ChevronRight, Package, RefreshCw } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import { calculateProducts, fetchProductPriceSummary, updateProduct } from '../api';
 import { getCurrentTimestamp, getCurrentWeekYear } from '../utils/date';
 import ProductEditModal from './ProductEditModal';
 import ProductReference from './ProductReference';
 import ProductTable from './ProductTable';
+import type { SortConfig } from './SortableColumnHeader';
 import SupplierPriceModal from './SupplierPriceModal';
 
 import {
@@ -238,8 +239,38 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
     })
   );
 
-  const totalPages = Math.max(1, Math.ceil(filteredData.length / rowsPerPage));
-  const paginatedData = filteredData.slice(
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ column: null, direction: null });
+
+  const handleSort = useCallback((column: string) => {
+    setSortConfig((prev) => {
+      if (prev.column !== column) return { column, direction: 'asc' };
+      if (prev.direction === 'asc') return { column, direction: 'desc' };
+      return { column: null, direction: null };
+    });
+  }, []);
+
+  const sortedData = useMemo(() => {
+    if (!sortConfig.column || !sortConfig.direction) return filteredData;
+    return [...filteredData].sort((a, b) => {
+      let aVal: any = (a as any)[sortConfig.column!];
+      let bVal: any = (b as any)[sortConfig.column!];
+      if (sortConfig.column!.startsWith('pa_')) {
+        aVal = a.buyPrices[sortConfig.column!.slice(3)];
+        bVal = b.buyPrices[sortConfig.column!.slice(3)];
+      }
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      if (typeof aVal === 'number' && typeof bVal === 'number')
+        return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
+      return sortConfig.direction === 'asc'
+        ? String(aVal).localeCompare(String(bVal), 'fr')
+        : String(bVal).localeCompare(String(aVal), 'fr');
+    });
+  }, [filteredData, sortConfig]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedData.length / rowsPerPage));
+  const paginatedData = sortedData.slice(
     (currentPage - 1) * rowsPerPage,
     currentPage * rowsPerPage
   );
@@ -802,6 +833,8 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
                 typeOptions={typeOptions}
                 ramOptions={ramOptions}
                 normeOptions={normeOptions}
+                sortConfig={sortConfig}
+                onSort={handleSort}
               />
             </div>
             <div className="px-4 py-3 border-t border-[var(--color-border-subtle)]">

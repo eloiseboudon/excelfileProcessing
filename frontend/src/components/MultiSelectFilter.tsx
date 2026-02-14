@@ -8,6 +8,7 @@ interface MultiSelectFilterProps {
 
 function MultiSelectFilter({ options, selected, onChange }: MultiSelectFilterProps) {
   const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -20,6 +21,12 @@ function MultiSelectFilter({ options, selected, onChange }: MultiSelectFilterPro
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (!open) {
+      setSearchQuery('');
+    }
+  }, [open]);
+
   const toggleOption = (opt: string, checked: boolean) => {
     if (checked) {
       onChange([...selected, opt]);
@@ -27,6 +34,10 @@ function MultiSelectFilter({ options, selected, onChange }: MultiSelectFilterPro
       onChange(selected.filter((v) => v !== opt));
     }
   };
+
+  const filteredOptions = options.filter((opt) =>
+    opt.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="relative" ref={containerRef}>
@@ -39,7 +50,17 @@ function MultiSelectFilter({ options, selected, onChange }: MultiSelectFilterPro
       </button>
       {open && (
         <div className="absolute z-10 mt-1 max-h-60 overflow-auto bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-strong)] rounded shadow-lg">
-          {options.map((opt) => (
+          <div className="p-1.5 border-b border-[var(--color-border-default)]">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              placeholder="Rechercher..."
+              className="w-full px-2 py-1 text-sm bg-[var(--color-bg-input)] border border-[var(--color-border-default)] rounded-md text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]"
+            />
+          </div>
+          {filteredOptions.map((opt) => (
             <label key={opt} className="flex items-center space-x-2 px-2 py-1 hover:bg-[var(--color-bg-elevated)]">
               <input
                 type="checkbox"

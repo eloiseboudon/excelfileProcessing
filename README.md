@@ -185,7 +185,7 @@ ajtpro/
 │   │   │   ├── InfoButton.tsx             # Bouton info (i)
 │   │   │   ├── LogsPanel.tsx              # Logs d'activite et logs applicatifs
 │   │   │   ├── LoginPage.tsx              # Page de connexion
-│   │   │   ├── MultiSelectFilter.tsx      # Filtre multi-selection
+│   │   │   ├── MultiSelectFilter.tsx      # Filtre multi-selection avec recherche
 │   │   │   ├── NotificationProvider.tsx   # Systeme de notifications
 │   │   │   ├── OdooSyncPanel.tsx         # Synchronisation Odoo (config, sync, historique)
 │   │   │   ├── ProcessingPage.tsx         # Traitement des donnees
@@ -199,6 +199,7 @@ ajtpro/
 │   │   │   ├── ProductsPage.tsx           # Page produits principale
 │   │   │   ├── ReferenceAdmin.tsx         # Admin tables de reference
 │   │   │   ├── SearchControls.tsx         # Controles de recherche
+│   │   │   ├── SortableColumnHeader.tsx  # En-tete de colonne triable
 │   │   │   ├── SearchPage.tsx             # Moteur de recherche
 │   │   │   ├── StatisticsPage.tsx         # Statistiques fournisseurs
 │   │   │   ├── StatsFilters.tsx           # Filtres statistiques
@@ -327,6 +328,8 @@ Le projet dispose d'un pipeline GitHub Actions complet :
 
 Page par defaut pour les utilisateurs non-clients. Tableau complet du referentiel produit accessible depuis l'onglet "Produits" (role admin uniquement). Permet de :
 - Consulter, filtrer et rechercher l'ensemble des produits du referentiel
+- **Trier** par colonne (ascendant/descendant) avec indicateur visuel dore
+- **Rechercher dans les filtres** multi-selection (champ de recherche dans les dropdowns)
 - Editer les produits directement dans le tableau (marque, couleur, memoire, type, RAM, norme)
 - Creer de nouveaux produits via le formulaire integre
 - Supprimer des produits individuellement ou en masse
@@ -442,7 +445,7 @@ python -m pytest tests/ -v
 
 ### Tests frontend
 
-Le framework `vitest` avec Testing Library est configure dans le frontend — 147 tests dans 15 fichiers :
+Le framework `vitest` avec Testing Library est configure dans le frontend — 160 tests dans 17 fichiers :
 
 ```bash
 cd frontend
