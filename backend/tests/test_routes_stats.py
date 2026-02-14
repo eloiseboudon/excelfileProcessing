@@ -122,6 +122,18 @@ def test_supplier_price_evolution(client, admin_headers, product_calcs):
     assert "SupplierB" in suppliers_in_data
 
 
+def test_supplier_price_evolution_with_product(client, admin_headers, product_calcs):
+    product = Product.query.first()
+    rv = client.get(
+        f"/supplier_price_evolution?product_id={product.id}", headers=admin_headers
+    )
+    assert rv.status_code == 200
+    data = rv.get_json()
+    assert len(data) >= 1
+    suppliers_in_data = {d["supplier"] for d in data}
+    assert "SupplierA" in suppliers_in_data
+
+
 def test_supplier_price_evolution_empty(client, admin_headers):
     rv = client.get("/supplier_price_evolution", headers=admin_headers)
     assert rv.status_code == 200

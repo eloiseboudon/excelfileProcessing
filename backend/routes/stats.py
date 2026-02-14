@@ -315,31 +315,12 @@ def supplier_price_evolution():
     """
     filters = {
         "supplier_id": request.args.get("supplier_id", type=int),
+        "product_id": request.args.get("product_id", type=int),
         "start_week": request.args.get("start_week"),
         "end_week": request.args.get("end_week"),
     }
 
-    query = ProductCalculation.query.join(Supplier)
-
-    if filters["supplier_id"]:
-        query = query.filter(ProductCalculation.supplier_id == filters["supplier_id"])
-
-    start_week = filters.get("start_week")
-    if start_week:
-        sy, sw = _parse_week(start_week)
-        query = query.filter(
-            extract("year", ProductCalculation.date) * 100
-            + extract("week", ProductCalculation.date)
-            >= sy * 100 + sw
-        )
-    end_week = filters.get("end_week")
-    if end_week:
-        ey, ew = _parse_week(end_week)
-        query = query.filter(
-            extract("year", ProductCalculation.date) * 100
-            + extract("week", ProductCalculation.date)
-            <= ey * 100 + ew
-        )
+    query = _build_stats_query(filters)
 
     week_field = extract("week", ProductCalculation.date).label("week")
     year_field = extract("year", ProductCalculation.date).label("year")

@@ -4,6 +4,7 @@ import StatsFilters from './StatsFilters';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   fetchSuppliers,
+  fetchProducts,
   fetchSupplierAvgPrice,
   fetchSupplierProductCount,
   fetchSupplierPriceDistribution,
@@ -265,12 +266,15 @@ function Legend({ items }: { items: { name: string; color: string }[] }) {
 
 function StatisticsPage({ onBack }: StatisticsPageProps) {
   const [suppliers, setSuppliers] = useState<{ id: number; name: string }[]>([]);
+  const [products, setProducts] = useState<{ id: number; model: string }[]>([]);
   const [avgPriceData, setAvgPriceData] = useState<SupplierAvg[]>([]);
   const [productCountData, setProductCountData] = useState<SupplierCount[]>([]);
   const [distributionData, setDistributionData] = useState<SupplierPrices[]>([]);
   const [evolutionData, setEvolutionData] = useState<SupplierEvolution[]>([]);
+  const [productEvolutionData, setProductEvolutionData] = useState<SupplierEvolution[]>([]);
 
   const [supplierId, setSupplierId] = useState<number | ''>('');
+  const [productId, setProductId] = useState<number | ''>('');
   const [startWeek, setStartWeek] = useState('');
   const [endWeek, setEndWeek] = useState('');
 
@@ -278,6 +282,9 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
     fetchSuppliers()
       .then((s) => setSuppliers(s as { id: number; name: string }[]))
       .catch(() => setSuppliers([]));
+    fetchProducts()
+      .then((p: { id: number; model: string }[]) => setProducts(p))
+      .catch(() => setProducts([]));
     fetchSupplierAvgPrice()
       .then(setAvgPriceData)
       .catch(() => setAvgPriceData([]));
@@ -308,6 +315,24 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
   useEffect(() => {
     loadEvolution();
   }, [loadEvolution]);
+
+  const loadProductEvolution = useCallback(() => {
+    if (!productId) {
+      setProductEvolutionData([]);
+      return;
+    }
+    fetchSupplierPriceEvolution({
+      productId: Number(productId),
+      startWeek: toApiWeek(startWeek),
+      endWeek: toApiWeek(endWeek),
+    })
+      .then(setProductEvolutionData)
+      .catch(() => setProductEvolutionData([]));
+  }, [productId, startWeek, endWeek]);
+
+  useEffect(() => {
+    loadProductEvolution();
+  }, [loadProductEvolution]);
 
   // ── Derived chart data ──────────────────────────────────────────
 
@@ -365,6 +390,23 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
     [evolutionSeries],
   );
 
+  const productEvolutionSeries = useMemo(() => {
+    const map: Record<string, Point[]> = {};
+    productEvolutionData.forEach((d) => {
+      if (!map[d.supplier]) map[d.supplier] = [];
+      map[d.supplier].push({ label: d.week, value: d.avg_price });
+    });
+    return Object.entries(map).map(([name, data]) => ({
+      name,
+      data: data.sort((a, b) => a.label.localeCompare(b.label)),
+    }));
+  }, [productEvolutionData]);
+
+  const productEvolutionLegend = useMemo(
+    () => productEvolutionSeries.map((s, i) => ({ name: s.name, color: COLORS[i % COLORS.length] })),
+    [productEvolutionSeries],
+  );
+
   const distributionLegend = useMemo(
     () => distributionSeries.map((s, i) => ({ name: s.name, color: COLORS[i % COLORS.length] })),
     [distributionSeries],
@@ -393,11 +435,14 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
       <StatsFilters
         supplierId={supplierId}
         setSupplierId={setSupplierId}
+        productId={productId}
+        setProductId={setProductId}
         startWeek={startWeek}
         setStartWeek={setStartWeek}
         endWeek={endWeek}
         setEndWeek={setEndWeek}
         suppliers={suppliers}
+        products={products}
       />
 
       <div className="space-y-6">
@@ -425,6 +470,21 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
             <p className="text-center text-sm text-[var(--color-text-muted)] mt-2">Pas de donnees</p>
           )}
         </div>
+
+        {/* Comparaison prix produit par fournisseur */}
+        {productId && (
+          <div className="card overflow-hidden">
+            <h2 className="font-semibold mb-2 flex items-center">
+              Comparaison prix produit par fournisseur
+              <InfoButton text="Prix moyen du produit selectionne compare entre fournisseurs au fil des semaines." />
+            </h2>
+            <MultiLineChart series={productEvolutionSeries} />
+            {productEvolutionSeries.length > 0 && <Legend items={productEvolutionLegend} />}
+            {productEvolutionSeries.length === 0 && (
+              <p className="text-center text-sm text-[var(--color-text-muted)] mt-2">Pas de donnees pour ce produit</p>
+            )}
+          </div>
+        )}
 
         {/* Nombre de produits par fournisseur */}
         <div className="card overflow-hidden">
