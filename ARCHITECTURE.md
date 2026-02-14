@@ -74,13 +74,13 @@ Relations :
 | `api_fetch_jobs`       | Historique des jobs de synchronisation (statut : `running`, `success`, `failed`, horodatages, rapports). |
 | `raw_ingests`          | Stockage brut des reponses API pour audit et rejeu.                                      |
 | `parsed_items`         | Donnees normalisees extraites des reponses API apres application du mapping.             |
-| `temporary_imports`    | Table de staging pour les produits importes avant integration definitive.                 |
+| `supplier_catalog`    | Table de staging pour les produits importes avant integration definitive.                 |
 | `supplier_product_refs`| References produit propres a chaque fournisseur (EAN, part_number, supplier_sku, last_seen_at). |
 
 Relations :
 - Un `api_fetch_job` produit un ou plusieurs `raw_ingests`.
 - Les `raw_ingests` alimentent les `parsed_items` via le mapping.
-- Les `parsed_items` sont ensuite injectes dans `temporary_imports`.
+- Les `parsed_items` sont ensuite injectes dans `supplier_catalog`.
 - Les `supplier_product_refs` font le lien entre un fournisseur (`supplier`) et un produit interne (`products`).
 
 ### 2.3 Produits et references internes
@@ -134,9 +134,9 @@ L'utilisateur declenche la synchronisation depuis le composant `SupplierApiSyncP
    |   Applique les regles de field_maps sur chaque item.
    |   Normalise les donnees (couleurs, marques, memoire, etc.).
    v
-4. _persist_temporary_imports()
+4. _persist_supplier_catalog()
    |   Deduplique les items normalises.
-   |   Insere dans parsed_items et temporary_imports.
+   |   Insere dans parsed_items et supplier_catalog.
    v
 5. Post-traitement
       Met a jour supplier_product_refs.last_seen_at pour les

@@ -44,14 +44,14 @@ Applique le mapping des champs aux éléments bruts :
 - Chaque élément est transformé en dictionnaire normalisé en appliquant la table de correspondance `field_maps` (mapping actif). Les éventuelles transformations déclarées sont exécutées pour ajuster les formats.
 - Les données sont normalisées (types numériques, formats de date, etc.).
 
-### 3.4 `_persist_temporary_imports(db_session, records, supplier_id, job)`
+### 3.4 `_persist_supplier_catalog(job, supplier_id, parsed_records)`
 
 Déduplique et stocke les résultats :
-- Les entrées `temporary_imports` existantes pour ce fournisseur sont supprimées avant d'insérer les nouvelles données, garantissant que la table reflète l'instantané le plus récent.
+- Les entrées `supplier_catalog` existantes pour ce fournisseur sont supprimées avant d'insérer les nouvelles données, garantissant que la table reflète l'instantané le plus récent.
 - Les articles sont dédupliqués sur la paire `(EAN, part_number)` pour éviter les doublons.
 - Pour chaque article conservé :
   - Insertion d'une ligne dans `parsed_items` (log détaillé des valeurs extraites).
-  - Insertion d'une ligne dans `temporary_imports` utilisée par les écrans de traitement/validation.
+  - Insertion d'une ligne dans `supplier_catalog` utilisée par les écrans de traitement/validation.
 
 ### Étapes transversales
 
@@ -72,7 +72,7 @@ En cas d'exception, une transaction `rollback` est effectuée, la tâche est mar
 | `api_fetch_jobs` | Historique des exécutions, paramètres utilisés, statut final, rapports générés. |
 | `raw_ingests` | Journal brut de la réponse HTTP (payload complet + métadonnées). |
 | `parsed_items` | Stockage détaillé des données normalisées par article pour audit et rapprochements ultérieurs. |
-| `temporary_imports` | Table tampon utilisée par l'interface pour visualiser et valider les articles importés; vidée puis repopulée à chaque synchronisation. |
+| `supplier_catalog` | Cache des catalogues fournisseurs utilisé par l'interface pour visualiser et valider les articles importés; vidée puis repopulée à chaque synchronisation. |
 | `supplier_product_refs` | Mise à jour du champ `last_seen_at` lorsque des références existantes sont rencontrées. |
 | `product_calculations` | Recalcul des prix/marges pour les produits internes correspondants au fournisseur synchronisé. |
 
@@ -102,7 +102,7 @@ La réponse doit être du JSON valide ; toute erreur réseau, authentification o
 Le backend renvoie un objet `SupplierApiSyncResponse` contenant :
 
 - Métadonnées de la tâche (`job_id`, statut, timestamps),
-- Compteurs (`parsed_count`, `temporary_import_count`),
+- Compteurs (`parsed_count`, `catalog_count`),
 - Échantillon des lignes insérées (`items`/`rows` limitées à 50),
 - Rapport analytique (`report` avec les trois listes : produits mis à jour, références manquantes en base, références manquantes dans l'API),
 - Synthèse du mapping utilisé (`mapping`).

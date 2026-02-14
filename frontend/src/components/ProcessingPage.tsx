@@ -113,7 +113,7 @@ function ImportZone({ supplier, file, lastImportDate, onFileChange, onRefreshCom
     try {
       const response = await refreshSupplierCatalog(supplier.id);
       const count =
-        response.temporary_import_count ??
+        response.catalog_count ??
         response.items?.length ??
         response.rows?.length ??
         0;

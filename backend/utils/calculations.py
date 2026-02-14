@@ -16,7 +16,7 @@ from models import (
     MemoryOption,
     Product,
     ProductCalculation,
-    TemporaryImport,
+    SupplierCatalog,
     db,
 )
 from utils.llm_matching import normalize_label
@@ -80,9 +80,9 @@ def process_description(
 
 
 def recalculate_product_calculations():
-    """Recompute ProductCalculation entries from TemporaryImport data."""
+    """Recompute ProductCalculation entries from SupplierCatalog data."""
     mappings = _load_mappings()
-    temps = TemporaryImport.query.all()
+    temps = SupplierCatalog.query.all()
 
     for temp in temps:
         characteristics = process_description(temp.description, temp.model, mappings)

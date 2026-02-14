@@ -1,6 +1,6 @@
-import { Barcode, Boxes, Loader2, PackageSearch } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
-import { fetchSearchCatalog } from '../api';
+import { Barcode, Boxes, Loader2, PackageSearch, RefreshCw } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { fetchSearchCatalog, refreshAllSupplierCatalogs } from '../api';
 import { normalizeText } from '../utils/text';
 import SearchControls from './SearchControls';
 
@@ -90,8 +90,10 @@ function SearchPage() {
   const [onlyInStock, setOnlyInStock] = useState(false);
   const [eanFilter, setEanFilter] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [refreshing, setRefreshing] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  useEffect(() => {
+  const loadCatalog = useCallback(() => {
     setLoading(true);
     fetchSearchCatalog()
       .then((res) => {
@@ -166,6 +168,36 @@ function SearchPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    loadCatalog();
+  }, [loadCatalog]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  const handleRefreshCatalog = async () => {
+    setRefreshing(true);
+    try {
+      const result = await refreshAllSupplierCatalogs();
+      setToast({
+        message: `Catalogues rafraîchis : ${result.total_items} articles en ${result.duration_seconds}s`,
+        type: 'success',
+      });
+      loadCatalog();
+    } catch (err) {
+      const message =
+        err instanceof Error && err.message
+          ? err.message
+          : 'Erreur lors du rafraîchissement des catalogues';
+      setToast({ message, type: 'error' });
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const supplierOptions = useMemo(() => {
     const uniqueSuppliers = new Set<string>();
     products.forEach((product) => {
@@ -217,14 +249,37 @@ function SearchPage() {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-semibold text-[var(--color-text-heading)] flex items-center gap-3">
-          <PackageSearch className="w-8 h-8 text-[#B8860B]" />
-          Moteur de recherche produits
-        </h1>
-        <p className="text-[var(--color-text-muted)] mt-1">
-          Explorez le catalogue, affinez vos recherches par prix ou mots-clés et accédez rapidement aux produits pertinents.
-        </p>
+      {toast && (
+        <div
+          className={`fixed top-4 right-4 z-50 rounded-md px-4 py-3 text-sm font-medium shadow-lg transition-opacity ${
+            toast.type === 'success'
+              ? 'bg-emerald-500/15 text-emerald-200 border border-emerald-500/30'
+              : 'bg-[var(--color-bg-elevated)] border border-red-500/30 text-red-400'
+          }`}
+        >
+          {toast.message}
+        </div>
+      )}
+
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-semibold text-[var(--color-text-heading)] flex items-center gap-3">
+            <PackageSearch className="w-8 h-8 text-[#B8860B]" />
+            Moteur de recherche produits
+          </h1>
+          <p className="text-[var(--color-text-muted)] mt-1">
+            Explorez le catalogue, affinez vos recherches par prix ou mots-clés et accédez rapidement aux produits pertinents.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="btn btn-secondary flex items-center gap-2 mt-1"
+          onClick={handleRefreshCatalog}
+          disabled={refreshing}
+        >
+          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+          {refreshing ? 'Rafraîchissement...' : 'Rafraîchir les catalogues'}
+        </button>
       </div>
 
       {loading ? (

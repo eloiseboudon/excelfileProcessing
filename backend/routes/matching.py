@@ -12,7 +12,7 @@ from models import (
     Product,
     Supplier,
     SupplierProductRef,
-    TemporaryImport,
+    SupplierCatalog,
     db,
 )
 from utils.auth import token_required
@@ -30,7 +30,7 @@ bp = Blueprint("matching", __name__)
 @bp.route("/matching/run", methods=["POST"])
 @token_required("admin")
 def run_matching():
-    """Launch LLM matching on unmatched temporary imports."""
+    """Launch LLM matching on unmatched supplier catalog entries."""
     data = request.get_json(silent=True) or {}
     supplier_id = data.get("supplier_id")
     limit = data.get("limit")
@@ -129,16 +129,16 @@ def validate_match():
     ).first()
 
     if not existing_ref:
-        temp_import = (
-            db.session.get(TemporaryImport, pm.temporary_import_id)
+        catalog_entry = (
+            db.session.get(SupplierCatalog, pm.temporary_import_id)
             if pm.temporary_import_id
             else None
         )
         ref = SupplierProductRef(
             supplier_id=pm.supplier_id,
             product_id=product_id,
-            ean=temp_import.ean if temp_import else None,
-            part_number=temp_import.part_number if temp_import else None,
+            ean=catalog_entry.ean if catalog_entry else None,
+            part_number=catalog_entry.part_number if catalog_entry else None,
             last_seen_at=datetime.now(timezone.utc),
         )
         db.session.add(ref)
@@ -193,16 +193,16 @@ def reject_match():
         pm.resolved_product_id = product.id
         pm.resolved_at = datetime.now(timezone.utc)
 
-        temp_import = (
-            db.session.get(TemporaryImport, pm.temporary_import_id)
+        catalog_entry = (
+            db.session.get(SupplierCatalog, pm.temporary_import_id)
             if pm.temporary_import_id
             else None
         )
         ref = SupplierProductRef(
             supplier_id=pm.supplier_id,
             product_id=product.id,
-            ean=temp_import.ean if temp_import else None,
-            part_number=temp_import.part_number if temp_import else None,
+            ean=catalog_entry.ean if catalog_entry else None,
+            part_number=catalog_entry.part_number if catalog_entry else None,
             last_seen_at=datetime.now(timezone.utc),
         )
         db.session.add(ref)

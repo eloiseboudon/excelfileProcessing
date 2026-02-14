@@ -14,7 +14,7 @@ L'application coordonne la synchronisation des donnees produits entre les fourni
    - `_validate_fetch_params` : validation et assemblage des parametres finaux (query/body).
    - `_execute_api_request` : execution de l'appel HTTP vers l'API fournisseur et stockage du flux brut.
    - `_parse_and_deduplicate` : extraction, normalisation et deduplication des articles recus.
-   - `_persist_temporary_imports` : persistence des lignes traitees dans les tables temporaires.
+   - `_persist_supplier_catalog` : persistence des lignes traitees dans le catalogue fournisseur.
 4. La reponse normalisee (50 premieres lignes, rapport, metadonnees de job) est renvoyee au front qui l'integre dans la vue et affiche une notification de succes ou d'erreur.
 
 ### Collecte des prix, quantites et stock
@@ -22,9 +22,9 @@ L'application coordonne la synchronisation des donnees produits entre les fourni
 - Le moteur interprete ensuite la reponse JSON : il suit `items_path` si defini pour isoler la liste d'articles, prepare les mappings de champs et impose la presence d'un identifiant `supplier_sku` pour garantir le rapprochement ulterieur.
 
 ### Normalisation et stockage temporaire
-- Chaque item est traduit en dictionnaire standard en appliquant la table de mapping (transformations comprises). Les anciennes entrees `TemporaryImport` du fournisseur sont purgees avant insertion afin que la table reflete l'etat le plus recent.
+- Chaque item est traduit en dictionnaire standard en appliquant la table de mapping (transformations comprises). Les anciennes entrees `SupplierCatalog` du fournisseur sont purgees avant insertion afin que la table reflete l'etat le plus recent.
 - Lors du chargement, l'ETL uniformise prix et quantites en acceptant differentes cles possibles (`price`, `selling_price`, `stock`, `availability`, etc.). Les lignes sont dedupliquees sur la combinaison `(EAN, part_number, supplier_sku)` ; un identifiant synthetique est cree si aucun n'est fourni.
-- Pour chaque ligne retenue, deux tables sont alimentees : `parsed_items` pour conserver l'historique detaille (valeurs sources, attributs marketing, prix recommandes, horodatage) et `temporary_imports` pour alimenter les ecrans de validation internes.
+- Pour chaque ligne retenue, deux tables sont alimentees : `parsed_items` pour conserver l'historique detaille (valeurs sources, attributs marketing, prix recommandes, horodatage) et `supplier_catalog` pour alimenter les ecrans de validation internes.
 
 ### Mise a jour du referentiel fournisseur
 - Apres normalisation, le moteur confronte les lignes importees aux references existantes (`SupplierProductRef`). Il essaye d'associer chaque enregistrement par `supplier_sku`, `EAN`, `part_number` ou `product_id` et met a jour le champ `last_seen_at` des references reconnues.

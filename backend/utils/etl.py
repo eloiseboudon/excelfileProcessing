@@ -12,7 +12,7 @@ from dateutil import parser as date_parser
 from flask import current_app, has_app_context
 from requests.auth import HTTPBasicAuth
 from sqlalchemy.orm import joinedload
-_TEMP_IMPORT_LOG_FILENAME = "temporary_imports.log"
+_TEMP_IMPORT_LOG_FILENAME = "supplier_catalog.log"
 
 from models import (
     ApiEndpoint,
@@ -26,7 +26,7 @@ from models import (
     RawIngest,
     Supplier,
     SupplierProductRef,
-    TemporaryImport,
+    SupplierCatalog,
     db,
 )
 
@@ -76,7 +76,7 @@ def _append_temp_import_log_entry(message: str) -> None:
     except OSError as exc:  # pragma: no cover - logging safeguard
         if has_app_context():
             current_app.logger.warning(
-                "Impossible d'écrire dans le journal temporary_imports: %s", exc
+                "Impossible d'écrire dans le journal supplier_catalog: %s", exc
             )
 
 
@@ -804,13 +804,13 @@ def _parse_and_deduplicate(
     return parsed_records, field_maps
 
 
-def _persist_temporary_imports(
+def _persist_supplier_catalog(
     job: ApiFetchJob,
     supplier_id: int,
     parsed_records: List[Dict[str, Any]],
 ) -> Tuple[List[Dict[str, Any]], int, int, int, int]:
-    """Deduplicate and persist temporary imports and parsed items."""
-    TemporaryImport.query.filter_by(supplier_id=supplier_id).delete(synchronize_session=False)
+    """Deduplicate and persist supplier catalog entries and parsed items."""
+    SupplierCatalog.query.filter_by(supplier_id=supplier_id).delete(synchronize_session=False)
 
     seen_keys: Set[Tuple[str, str, str]] = set()
     seen_eans: Set[str] = set()
@@ -920,7 +920,7 @@ def _persist_temporary_imports(
         )
         db.session.add(parsed_item)
 
-        temp_import = TemporaryImport(
+        catalog_entry = SupplierCatalog(
             supplier_id=supplier_id,
             description=cleaned_row["description"],
             model=cleaned_row["model"],
@@ -929,7 +929,7 @@ def _persist_temporary_imports(
             ean=cleaned_row["ean"],
             part_number=cleaned_row["part_number"],
         )
-        db.session.add(temp_import)
+        db.session.add(catalog_entry)
 
     return temp_rows, inserted_count, duplicate_count, skipped_no_identity, skipped_no_description
 
@@ -970,7 +970,7 @@ def run_fetch_job(
             duplicate_count,
             skipped_no_identity,
             skipped_no_description,
-        ) = _persist_temporary_imports(job, supplier_id, parsed_records)
+        ) = _persist_supplier_catalog(job, supplier_id, parsed_records)
 
         report_data = _update_product_prices_from_records(supplier_id, parsed_records)
 
@@ -1042,7 +1042,7 @@ def run_fetch_job(
             "supplier": supplier.name,
             "status": job.status,
             "parsed_count": len(parsed_records),
-            "temporary_import_count": len(temp_rows),
+            "catalog_count": len(temp_rows),
             "started_at": job.started_at.isoformat() if job.started_at else None,
             "ended_at": job.ended_at.isoformat() if job.ended_at else None,
             "items": preview_rows,

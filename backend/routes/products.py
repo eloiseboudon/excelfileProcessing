@@ -1,5 +1,6 @@
 import logging
 import math
+import time
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import Dict, Set
@@ -17,7 +18,7 @@ from models import (
     Product,
     ProductCalculation,
     SupplierAPI,
-    TemporaryImport,
+    SupplierCatalog,
     db,
 )
 from sqlalchemy import func
@@ -74,8 +75,8 @@ def _ensure_daily_supplier_cache() -> None:
                 .first()
             )
             has_temp_data = (
-                TemporaryImport.query.filter(
-                    TemporaryImport.supplier_id == supplier.id
+                SupplierCatalog.query.filter(
+                    SupplierCatalog.supplier_id == supplier.id
                 )
                 .limit(1)
                 .first()
@@ -132,7 +133,7 @@ bp = Blueprint("products", __name__)
 @bp.route("/search_catalog", methods=["GET"])
 @token_required()
 def list_search_catalog():
-    """Return daily supplier catalog cached in temporary imports."""
+    """Return daily supplier catalog."""
 
     try:
         _ensure_daily_supplier_cache()
@@ -155,13 +156,13 @@ def list_search_catalog():
             synonyms.add(translation.color_source)
 
     entries = (
-        TemporaryImport.query.options(
-            joinedload(TemporaryImport.brand),
-            joinedload(TemporaryImport.supplier),
-            joinedload(TemporaryImport.color),
+        SupplierCatalog.query.options(
+            joinedload(SupplierCatalog.brand),
+            joinedload(SupplierCatalog.supplier),
+            joinedload(SupplierCatalog.color),
         )
-        .filter(TemporaryImport.supplier_id.isnot(None))
-        .order_by(TemporaryImport.model.asc(), TemporaryImport.description.asc())
+        .filter(SupplierCatalog.supplier_id.isnot(None))
+        .order_by(SupplierCatalog.model.asc(), SupplierCatalog.description.asc())
         .all()
     )
 
@@ -203,6 +204,76 @@ def list_search_catalog():
         )
 
     return jsonify(results)
+
+
+@bp.route("/supplier_catalog/refresh", methods=["POST"])
+@token_required("admin")
+def refresh_supplier_catalog():
+    """Force-refresh supplier catalogs by re-fetching all configured APIs."""
+    start = time.time()
+
+    supplier_apis = (
+        SupplierAPI.query.options(joinedload(SupplierAPI.endpoints))
+        .filter(SupplierAPI.endpoints.any())
+        .all()
+    )
+
+    total_items = 0
+    refreshed_suppliers = []
+
+    for api in supplier_apis:
+        supplier = api.supplier
+        if not supplier:
+            continue
+
+        mapping_query = MappingVersion.query.filter_by(supplier_api_id=api.id)
+        mapping = (
+            mapping_query.filter(MappingVersion.is_active.is_(True))
+            .order_by(MappingVersion.version.desc(), MappingVersion.id.desc())
+            .first()
+        )
+        if not mapping:
+            mapping = (
+                mapping_query.order_by(
+                    MappingVersion.version.desc(), MappingVersion.id.desc()
+                )
+                .first()
+            )
+        if not mapping:
+            continue
+
+        for endpoint in api.endpoints:
+            job = ApiFetchJob(
+                supplier_api_id=api.id,
+                endpoint_id=endpoint.id,
+                mapping_version_id=mapping.id,
+                status="running",
+            )
+            db.session.add(job)
+            db.session.commit()
+
+            try:
+                result = run_fetch_job(
+                    job_id=job.id,
+                    supplier_id=supplier.id,
+                    endpoint_id=endpoint.id,
+                    mapping_id=mapping.id,
+                )
+                total_items += result.get("catalog_count", 0)
+                refreshed_suppliers.append(supplier.name)
+            except RuntimeError as exc:
+                current_app.logger.warning(
+                    "Refresh failed for supplier %s: %s", supplier.name, exc
+                )
+
+    duration = round(time.time() - start, 2)
+
+    return jsonify({
+        "status": "success",
+        "refreshed_suppliers": refreshed_suppliers,
+        "total_items": total_items,
+        "duration_seconds": duration,
+    })
 
 
 @bp.route("/product_calculation", methods=["GET"])
@@ -598,7 +669,7 @@ def refresh():
         description: Confirmation message
     """
     ProductCalculation.query.delete()
-    TemporaryImport.query.delete()
+    SupplierCatalog.query.delete()
     return jsonify({"status": "success", "message": "Calculations produits vides"})
 
 

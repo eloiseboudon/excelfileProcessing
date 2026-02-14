@@ -3,10 +3,10 @@
 import json
 import math
 from datetime import datetime, timezone
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
-from models import Brand, Product, ProductCalculation, Supplier, db
+from models import Brand, Product, ProductCalculation, Supplier, SupplierAPI, ApiEndpoint, MappingVersion, db
 from routes.products import _safe_float
 
 
@@ -241,3 +241,50 @@ def test_product_price_summary_zero_price(client, admin_headers):
     data = rv.get_json()
     ids = [item["id"] for item in data]
     assert product.id in ids
+
+
+# ── POST /supplier_catalog/refresh ──────────────────────────────
+
+
+def test_refresh_supplier_catalog_requires_admin(client, client_headers):
+    rv = client.post("/supplier_catalog/refresh", headers=client_headers)
+    assert rv.status_code == 403
+
+
+@patch("routes.products.run_fetch_job")
+def test_refresh_supplier_catalog_success(mock_fetch, client, admin_headers):
+    """POST /supplier_catalog/refresh should trigger a refresh of all configured suppliers."""
+    supplier = Supplier(name="RefreshSupplier")
+    db.session.add(supplier)
+    db.session.commit()
+
+    api = SupplierAPI(supplier_id=supplier.id, base_url="https://example.com")
+    db.session.add(api)
+    db.session.commit()
+
+    endpoint = ApiEndpoint(
+        supplier_api_id=api.id,
+        name="products",
+        path="/products",
+    )
+    db.session.add(endpoint)
+    db.session.commit()
+
+    mapping = MappingVersion(
+        supplier_api_id=api.id,
+        version=1,
+        is_active=True,
+    )
+    db.session.add(mapping)
+    db.session.commit()
+
+    mock_fetch.return_value = {"catalog_count": 42}
+
+    rv = client.post("/supplier_catalog/refresh", headers=admin_headers)
+    assert rv.status_code == 200
+    data = rv.get_json()
+    assert data["status"] == "success"
+    assert data["total_items"] == 42
+    assert "RefreshSupplier" in data["refreshed_suppliers"]
+    assert "duration_seconds" in data
+    mock_fetch.assert_called_once()

@@ -191,7 +191,7 @@ export interface SupplierApiSyncResponse {
   supplier: string;
   status: string;
   parsed_count: number;
-  temporary_import_count: number;
+  catalog_count: number;
   started_at?: string | null;
   ended_at?: string | null;
   items: SupplierApiRow[];
@@ -457,6 +457,21 @@ export async function fetchProductPriceSummary() {
 
 export async function fetchSearchCatalog() {
   const res = await fetchWithAuth(`${API_BASE}/search_catalog`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json();
+}
+
+export async function refreshAllSupplierCatalogs(): Promise<{
+  status: string;
+  refreshed_suppliers: string[];
+  total_items: number;
+  duration_seconds: number;
+}> {
+  const res = await fetchWithAuth(`${API_BASE}/supplier_catalog/refresh`, {
+    method: 'POST',
+  });
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }

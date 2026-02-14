@@ -9,7 +9,7 @@ from models import (
     PendingMatch,
     Product,
     Supplier,
-    TemporaryImport,
+    SupplierCatalog,
     db,
 )
 
@@ -203,7 +203,7 @@ class TestPendingMatch:
         assert fetched.resolved_at is not None
 
     def test_with_temporary_import(self, supplier):
-        ti = TemporaryImport(
+        ti = SupplierCatalog(
             description="Test Import",
             quantity=1,
             selling_price=100.0,
@@ -243,7 +243,7 @@ class TestProductRegion:
         assert fetched.region is None
 
     def test_temporary_import_region(self, supplier):
-        ti = TemporaryImport(
+        ti = SupplierCatalog(
             description="Test",
             quantity=1,
             selling_price=100.0,
@@ -253,5 +253,5 @@ class TestProductRegion:
         db.session.add(ti)
         db.session.commit()
 
-        fetched = TemporaryImport.query.first()
+        fetched = SupplierCatalog.query.first()
         assert fetched.region == "IN"

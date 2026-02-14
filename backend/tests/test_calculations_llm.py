@@ -9,7 +9,7 @@ from models import (
     Product,
     ProductCalculation,
     Supplier,
-    TemporaryImport,
+    SupplierCatalog,
     db,
 )
 from utils.calculations import recalculate_product_calculations
@@ -53,8 +53,8 @@ def product(brand, memory):
 
 
 def test_recalculate_uses_label_cache(supplier, product):
-    """A TemporaryImport with no EAN/model match should be matched via LabelCache."""
-    temp = TemporaryImport(
+    """A SupplierCatalog with no EAN/model match should be matched via LabelCache."""
+    temp = SupplierCatalog(
         description="Apple iPhone 15 128Go Noir",
         selling_price=500.0,
         quantity=3,
@@ -90,7 +90,7 @@ def test_recalculate_ean_priority_over_cache(supplier, product, brand, memory):
     db.session.add(other_product)
     db.session.commit()
 
-    temp = TemporaryImport(
+    temp = SupplierCatalog(
         description="Apple iPhone 15 128Go Noir",
         ean="9999999999999",
         selling_price=600.0,
@@ -131,7 +131,7 @@ def test_recalculate_handles_product_without_memory(supplier, brand):
     db.session.add(p)
     db.session.commit()
 
-    temp = TemporaryImport(
+    temp = SupplierCatalog(
         description="Test Phone",
         ean="1111111111111",
         selling_price=300.0,
@@ -165,14 +165,14 @@ def test_recalculate_continues_on_error(supplier, brand, memory):
     db.session.add_all([p1, p2])
     db.session.commit()
 
-    temp1 = TemporaryImport(
+    temp1 = SupplierCatalog(
         description="Good Product",
         ean="2222222222222",
         selling_price=200.0,
         quantity=1,
         supplier_id=supplier.id,
     )
-    temp2 = TemporaryImport(
+    temp2 = SupplierCatalog(
         description="Another Good Product",
         ean="3333333333333",
         selling_price=400.0,
@@ -190,7 +190,7 @@ def test_recalculate_continues_on_error(supplier, brand, memory):
 
 def test_recalculate_ignores_cache_without_product(supplier):
     """LabelCache entries without product_id should be ignored."""
-    temp = TemporaryImport(
+    temp = SupplierCatalog(
         description="Unknown gadget XYZ",
         selling_price=100.0,
         quantity=1,
