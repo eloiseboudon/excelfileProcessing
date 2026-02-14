@@ -164,6 +164,7 @@ Module de matching intelligent qui utilise Claude Haiku (Anthropic) pour associe
 - **Table de correspondance** : codes constructeur Samsung (SM-S938B -> Galaxy S25 Ultra, etc.) et 24 traductions de couleurs (Midnight -> Noir, Starlight -> Blanc, etc.)
 - **Interface de validation** : onglet "Rapprochement" dans la page Synchro avec declenchement par fournisseur, rapport resume, liste des matchs en attente avec badges attributs, barres de score et boutons Valider/Creer/Ignorer
 - **Statistiques** : taux de cache hit, nombre de matchs en attente, repartition auto/manual par fournisseur
+- **Integration TCP/marges** : les produits rapproches par LLM apparaissent automatiquement dans le tableau des calculs de prix. Le moteur de calcul (`recalculate_product_calculations`) consulte le `LabelCache` en fallback apres les matchs EAN et Model. Les identifiants EAN et part_number sont copies dans `SupplierProductRef` lors de la validation ou creation. Les produits sans marque (crees par le LLM) sont inclus grace a des `outerjoin` sur Brand
 - **7 endpoints API** : run, pending, validate, reject, stats, cache, delete cache
 
 Modeles ajoutes : `ModelReference`, `LabelCache`, `PendingMatch`. Colonne `region` ajoutee sur `Product` et `TemporaryImport`.
@@ -183,8 +184,8 @@ Infrastructure de tests unitaires et d'integration pour le backend et le fronten
 - **Infrastructure** : SQLite in-memory, fixtures `admin_user`, `client_user`, `admin_headers`
 - **Tests unitaires** : `utils/pricing.py` (seuils, TCP, marges, edge cases), `utils/auth.py` (JWT generation, decodage, expiration, decorator)
 - **Tests d'integration** : routes `POST /login`, CRUD `/users`, CRUD `/products`, operations en masse (`bulk_update`, `bulk_delete`), routes Odoo (config, test connexion, sync, jobs, auto-sync)
-- **Tests LLM matching** : modeles (13 tests), extraction et scoring (32 tests), routes API (23 tests)
-- **139 tests** dans 9 fichiers
+- **Tests LLM matching** : modeles (13 tests), extraction et scoring (32 tests), routes API (23 tests), integration calculs/LabelCache (3 tests)
+- **162 tests** dans 10 fichiers
 - **Zero warning applicatif** : `datetime.utcnow()` remplace par `datetime.now(timezone.utc)`, `Query.get()` remplace par `db.session.get()`, secret JWT >= 32 octets
 
 ### Frontend (Vitest + Testing Library)

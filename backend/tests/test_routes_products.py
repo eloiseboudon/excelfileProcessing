@@ -1,9 +1,10 @@
 """Tests for routes/products.py – CRUD products and bulk ops."""
 
 import json
+from datetime import datetime, timezone
 
 import pytest
-from models import Brand, Product, db
+from models import Brand, Product, ProductCalculation, Supplier, db
 
 
 @pytest.fixture()
@@ -124,3 +125,40 @@ def test_bulk_delete_invalid_payload(client, admin_headers):
         headers=admin_headers,
     )
     assert rv.status_code == 400
+
+
+# ── product_price_summary with brandless products ─────────────────
+
+
+def test_product_price_summary_includes_brandless(client, admin_headers):
+    """Products without a brand should still appear in product_price_summary."""
+    supplier = Supplier(name="NoBrandSupplier")
+    db.session.add(supplier)
+    db.session.commit()
+
+    product = Product(model="NoBrandProduct", brand_id=None)
+    db.session.add(product)
+    db.session.commit()
+
+    calc = ProductCalculation(
+        product_id=product.id,
+        supplier_id=supplier.id,
+        price=100.0,
+        tcp=10.0,
+        marge4_5=5.0,
+        prixht_tcp_marge4_5=115.0,
+        prixht_marge4_5=105.0,
+        prixht_max=120.0,
+        marge=10.0,
+        marge_percent=9.09,
+        date=datetime.now(timezone.utc),
+        stock=5,
+    )
+    db.session.add(calc)
+    db.session.commit()
+
+    rv = client.get("/product_price_summary", headers=admin_headers)
+    assert rv.status_code == 200
+    data = rv.get_json()
+    ids = [item["id"] for item in data]
+    assert product.id in ids

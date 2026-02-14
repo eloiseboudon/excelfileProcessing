@@ -13,6 +13,7 @@ from models import (
     Product,
     Supplier,
     SupplierProductRef,
+    TemporaryImport,
     db,
 )
 
@@ -236,6 +237,46 @@ class TestValidateMatch:
         )
         assert rv.status_code == 400
 
+    def test_validate_copies_identifiers(self, client, admin_headers, product, supplier):
+        """Validate should copy ean/part_number from TemporaryImport to SupplierProductRef."""
+        temp = TemporaryImport(
+            description="SM-S938B 256 BLK",
+            ean="1112223334445",
+            part_number="SM-S938B",
+            selling_price=700.0,
+            supplier_id=supplier.id,
+        )
+        db.session.add(temp)
+        db.session.commit()
+
+        pm = PendingMatch(
+            supplier_id=supplier.id,
+            temporary_import_id=temp.id,
+            source_label="SM-S938B 256 BLK",
+            extracted_attributes={"brand": "Samsung"},
+            candidates=[{"product_id": product.id, "score": 80}],
+            status="pending",
+        )
+        db.session.add(pm)
+        db.session.commit()
+
+        rv = client.post(
+            "/matching/validate",
+            headers=admin_headers,
+            data=json.dumps({
+                "pending_match_id": pm.id,
+                "product_id": product.id,
+            }),
+        )
+        assert rv.status_code == 200
+
+        ref = SupplierProductRef.query.filter_by(
+            supplier_id=supplier.id, product_id=product.id
+        ).first()
+        assert ref is not None
+        assert ref.ean == "1112223334445"
+        assert ref.part_number == "SM-S938B"
+
     def test_validate_creates_cache(self, client, admin_headers, pending_match, product):
         rv = client.post(
             "/matching/validate",
@@ -286,6 +327,47 @@ class TestRejectMatch:
 
         pm = db.session.get(PendingMatch, pending_match.id)
         assert pm.resolved_product_id is not None
+
+    def test_reject_create_copies_identifiers(self, client, admin_headers, supplier, brand):
+        """Reject+create should copy ean/part_number from TemporaryImport to SupplierProductRef."""
+        temp = TemporaryImport(
+            description="SM-S938B 256 BLK",
+            ean="5556667778880",
+            part_number="SM-S938B",
+            selling_price=700.0,
+            supplier_id=supplier.id,
+        )
+        db.session.add(temp)
+        db.session.commit()
+
+        pm = PendingMatch(
+            supplier_id=supplier.id,
+            temporary_import_id=temp.id,
+            source_label="SM-S938B 256 BLK",
+            extracted_attributes={"brand": "Samsung", "model_family": "Galaxy S25 Ultra"},
+            candidates=[],
+            status="pending",
+        )
+        db.session.add(pm)
+        db.session.commit()
+
+        rv = client.post(
+            "/matching/reject",
+            headers=admin_headers,
+            data=json.dumps({
+                "pending_match_id": pm.id,
+                "create_product": True,
+            }),
+        )
+        assert rv.status_code == 200
+
+        pm_updated = db.session.get(PendingMatch, pm.id)
+        ref = SupplierProductRef.query.filter_by(
+            supplier_id=supplier.id, product_id=pm_updated.resolved_product_id
+        ).first()
+        assert ref is not None
+        assert ref.ean == "5556667778880"
+        assert ref.part_number == "SM-S938B"
 
     def test_reject_not_found(self, client, admin_headers):
         rv = client.post(

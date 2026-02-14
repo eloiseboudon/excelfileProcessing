@@ -206,7 +206,7 @@ def list_product_calculations():
 
     calculations = (
         ProductCalculation.query.join(Product)
-        .join(Brand)
+        .outerjoin(Brand)
         .filter(
             ProductCalculation.date >= start_of_week,
             ProductCalculation.date < end_of_week,
@@ -318,7 +318,7 @@ def product_price_summary():
             & (ProductCalculation.date == subq.c.latest),
         )
         .join(Product)
-        .join(Brand)
+        .outerjoin(Brand)
         .all()
     )
 

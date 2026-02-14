@@ -21,7 +21,7 @@ def _parse_week(w):
 
 def _build_stats_query(filters):
     """Build a filtered ProductCalculation query from common stat filters."""
-    query = ProductCalculation.query.join(Supplier).join(Product).join(Brand)
+    query = ProductCalculation.query.join(Supplier).join(Product).outerjoin(Brand)
 
     if filters.get("supplier_id"):
         query = query.filter(ProductCalculation.supplier_id == filters["supplier_id"])

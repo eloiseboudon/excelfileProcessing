@@ -9,12 +9,14 @@ from models import (
     Color,
     ColorTranslation,
     DeviceType,
+    LabelCache,
     MemoryOption,
     Product,
     ProductCalculation,
     TemporaryImport,
     db,
 )
+from utils.llm_matching import normalize_label
 from utils.pricing import compute_margin_prices
 
 
@@ -89,6 +91,11 @@ def recalculate_product_calculations():
 
     db.session.commit()
 
+    # Preload LabelCache as dict: (supplier_id, normalized_label) → product_id
+    label_cache_map: Dict[Tuple[int, str], int] = {}
+    for lc in LabelCache.query.filter(LabelCache.product_id.isnot(None)).all():
+        label_cache_map[(lc.supplier_id, lc.normalized_label)] = lc.product_id
+
     for temp in temps:
         product = None
         ean = (temp.ean or "").strip() if temp.ean else ""
@@ -107,9 +114,16 @@ def recalculate_product_calculations():
                 query = query.filter(Product.model.ilike(f"%{temp.model}%"))
             product = query.first()
 
-        # if not product and temp.type_id is not None:
-        #     query_type = query.filter(Product.type_id == temp.type_id)
-        #     product = query_type.first()
+        # Fallback: LabelCache lookup for LLM-matched products
+        if not product and temp.supplier_id:
+            raw_label = temp.description or temp.model or ""
+            if raw_label:
+                normalized = normalize_label(raw_label)
+                cached_product_id = label_cache_map.get(
+                    (temp.supplier_id, normalized)
+                )
+                if cached_product_id:
+                    product = db.session.get(Product, cached_product_id)
 
         if not product:
             continue
