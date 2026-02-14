@@ -91,7 +91,18 @@ describe('MatchingPanel', () => {
     });
   });
 
-  it('runs matching and shows report', async () => {
+  it('renders the limit selector', async () => {
+    renderPanel();
+    await waitFor(() => {
+      expect(screen.getByText('Lancer le rapprochement')).toBeInTheDocument();
+    });
+    expect(screen.getByText('50 produits')).toBeInTheDocument();
+    expect(screen.getByText('100 produits')).toBeInTheDocument();
+    expect(screen.getByText('200 produits')).toBeInTheDocument();
+    expect(screen.getByText('Tous')).toBeInTheDocument();
+  });
+
+  it('runs matching with default limit and shows report', async () => {
     mockRunMatching.mockResolvedValue({
       total_labels: 10,
       from_cache: 3,
@@ -102,6 +113,7 @@ describe('MatchingPanel', () => {
       errors: 0,
       cost_estimate: 0.0012,
       duration_seconds: 3.5,
+      remaining: 0,
     });
 
     renderPanel();
@@ -112,12 +124,40 @@ describe('MatchingPanel', () => {
     fireEvent.click(screen.getByText('Lancer le rapprochement'));
 
     await waitFor(() => {
-      expect(mockRunMatching).toHaveBeenCalledTimes(1);
+      expect(mockRunMatching).toHaveBeenCalledWith(undefined, 50);
     });
 
     await waitFor(() => {
       expect(screen.getByText('5')).toBeInTheDocument();
       expect(screen.getByText('Matches auto')).toBeInTheDocument();
+    });
+  });
+
+  it('shows remaining count after run with limit', async () => {
+    mockRunMatching.mockResolvedValue({
+      total_labels: 50,
+      from_cache: 0,
+      llm_calls: 2,
+      auto_matched: 30,
+      pending_review: 10,
+      auto_created: 10,
+      errors: 0,
+      cost_estimate: 0.005,
+      duration_seconds: 5.0,
+      remaining: 150,
+    });
+
+    renderPanel();
+    await waitFor(() => {
+      expect(screen.getByText('Lancer le rapprochement')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Lancer le rapprochement'));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/150 produits restants a traiter/)
+      ).toBeInTheDocument();
     });
   });
 

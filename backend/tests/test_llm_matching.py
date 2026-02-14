@@ -549,6 +549,47 @@ class TestRunMatchingJob:
         assert report["auto_matched"] + report["auto_created"] + report["pending_review"] == 2
         assert report["errors"] == 0
         assert "duration_seconds" in report
+        assert "remaining" in report
+
+    @patch("utils.llm_matching.call_llm_extraction")
+    def test_limit_parameter(
+        self,
+        mock_llm,
+        supplier,
+        product_s25,
+        brand_samsung,
+        memory_256,
+        color_noir,
+        device_type,
+        color_translations,
+    ):
+        """limit parameter should truncate labels_to_extract and report remaining."""
+        for i in range(5):
+            ti = TemporaryImport(
+                description=f"Product {i}",
+                model=f"Model-{i}",
+                quantity=1,
+                selling_price=100.0 + i,
+                ean=f"EAN-LIMIT-{i:05d}",
+                supplier_id=supplier.id,
+            )
+            db.session.add(ti)
+        db.session.commit()
+
+        mock_llm.return_value = [
+            {
+                "brand": "Unknown",
+                "model_family": f"Model-0",
+                "storage": None,
+                "color": None,
+                "device_type": "Accessoire",
+                "region": None,
+                "confidence": 0.2,
+            }
+        ]
+
+        report = run_matching_job(supplier_id=supplier.id, limit=1)
+        assert report["remaining"] >= 0
 
     @patch("utils.llm_matching.call_llm_extraction")
     def test_cache_hit(

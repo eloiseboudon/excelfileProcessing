@@ -166,6 +166,7 @@ Module de matching intelligent qui utilise Claude Haiku (Anthropic) pour associe
 - **Interface de validation** : onglet "Rapprochement" dans la page Synchro avec declenchement par fournisseur, rapport resume (incluant compteur d'erreurs), liste des matchs en attente avec badges attributs, barres de score et boutons Valider/Creer/Ignorer
 - **Statistiques** : taux de cache hit, nombre de matchs en attente, repartition auto/manual par fournisseur
 - **Integration TCP/marges** : les produits rapproches par LLM apparaissent automatiquement dans le tableau des calculs de prix. Le moteur de calcul (`recalculate_product_calculations`) consulte le `LabelCache` en fallback apres les matchs EAN et Model. Les identifiants EAN et part_number sont copies dans `SupplierProductRef` lors de la validation ou creation. Les produits sans marque (crees par le LLM) sont inclus grace a des `outerjoin` sur Brand
+- **Lotissement (limit)** : parametre `limit` sur `run_matching_job` pour traiter les produits par lots (50, 100, 200 ou tous). Evite les timeouts 504 nginx/gunicorn sur les grands catalogues. Le rapport inclut `remaining` pour que l'utilisateur sache combien de produits restent a traiter. Selecteur de limite visible dans l'interface
 - **7 endpoints API** : run, pending, validate, reject, stats, cache, delete cache
 
 Modeles ajoutes : `ModelReference`, `LabelCache`, `PendingMatch`. Colonne `region` ajoutee sur `Product` et `TemporaryImport`.
@@ -173,6 +174,18 @@ Modeles ajoutes : `ModelReference`, `LabelCache`, `PendingMatch`. Colonne `regio
 Pre-requis : cle API Anthropic (`ANTHROPIC_API_KEY` dans `.env`). Cout estime : < 0.30€ par sync de 3000 produits.
 
 Composants concernes : `MatchingPanel`, `DataImportPage`
+
+---
+
+## Corrections de stabilite production (implementee)
+
+Corrections de 3 erreurs en production :
+
+- **Fix 504 matching timeout** : ajout du parametre `limit` pour traiter les produits par lots au lieu de tout traiter d'un coup. Selecteur dans l'interface (50/100/200/Tous) avec affichage du nombre restant
+- **Fix 500 `/calculate_products`** : correction du crash `product.memory.memory.upper()` quand `.memory` est None, ajout de `_is_invalid()` pour verifier NaN et Inf sur toutes les valeurs, remplacement de `print()` par `logger.warning()`, enveloppement de chaque produit dans un try-except pour eviter qu'une erreur ne bloque tout le calcul
+- **Fix 500 `/product_price_summary`** : ajout de `_safe_float()` pour coercer les NaN/Inf en 0 dans les valeurs de calcul, protection `p is None: continue`, try-except sur la route `/calculate_products` avec retour 500 explicite
+
+Fichiers concernes : `backend/utils/calculations.py`, `backend/routes/products.py`, `backend/routes/matching.py`, `backend/utils/llm_matching.py`, `frontend/src/api.ts`, `frontend/src/components/MatchingPanel.tsx`
 
 ---
 
@@ -200,15 +213,15 @@ Infrastructure de tests unitaires et d'integration pour le backend et le fronten
 - **Infrastructure** : SQLite in-memory, fixtures `admin_user`, `client_user`, `admin_headers`
 - **Tests unitaires** : `utils/pricing.py` (seuils, TCP, marges, edge cases), `utils/auth.py` (JWT generation, decodage, expiration, decorator)
 - **Tests d'integration** : routes `POST /login`, CRUD `/users`, CRUD `/products`, operations en masse (`bulk_update`, `bulk_delete`), routes Odoo (config, test connexion, sync, jobs, auto-sync)
-- **Tests LLM matching** : modeles (13 tests), extraction et scoring (32 tests), routes API (23 tests), integration calculs/LabelCache (3 tests)
-- **162 tests** dans 10 fichiers
+- **Tests LLM matching** : modeles (13 tests), extraction et scoring (33 tests), routes API (24 tests), integration calculs/LabelCache (5 tests)
+- **174 tests** dans 12 fichiers
 - **Zero warning applicatif** : `datetime.utcnow()` remplace par `datetime.now(timezone.utc)`, `Query.get()` remplace par `db.session.get()`, secret JWT >= 32 octets
 
 ### Frontend (Vitest + Testing Library)
 
 - **Tests utils** : `date.ts`, `numbers.ts`, `text.ts`, `processing.ts`, `html.ts` (fonctions pures)
 - **Tests composants** : `LoginPage`, `NotificationProvider`, `App` (rendu, formulaires, navigation conditionnelle)
-- **Tests composants** : `MatchingPanel` (render, run matching, validation, rejet, pagination)
+- **Tests composants** : `MatchingPanel` (render, run matching avec limit, validation, rejet, remaining, pagination)
 - **127 tests** dans 13 fichiers
 
 ### CI/CD

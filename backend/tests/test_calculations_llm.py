@@ -120,6 +120,74 @@ def test_recalculate_ean_priority_over_cache(supplier, product, brand, memory):
     assert other_calc is None, "Cache product should NOT get a calculation (EAN won)"
 
 
+def test_recalculate_handles_product_without_memory(supplier, brand):
+    """Product without memory relation should not crash."""
+    p = Product(
+        model="Test Phone No Memory",
+        brand_id=brand.id,
+        memory_id=None,
+        ean="1111111111111",
+    )
+    db.session.add(p)
+    db.session.commit()
+
+    temp = TemporaryImport(
+        description="Test Phone",
+        ean="1111111111111",
+        selling_price=300.0,
+        quantity=1,
+        supplier_id=supplier.id,
+    )
+    db.session.add(temp)
+    db.session.commit()
+
+    recalculate_product_calculations()
+
+    calc = ProductCalculation.query.filter_by(product_id=p.id).first()
+    assert calc is not None
+    assert calc.price == 300.0
+
+
+def test_recalculate_continues_on_error(supplier, brand, memory):
+    """If one product errors during calc, others should still be processed."""
+    p1 = Product(
+        model="Good Product",
+        brand_id=brand.id,
+        memory_id=memory.id,
+        ean="2222222222222",
+    )
+    p2 = Product(
+        model="Another Good Product",
+        brand_id=brand.id,
+        memory_id=memory.id,
+        ean="3333333333333",
+    )
+    db.session.add_all([p1, p2])
+    db.session.commit()
+
+    temp1 = TemporaryImport(
+        description="Good Product",
+        ean="2222222222222",
+        selling_price=200.0,
+        quantity=1,
+        supplier_id=supplier.id,
+    )
+    temp2 = TemporaryImport(
+        description="Another Good Product",
+        ean="3333333333333",
+        selling_price=400.0,
+        quantity=2,
+        supplier_id=supplier.id,
+    )
+    db.session.add_all([temp1, temp2])
+    db.session.commit()
+
+    recalculate_product_calculations()
+
+    calcs = ProductCalculation.query.all()
+    assert len(calcs) == 2
+
+
 def test_recalculate_ignores_cache_without_product(supplier):
     """LabelCache entries without product_id should be ignored."""
     temp = TemporaryImport(

@@ -1,10 +1,13 @@
 """Tests for routes/products.py – CRUD products and bulk ops."""
 
 import json
+import math
 from datetime import datetime, timezone
+from unittest.mock import patch
 
 import pytest
 from models import Brand, Product, ProductCalculation, Supplier, db
+from routes.products import _safe_float
 
 
 @pytest.fixture()
@@ -153,6 +156,82 @@ def test_product_price_summary_includes_brandless(client, admin_headers):
         marge_percent=9.09,
         date=datetime.now(timezone.utc),
         stock=5,
+    )
+    db.session.add(calc)
+    db.session.commit()
+
+    rv = client.get("/product_price_summary", headers=admin_headers)
+    assert rv.status_code == 200
+    data = rv.get_json()
+    ids = [item["id"] for item in data]
+    assert product.id in ids
+
+
+# ── _safe_float helper ────────────────────────────────────────────
+
+
+def test_safe_float_normal():
+    assert _safe_float(42.5) == 42.5
+
+
+def test_safe_float_none():
+    assert _safe_float(None) == 0.0
+
+
+def test_safe_float_nan():
+    assert _safe_float(float("nan")) == 0.0
+
+
+def test_safe_float_inf():
+    assert _safe_float(float("inf")) == 0.0
+    assert _safe_float(float("-inf")) == 0.0
+
+
+def test_safe_float_custom_default():
+    assert _safe_float(None, default=-1.0) == -1.0
+
+
+# ── POST /calculate_products error handling ───────────────────────
+
+
+def test_calculate_products_returns_500_on_error(client, admin_headers):
+    with patch(
+        "routes.products.recalculate_product_calculations",
+        side_effect=RuntimeError("DB connection lost"),
+    ):
+        rv = client.post("/calculate_products", headers=admin_headers)
+        assert rv.status_code == 500
+        data = rv.get_json()
+        assert "error" in data
+
+
+def test_safe_float_string_input():
+    assert _safe_float("not_a_number") == 0.0
+
+
+def test_product_price_summary_zero_price(client, admin_headers):
+    """Products with zero prices should still appear without errors."""
+    supplier = Supplier(name="ZeroSupplier")
+    db.session.add(supplier)
+    db.session.commit()
+
+    product = Product(model="ZeroProduct", brand_id=None)
+    db.session.add(product)
+    db.session.commit()
+
+    calc = ProductCalculation(
+        product_id=product.id,
+        supplier_id=supplier.id,
+        price=0.0,
+        tcp=0.0,
+        marge4_5=0.0,
+        prixht_tcp_marge4_5=0.0,
+        prixht_marge4_5=0.0,
+        prixht_max=0.0,
+        marge=0.0,
+        marge_percent=0.0,
+        date=datetime.now(timezone.utc),
+        stock=0,
     )
     db.session.add(calc)
     db.session.commit()
