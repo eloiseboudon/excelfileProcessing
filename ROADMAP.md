@@ -162,7 +162,8 @@ Module de matching intelligent qui utilise Claude Haiku (Anthropic) pour associe
   - Score 50-89 : validation manuelle (creation `PendingMatch`)
   - Score < 50 : creation automatique du produit dans le referentiel
 - **Table de correspondance** : codes constructeur Samsung (SM-S938B -> Galaxy S25 Ultra, etc.) et 24 traductions de couleurs (Midnight -> Noir, Starlight -> Blanc, etc.)
-- **Interface de validation** : onglet "Rapprochement" dans la page Synchro avec declenchement par fournisseur, rapport resume, liste des matchs en attente avec badges attributs, barres de score et boutons Valider/Creer/Ignorer
+- **Gestion d'erreurs explicite** : verification de la cle API avant traitement (retour HTTP 400), catches specifiques Anthropic (authentification, rate limit, connexion, erreur API), message d'erreur remonte dans le rapport et affiche dans l'interface (bandeau rouge avec icone d'avertissement)
+- **Interface de validation** : onglet "Rapprochement" dans la page Synchro avec declenchement par fournisseur, rapport resume (incluant compteur d'erreurs), liste des matchs en attente avec badges attributs, barres de score et boutons Valider/Creer/Ignorer
 - **Statistiques** : taux de cache hit, nombre de matchs en attente, repartition auto/manual par fournisseur
 - **Integration TCP/marges** : les produits rapproches par LLM apparaissent automatiquement dans le tableau des calculs de prix. Le moteur de calcul (`recalculate_product_calculations`) consulte le `LabelCache` en fallback apres les matchs EAN et Model. Les identifiants EAN et part_number sont copies dans `SupplierProductRef` lors de la validation ou creation. Les produits sans marque (crees par le LLM) sont inclus grace a des `outerjoin` sur Brand
 - **7 endpoints API** : run, pending, validate, reject, stats, cache, delete cache
