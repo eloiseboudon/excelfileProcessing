@@ -582,3 +582,79 @@ Dans le dashboard existant, un petit widget :
 | Temps de matching pour 3000 produits | < 5 min | < 30 sec (grâce au cache) |
 | Coût LLM par sync | < 0.30€ | < 0.05€ |
 | Faux positifs (match auto incorrect) | < 5% | < 2% |
+
+
+# Résumé
+Le module LLM matching est composé de 3 couches principales :
+
+  Backend
+
+  backend/utils/llm_matching.py — Le moteur
+
+  C'est le fichier central, organisé en 7 fonctions chaînées :
+
+  1. normalize_label() — Normalise un libellé fournisseur pour le cache (minuscules,
+  suppression des caractères spéciaux)
+  2. build_context() — Charge les données de référence depuis la BDD (marques, couleurs +
+  synonymes, stockages, codes constructeur, types d'appareils) pour les injecter dans le prompt
+   LLM
+  3. build_extraction_prompt() + call_llm_extraction() — Construit le prompt système avec les
+  références injectées, puis appelle Claude Haiku par lots de 25 libellés. Le LLM renvoie un
+  JSON structuré (marque, modèle, stockage, couleur, type, région, connectivité, grade,
+  confidence). Gère les retries et le split de batch en cas d'erreur JSON
+  4. score_match() — Score un match entre les attributs extraits et un produit du référentiel.
+  Score /100 avec 5 axes pondérés : marque (15), modèle (40, fuzzy matching), stockage (25),
+  couleur (15), région (5). Brand ou stockage mismatch = disqualification immédiate (score 0)
+  5. find_best_matches() — Pré-filtre les produits par marque puis score tous les candidats.
+  Retourne le top 3
+  6. create_product_from_extraction() — Crée un nouveau produit dans le référentiel à partir
+  des attributs extraits (avec création auto des marques/couleurs/types manquants)
+  7. run_matching_job() — L'orchestrateur principal. Pipeline complet :
+    - Charge les imports non matchés
+    - Déduplique les libellés, consulte le cache
+    - Appelle le LLM par batch
+    - Score >= 90 → match auto (crée SupplierProductRef)
+    - Score 50-89 → PendingMatch (validation manuelle)
+    - Score < 50 → création auto du produit
+    - Retourne un rapport (matches, erreurs, coût estimé)
+
+  backend/routes/matching.py — Les endpoints API
+
+  7 endpoints REST :
+
+  ┌────────────────────────────┬─────────────────────────────────────────────────────────┐
+  │          Endpoint          │                       Description                       │
+  ├────────────────────────────┼─────────────────────────────────────────────────────────┤
+  │ POST /matching/run         │ Lance le job de rapprochement                           │
+  ├────────────────────────────┼─────────────────────────────────────────────────────────┤
+  │ GET /matching/pending      │ Liste les matchs en attente de validation               │
+  ├────────────────────────────┼─────────────────────────────────────────────────────────┤
+  │ POST /matching/validate    │ Valide un match (lie le produit)                        │
+  ├────────────────────────────┼─────────────────────────────────────────────────────────┤
+  │ POST /matching/reject      │ Rejette un match (ou crée un nouveau produit)           │
+  ├────────────────────────────┼─────────────────────────────────────────────────────────┤
+  │ GET /matching/stats        │ Statistiques agrégées (cache hit rate, par fournisseur) │
+  ├────────────────────────────┼─────────────────────────────────────────────────────────┤
+  │ GET /matching/cache        │ Liste les entrées du cache de labels                    │
+  ├────────────────────────────┼─────────────────────────────────────────────────────────┤
+  │ DELETE /matching/cache/:id │ Supprime une entrée cache pour forcer un re-matching    │
+  └────────────────────────────┴─────────────────────────────────────────────────────────┘
+
+  Frontend
+
+  frontend/src/components/MatchingPanel.tsx — L'interface
+
+  L'onglet "Rapprochement" dans la page Synchro :
+  - Sélecteur fournisseur + bouton "Lancer le rapprochement"
+  - Rapport avec 6 ReportCards (matches auto, en attente, créés, cache, erreurs, coût)
+  - Bandeau d'erreur rouge si le LLM échoue
+  - Liste paginée des matchs en attente avec badges attributs, barres de score, boutons
+  Valider/Créer/Ignorer
+  - Section statistiques globales
+
+  Modèles BDD concernés (dans models.py)
+
+  - LabelCache — Cache des résultats d'extraction par fournisseur/libellé normalisé
+  - PendingMatch — Matchs en attente de validation manuelle (attributs extraits + candidats)
+  - ModelReference — Table de correspondance codes constructeur → nom commercial (ex: SM-S938B
+  → Galaxy S25 Ultra)
