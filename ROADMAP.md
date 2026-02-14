@@ -97,7 +97,7 @@ Composants concernes : `FormattingPage`
 
 Refonte complete de l'interface utilisateur avec un design system coherent sur toutes les pages.
 
-- **Navbar** : logo AJT Pro, liens de navigation style pill (fond dore quand actif), menu deroulant Parametres anime avec separateur, responsive mobile (icones seules), sticky avec backdrop-blur
+- **Navbar** : logo AJT Pro, liens de navigation style pill (fond dore quand actif) : Produits (1er, page par defaut pour non-clients) puis Moteur de recherche, menu deroulant Parametres anime avec separateur, responsive mobile (icones seules), sticky avec backdrop-blur
 - **Design system** : classes `.card` (rounded-lg, backdrop-blur, shadow-xl, padding 15px), `.btn` / `.btn-primary` / `.btn-secondary` (rounded-md), variables CSS pour tous les etats
 - **Pages structurees** : header avec icone doree + titre + description, onglets soulignes (border-b-2 doree), toolbar dans une card, contenu dans une card avec divide-y et hover
 - **Page connexion** : card centree avec logo AJT Pro, labels, icones dans les inputs (Mail, Lock), toggle visibilite mot de passe (Eye/EyeOff), etat loading
