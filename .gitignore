@@ -43,3 +43,6 @@ backend/log
 
 import_log_*
 CLAUDE.md
+
+frontend/build/
+.claude/

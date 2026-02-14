@@ -151,7 +151,7 @@ ajtpro/
 │   │   ├── main.py           # Route sante (/)
 │   │   ├── matching.py       # Rapprochement LLM (run, pending, validate, reject, stats, cache)
 │   │   ├── odoo.py           # Synchronisation Odoo (config, test, sync, jobs)
-│   │   ├── products.py       # CRUD produits et calculs
+│   │   ├── products.py       # CRUD produits, calculs et refresh catalogue fournisseurs
 │   │   ├── references.py     # Tables de reference (marques, couleurs, etc.)
 │   │   ├── settings.py       # Parametres utilisateur
 │   │   ├── stats.py          # Statistiques de prix
@@ -160,14 +160,14 @@ ajtpro/
 │   │   ├── database/         # Scripts d'import et initialisation
 │   │   └── run_supplier_api_sync_batch.py
 │   ├── utils/
-│   │   ├── auth.py           # Generation et validation JWT
-│   │   ├── calculations.py   # Calculs de prix et marges
-│   │   ├── etl.py            # Pipeline ETL synchronisation fournisseurs
-│   │   ├── llm_matching.py   # Module matching LLM (extraction, scoring, orchestration)
+│   │   ├── auth.py            # Generation et validation JWT
+│   │   ├── calculations.py    # Calculs de prix et marges
 │   │   ├── crypto.py          # Chiffrement/dechiffrement Fernet (mot de passe Odoo)
-│   │   ├── odoo_scheduler.py # Planificateur synchro auto Odoo
-│   │   ├── odoo_sync.py      # Client XML-RPC et moteur synchro Odoo
-│   │   └── pricing.py        # Constantes et fonctions de tarification partagees
+│   │   ├── etl.py             # Pipeline ETL synchronisation fournisseurs
+│   │   ├── llm_matching.py    # Module matching LLM (extraction, scoring, orchestration)
+│   │   ├── odoo_scheduler.py  # Planificateur synchro auto Odoo
+│   │   ├── odoo_sync.py       # Client XML-RPC et moteur synchro Odoo
+│   │   └── pricing.py         # Constantes et fonctions de tarification partagees
 │   ├── app.py                # Point d'entree Flask
 │   ├── models.py             # Modeles SQLAlchemy
 │   └── requirements.txt
@@ -175,7 +175,6 @@ ajtpro/
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── AdminPage.tsx              # Administration generale
-│   │   │   ├── BrandSupplierChart.tsx     # Graphique marque/fournisseur
 │   │   │   ├── DataImportPage.tsx         # Synchronisation fournisseurs (onglets Synchro/Rapports/Odoo/Rapprochement)
 │   │   │   ├── MatchingPanel.tsx          # Rapprochement LLM (declenchement, validation, stats)
 │   │   │   ├── FormattingPage.tsx         # Mise en forme
@@ -185,11 +184,9 @@ ajtpro/
 │   │   │   ├── MultiSelectFilter.tsx      # Filtre multi-selection
 │   │   │   ├── NotificationProvider.tsx   # Systeme de notifications
 │   │   │   ├── OdooSyncPanel.tsx         # Synchronisation Odoo (config, sync, historique)
-│   │   │   ├── PriceChart.tsx             # Graphique prix global
 │   │   │   ├── ProcessingPage.tsx         # Traitement des donnees
 │   │   │   ├── ProductAdmin.tsx           # Administration produits
 │   │   │   ├── ProductEditModal.tsx       # Modale d'edition produit
-│   │   │   ├── ProductEvolutionChart.tsx  # Graphique evolution produit
 │   │   │   ├── ProductFilters.tsx         # Filtres produits
 │   │   │   ├── ProductReference.tsx       # Referentiel produit
 │   │   │   ├── ProductReferenceForm.tsx   # Formulaire referentiel
@@ -199,7 +196,7 @@ ajtpro/
 │   │   │   ├── ReferenceAdmin.tsx         # Admin tables de reference
 │   │   │   ├── SearchControls.tsx         # Controles de recherche
 │   │   │   ├── SearchPage.tsx             # Moteur de recherche
-│   │   │   ├── StatisticsPage.tsx         # Statistiques de prix
+│   │   │   ├── StatisticsPage.tsx         # Statistiques fournisseurs
 │   │   │   ├── StatsFilters.tsx           # Filtres statistiques
 │   │   │   ├── SupplierApiAdmin.tsx       # Admin API fournisseurs
 │   │   │   ├── SupplierApiReports.tsx     # Rapports API
@@ -223,7 +220,8 @@ ajtpro/
 ├── docker-compose.override.yml  # Surcharges developpement
 ├── docker-compose.prod.yml      # Configuration production
 ├── Makefile                     # Commandes utilitaires
-├── deploy.sh                    # Script de deploiement
+├── deploy.sh                    # Script de deploiement interactif
+├── deploy-ci.sh                 # Script de deploiement CI/CD (non-interactif)
 ├── save_db.sh                   # Sauvegarde base de donnees
 └── tips.md                      # Memo commandes Docker/Alembic
 ```
@@ -257,6 +255,7 @@ Permet d'explorer l'ensemble du catalogue fournisseurs avec :
 - Recherche full-text avec suggestions et historique (par nom, description, marque, fournisseur, EAN, reference)
 - Filtres avances : gamme de prix (curseur min/max), fournisseur, disponibilite stock, EAN, tri par prix
 - Resultats affiches dans une card avec header (nombre de resultats, gamme selectionnee), hover sur chaque ligne, badge fournisseur colore et prix
+- **Rafraichissement a la demande** : bouton "Rafraichir les catalogues" pour forcer le re-fetch de tous les catalogues fournisseurs configures (contourne le cache quotidien), avec spinner et notification de confirmation
 
 ### Administration
 
@@ -359,11 +358,15 @@ Il est aussi possible de cibler un service specifique pour `docker-build`, `dock
 
 ### deploy.sh
 
-Script de deploiement automatise pour l'environnement de production. Il orchestre la construction des images, l'application des migrations et le redemarrage des conteneurs.
+Script de deploiement interactif pour l'environnement de production. Il orchestre la construction des images, l'application des migrations et le redemarrage des conteneurs.
 
 ```bash
 ./deploy.sh
 ```
+
+### deploy-ci.sh
+
+Script de deploiement non-interactif utilise par GitHub Actions. Optimise pour un deploy en ~1 minute : layer caching Docker, build avant arret des containers (downtime ~5-10s), polling actif pour les health checks.
 
 ### save_db.sh
 
@@ -424,7 +427,7 @@ Le gabarit OpenAPI se trouve dans `backend/swagger_template.yml`.
 
 ### Tests backend
 
-Le framework `pytest` est configure dans le backend (SQLite in-memory, pas besoin de PostgreSQL). Lancez les tests depuis le conteneur ou depuis un environnement local :
+Le framework `pytest` est configure dans le backend (SQLite in-memory, pas besoin de PostgreSQL) — 182 tests dans 13 fichiers :
 
 ```bash
 cd backend
@@ -434,7 +437,7 @@ python -m pytest tests/ -v
 
 ### Tests frontend
 
-Le framework `vitest` avec Testing Library est configure dans le frontend :
+Le framework `vitest` avec Testing Library est configure dans le frontend — 130 tests dans 14 fichiers :
 
 ```bash
 cd frontend
