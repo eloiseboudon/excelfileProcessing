@@ -7,9 +7,10 @@ import {
   Loader2,
   Play,
   Plus,
+  Search,
   X,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   fetchPendingMatches,
   fetchMatchingStats,
@@ -23,6 +24,13 @@ import {
   validateMatch,
 } from '../api';
 import { useNotification } from './NotificationProvider';
+
+const statusLabels: Record<string, string> = {
+  pending: 'Matchs en attente',
+  validated: 'Matchs valides',
+  rejected: 'Matchs rejetes',
+  created: 'Matchs crees',
+};
 
 function MatchingPanel() {
   const notify = useNotification();
@@ -42,6 +50,12 @@ function MatchingPanel() {
   const [pendingPage, setPendingPage] = useState(1);
   const perPage = 10;
 
+  // Filters
+  const [statusFilter, setStatusFilter] = useState('pending');
+  const [modelFilter, setModelFilter] = useState('');
+  const [modelInput, setModelInput] = useState('');
+  const modelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Stats
   const [stats, setStats] = useState<MatchingStatsData | null>(null);
 
@@ -60,20 +74,22 @@ function MatchingPanel() {
 
   useEffect(() => {
     loadPending();
-  }, [pendingPage, selectedSupplier]);
+  }, [pendingPage, selectedSupplier, statusFilter, modelFilter]);
 
   function loadPending() {
     setLoadingPending(true);
-    fetchPendingMatches({
+    return fetchPendingMatches({
       supplier_id: selectedSupplier,
       page: pendingPage,
       per_page: perPage,
+      status: statusFilter,
+      model: modelFilter || undefined,
     })
       .then((data) => {
         setPending(data.items);
         setPendingTotal(data.total);
       })
-      .catch(() => notify('Erreur lors du chargement des matchs en attente', 'error'))
+      .catch(() => notify('Erreur lors du chargement des matchs', 'error'))
       .finally(() => setLoadingPending(false));
   }
 
@@ -81,6 +97,15 @@ function MatchingPanel() {
     fetchMatchingStats()
       .then(setStats)
       .catch(() => {});
+  }
+
+  function handleModelInputChange(value: string) {
+    setModelInput(value);
+    if (modelTimerRef.current) clearTimeout(modelTimerRef.current);
+    modelTimerRef.current = setTimeout(() => {
+      setModelFilter(value);
+      setPendingPage(1);
+    }, 400);
   }
 
   async function handleRun() {
@@ -115,11 +140,13 @@ function MatchingPanel() {
   }
 
   async function handleValidate(pm: PendingMatchItem, candidate: MatchingCandidate) {
+    const scrollY = window.scrollY;
     try {
       await validateMatch(pm.id, candidate.product_id);
       notify(`Match valide : ${pm.source_label}`, 'success');
-      loadPending();
+      await loadPending();
       loadStats();
+      requestAnimationFrame(() => window.scrollTo(0, scrollY));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erreur';
       notify(msg, 'error');
@@ -127,6 +154,7 @@ function MatchingPanel() {
   }
 
   async function handleReject(pm: PendingMatchItem, createProduct: boolean) {
+    const scrollY = window.scrollY;
     try {
       await rejectMatch(pm.id, createProduct);
       notify(
@@ -135,8 +163,9 @@ function MatchingPanel() {
           : `Match rejete : ${pm.source_label}`,
         'success'
       );
-      loadPending();
+      await loadPending();
       loadStats();
+      requestAnimationFrame(() => window.scrollTo(0, scrollY));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erreur';
       notify(msg, 'error');
@@ -144,6 +173,31 @@ function MatchingPanel() {
   }
 
   const totalPages = Math.ceil(pendingTotal / perPage);
+  const readOnly = statusFilter !== 'pending';
+
+  const paginationControls = totalPages > 1 ? (
+    <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
+      <button
+        type="button"
+        disabled={pendingPage <= 1}
+        onClick={() => setPendingPage((p) => p - 1)}
+        className="p-1 rounded hover:bg-[var(--color-bg-elevated)] disabled:opacity-30"
+      >
+        <ChevronLeft className="w-4 h-4" />
+      </button>
+      <span>
+        {pendingPage} / {totalPages}
+      </span>
+      <button
+        type="button"
+        disabled={pendingPage >= totalPages}
+        onClick={() => setPendingPage((p) => p + 1)}
+        className="p-1 rounded hover:bg-[var(--color-bg-elevated)] disabled:opacity-30"
+      >
+        <ChevronRight className="w-4 h-4" />
+      </button>
+    </div>
+  ) : null;
 
   return (
     <div className="space-y-6">
@@ -270,35 +324,40 @@ function MatchingPanel() {
         </div>
       )}
 
-      {/* Section 2 — Matchs en attente */}
+      {/* Section 2 — Liste des matchs */}
       <div className="card overflow-hidden">
-        <div className="p-4 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-[var(--color-text-heading)]">
-            Matchs en attente ({pendingTotal})
-          </h3>
-          {totalPages > 1 && (
-            <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
-              <button
-                type="button"
-                disabled={pendingPage <= 1}
-                onClick={() => setPendingPage((p) => p - 1)}
-                className="p-1 rounded hover:bg-[var(--color-bg-elevated)] disabled:opacity-30"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <span>
-                {pendingPage} / {totalPages}
-              </span>
-              <button
-                type="button"
-                disabled={pendingPage >= totalPages}
-                onClick={() => setPendingPage((p) => p + 1)}
-                className="p-1 rounded hover:bg-[var(--color-bg-elevated)] disabled:opacity-30"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
+        <div className="p-4 flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h3 className="text-sm font-semibold text-[var(--color-text-heading)]">
+              {statusLabels[statusFilter]} ({pendingTotal})
+            </h3>
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPendingPage(1);
+              }}
+              className="rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] px-2 py-1 text-xs"
+              data-testid="status-filter"
+            >
+              <option value="pending">En attente</option>
+              <option value="validated">Valides</option>
+              <option value="rejected">Rejetes</option>
+              <option value="created">Crees</option>
+            </select>
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+              <input
+                type="text"
+                value={modelInput}
+                onChange={(e) => handleModelInputChange(e.target.value)}
+                placeholder="Filtrer par modele..."
+                className="rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] pl-7 pr-2 py-1 text-xs w-44"
+                data-testid="model-filter"
+              />
             </div>
-          )}
+          </div>
+          {paginationControls}
         </div>
 
         {loadingPending ? (
@@ -307,7 +366,7 @@ function MatchingPanel() {
           </div>
         ) : pending.length === 0 ? (
           <div className="p-8 text-center text-sm text-[var(--color-text-muted)]">
-            Aucun match en attente de validation.
+            Aucun match a afficher.
           </div>
         ) : (
           <div className="divide-y divide-[var(--color-border-subtle)]">
@@ -315,10 +374,18 @@ function MatchingPanel() {
               <PendingMatchRow
                 key={pm.id}
                 pm={pm}
+                readOnly={readOnly}
                 onValidate={handleValidate}
                 onReject={handleReject}
               />
             ))}
+          </div>
+        )}
+
+        {/* Pagination bas */}
+        {paginationControls && (
+          <div className="p-4 border-t border-[var(--color-border-subtle)] flex justify-end">
+            {paginationControls}
           </div>
         )}
       </div>
@@ -345,10 +412,12 @@ function ReportCard({
 
 function PendingMatchRow({
   pm,
+  readOnly,
   onValidate,
   onReject,
 }: {
   pm: PendingMatchItem;
+  readOnly: boolean;
   onValidate: (pm: PendingMatchItem, candidate: MatchingCandidate) => void;
   onReject: (pm: PendingMatchItem, createProduct: boolean) => void;
 }) {
@@ -410,39 +479,43 @@ function PendingMatchRow({
               <span className="text-[var(--color-text-primary)] flex-1 truncate">
                 {c.product_name}
               </span>
-              <button
-                type="button"
-                onClick={() => onValidate(pm, c)}
-                className="btn btn-primary text-xs py-1 px-2 flex items-center gap-1"
-                title="Valider ce match"
-              >
-                <Check className="w-3 h-3" />
-                Valider
-              </button>
+              {!readOnly && (
+                <button
+                  type="button"
+                  onClick={() => onValidate(pm, c)}
+                  className="btn btn-primary text-xs py-1 px-2 flex items-center gap-1"
+                  title="Valider ce match"
+                >
+                  <Check className="w-3 h-3" />
+                  Valider
+                </button>
+              )}
             </div>
           ))}
         </div>
       )}
 
       {/* Actions */}
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => onReject(pm, true)}
-          className="btn btn-secondary text-xs py-1 px-2 flex items-center gap-1"
-        >
-          <Plus className="w-3 h-3" />
-          Creer produit
-        </button>
-        <button
-          type="button"
-          onClick={() => onReject(pm, false)}
-          className="btn btn-secondary text-xs py-1 px-2 flex items-center gap-1"
-        >
-          <X className="w-3 h-3" />
-          Ignorer
-        </button>
-      </div>
+      {!readOnly && (
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => onReject(pm, true)}
+            className="btn btn-secondary text-xs py-1 px-2 flex items-center gap-1"
+          >
+            <Plus className="w-3 h-3" />
+            Creer produit
+          </button>
+          <button
+            type="button"
+            onClick={() => onReject(pm, false)}
+            className="btn btn-secondary text-xs py-1 px-2 flex items-center gap-1"
+          >
+            <X className="w-3 h-3" />
+            Ignorer
+          </button>
+        </div>
+      )}
     </div>
   );
 }

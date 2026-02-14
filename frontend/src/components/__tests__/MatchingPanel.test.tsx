@@ -86,7 +86,7 @@ describe('MatchingPanel', () => {
     renderPanel();
     await waitFor(() => {
       expect(
-        screen.getByText('Aucun match en attente de validation.')
+        screen.getByText('Aucun match a afficher.')
       ).toBeInTheDocument();
     });
   });
@@ -273,5 +273,171 @@ describe('MatchingPanel', () => {
     await waitFor(() => {
       expect(mockRejectMatch).toHaveBeenCalledWith(2, true);
     });
+  });
+
+  // --- New tests for filters, pagination, and scroll ---
+
+  it('renders the status filter dropdown', async () => {
+    renderPanel();
+    await waitFor(() => {
+      expect(screen.getByTestId('status-filter')).toBeInTheDocument();
+    });
+    const select = screen.getByTestId('status-filter') as HTMLSelectElement;
+    expect(select.value).toBe('pending');
+    const options = Array.from(select.options).map((o) => o.text);
+    expect(options).toContain('En attente');
+    expect(options).toContain('Valides');
+    expect(options).toContain('Rejetes');
+    expect(options).toContain('Crees');
+  });
+
+  it('changes title based on status filter', async () => {
+    renderPanel();
+    await waitFor(() => {
+      expect(screen.getByText('Matchs en attente (0)')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByTestId('status-filter'), {
+      target: { value: 'validated' },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Matchs valides (0)')).toBeInTheDocument();
+    });
+  });
+
+  it('passes status filter to API call', async () => {
+    renderPanel();
+    await waitFor(() => {
+      expect(mockFetchPending).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'pending' })
+      );
+    });
+
+    fireEvent.change(screen.getByTestId('status-filter'), {
+      target: { value: 'rejected' },
+    });
+
+    await waitFor(() => {
+      expect(mockFetchPending).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'rejected' })
+      );
+    });
+  });
+
+  it('renders the model filter input', async () => {
+    renderPanel();
+    await waitFor(() => {
+      expect(screen.getByTestId('model-filter')).toBeInTheDocument();
+    });
+    expect(screen.getByPlaceholderText('Filtrer par modele...')).toBeInTheDocument();
+  });
+
+  it('shows bottom pagination when multiple pages', async () => {
+    mockFetchPending.mockResolvedValue({
+      items: Array.from({ length: 10 }, (_, i) => ({
+        id: i + 1,
+        supplier_id: 1,
+        supplier_name: 'Yukatel',
+        source_label: `Product ${i + 1}`,
+        extracted_attributes: { brand: 'Samsung' },
+        candidates: [],
+        status: 'pending',
+        created_at: null,
+      })),
+      total: 25,
+      page: 1,
+      per_page: 10,
+    });
+
+    renderPanel();
+
+    await waitFor(() => {
+      expect(screen.getAllByText('1 / 3').length).toBe(2);
+    });
+  });
+
+  it('hides action buttons when viewing non-pending status', async () => {
+    mockFetchPending.mockResolvedValue({
+      items: [
+        {
+          id: 1,
+          supplier_id: 1,
+          supplier_name: 'Yukatel',
+          source_label: 'Validated Product',
+          extracted_attributes: { brand: 'Samsung' },
+          candidates: [
+            { product_id: 42, score: 85, product_name: 'Galaxy S25', details: {} },
+          ],
+          status: 'validated',
+          created_at: null,
+        },
+      ],
+      total: 1,
+      page: 1,
+      per_page: 10,
+    });
+
+    renderPanel();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('status-filter')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByTestId('status-filter'), {
+      target: { value: 'validated' },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Validated Product')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Valider')).not.toBeInTheDocument();
+    expect(screen.queryByText('Creer produit')).not.toBeInTheDocument();
+    expect(screen.queryByText('Ignorer')).not.toBeInTheDocument();
+  });
+
+  it('preserves scroll position after validation', async () => {
+    const scrollToSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    Object.defineProperty(window, 'scrollY', { value: 500, writable: true });
+
+    mockFetchPending.mockResolvedValue({
+      items: [
+        {
+          id: 1,
+          supplier_id: 1,
+          supplier_name: 'Yukatel',
+          source_label: 'Scroll Test',
+          extracted_attributes: { brand: 'Samsung' },
+          candidates: [
+            { product_id: 42, score: 85, product_name: 'Product 42', details: {} },
+          ],
+          status: 'pending',
+          created_at: null,
+        },
+      ],
+      total: 1,
+      page: 1,
+      per_page: 10,
+    });
+    mockValidateMatch.mockResolvedValue({ status: 'validated' });
+
+    renderPanel();
+
+    await waitFor(() => {
+      expect(screen.getByText('Valider')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Valider'));
+
+    await waitFor(() => {
+      expect(mockValidateMatch).toHaveBeenCalled();
+    });
+
+    // Allow requestAnimationFrame to fire
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(scrollToSpy).toHaveBeenCalledWith(0, 500);
+    scrollToSpy.mockRestore();
   });
 });
