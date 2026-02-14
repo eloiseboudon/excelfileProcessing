@@ -63,6 +63,8 @@ POSTGRES_PASSWORD=postgres
 JWT_SECRET=change-me
 ODOO_ENCRYPTION_KEY=<cle-fernet-generee>
 ENABLE_ODOO_SCHEDULER=false
+ANTHROPIC_API_KEY=sk-ant-xxxxx
+LLM_MODEL=claude-haiku-4-5-20251001
 ```
 
 **Points importants :**
@@ -147,6 +149,7 @@ ajtpro/
 │   │   ├── auth.py           # Authentification (login, refresh, logout)
 │   │   ├── imports.py        # Import de fichiers et synchronisation API
 │   │   ├── main.py           # Route sante (/)
+│   │   ├── matching.py       # Rapprochement LLM (run, pending, validate, reject, stats, cache)
 │   │   ├── odoo.py           # Synchronisation Odoo (config, test, sync, jobs)
 │   │   ├── products.py       # CRUD produits et calculs
 │   │   ├── references.py     # Tables de reference (marques, couleurs, etc.)
@@ -160,6 +163,7 @@ ajtpro/
 │   │   ├── auth.py           # Generation et validation JWT
 │   │   ├── calculations.py   # Calculs de prix et marges
 │   │   ├── etl.py            # Pipeline ETL synchronisation fournisseurs
+│   │   ├── llm_matching.py   # Module matching LLM (extraction, scoring, orchestration)
 │   │   ├── crypto.py          # Chiffrement/dechiffrement Fernet (mot de passe Odoo)
 │   │   ├── odoo_scheduler.py # Planificateur synchro auto Odoo
 │   │   ├── odoo_sync.py      # Client XML-RPC et moteur synchro Odoo
@@ -172,7 +176,8 @@ ajtpro/
 │   │   ├── components/
 │   │   │   ├── AdminPage.tsx              # Administration generale
 │   │   │   ├── BrandSupplierChart.tsx     # Graphique marque/fournisseur
-│   │   │   ├── DataImportPage.tsx         # Synchronisation fournisseurs (onglets Synchro/Rapports/Odoo)
+│   │   │   ├── DataImportPage.tsx         # Synchronisation fournisseurs (onglets Synchro/Rapports/Odoo/Rapprochement)
+│   │   │   ├── MatchingPanel.tsx          # Rapprochement LLM (declenchement, validation, stats)
 │   │   │   ├── FormattingPage.tsx         # Mise en forme
 │   │   │   ├── ImportPreviewModal.tsx     # Apercu avant import
 │   │   │   ├── InfoButton.tsx             # Bouton info (i)
@@ -263,10 +268,11 @@ Accessible depuis le menu Parametres > Admin (role admin uniquement), avec 4 ong
 
 ### Synchronisation fournisseurs
 
-Accessible depuis le menu Parametres > Synchro (role admin uniquement), avec 3 onglets :
+Accessible depuis le menu Parametres > Synchro (role admin uniquement), avec 4 onglets :
 - **Synchronisation** -- Declenchement manuel des fetches API par fournisseur, suivi du statut en temps reel
 - **Rapports** -- Historique des imports avec details (nombre de lignes, erreurs, doublons detectes)
 - **Odoo** -- Synchronisation du referentiel produit avec Odoo 17 via XML-RPC
+- **Rapprochement** -- Matching intelligent des produits fournisseurs avec le referentiel via extraction LLM (Claude Haiku)
 
 ### Synchronisation Odoo
 
@@ -282,6 +288,19 @@ Synchronisation automatique ou manuelle des produits depuis l'ERP Odoo 17 :
 - **Suppression des orphelins** : les produits lies a Odoo mais absents de la synchronisation sont supprimes physiquement (references fournisseurs detachees). Compteur et rapport detaille visibles dans l'historique
 
 Variable d'environnement : `ENABLE_ODOO_SCHEDULER=true` pour activer le planificateur automatique (desactive par defaut)
+
+### Rapprochement LLM
+
+Module de matching intelligent qui utilise Claude Haiku (Anthropic) pour associer les produits fournisseurs non matches au referentiel produit :
+
+- **Extraction d'attributs** : le LLM extrait marque, modele, stockage, couleur, type d'appareil, region et connectivite depuis les libelles fournisseurs
+- **Scoring multicritere** : score /100 base sur la marque (15), le modele (40, fuzzy matching), le stockage (25), la couleur (15) et la region (5)
+- **3 niveaux d'action** : score >= 90 = match automatique, 50-89 = validation manuelle, < 50 = creation produit automatique
+- **Cache de labels** : les resultats sont caches par fournisseur/libelle pour eviter les appels LLM redondants lors des syncs suivantes
+- **Table de correspondance** : codes constructeur Samsung (SM-S938B -> Galaxy S25 Ultra, etc.) et traductions couleurs (Midnight -> Noir, etc.)
+- **Interface de validation** : les matchs en attente sont presentes avec les attributs extraits, les candidats avec barre de score, et les boutons Valider/Creer/Ignorer
+
+Pre-requis : creer un compte Anthropic, generer une cle API et ajouter `ANTHROPIC_API_KEY` dans le fichier `.env`. Cout estime : < 0.30€ par sync de 3000 produits.
 
 ### Authentification
 

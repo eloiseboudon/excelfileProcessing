@@ -1,10 +1,11 @@
 import { RefreshCw } from 'lucide-react';
 import { useState } from 'react';
+import MatchingPanel from './MatchingPanel';
 import OdooSyncPanel from './OdooSyncPanel';
 import SupplierApiSyncPanel from './SupplierApiSyncPanel';
 import SupplierApiReports from './SupplierApiReports';
 
-type ImportTab = 'sync' | 'report' | 'odoo';
+type ImportTab = 'sync' | 'report' | 'odoo' | 'matching';
 
 function DataImportPage() {
   const [activeTab, setActiveTab] = useState<ImportTab>('sync');
@@ -55,11 +56,23 @@ function DataImportPage() {
           >
             Odoo
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('matching')}
+            className={`px-2 pb-3 text-sm font-medium transition-colors border-b-2 ${
+              activeTab === 'matching'
+                ? 'border-[#B8860B] text-[var(--color-text-heading)]'
+                : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
+            }`}
+          >
+            Rapprochement
+          </button>
         </nav>
       </div>
       {activeTab === 'sync' && <SupplierApiSyncPanel />}
       {activeTab === 'report' && <SupplierApiReports />}
       {activeTab === 'odoo' && <OdooSyncPanel />}
+      {activeTab === 'matching' && <MatchingPanel />}
     </div>
   );
 }

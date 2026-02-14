@@ -704,3 +704,142 @@ export async function fetchOdooSyncJob(jobId: number) {
 export async function updateOdooAutoSync(data: { enabled?: boolean; interval_minutes?: number }) {
   return crudRequest('PUT', `${API_BASE}/odoo/auto-sync`, data);
 }
+
+// ---------------------------------------------------------------------------
+// LLM Matching
+// ---------------------------------------------------------------------------
+
+export interface MatchingReport {
+  total_labels: number;
+  from_cache: number;
+  llm_calls: number;
+  auto_matched: number;
+  pending_review: number;
+  auto_created: number;
+  errors: number;
+  cost_estimate: number;
+  duration_seconds: number;
+}
+
+export interface MatchingCandidate {
+  product_id: number;
+  score: number;
+  product_name: string;
+  details: Record<string, number>;
+}
+
+export interface PendingMatchItem {
+  id: number;
+  supplier_id: number;
+  supplier_name: string | null;
+  source_label: string;
+  extracted_attributes: Record<string, unknown>;
+  candidates: MatchingCandidate[];
+  status: string;
+  created_at: string | null;
+}
+
+export interface PendingMatchList {
+  items: PendingMatchItem[];
+  total: number;
+  page: number;
+  per_page: number;
+}
+
+export interface MatchingStatsData {
+  total_cached: number;
+  total_pending: number;
+  total_auto_matched: number;
+  total_manual: number;
+  cache_hit_rate: number;
+  by_supplier: {
+    supplier_id: number;
+    name: string;
+    cached: number;
+    pending: number;
+    matched: number;
+    manual: number;
+  }[];
+}
+
+export interface CacheEntry {
+  id: number;
+  supplier_id: number;
+  normalized_label: string;
+  product_id: number | null;
+  match_score: number | null;
+  match_source: string;
+  created_at: string | null;
+  last_used_at: string | null;
+}
+
+export interface CacheList {
+  items: CacheEntry[];
+  total: number;
+  page: number;
+  per_page: number;
+}
+
+export async function runMatching(supplierId?: number) {
+  const body = supplierId ? { supplier_id: supplierId } : {};
+  const res = await fetchWithAuth(`${API_BASE}/matching/run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<MatchingReport>;
+}
+
+export async function fetchPendingMatches(params?: { supplier_id?: number; page?: number; per_page?: number }) {
+  const search = new URLSearchParams();
+  if (params?.supplier_id) search.set('supplier_id', String(params.supplier_id));
+  if (params?.page) search.set('page', String(params.page));
+  if (params?.per_page) search.set('per_page', String(params.per_page));
+  const qs = search.toString();
+  const res = await fetchWithAuth(`${API_BASE}/matching/pending${qs ? `?${qs}` : ''}`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<PendingMatchList>;
+}
+
+export async function validateMatch(pendingMatchId: number, productId: number) {
+  return crudRequest('POST', `${API_BASE}/matching/validate`, {
+    pending_match_id: pendingMatchId,
+    product_id: productId,
+  });
+}
+
+export async function rejectMatch(pendingMatchId: number, createProduct = false) {
+  return crudRequest('POST', `${API_BASE}/matching/reject`, {
+    pending_match_id: pendingMatchId,
+    create_product: createProduct,
+  });
+}
+
+export async function fetchMatchingStats() {
+  const res = await fetchWithAuth(`${API_BASE}/matching/stats`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<MatchingStatsData>;
+}
+
+export async function fetchMatchingCache(params?: { supplier_id?: number; page?: number }) {
+  const search = new URLSearchParams();
+  if (params?.supplier_id) search.set('supplier_id', String(params.supplier_id));
+  if (params?.page) search.set('page', String(params.page));
+  const qs = search.toString();
+  const res = await fetchWithAuth(`${API_BASE}/matching/cache${qs ? `?${qs}` : ''}`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<CacheList>;
+}
+
+export async function deleteMatchingCache(cacheId: number) {
+  return crudRequest('DELETE', `${API_BASE}/matching/cache/${cacheId}`);
+}
