@@ -1,7 +1,7 @@
 """add_llm_matching_tables
 
 Revision ID: f1a2b3c4d5e7
-Revises: e1a2b3c4d5e6
+Revises: c5d9e3f6a8b1
 Create Date: 2026-02-14 10:00:00.000000
 
 """
@@ -14,7 +14,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 
 revision: str = "f1a2b3c4d5e7"
-down_revision: Union[str, Sequence[str], None] = "e1a2b3c4d5e6"
+down_revision: Union[str, Sequence[str], None] = "c5d9e3f6a8b1"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
