@@ -615,6 +615,51 @@ export async function updateGraphSetting(name: string, visible: boolean) {
 }
 
 // ---------------------------------------------------------------------------
+// Supplier catalog stats
+// ---------------------------------------------------------------------------
+
+export async function fetchSupplierAvgPrice() {
+  const res = await fetchWithAuth(`${API_BASE}/supplier_avg_price`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<{ supplier: string; avg_price: number }[]>;
+}
+
+export async function fetchSupplierProductCount() {
+  const res = await fetchWithAuth(`${API_BASE}/supplier_product_count`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<{ supplier: string; count: number }[]>;
+}
+
+export async function fetchSupplierPriceDistribution() {
+  const res = await fetchWithAuth(`${API_BASE}/supplier_price_distribution`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<{ supplier: string; prices: number[] }[]>;
+}
+
+export async function fetchSupplierPriceEvolution(params?: {
+  supplierId?: number;
+  startWeek?: string;
+  endWeek?: string;
+}) {
+  const search = new URLSearchParams();
+  if (params?.supplierId) search.set('supplier_id', String(params.supplierId));
+  if (params?.startWeek) search.set('start_week', params.startWeek);
+  if (params?.endWeek) search.set('end_week', params.endWeek);
+  const qs = search.toString();
+  const res = await fetchWithAuth(`${API_BASE}/supplier_price_evolution${qs ? `?${qs}` : ''}`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<{ supplier: string; week: string; avg_price: number }[]>;
+}
+
+// ---------------------------------------------------------------------------
 // Odoo Sync
 // ---------------------------------------------------------------------------
 

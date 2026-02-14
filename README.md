@@ -175,7 +175,6 @@ ajtpro/
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── AdminPage.tsx              # Administration generale
-│   │   │   ├── BrandSupplierChart.tsx     # Graphique marque/fournisseur
 │   │   │   ├── DataImportPage.tsx         # Synchronisation fournisseurs (onglets Synchro/Rapports/Odoo/Rapprochement)
 │   │   │   ├── MatchingPanel.tsx          # Rapprochement LLM (declenchement, validation, stats)
 │   │   │   ├── FormattingPage.tsx         # Mise en forme
@@ -185,11 +184,9 @@ ajtpro/
 │   │   │   ├── MultiSelectFilter.tsx      # Filtre multi-selection
 │   │   │   ├── NotificationProvider.tsx   # Systeme de notifications
 │   │   │   ├── OdooSyncPanel.tsx         # Synchronisation Odoo (config, sync, historique)
-│   │   │   ├── PriceChart.tsx             # Graphique prix global
 │   │   │   ├── ProcessingPage.tsx         # Traitement des donnees
 │   │   │   ├── ProductAdmin.tsx           # Administration produits
 │   │   │   ├── ProductEditModal.tsx       # Modale d'edition produit
-│   │   │   ├── ProductEvolutionChart.tsx  # Graphique evolution produit
 │   │   │   ├── ProductFilters.tsx         # Filtres produits
 │   │   │   ├── ProductReference.tsx       # Referentiel produit
 │   │   │   ├── ProductReferenceForm.tsx   # Formulaire referentiel
@@ -199,7 +196,7 @@ ajtpro/
 │   │   │   ├── ReferenceAdmin.tsx         # Admin tables de reference
 │   │   │   ├── SearchControls.tsx         # Controles de recherche
 │   │   │   ├── SearchPage.tsx             # Moteur de recherche
-│   │   │   ├── StatisticsPage.tsx         # Statistiques de prix
+│   │   │   ├── StatisticsPage.tsx         # Statistiques fournisseurs
 │   │   │   ├── StatsFilters.tsx           # Filtres statistiques
 │   │   │   ├── SupplierApiAdmin.tsx       # Admin API fournisseurs
 │   │   │   ├── SupplierApiReports.tsx     # Rapports API
@@ -430,7 +427,7 @@ Le gabarit OpenAPI se trouve dans `backend/swagger_template.yml`.
 
 ### Tests backend
 
-Le framework `pytest` est configure dans le backend (SQLite in-memory, pas besoin de PostgreSQL) — 176 tests dans 12 fichiers :
+Le framework `pytest` est configure dans le backend (SQLite in-memory, pas besoin de PostgreSQL) — 182 tests dans 13 fichiers :
 
 ```bash
 cd backend
@@ -440,7 +437,7 @@ python -m pytest tests/ -v
 
 ### Tests frontend
 
-Le framework `vitest` avec Testing Library est configure dans le frontend — 127 tests dans 13 fichiers :
+Le framework `vitest` avec Testing Library est configure dans le frontend — 130 tests dans 14 fichiers :
 
 ```bash
 cd frontend

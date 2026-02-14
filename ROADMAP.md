@@ -53,29 +53,23 @@ Composants concernes : `DataImportPage`, `SupplierApiSyncPanel`, `SupplierApiRep
 
 ---
 
-## Statistiques de prix
+## Statistiques fournisseurs (v2 — implementee)
 
-Module d'analyse graphique avec 11 types de visualisations :
+Module d'analyse graphique recentre sur les donnees brutes du catalogue fournisseur (`supplier_catalog`) avec 4 visualisations claires :
 
-| Graphique | Description |
-|-----------|-------------|
-| Vue globale | Evolution du prix moyen toutes marques/fournisseurs confondus |
-| Prix moyen marque/fournisseur | Comparaison croisee marque x fournisseur |
-| Prix moyen produit/fournisseur | Comparaison croisee produit x fournisseur |
-| Evolution du produit | Courbe de prix d'un produit specifique dans le temps |
-| Evolution relative (%) | Variation en pourcentage par rapport a une semaine de reference |
-| Distribution des prix | Histogramme de la repartition des prix |
-| Ecart-type par fournisseur | Mesure de la dispersion des prix par fournisseur |
-| Prix min/max par semaine | Amplitude des prix sur chaque semaine |
-| Indice des prix | Indice normalise pour comparer des gammes differentes |
-| Correlation des prix | Analyse de la correlation entre fournisseurs |
-| Anomalies detectees | Detection automatique des variations de prix inhabituelles |
+| Graphique | Source | Description |
+|-----------|--------|-------------|
+| Prix moyen par fournisseur | `supplier_catalog` | Prix de vente moyen de chaque fournisseur (BarChart gold) |
+| Evolution des prix par fournisseur | `product_calculations` | Prix moyen par fournisseur par semaine avec legendes couleur (MultiLineChart) |
+| Nombre de produits par fournisseur | `supplier_catalog` | Nombre de references dans le catalogue de chaque fournisseur (BarChart gold) |
+| Repartition des prix | `supplier_catalog` | Distribution des prix par tranche, comparee entre fournisseurs (GroupedBarChart) |
 
-Fonctionnalites transversales :
-- **Filtres** par fournisseur, marque et produit
-- **Activation/desactivation** de chaque type de graphique via les parametres (table `graph_settings`)
+Fonctionnalites :
+- **Filtres simplifies** : fournisseur optionnel + plage de semaines (pour l'evolution uniquement)
+- **Legendes** sous les graphiques multi-series (nom fournisseur + pastille couleur)
+- **4 endpoints API** : `/supplier_avg_price`, `/supplier_product_count`, `/supplier_price_distribution`, `/supplier_price_evolution`
 
-Composants concernes : `StatisticsPage`, `StatsFilters`, `PriceChart`, `BrandSupplierChart`, `ProductEvolutionChart`
+Composants concernes : `StatisticsPage`, `StatsFilters`
 
 ---
 
@@ -112,7 +106,7 @@ Refonte complete de l'interface utilisateur avec un design system coherent sur t
 - **Arrondis reduits** : cards rounded-lg (8px), boutons/inputs rounded-md (6px) pour un rendu plus professionnel
 - **Layout centralise** : wrapper `<main>` unique dans `App.tsx` avec `max-w-7xl mx-auto px-4 sm:px-6 lg:px-8`, suppression des wrappers individuels dans chaque page pour garantir un alignement parfait navbar/contenu
 
-Fichiers concernes : `App.tsx`, `LoginPage.tsx`, `SearchPage.tsx`, `SearchControls.tsx`, `ProductsPage.tsx`, `AdminPage.tsx`, `DataImportPage.tsx`, `ReferenceAdmin.tsx`, `TranslationAdmin.tsx`, `UserAdmin.tsx`, `SupplierApiAdmin.tsx`, `StatisticsPage.tsx`, `StatsFilters.tsx`, `PriceChart.tsx`, `BrandSupplierChart.tsx`, `ProductEvolutionChart.tsx`, `FormattingPage.tsx`, `ProcessingPage.tsx`, `index.css`
+Fichiers concernes : `App.tsx`, `LoginPage.tsx`, `SearchPage.tsx`, `SearchControls.tsx`, `ProductsPage.tsx`, `AdminPage.tsx`, `DataImportPage.tsx`, `ReferenceAdmin.tsx`, `TranslationAdmin.tsx`, `UserAdmin.tsx`, `SupplierApiAdmin.tsx`, `StatisticsPage.tsx`, `StatsFilters.tsx`, `FormattingPage.tsx`, `ProcessingPage.tsx`, `index.css`
 
 ---
 

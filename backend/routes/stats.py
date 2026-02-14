@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from models import Brand, Product, ProductCalculation, Supplier
+from models import Brand, Product, ProductCalculation, Supplier, SupplierCatalog
 from utils.auth import token_required
 from sqlalchemy import extract, func
 
@@ -207,3 +207,162 @@ def product_supplier_average():
     ]
 
     return jsonify(data)
+
+
+# ── Supplier catalog stats ─────────────────────────────────────────
+
+
+@bp.route("/supplier_avg_price", methods=["GET"])
+@token_required("admin")
+def supplier_avg_price():
+    """Average selling price per supplier from the supplier catalog.
+    ---
+    tags:
+      - Stats
+    responses:
+      200:
+        description: Average price per supplier
+    """
+    results = (
+        SupplierCatalog.query.join(Supplier)
+        .with_entities(
+            Supplier.name.label("supplier"),
+            func.avg(SupplierCatalog.selling_price).label("avg_price"),
+        )
+        .filter(SupplierCatalog.selling_price.isnot(None))
+        .group_by(Supplier.name)
+        .order_by(Supplier.name)
+        .all()
+    )
+
+    return jsonify(
+        [{"supplier": r.supplier, "avg_price": round(float(r.avg_price), 2)} for r in results]
+    )
+
+
+@bp.route("/supplier_product_count", methods=["GET"])
+@token_required("admin")
+def supplier_product_count():
+    """Number of products per supplier in the supplier catalog.
+    ---
+    tags:
+      - Stats
+    responses:
+      200:
+        description: Product count per supplier
+    """
+    results = (
+        SupplierCatalog.query.join(Supplier)
+        .with_entities(
+            Supplier.name.label("supplier"),
+            func.count(SupplierCatalog.id).label("count"),
+        )
+        .group_by(Supplier.name)
+        .order_by(Supplier.name)
+        .all()
+    )
+
+    return jsonify(
+        [{"supplier": r.supplier, "count": r.count} for r in results]
+    )
+
+
+@bp.route("/supplier_price_distribution", methods=["GET"])
+@token_required("admin")
+def supplier_price_distribution():
+    """Individual selling prices grouped by supplier for client-side binning.
+    ---
+    tags:
+      - Stats
+    responses:
+      200:
+        description: List of prices per supplier
+    """
+    results = (
+        SupplierCatalog.query.join(Supplier)
+        .with_entities(
+            Supplier.name.label("supplier"),
+            SupplierCatalog.selling_price.label("price"),
+        )
+        .filter(SupplierCatalog.selling_price.isnot(None))
+        .order_by(Supplier.name)
+        .all()
+    )
+
+    grouped: dict[str, list[float]] = {}
+    for r in results:
+        grouped.setdefault(r.supplier, []).append(float(r.price))
+
+    return jsonify(
+        [{"supplier": name, "prices": prices} for name, prices in grouped.items()]
+    )
+
+
+@bp.route("/supplier_price_evolution", methods=["GET"])
+@token_required("admin")
+def supplier_price_evolution():
+    """Average price per supplier per week from product_calculations.
+
+    Optional query parameters:
+    - supplier_id: filter on a specific supplier
+    - start_week / end_week: limit to a week range (format: S01-2025 or 2025-W01)
+    ---
+    tags:
+      - Stats
+    responses:
+      200:
+        description: Price evolution per supplier per week
+    """
+    filters = {
+        "supplier_id": request.args.get("supplier_id", type=int),
+        "start_week": request.args.get("start_week"),
+        "end_week": request.args.get("end_week"),
+    }
+
+    query = ProductCalculation.query.join(Supplier)
+
+    if filters["supplier_id"]:
+        query = query.filter(ProductCalculation.supplier_id == filters["supplier_id"])
+
+    start_week = filters.get("start_week")
+    if start_week:
+        sy, sw = _parse_week(start_week)
+        query = query.filter(
+            extract("year", ProductCalculation.date) * 100
+            + extract("week", ProductCalculation.date)
+            >= sy * 100 + sw
+        )
+    end_week = filters.get("end_week")
+    if end_week:
+        ey, ew = _parse_week(end_week)
+        query = query.filter(
+            extract("year", ProductCalculation.date) * 100
+            + extract("week", ProductCalculation.date)
+            <= ey * 100 + ew
+        )
+
+    week_field = extract("week", ProductCalculation.date).label("week")
+    year_field = extract("year", ProductCalculation.date).label("year")
+
+    results = (
+        query.with_entities(
+            Supplier.name.label("supplier"),
+            week_field,
+            year_field,
+            func.avg(ProductCalculation.price).label("avg_price"),
+        )
+        .group_by(Supplier.name, week_field, year_field)
+        .order_by(year_field, week_field)
+        .all()
+    )
+
+    return jsonify(
+        [
+            {
+                "supplier": r.supplier,
+                "week": f"S{int(r.week):02d}-{int(r.year)}",
+                "avg_price": round(float(r.avg_price), 2),
+            }
+            for r in results
+        ]
+    )
