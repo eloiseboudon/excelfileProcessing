@@ -17,6 +17,7 @@ from models import (
 )
 from sqlalchemy import extract, func
 from sqlalchemy.orm import joinedload
+from utils.activity import log_activity
 from utils.auth import token_required
 from utils.etl import run_fetch_job
 
@@ -950,6 +951,10 @@ def fetch_supplier_api(supplier_id: int):
     except RuntimeError as exc:
         return jsonify({"error": str(exc)}), 502
 
+    log_activity("import.file", details={
+        "supplier": supplier.name,
+        "product_count": result.get("catalog_count", 0),
+    })
     return jsonify(result), 200
 
 

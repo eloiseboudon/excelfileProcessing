@@ -148,6 +148,7 @@ ajtpro/
 │   ├── routes/
 │   │   ├── auth.py           # Authentification (login, refresh, logout)
 │   │   ├── imports.py        # Import de fichiers et synchronisation API
+│   │   ├── logs.py           # Logs d'activite et logs applicatifs
 │   │   ├── main.py           # Route sante (/)
 │   │   ├── matching.py       # Rapprochement LLM (run, pending, validate, reject, stats, cache)
 │   │   ├── odoo.py           # Synchronisation Odoo (config, test, sync, jobs)
@@ -163,8 +164,10 @@ ajtpro/
 │   │   ├── auth.py            # Generation et validation JWT
 │   │   ├── calculations.py    # Calculs de prix et marges
 │   │   ├── crypto.py          # Chiffrement/dechiffrement Fernet (mot de passe Odoo)
+│   │   ├── activity.py         # Helper log_activity pour tracabilite metier
 │   │   ├── etl.py             # Pipeline ETL synchronisation fournisseurs
 │   │   ├── llm_matching.py    # Module matching LLM (extraction, scoring, orchestration)
+│   │   ├── logging_config.py  # Configuration logging centralise (fichier JSON + console)
 │   │   ├── odoo_scheduler.py  # Planificateur synchro auto Odoo
 │   │   ├── odoo_sync.py       # Client XML-RPC et moteur synchro Odoo
 │   │   └── pricing.py         # Constantes et fonctions de tarification partagees
@@ -180,6 +183,7 @@ ajtpro/
 │   │   │   ├── FormattingPage.tsx         # Mise en forme
 │   │   │   ├── ImportPreviewModal.tsx     # Apercu avant import
 │   │   │   ├── InfoButton.tsx             # Bouton info (i)
+│   │   │   ├── LogsPanel.tsx              # Logs d'activite et logs applicatifs
 │   │   │   ├── LoginPage.tsx              # Page de connexion
 │   │   │   ├── MultiSelectFilter.tsx      # Filtre multi-selection
 │   │   │   ├── NotificationProvider.tsx   # Systeme de notifications
@@ -259,11 +263,12 @@ Permet d'explorer l'ensemble du catalogue fournisseurs avec :
 
 ### Administration
 
-Accessible depuis le menu Parametres > Admin (role admin uniquement), avec 4 onglets :
+Accessible depuis le menu Parametres > Admin (role admin uniquement), avec 5 onglets :
 - **Tables de reference** -- CRUD sur les marques, couleurs, options memoire, types d'appareils, options RAM, normes, exclusions, fournisseurs, format imports
 - **Coherence des tables** -- Gestion des traductions de couleurs (mapping couleur source vers couleur cible)
 - **API fournisseurs** -- Configuration des API fournisseurs : endpoints, champs de mapping, pagination, authentification
 - **Utilisateurs** -- Creation et gestion des comptes avec roles (admin / client)
+- **Logs** -- Consultation de l'historique d'activite (login, matching, imports, calculs, sync Odoo) et des logs applicatifs (fichier JSON rotatif)
 
 ### Synchronisation fournisseurs
 
@@ -427,7 +432,7 @@ Le gabarit OpenAPI se trouve dans `backend/swagger_template.yml`.
 
 ### Tests backend
 
-Le framework `pytest` est configure dans le backend (SQLite in-memory, pas besoin de PostgreSQL) — 182 tests dans 13 fichiers :
+Le framework `pytest` est configure dans le backend (SQLite in-memory, pas besoin de PostgreSQL) — 199 tests dans 14 fichiers :
 
 ```bash
 cd backend
@@ -437,7 +442,7 @@ python -m pytest tests/ -v
 
 ### Tests frontend
 
-Le framework `vitest` avec Testing Library est configure dans le frontend — 130 tests dans 14 fichiers :
+Le framework `vitest` avec Testing Library est configure dans le frontend — 147 tests dans 15 fichiers :
 
 ```bash
 cd frontend

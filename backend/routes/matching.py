@@ -15,6 +15,7 @@ from models import (
     SupplierCatalog,
     db,
 )
+from utils.activity import log_activity
 from utils.auth import token_required
 from utils.llm_matching import (
     create_product_from_extraction,
@@ -53,6 +54,10 @@ def run_matching():
         logger.exception("Erreur lors du rapprochement LLM")
         return jsonify({"error": "Erreur interne lors du rapprochement"}), 500
 
+    log_activity("matching.run", details={
+        "auto_matched": report.get("auto_matched"),
+        "pending_review": report.get("pending_review"),
+    })
     return jsonify(report), 200
 
 
@@ -176,6 +181,10 @@ def validate_match():
         )
         db.session.add(cache)
 
+    log_activity("matching.validate", details={
+        "pending_match_id": pending_match_id,
+        "product_id": product_id,
+    })
     db.session.commit()
     return jsonify({"status": "validated", "product_id": product_id}), 200
 
@@ -234,6 +243,10 @@ def reject_match():
         pm.status = "rejected"
         pm.resolved_at = datetime.now(timezone.utc)
 
+    log_activity("matching.reject", details={
+        "pending_match_id": pending_match_id,
+        "create_product": create_product,
+    })
     db.session.commit()
     return jsonify({"status": pm.status}), 200
 

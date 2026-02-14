@@ -228,6 +228,25 @@ Infrastructure de tests unitaires et d'integration pour le backend et le fronten
 
 ---
 
+## Systeme de logs centralise (implementee)
+
+Systeme de logging structure et tracabilite des operations metier, consultable depuis l'interface admin sans SSH.
+
+- **Logging applicatif** : `RotatingFileHandler` JSON (10 Mo, 5 backups) + console handler lisible, niveau configurable via `LOG_LEVEL`
+- **Table activity_logs** : enregistrement des operations metier (login, matching, import, calculs, sync Odoo, suppression) avec action, categorie, utilisateur, details JSON et adresse IP
+- **Helper log_activity** : fonction centralisee appelee dans les routes (auth, matching, products, odoo, imports), categorie derivee automatiquement du prefixe d'action
+- **API logs** : `GET /logs/activity` (pagine, filtrable par categorie/action) + `GET /logs/app` (dernières N lignes du fichier de log)
+- **Interface admin** : 5e onglet "Logs" dans Administration, 2 sous-onglets :
+  - Historique d'activite : tableau pagine avec badges colores par categorie, filtre par categorie, bouton rafraichir
+  - Logs application : affichage monospace avec coloration par niveau (ERROR rouge, WARNING jaune, DEBUG gris)
+- **Nettoyage ETL** : suppression du systeme de log maison (`_TEMP_IMPORT_LOG_FILENAME`, `_resolve_temp_import_log_path`, `_append_temp_import_log_entry`) remplace par `logger.info`
+- **Docker prod** : volume `ajtpro_backend_logs` pour persister les logs entre redemarrages
+- **Tests** : 11 tests backend (routes logs) + 9 tests frontend (LogsPanel)
+
+Fichiers concernes : `backend/utils/logging_config.py`, `backend/utils/activity.py`, `backend/routes/logs.py`, `backend/models.py`, `backend/app.py`, `backend/routes/auth.py`, `backend/routes/matching.py`, `backend/routes/products.py`, `backend/routes/odoo.py`, `backend/routes/imports.py`, `backend/utils/etl.py`, `frontend/src/api.ts`, `frontend/src/components/LogsPanel.tsx`, `frontend/src/components/AdminPage.tsx`
+
+---
+
 ## Renommage supplier_catalog + refresh a la demande (implementee)
 
 Renommage de la table `temporary_imports` en `supplier_catalog` pour mieux refleter son role de cache des catalogues fournisseurs, et ajout d'un bouton de refresh manuel.
@@ -253,7 +272,7 @@ Fichiers concernes : `backend/models.py`, `backend/routes/products.py`, `backend
 - ~~quand on rejette un produit, pas remonter en haut de page mais rester sur la meme endroit de la page~~
 - ~~ajouter un filtre par modele de produit~~
 
-## 2. Ajouter un systeme de logs pour le backend
+## ~~2. Ajouter un systeme de logs pour le backend~~ (implementee)
 ## 3. Meilleures gestions de toutes les filtres des tableaux
 - Filtre ascendant/descendant
 - choix case à cocher par colonne

@@ -23,6 +23,7 @@ from models import (
 )
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
+from utils.activity import log_activity
 from utils.auth import token_required
 from utils.calculations import recalculate_product_calculations
 from utils.etl import run_fetch_job
@@ -598,6 +599,7 @@ def calculate_products():
         logger.exception("Erreur lors du calcul des produits")
         return jsonify({"error": f"Erreur lors du calcul : {exc}"}), 500
     count = ProductCalculation.query.count()
+    log_activity("calculation.run", details={"product_count": count})
     return jsonify({"status": "success", "created": count})
 
 
@@ -966,6 +968,7 @@ def bulk_delete_products():
         db.session.delete(product)
 
     if deleted_ids:
+        log_activity("product.bulk_delete", details={"count": len(deleted_ids)})
         db.session.commit()
 
     return jsonify({"status": "success", "deleted": deleted_ids})

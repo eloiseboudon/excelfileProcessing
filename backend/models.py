@@ -514,6 +514,22 @@ class LabelCache(db.Model):
     last_used_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 
+class ActivityLog(db.Model):
+    __tablename__ = "activity_logs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(
+        db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+    action = db.Column(db.String(100), nullable=False, index=True)
+    category = db.Column(db.String(50), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    details = db.Column(JSONB, nullable=True)
+    ip_address = db.Column(db.String(45), nullable=True)
+
+    user = db.relationship("User", lazy="select")
+
+
 class PendingMatch(db.Model):
     __tablename__ = "pending_matches"
 

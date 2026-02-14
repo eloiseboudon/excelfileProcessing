@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from flask import Blueprint, jsonify, request
 
 from models import OdooConfig, OdooSyncJob, db
+from utils.activity import log_activity
 from utils.auth import token_required
 from utils.odoo_sync import OdooClient, run_odoo_sync
 
@@ -142,7 +143,7 @@ def trigger_sync():
 
     job = OdooSyncJob(trigger="manual")
     db.session.add(job)
-    db.session.commit()
+    log_activity("odoo.sync", details={"job_id": job.id}, commit=True)
 
     from flask import current_app
 
