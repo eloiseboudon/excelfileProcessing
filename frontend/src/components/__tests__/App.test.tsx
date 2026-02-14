@@ -42,7 +42,7 @@ describe('App', () => {
     localStorage.setItem('token', 'fake-jwt-token');
     localStorage.setItem('role', 'admin');
     renderApp();
-    expect(screen.getByText('Recherche')).toBeInTheDocument();
+    expect(screen.getByText('Moteur de recherche')).toBeInTheDocument();
   });
 
   it('shows settings button when authenticated', () => {

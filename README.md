@@ -245,7 +245,7 @@ ajtpro/
 
 L'ensemble de l'application suit un design system coherent de type admin dashboard :
 
-- **Navbar sticky** avec logo AJT Pro, liens de navigation style pill (fond dore quand actif), menu deroulant Parametres avec separateur, responsive (icones seules sur mobile)
+- **Navbar sticky** avec logo AJT Pro, liens de navigation style pill (fond dore quand actif) : Produits (1er, page par defaut pour non-clients) puis Moteur de recherche, menu deroulant Parametres avec separateur, responsive (icones seules sur mobile)
 - **Layout centralise** : un unique wrapper `<main>` dans `App.tsx` porte les classes `max-w-7xl mx-auto px-4 sm:px-6 lg:px-8`, identiques a celles du header. Toutes les pages heritent de ce conteneur, garantissant un alignement parfait navbar/contenu sur tous les breakpoints
 - **Design system** : classes utilitaires `.card` (rounded-lg, backdrop-blur, shadow-xl, padding 15px, bordure doree `#B8860B/20`), `.btn` / `.btn-primary` / `.btn-secondary` (rounded-md), variables CSS pour les couleurs (bordures via `--color-border-subtle` et `--color-border-default`, sans modificateurs d'opacite), palette graphiques doree (#B8860B)
 - **Pages structurees** : header avec icone doree + titre + description, onglets soulignes (border-b-2 doree), toolbar dans une card, contenu dans une card avec divide-y. Coherence appliquee sur toutes les pages (recherche, produits, statistiques, traitement, mise en forme, admin, synchro)
@@ -253,7 +253,7 @@ L'ensemble de l'application suit un design system coherent de type admin dashboa
 
 ### Moteur de recherche
 
-Page principale de l'application. Permet d'explorer l'ensemble du catalogue fournisseurs avec :
+Permet d'explorer l'ensemble du catalogue fournisseurs avec :
 - Recherche full-text avec suggestions et historique (par nom, description, marque, fournisseur, EAN, reference)
 - Filtres avances : gamme de prix (curseur min/max), fournisseur, disponibilite stock, EAN, tri par prix
 - Resultats affiches dans une card avec header (nombre de resultats, gamme selectionnee), hover sur chaque ligne, badge fournisseur colore et prix
@@ -297,6 +297,7 @@ Module de matching intelligent qui utilise Claude Haiku (Anthropic) pour associe
 - **Scoring multicritere** : score /100 base sur la marque (15), le modele (40, fuzzy matching), le stockage (25), la couleur (15) et la region (5)
 - **3 niveaux d'action** : score >= 90 = match automatique, 50-89 = validation manuelle, < 50 = creation produit automatique
 - **Integration TCP/marges** : les produits matches par LLM sont automatiquement pris en compte dans le calcul des prix (TCP, marges, prix de vente) via un fallback LabelCache dans le moteur de calcul. Les produits sans marque (crees automatiquement par le LLM) sont egalement inclus dans les vues prix et statistiques
+- **Gestion d'erreurs explicite** : verification de la cle API Anthropic avant traitement, messages d'erreur specifiques (cle invalide, rate limit, connexion reseau, erreur API), rapport d'erreurs visible dans l'interface avec bandeau d'avertissement
 - **Cache de labels** : les resultats sont caches par fournisseur/libelle pour eviter les appels LLM redondants lors des syncs suivantes
 - **Table de correspondance** : codes constructeur Samsung (SM-S938B -> Galaxy S25 Ultra, etc.) et traductions couleurs (Midnight -> Noir, etc.)
 - **Interface de validation** : les matchs en attente sont presentes avec les attributs extraits, les candidats avec barre de score, et les boutons Valider/Creer/Ignorer
@@ -318,7 +319,7 @@ Le projet dispose d'un pipeline GitHub Actions complet :
 
 ### Referentiel produit
 
-Tableau complet du referentiel produit accessible depuis le bouton "Produits" (role admin uniquement). Permet de :
+Page par defaut pour les utilisateurs non-clients. Tableau complet du referentiel produit accessible depuis l'onglet "Produits" (role admin uniquement). Permet de :
 - Consulter, filtrer et rechercher l'ensemble des produits du referentiel
 - Editer les produits directement dans le tableau (marque, couleur, memoire, type, RAM, norme)
 - Creer de nouveaux produits via le formulaire integre

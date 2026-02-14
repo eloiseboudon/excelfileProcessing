@@ -1,5 +1,6 @@
 """API endpoints for LLM-based product matching."""
 
+import logging
 from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
@@ -21,6 +22,8 @@ from utils.llm_matching import (
     run_matching_job,
 )
 
+logger = logging.getLogger(__name__)
+
 bp = Blueprint("matching", __name__)
 
 
@@ -36,7 +39,14 @@ def run_matching():
         if not supplier:
             return jsonify({"error": "Fournisseur introuvable"}), 404
 
-    report = run_matching_job(supplier_id=supplier_id)
+    try:
+        report = run_matching_job(supplier_id=supplier_id)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        logger.exception("Erreur lors du rapprochement LLM")
+        return jsonify({"error": "Erreur interne lors du rapprochement"}), 500
+
     return jsonify(report), 200
 
 

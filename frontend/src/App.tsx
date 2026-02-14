@@ -10,7 +10,8 @@ import StatisticsPage from './components/StatisticsPage';
 
 function App() {
   const storedRole = localStorage.getItem('role');
-  const [currentPage, setCurrentPage] = useState<'search' | 'products' | 'dataImport' | 'statistics' | 'admin' | 'sync'>('search');
+  const defaultPage = storedRole && storedRole !== 'client' ? 'products' : 'search';
+  const [currentPage, setCurrentPage] = useState<'search' | 'products' | 'dataImport' | 'statistics' | 'admin' | 'sync'>(defaultPage);
   const [apiTestMessage, setApiTestMessage] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [role, setRole] = useState<string>(storedRole || '');
@@ -29,7 +30,7 @@ function App() {
     localStorage.setItem('role', userRole);
     setAuthToken(newToken);
     setRefreshToken(newRefresh);
-    setCurrentPage('search');
+    setCurrentPage(userRole !== 'client' ? 'products' : 'search');
   };
 
   const handleLogout = () => {
@@ -92,21 +93,6 @@ function App() {
               <span className="text-lg font-bold tracking-tight text-[#B8860B] select-none">AJT Pro</span>
 
               <nav className="hidden sm:flex items-center gap-1">
-                <button
-                  onClick={() => {
-                    setCurrentPage('search');
-                    setShowSettingsMenu(false);
-                  }}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                    currentPage === 'search'
-                      ? 'bg-[#B8860B]/15 text-[#B8860B]'
-                      : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-elevated)]'
-                  }`}
-                >
-                  <Search className="w-4 h-4" />
-                  <span>Recherche</span>
-                </button>
-
                 {role !== 'client' && (
                   <button
                     onClick={() => {
@@ -123,6 +109,21 @@ function App() {
                     <span>Produits</span>
                   </button>
                 )}
+
+                <button
+                  onClick={() => {
+                    setCurrentPage('search');
+                    setShowSettingsMenu(false);
+                  }}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    currentPage === 'search'
+                      ? 'bg-[#B8860B]/15 text-[#B8860B]'
+                      : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-elevated)]'
+                  }`}
+                >
+                  <Search className="w-4 h-4" />
+                  <span>Moteur de recherche</span>
+                </button>
               </nav>
             </div>
 
@@ -130,18 +131,6 @@ function App() {
             <div className="flex items-center gap-2">
               {/* Mobile nav buttons */}
               <div className="flex sm:hidden items-center gap-1">
-                <button
-                  onClick={() => {
-                    setCurrentPage('search');
-                    setShowSettingsMenu(false);
-                  }}
-                  className={`p-2 rounded-md transition-colors ${
-                    currentPage === 'search' ? 'text-[#B8860B] bg-[#B8860B]/15' : 'text-[var(--color-text-muted)]'
-                  }`}
-                  aria-label="Recherche"
-                >
-                  <Search className="w-5 h-5" />
-                </button>
                 {role !== 'client' && (
                   <button
                     onClick={() => {
@@ -156,6 +145,18 @@ function App() {
                     <LibraryBig className="w-5 h-5" />
                   </button>
                 )}
+                <button
+                  onClick={() => {
+                    setCurrentPage('search');
+                    setShowSettingsMenu(false);
+                  }}
+                  className={`p-2 rounded-md transition-colors ${
+                    currentPage === 'search' ? 'text-[#B8860B] bg-[#B8860B]/15' : 'text-[var(--color-text-muted)]'
+                  }`}
+                  aria-label="Moteur de recherche"
+                >
+                  <Search className="w-5 h-5" />
+                </button>
               </div>
 
               {/* Settings dropdown */}

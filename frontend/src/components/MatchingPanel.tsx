@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -178,16 +179,27 @@ function MatchingPanel() {
 
         {/* Rapport */}
         {report && (
-          <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-            <ReportCard label="Matches auto" value={report.auto_matched} />
-            <ReportCard label="En attente" value={report.pending_review} />
-            <ReportCard label="Crees" value={report.auto_created} />
-            <ReportCard label="Depuis cache" value={report.from_cache} />
-            <ReportCard
-              label="Cout estime"
-              value={`${report.cost_estimate.toFixed(4)} €`}
-            />
-          </div>
+          <>
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+              <ReportCard label="Matches auto" value={report.auto_matched} />
+              <ReportCard label="En attente" value={report.pending_review} />
+              <ReportCard label="Crees" value={report.auto_created} />
+              <ReportCard label="Depuis cache" value={report.from_cache} />
+              <ReportCard label="Erreurs" value={report.errors} />
+              <ReportCard
+                label="Cout estime"
+                value={`${report.cost_estimate.toFixed(4)} €`}
+              />
+            </div>
+            {report.errors > 0 && report.error_message && (
+              <div className="mt-3 flex items-start gap-2 p-3 rounded-md bg-[var(--color-bg-elevated)] border border-red-500/30">
+                <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+                <p className="text-sm text-red-400">
+                  {report.error_message}
+                </p>
+              </div>
+            )}
+          </>
         )}
       </div>
 

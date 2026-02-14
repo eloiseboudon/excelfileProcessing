@@ -241,6 +241,11 @@ class TestBuildExtractionPrompt:
 class TestCallLlmExtraction:
     def _make_mock_anthropic(self):
         mock_module = MagicMock()
+        # Provide real exception classes so `except` clauses work
+        mock_module.AuthenticationError = type("AuthenticationError", (Exception,), {})
+        mock_module.RateLimitError = type("RateLimitError", (Exception,), {})
+        mock_module.APIConnectionError = type("APIConnectionError", (Exception,), {})
+        mock_module.APIStatusError = type("APIStatusError", (Exception,), {})
         return mock_module
 
     def test_success(self):

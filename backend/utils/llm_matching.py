@@ -219,6 +219,33 @@ def call_llm_extraction(
                 right = call_llm_extraction(labels[mid:], context)
                 return left + right
             raise
+        except anthropic.AuthenticationError:
+            raise RuntimeError(
+                "Cle API Anthropic invalide ou manquante"
+            )
+        except anthropic.RateLimitError:
+            if attempt < max_retries:
+                time.sleep(2 * (attempt + 1))
+                continue
+            raise RuntimeError(
+                "Limite de requetes Anthropic atteinte, "
+                "reessayez dans quelques minutes"
+            )
+        except anthropic.APIConnectionError:
+            if attempt < max_retries:
+                time.sleep(1 * (attempt + 1))
+                continue
+            raise RuntimeError(
+                "Impossible de contacter l'API Anthropic "
+                "(verifiez la connexion reseau)"
+            )
+        except anthropic.APIStatusError as exc:
+            if attempt < max_retries:
+                time.sleep(1 * (attempt + 1))
+                continue
+            raise RuntimeError(
+                f"Erreur API Anthropic (code {exc.status_code})"
+            )
         except Exception:
             if attempt < max_retries:
                 time.sleep(1 * (attempt + 1))
@@ -497,6 +524,13 @@ def run_matching_job(supplier_id: Optional[int] = None) -> Dict[str, Any]:
     6. Score < 50 -> create Product
     7. Return report
     """
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    if not api_key:
+        raise ValueError(
+            "Cle API Anthropic manquante. "
+            "Configurez la variable d'environnement ANTHROPIC_API_KEY."
+        )
+
     start_time = time.time()
 
     threshold_auto = _get_env_int("MATCH_THRESHOLD_AUTO", 90)
@@ -540,6 +574,7 @@ def run_matching_job(supplier_id: Optional[int] = None) -> Dict[str, Any]:
     pending_review = 0
     auto_created = 0
     errors = 0
+    error_message: Optional[str] = None
     total_input_tokens = 0
     total_output_tokens = 0
     labels_to_extract: List[Tuple[str, str, List[TemporaryImport]]] = []
@@ -586,6 +621,8 @@ def run_matching_job(supplier_id: Optional[int] = None) -> Dict[str, Any]:
         except Exception as exc:
             current_app.logger.error("LLM extraction failed: %s", exc)
             errors += len(batch_labels)
+            if error_message is None:
+                error_message = str(exc)
             continue
 
         # Process each extraction
@@ -654,6 +691,7 @@ def run_matching_job(supplier_id: Optional[int] = None) -> Dict[str, Any]:
         "pending_review": pending_review,
         "auto_created": auto_created,
         "errors": errors,
+        "error_message": error_message,
         "cost_estimate": cost_estimate,
         "duration_seconds": duration,
     }
