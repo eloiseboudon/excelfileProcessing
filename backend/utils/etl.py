@@ -1,18 +1,19 @@
 from __future__ import annotations
 
+import logging
 import re
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 from urllib.parse import urljoin
 
 import jmespath
 import requests
 from dateutil import parser as date_parser
-from flask import current_app, has_app_context
+from flask import current_app
 from requests.auth import HTTPBasicAuth
 from sqlalchemy.orm import joinedload
-_TEMP_IMPORT_LOG_FILENAME = "supplier_catalog.log"
+
+logger = logging.getLogger(__name__)
 
 from models import (
     ApiEndpoint,
@@ -46,38 +47,6 @@ _FIELD_PRIORITY = {
     "ean": 1,
     "part_number": 2,
 }
-
-
-def _resolve_temp_import_log_path() -> Path:
-    if has_app_context():
-        custom_path = current_app.config.get("TEMP_IMPORT_LOG_PATH")
-        base_dir = Path(current_app.root_path)
-    else:
-        custom_path = None
-        base_dir = Path(__file__).resolve().parents[1]
-
-    if custom_path:
-        log_path = Path(custom_path)
-        if not log_path.is_absolute():
-            log_path = base_dir / log_path
-    else:
-        log_path = base_dir / "logs" / _TEMP_IMPORT_LOG_FILENAME
-
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-    return log_path
-
-
-def _append_temp_import_log_entry(message: str) -> None:
-    log_path = _resolve_temp_import_log_path()
-    timestamp = datetime.now(timezone.utc).replace(microsecond=0).isoformat() + "Z"
-    try:
-        with log_path.open("a", encoding="utf-8") as handle:
-            handle.write(f"[{timestamp}] {message}\n")
-    except OSError as exc:  # pragma: no cover - logging safeguard
-        if has_app_context():
-            current_app.logger.warning(
-                "Impossible d'écrire dans le journal supplier_catalog: %s", exc
-            )
 
 
 def _compile_expression(path: str) -> jmespath.parser.ParsedResult:
@@ -1013,20 +982,13 @@ def run_fetch_job(
 
         raw_count = len(items) if isinstance(items, list) else len(parsed_records)
         parsed_count = len(parsed_records)
-        _append_temp_import_log_entry(
-            " ".join(
-                [
-                    f"job_id={job.id}",
-                    f"supplier_id={supplier_id}",
-                    f"endpoint_id={endpoint.id}",
-                    f"raw_count={raw_count}",
-                    f"parsed_count={parsed_count}",
-                    f"inserted_count={inserted_count}",
-                    f"skipped_no_identity={skipped_no_identity}",
-                    f"skipped_no_description={skipped_no_description}",
-                    f"duplicates={duplicate_count}",
-                ]
-            )
+        logger.info(
+            "Supplier catalog sync job_id=%s supplier_id=%s endpoint_id=%s "
+            "raw=%d parsed=%d inserted=%d skipped_identity=%d "
+            "skipped_desc=%d duplicates=%d",
+            job.id, supplier_id, endpoint.id,
+            raw_count, parsed_count, inserted_count,
+            skipped_no_identity, skipped_no_description, duplicate_count,
         )
 
         mapping_summary = {

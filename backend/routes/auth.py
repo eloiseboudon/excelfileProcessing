@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 import jwt
 from models import User, db
+from utils.activity import log_activity
 from utils.auth import (
     generate_access_token,
     generate_refresh_token,
@@ -50,6 +51,8 @@ def login():
     user = User.query.filter_by(email=email).first()
     if not user or not user.check_password(password):
         return jsonify({"error": "Identifiants invalides"}), 401
+
+    log_activity("user.login", details={"email": email}, user_id=user.id, commit=True)
 
     access_token = generate_access_token(user)
     refresh_token = generate_refresh_token(user)

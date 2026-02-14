@@ -7,6 +7,7 @@ from flask import Flask
 from flask_cors import CORS
 from models import db
 from routes import register_routes
+from utils.logging_config import configure_logging
 
 
 def create_app():
@@ -38,6 +39,7 @@ def create_app():
             "connect_args": {"cached_statements": 512},
         }
     db.init_app(app)
+    configure_logging(app)
 
     with app.app_context():
         db.create_all()

@@ -918,3 +918,57 @@ export async function fetchMatchingCache(params?: { supplier_id?: number; page?:
 export async function deleteMatchingCache(cacheId: number) {
   return crudRequest('DELETE', `${API_BASE}/matching/cache/${cacheId}`);
 }
+
+// ---------------------------------------------------------------------------
+// Logs
+// ---------------------------------------------------------------------------
+
+export interface ActivityLogEntry {
+  id: number;
+  timestamp: string | null;
+  action: string;
+  category: string;
+  user_id: number | null;
+  username: string | null;
+  details: Record<string, unknown> | null;
+  ip_address: string | null;
+}
+
+export interface ActivityLogList {
+  items: ActivityLogEntry[];
+  total: number;
+  page: number;
+  per_page: number;
+}
+
+export async function fetchActivityLogs(params?: {
+  page?: number;
+  per_page?: number;
+  category?: string;
+  action?: string;
+}) {
+  const search = new URLSearchParams();
+  if (params?.page) search.set('page', String(params.page));
+  if (params?.per_page) search.set('per_page', String(params.per_page));
+  if (params?.category) search.set('category', params.category);
+  if (params?.action) search.set('action', params.action);
+  const qs = search.toString();
+  const res = await fetchWithAuth(`${API_BASE}/logs/activity${qs ? `?${qs}` : ''}`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<ActivityLogList>;
+}
+
+export interface AppLogsResponse {
+  lines: string[];
+  total_lines: number;
+}
+
+export async function fetchAppLogs(lines = 200) {
+  const res = await fetchWithAuth(`${API_BASE}/logs/app?lines=${lines}`);
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
+  }
+  return res.json() as Promise<AppLogsResponse>;
+}
