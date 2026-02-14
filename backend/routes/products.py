@@ -319,10 +319,13 @@ def product_price_summary():
     """Return latest supplier prices and average per product."""
     try:
         return _product_price_summary_inner()
-    except Exception:
+    except Exception as exc:
         logger.exception("Erreur dans product_price_summary")
         db.session.rollback()
-        return jsonify({"error": "Erreur interne lors du calcul des prix"}), 500
+        return jsonify({
+            "error": "Erreur interne lors du calcul des prix",
+            "detail": f"{type(exc).__name__}: {exc}",
+        }), 500
 
 
 def _product_price_summary_inner():
