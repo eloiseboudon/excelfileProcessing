@@ -54,12 +54,7 @@ function ProductReferenceForm({
               </div>
             )}
           </div>
-          <button
-            onClick={onAdd}
-            className="btn btn-primary text-sm"
-          >
-            Ajouter
-          </button>
+          {/* Bouton Ajouter masqué — les produits proviennent d'Odoo */}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {selectedCount > 0 && (

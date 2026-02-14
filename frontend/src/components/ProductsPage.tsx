@@ -1,7 +1,7 @@
-import { ArrowLeft, ChevronLeft, ChevronRight, Package } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Package, RefreshCw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
-import { fetchProductPriceSummary, updateProduct } from '../api';
+import { calculateProducts, fetchProductPriceSummary, updateProduct } from '../api';
 import { getCurrentTimestamp, getCurrentWeekYear } from '../utils/date';
 import ProductEditModal from './ProductEditModal';
 import ProductReference from './ProductReference';
@@ -78,6 +78,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
   const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
   const [showBulkMarginModal, setShowBulkMarginModal] = useState(false);
   const [bulkMarginValue, setBulkMarginValue] = useState('');
+  const [recalculating, setRecalculating] = useState(false);
   const notify = useNotification();
   const modifiedCount = Object.keys(editedPrices).length;
   const hasEdits = modifiedCount > 0;
@@ -137,58 +138,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
 
 
   useEffect(() => {
-    fetchProductPriceSummary()
-      .then((res) => {
-        const items = res as any[];
-        const suppliersSet = new Set<string>();
-        const aggregated: AggregatedProduct[] = items.map((it) => {
-          Object.keys(it.buy_price || {}).forEach((s) => suppliersSet.add(s));
-          const latest: AggregatedProduct['latestCalculations'] = {};
-          Object.entries(it.latest_calculations || {}).forEach(([supplier, detail]) => {
-            latest[supplier] = {
-              price: detail?.price ?? undefined,
-              tcp: detail?.tcp ?? undefined,
-              marge45: detail?.marge4_5 ?? undefined,
-              marge: detail?.marge ?? undefined,
-              margePercent: detail?.marge_percent ?? null,
-              prixhtTcpMarge45: detail?.prixht_tcp_marge4_5 ?? undefined,
-              prixhtMarge45: detail?.prixht_marge4_5 ?? undefined,
-              prixhtMax: detail?.prixht_max ?? undefined,
-              stock: detail?.stock ?? undefined,
-              updatedAt: detail?.date ?? null,
-            };
-          });
-          return {
-            id: it.id,
-            model: it.model,
-            description: it.description,
-            brand: it.brand,
-            memory: it.memory,
-            color: it.color,
-            type: it.type,
-            ram: it.ram,
-            norme: it.norme,
-            marge: it.marge ?? 0,
-            margePercent:
-              typeof it.marge_percent === 'number' ? it.marge_percent : null,
-            averagePrice:
-              it.recommended_price ?? it.average_price ?? 0,
-            buyPrices: it.buy_price || {},
-            salePrices: it.supplier_prices || {},
-            stockLevels: it.stock_levels || {},
-            latestCalculations: latest,
-            minBuyPrice:
-              typeof it.min_buy_price === 'number' ? it.min_buy_price : 0,
-            tcp: typeof it.tcp === 'number' ? it.tcp : 0,
-          } as AggregatedProduct;
-        });
-        setSuppliers(Array.from(suppliersSet).sort());
-        setData(aggregated);
-      })
-      .catch(() => {
-        setData([]);
-        setSuppliers([]);
-      });
+    refreshData();
 
     Promise.all([
       fetchBrands(),
@@ -517,6 +467,74 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
     notify('Marge mise à jour', 'success');
   };
 
+  const refreshData = () => {
+    fetchProductPriceSummary()
+      .then((res) => {
+        const items = res as any[];
+        const suppliersSet = new Set<string>();
+        const aggregated: AggregatedProduct[] = items.map((it) => {
+          Object.keys(it.buy_price || {}).forEach((s) => suppliersSet.add(s));
+          const latest: AggregatedProduct['latestCalculations'] = {};
+          Object.entries(it.latest_calculations || {}).forEach(([supplier, detail]) => {
+            latest[supplier] = {
+              price: detail?.price ?? undefined,
+              tcp: detail?.tcp ?? undefined,
+              marge45: detail?.marge4_5 ?? undefined,
+              marge: detail?.marge ?? undefined,
+              margePercent: detail?.marge_percent ?? null,
+              prixhtTcpMarge45: detail?.prixht_tcp_marge4_5 ?? undefined,
+              prixhtMarge45: detail?.prixht_marge4_5 ?? undefined,
+              prixhtMax: detail?.prixht_max ?? undefined,
+              stock: detail?.stock ?? undefined,
+              updatedAt: detail?.date ?? null,
+            };
+          });
+          return {
+            id: it.id,
+            model: it.model,
+            description: it.description,
+            brand: it.brand,
+            memory: it.memory,
+            color: it.color,
+            type: it.type,
+            ram: it.ram,
+            norme: it.norme,
+            marge: it.marge ?? 0,
+            margePercent:
+              typeof it.marge_percent === 'number' ? it.marge_percent : null,
+            averagePrice:
+              it.recommended_price ?? it.average_price ?? 0,
+            buyPrices: it.buy_price || {},
+            salePrices: it.supplier_prices || {},
+            stockLevels: it.stock_levels || {},
+            latestCalculations: latest,
+            minBuyPrice:
+              typeof it.min_buy_price === 'number' ? it.min_buy_price : 0,
+            tcp: typeof it.tcp === 'number' ? it.tcp : 0,
+          } as AggregatedProduct;
+        });
+        setSuppliers(Array.from(suppliersSet).sort());
+        setData(aggregated);
+      })
+      .catch(() => {
+        setData([]);
+        setSuppliers([]);
+      });
+  };
+
+  const handleRecalculate = async () => {
+    setRecalculating(true);
+    try {
+      const result = await calculateProducts();
+      notify(`Recalcul terminé (${result.created} enregistrements)`, 'success');
+      refreshData();
+    } catch {
+      notify('Erreur lors du recalcul', 'error');
+    } finally {
+      setRecalculating(false);
+    }
+  };
+
   const handleExportJSON = () => {
     const dataStr = JSON.stringify(buildExportRows(), null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
@@ -706,6 +724,19 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
                       </div>
                     )}
                   </div>
+                )}
+                {role !== 'client' && (
+                  <div className="w-px h-6 bg-[var(--color-border-subtle)]" />
+                )}
+                {role !== 'client' && (
+                  <button
+                    onClick={handleRecalculate}
+                    disabled={recalculating}
+                    className="btn btn-primary text-sm"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${recalculating ? 'animate-spin' : ''}`} />
+                    {recalculating ? 'Recalcul...' : 'Recalculer'}
+                  </button>
                 )}
                 {role !== 'client' && (
                   <div className="w-px h-6 bg-[var(--color-border-subtle)]" />

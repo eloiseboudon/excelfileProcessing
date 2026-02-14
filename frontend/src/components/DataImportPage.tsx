@@ -8,7 +8,7 @@ import SupplierApiReports from './SupplierApiReports';
 type ImportTab = 'sync' | 'report' | 'odoo' | 'matching';
 
 function DataImportPage() {
-  const [activeTab, setActiveTab] = useState<ImportTab>('sync');
+  const [activeTab, setActiveTab] = useState<ImportTab>('odoo');
 
   return (
     <div>
@@ -23,28 +23,7 @@ function DataImportPage() {
       </div>
       <div className="border-b border-[var(--color-border-subtle)] mb-6">
         <nav className="flex gap-4" aria-label="Import navigation">
-          <button
-            type="button"
-            onClick={() => setActiveTab('sync')}
-            className={`px-2 pb-3 text-sm font-medium transition-colors border-b-2 ${
-              activeTab === 'sync'
-                ? 'border-[#B8860B] text-[var(--color-text-heading)]'
-                : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
-            }`}
-          >
-            Synchronisation
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('report')}
-            className={`px-2 pb-3 text-sm font-medium transition-colors border-b-2 ${
-              activeTab === 'report'
-                ? 'border-[#B8860B] text-[var(--color-text-heading)]'
-                : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
-            }`}
-          >
-            Rapports
-          </button>
+          {/* Onglets Synchronisation et Rapports masqués temporairement */}
           <button
             type="button"
             onClick={() => setActiveTab('odoo')}

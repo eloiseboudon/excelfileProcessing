@@ -296,6 +296,7 @@ Module de matching intelligent qui utilise Claude Haiku (Anthropic) pour associe
 - **Extraction d'attributs** : le LLM extrait marque, modele, stockage, couleur, type d'appareil, region et connectivite depuis les libelles fournisseurs
 - **Scoring multicritere** : score /100 base sur la marque (15), le modele (40, fuzzy matching), le stockage (25), la couleur (15) et la region (5)
 - **3 niveaux d'action** : score >= 90 = match automatique, 50-89 = validation manuelle, < 50 = creation produit automatique
+- **Integration TCP/marges** : les produits matches par LLM sont automatiquement pris en compte dans le calcul des prix (TCP, marges, prix de vente) via un fallback LabelCache dans le moteur de calcul. Les produits sans marque (crees automatiquement par le LLM) sont egalement inclus dans les vues prix et statistiques
 - **Cache de labels** : les resultats sont caches par fournisseur/libelle pour eviter les appels LLM redondants lors des syncs suivantes
 - **Table de correspondance** : codes constructeur Samsung (SM-S938B -> Galaxy S25 Ultra, etc.) et traductions couleurs (Midnight -> Noir, etc.)
 - **Interface de validation** : les matchs en attente sont presentes avec les attributs extraits, les candidats avec barre de score, et les boutons Valider/Creer/Ignorer

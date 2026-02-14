@@ -11,6 +11,7 @@ from models import (
     Product,
     Supplier,
     SupplierProductRef,
+    TemporaryImport,
     db,
 )
 from utils.auth import token_required
@@ -112,9 +113,16 @@ def validate_match():
     ).first()
 
     if not existing_ref:
+        temp_import = (
+            db.session.get(TemporaryImport, pm.temporary_import_id)
+            if pm.temporary_import_id
+            else None
+        )
         ref = SupplierProductRef(
             supplier_id=pm.supplier_id,
             product_id=product_id,
+            ean=temp_import.ean if temp_import else None,
+            part_number=temp_import.part_number if temp_import else None,
             last_seen_at=datetime.now(timezone.utc),
         )
         db.session.add(ref)
@@ -169,9 +177,16 @@ def reject_match():
         pm.resolved_product_id = product.id
         pm.resolved_at = datetime.now(timezone.utc)
 
+        temp_import = (
+            db.session.get(TemporaryImport, pm.temporary_import_id)
+            if pm.temporary_import_id
+            else None
+        )
         ref = SupplierProductRef(
             supplier_id=pm.supplier_id,
             product_id=product.id,
+            ean=temp_import.ean if temp_import else None,
+            part_number=temp_import.part_number if temp_import else None,
             last_seen_at=datetime.now(timezone.utc),
         )
         db.session.add(ref)
