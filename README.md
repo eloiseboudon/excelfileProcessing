@@ -315,7 +315,7 @@ Pre-requis : creer un compte Anthropic, generer une cle API et ajouter `ANTHROPI
 Le projet dispose d'un pipeline GitHub Actions complet :
 
 - **CI** (`.github/workflows/ci.yml`) : tests frontend (Vitest) et backend (pytest) executes en parallele sur chaque push et pull request vers `main`. Un recap des resultats (tests passes/echoues) est affiche dans le Job Summary de chaque job. Le secret JWT de test fait 32+ octets pour eviter les warnings `InsecureKeyLengthWarning`.
-- **Deploy** (`.github/workflows/deploy.yml`) : deploiement automatique sur le VPS via SSH apres chaque push sur `main`.
+- **Deploy** (`.github/workflows/deploy.yml`) : deploiement automatique sur le VPS via SSH apres chaque push sur `main`. Le pipeline lance directement le deploy SSH sans job de build intermediaire (le build frontend est fait dans le Dockerfile). Le script `deploy-ci.sh` est optimise pour un deploy en ~1 minute : layer caching Docker, build avant arret des containers (downtime ~5-10s), polling actif au lieu d'attente fixe.
 
 ### Referentiel produit
 
