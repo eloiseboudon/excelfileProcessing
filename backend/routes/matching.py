@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
-from sqlalchemy import func
+from sqlalchemy import cast, func, String
 
 from models import (
     LabelCache,
@@ -60,14 +60,27 @@ def run_matching():
 @token_required("admin")
 def list_pending():
     """List pending matches awaiting validation."""
+    VALID_STATUSES = {"pending", "validated", "rejected", "created"}
+
     supplier_id = request.args.get("supplier_id", type=int)
+    status = request.args.get("status", "pending")
+    model = request.args.get("model", type=str)
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 20, type=int)
     per_page = min(per_page, 100)
 
-    query = PendingMatch.query.filter_by(status="pending")
+    if status not in VALID_STATUSES:
+        return jsonify({"error": f"Statut invalide: {status}"}), 400
+
+    query = PendingMatch.query.filter_by(status=status)
     if supplier_id:
         query = query.filter_by(supplier_id=supplier_id)
+    if model:
+        query = query.filter(
+            cast(PendingMatch.extracted_attributes["model_family"], String).ilike(
+                f"%{model}%"
+            )
+        )
 
     query = query.order_by(PendingMatch.created_at.desc())
     total = query.count()

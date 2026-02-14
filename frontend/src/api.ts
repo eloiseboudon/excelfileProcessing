@@ -866,11 +866,13 @@ export async function runMatching(supplierId?: number, limit?: number) {
   }
 }
 
-export async function fetchPendingMatches(params?: { supplier_id?: number; page?: number; per_page?: number }) {
+export async function fetchPendingMatches(params?: { supplier_id?: number; page?: number; per_page?: number; status?: string; model?: string }) {
   const search = new URLSearchParams();
   if (params?.supplier_id) search.set('supplier_id', String(params.supplier_id));
   if (params?.page) search.set('page', String(params.page));
   if (params?.per_page) search.set('per_page', String(params.per_page));
+  if (params?.status) search.set('status', params.status);
+  if (params?.model) search.set('model', params.model);
   const qs = search.toString();
   const res = await fetchWithAuth(`${API_BASE}/matching/pending${qs ? `?${qs}` : ''}`);
   if (!res.ok) {

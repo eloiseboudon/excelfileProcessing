@@ -199,6 +199,39 @@ class TestListPending:
         data = rv.get_json()
         assert data["total"] == 0
 
+    def test_default_status_pending(self, client, admin_headers, pending_match):
+        """Without status param, only pending matches are returned."""
+        rv = client.get("/matching/pending", headers=admin_headers)
+        data = rv.get_json()
+        assert data["total"] == 1
+        assert data["items"][0]["status"] == "pending"
+
+    def test_filter_by_status_validated(self, client, admin_headers, pending_match):
+        """Filter status=validated returns only validated matches."""
+        pending_match.status = "validated"
+        db.session.commit()
+
+        rv = client.get("/matching/pending?status=validated", headers=admin_headers)
+        data = rv.get_json()
+        assert data["total"] == 1
+        assert data["items"][0]["status"] == "validated"
+
+    def test_filter_status_excludes_others(self, client, admin_headers, pending_match):
+        """Filtering by status=rejected excludes pending matches."""
+        rv = client.get("/matching/pending?status=rejected", headers=admin_headers)
+        data = rv.get_json()
+        assert data["total"] == 0
+
+    def test_invalid_status_returns_400(self, client, admin_headers):
+        """Invalid status value returns 400."""
+        rv = client.get("/matching/pending?status=invalid", headers=admin_headers)
+        assert rv.status_code == 400
+
+    def test_filter_by_model(self, client, admin_headers, pending_match):
+        """Model parameter is accepted and filters results."""
+        rv = client.get("/matching/pending?model=Galaxy", headers=admin_headers)
+        assert rv.status_code == 200
+
 
 # ---------------------------------------------------------------------------
 # POST /matching/validate

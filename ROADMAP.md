@@ -241,3 +241,24 @@ Renommage de la table `temporary_imports` en `supplier_catalog` pour mieux refle
 - **Documentation** : ARCHITECTURE.md, api_supplier_sync.md, LLM.md, fonctionnalites_app.md, ROADMAP.md mis a jour
 
 Fichiers concernes : `backend/models.py`, `backend/routes/products.py`, `backend/routes/matching.py`, `backend/utils/etl.py`, `backend/utils/calculations.py`, `backend/utils/llm_matching.py`, `frontend/src/api.ts`, `frontend/src/components/SearchPage.tsx`
+
+---
+
+# Prochaines etapes
+
+## ~~1. Ameliorations vue Rapprochement LLM~~ (implementee)
+- ~~ajouter pagination en bas de page~~
+- ~~ajouter un filtre par statut (pending, validated, rejected, created)~~
+- ~~quand on valide un produit, pas remonter en haut de page mais rester sur la meme endroit de la page~~
+- ~~quand on rejette un produit, pas remonter en haut de page mais rester sur la meme endroit de la page~~
+- ~~ajouter un filtre par modele de produit~~
+
+## 2. Ajouter un systeme de logs pour le backend
+## 3. Meilleures gestions de toutes les filtres des tableaux
+- Filtre ascendant/descendant
+- choix case à cocher par colonne
+- pouvoir taper dans les filtres pour choisis (comme dans excel)
+
+## 4. Dans le referentiel produit il y a des doublons :
+- memoire "512 Go" VS "512GB"
+- RAM : "4" VS "4Go"
