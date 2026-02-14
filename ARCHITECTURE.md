@@ -101,12 +101,27 @@ Relations :
 - Un `product` reference une `brand`, une `color`, un `memory_option`, un `ram_option`, une `norm` et un `device_type`.
 - Les `product_calculations` relient un `product` a un `supplier` pour une semaine donnee.
 
-### 2.4 Utilisateurs et parametres
+### 2.4 Rapprochement LLM
 
-| Table           | Role                                                                                     |
-| --------------- | ---------------------------------------------------------------------------------------- |
-| `users`         | Comptes utilisateurs (username, password_hash, role : `admin` ou `user`).                |
-| `user_settings` | Preferences utilisateur (ex. : graphiques visibles sur le tableau de bord).              |
+| Table                  | Role                                                                                     |
+| ---------------------- | ---------------------------------------------------------------------------------------- |
+| `model_references`     | Correspondances codes constructeur → nom commercial (ex: SM-S938B → Galaxy S25 Ultra).   |
+| `label_cache`          | Cache des resultats d'extraction LLM par fournisseur et libelle normalise.               |
+| `pending_matches`      | Matchs en attente de validation manuelle (attributs extraits + candidats scores).         |
+
+Relations :
+- Un `label_cache` reference un `supplier` et optionnellement un `product`.
+- Un `pending_match` reference un `supplier` et optionnellement un `supplier_catalog` et un `product` (resolu).
+
+### 2.5 Utilisateurs, parametres et Odoo
+
+| Table              | Role                                                                                     |
+| ------------------ | ---------------------------------------------------------------------------------------- |
+| `users`            | Comptes utilisateurs (username, password_hash, role : `admin` ou `user`).                |
+| `user_settings`    | Preferences utilisateur (ex. : graphiques visibles sur le tableau de bord).              |
+| `graph_settings`   | Activation/desactivation des types de graphiques sur la page statistiques.               |
+| `odoo_config`      | Configuration de connexion Odoo (URL, base, identifiants chiffres Fernet).               |
+| `odoo_sync_jobs`   | Historique des jobs de synchronisation Odoo (statut, rapport, horodatages).              |
 
 ---
 
@@ -377,8 +392,10 @@ Les routes sont organisees par domaine fonctionnel :
 | Module       | Responsabilite                                  |
 | ------------ | ----------------------------------------------- |
 | `auth`       | Authentification, gestion des tokens.           |
-| `products`   | CRUD produits, references internes.             |
+| `products`   | CRUD produits, calculs, refresh catalogue fournisseurs. |
 | `imports`    | Import de fichiers, integration des donnees.    |
+| `matching`   | Rapprochement LLM (run, pending, validate, reject, stats, cache). |
+| `odoo`       | Synchronisation Odoo (config, test, sync, jobs, auto-sync). |
 | `references` | Tables de reference (marques, couleurs, etc.).  |
 | `stats`      | Statistiques et tableaux de bord.               |
 | `settings`   | Parametres utilisateur et application.          |
@@ -386,12 +403,16 @@ Les routes sont organisees par domaine fonctionnel :
 
 ### Organisation des utilitaires backend
 
-| Module         | Responsabilite                                               |
-| -------------- | ------------------------------------------------------------ |
-| `utils/auth`   | Generation et verification des JWT, decorateur `@token_required`. |
-| `utils/calculations` | Fonctions de calcul de prix et de marge.               |
-| `utils/etl`    | Pipeline de synchronisation fournisseur (`run_fetch_job`).   |
-| `utils/pricing`| Constantes partagees (seuils, multiplicateurs, commission).  |
+| Module               | Responsabilite                                               |
+| -------------------- | ------------------------------------------------------------ |
+| `utils/auth`         | Generation et verification des JWT, decorateur `@token_required`. |
+| `utils/calculations` | Fonctions de calcul de prix et de marge.                     |
+| `utils/crypto`       | Chiffrement/dechiffrement Fernet (mot de passe Odoo).        |
+| `utils/etl`          | Pipeline de synchronisation fournisseur (`run_fetch_job`).   |
+| `utils/llm_matching` | Module matching LLM (extraction, scoring, orchestration).    |
+| `utils/odoo_scheduler` | Planificateur de synchronisation automatique Odoo.         |
+| `utils/odoo_sync`    | Client XML-RPC et moteur de synchronisation Odoo.            |
+| `utils/pricing`      | Constantes partagees (seuils, multiplicateurs, commission).  |
 
 ### Organisation du frontend
 
