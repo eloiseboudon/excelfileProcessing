@@ -483,6 +483,10 @@ class TestCreateProductFromExtraction:
 
 
 class TestRunMatchingJob:
+    @pytest.fixture(autouse=True)
+    def _set_api_key(self, monkeypatch):
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test-dummy-key")
+
     @patch("utils.llm_matching.call_llm_extraction")
     def test_full_flow(
         self,
