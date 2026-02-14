@@ -17,7 +17,7 @@ services:
       POSTGRES_HOST: postgres_prod
       POSTGRES_PORT: 5432
       DATABASE_URL: postgresql://ajt_user:ajt_password@postgres_prod:5432/ajt_db
-    command: gunicorn -w 4 -b 0.0.0.0:5001 app:app
+    command: gunicorn -w 4 --timeout 300 -b 0.0.0.0:5001 app:app
     ports:
       - "8000:5001"
     depends_on:
