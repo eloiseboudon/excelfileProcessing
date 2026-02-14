@@ -18,7 +18,6 @@ const defaultProps = {
   showColumnMenu: false,
   onToggleColumnMenu: vi.fn(),
   onToggleColumn: vi.fn(),
-  onAdd: vi.fn(),
   onSave: vi.fn(),
   onBulkDelete: vi.fn(),
   selectedCount: 0,
@@ -30,11 +29,6 @@ describe('ProductReferenceForm', () => {
   it('renders Colonnes button', () => {
     render(<ProductReferenceForm {...defaultProps} />);
     expect(screen.getByText('Colonnes')).toBeInTheDocument();
-  });
-
-  it('renders Ajouter button', () => {
-    render(<ProductReferenceForm {...defaultProps} />);
-    expect(screen.getByText('Ajouter')).toBeInTheDocument();
   });
 
   it('renders Enregistrer button', () => {
@@ -89,14 +83,6 @@ describe('ProductReferenceForm', () => {
     );
     await user.click(screen.getByText('Colonnes'));
     expect(onToggleColumnMenu).toHaveBeenCalledOnce();
-  });
-
-  it('calls onAdd when clicking Ajouter', async () => {
-    const user = userEvent.setup();
-    const onAdd = vi.fn();
-    render(<ProductReferenceForm {...defaultProps} onAdd={onAdd} />);
-    await user.click(screen.getByText('Ajouter'));
-    expect(onAdd).toHaveBeenCalledOnce();
   });
 
   it('calls onSave when clicking Enregistrer', async () => {

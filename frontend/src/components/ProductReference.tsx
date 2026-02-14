@@ -181,45 +181,6 @@ function ProductReference() {
     }));
   };
 
-  const handleAdd = () => {
-    const id = Date.now() * -1;
-    setProducts((prev) => [
-      ...prev,
-      {
-        id,
-        ean: '',
-        model: '',
-        description: '',
-        brand_id: null,
-        brand: null,
-        memory_id: null,
-        memory: null,
-        color_id: null,
-        color: null,
-        type_id: null,
-        type: null,
-        ram_id: null,
-        ram: null,
-        norme_id: null,
-        norme: null,
-      },
-    ]);
-    setEdited((prev) => ({
-      ...prev,
-      [id]: {
-        ean: '',
-        model: '',
-        description: '',
-        brand_id: null,
-        memory_id: null,
-        color_id: null,
-        type_id: null,
-        ram_id: null,
-        norme_id: null,
-      },
-    }));
-  };
-
   const removeEditedEntries = (ids: number[]) => {
     if (!ids.length) return;
     setEdited((prev) => {
@@ -340,7 +301,6 @@ function ProductReference() {
         showColumnMenu={showColumnMenu}
         onToggleColumnMenu={() => setShowColumnMenu((s) => !s)}
         onToggleColumn={toggleColumn}
-        onAdd={handleAdd}
         onSave={saveAll}
         onBulkDelete={handleBulkDelete}
         selectedCount={selectedCount}

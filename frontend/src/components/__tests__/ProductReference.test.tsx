@@ -81,7 +81,6 @@ describe('ProductReference', () => {
   it('renders the toolbar buttons', () => {
     renderProductReference();
     expect(screen.getByText('Colonnes')).toBeInTheDocument();
-    expect(screen.getByText('Ajouter')).toBeInTheDocument();
     expect(screen.getByText('Enregistrer')).toBeInTheDocument();
   });
 
