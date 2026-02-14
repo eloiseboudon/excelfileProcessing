@@ -783,15 +783,22 @@ export interface CacheList {
 
 export async function runMatching(supplierId?: number) {
   const body = supplierId ? { supplier_id: supplierId } : {};
-  const res = await fetchWithAuth(`${API_BASE}/matching/run`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res));
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000);
+  try {
+    const res = await fetchWithAuth(`${API_BASE}/matching/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      throw new Error(await extractErrorMessage(res));
+    }
+    return res.json() as Promise<MatchingReport>;
+  } finally {
+    clearTimeout(timeout);
   }
-  return res.json() as Promise<MatchingReport>;
 }
 
 export async function fetchPendingMatches(params?: { supplier_id?: number; page?: number; per_page?: number }) {

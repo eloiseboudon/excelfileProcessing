@@ -42,15 +42,18 @@ for envfile in .env backend/.env frontend/.env; do
 done
 
 # 4. Injection des secrets dans .env
-if [ -n "${ODOO_ENCRYPTION_KEY:-}" ]; then
-    if grep -q "^ODOO_ENCRYPTION_KEY=" "$APP_DIR/.env" 2>/dev/null; then
-        sed -i "s|^ODOO_ENCRYPTION_KEY=.*|ODOO_ENCRYPTION_KEY=${ODOO_ENCRYPTION_KEY}|" "$APP_DIR/.env"
-        log "ODOO_ENCRYPTION_KEY mise a jour dans .env"
-    else
-        echo "ODOO_ENCRYPTION_KEY=${ODOO_ENCRYPTION_KEY}" >> "$APP_DIR/.env"
-        log "ODOO_ENCRYPTION_KEY ajoutee dans .env"
+for SECRET_NAME in ODOO_ENCRYPTION_KEY ANTHROPIC_API_KEY; do
+    SECRET_VALUE=$(eval echo "\${${SECRET_NAME}:-}")
+    if [ -n "$SECRET_VALUE" ]; then
+        if grep -q "^${SECRET_NAME}=" "$APP_DIR/.env" 2>/dev/null; then
+            sed -i "s|^${SECRET_NAME}=.*|${SECRET_NAME}=${SECRET_VALUE}|" "$APP_DIR/.env"
+            log "${SECRET_NAME} mise a jour dans .env"
+        else
+            echo "${SECRET_NAME}=${SECRET_VALUE}" >> "$APP_DIR/.env"
+            log "${SECRET_NAME} ajoutee dans .env"
+        fi
     fi
-fi
+done
 
 # 5. Build des images Docker (AVANT l'arret pour reduire le downtime)
 log "Build des images Docker..."
