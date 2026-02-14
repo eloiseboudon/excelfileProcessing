@@ -266,7 +266,7 @@ function Legend({ items }: { items: { name: string; color: string }[] }) {
 
 function StatisticsPage({ onBack }: StatisticsPageProps) {
   const [suppliers, setSuppliers] = useState<{ id: number; name: string }[]>([]);
-  const [products, setProducts] = useState<{ id: number; model: string }[]>([]);
+  const [models, setModels] = useState<string[]>([]);
   const [avgPriceData, setAvgPriceData] = useState<SupplierAvg[]>([]);
   const [productCountData, setProductCountData] = useState<SupplierCount[]>([]);
   const [distributionData, setDistributionData] = useState<SupplierPrices[]>([]);
@@ -274,7 +274,7 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
   const [productEvolutionData, setProductEvolutionData] = useState<SupplierEvolution[]>([]);
 
   const [supplierId, setSupplierId] = useState<number | ''>('');
-  const [productId, setProductId] = useState<number | ''>('');
+  const [selectedModel, setSelectedModel] = useState('');
   const [startWeek, setStartWeek] = useState('');
   const [endWeek, setEndWeek] = useState('');
 
@@ -283,8 +283,11 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
       .then((s) => setSuppliers(s as { id: number; name: string }[]))
       .catch(() => setSuppliers([]));
     fetchProducts()
-      .then((p: { id: number; model: string }[]) => setProducts(p))
-      .catch(() => setProducts([]));
+      .then((p: { id: number; model: string }[]) => {
+        const unique = Array.from(new Set(p.map((x) => x.model).filter(Boolean))).sort();
+        setModels(unique);
+      })
+      .catch(() => setModels([]));
     fetchSupplierAvgPrice()
       .then(setAvgPriceData)
       .catch(() => setAvgPriceData([]));
@@ -317,18 +320,18 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
   }, [loadEvolution]);
 
   const loadProductEvolution = useCallback(() => {
-    if (!productId) {
+    if (!selectedModel) {
       setProductEvolutionData([]);
       return;
     }
     fetchSupplierPriceEvolution({
-      productId: Number(productId),
+      model: selectedModel,
       startWeek: toApiWeek(startWeek),
       endWeek: toApiWeek(endWeek),
     })
       .then(setProductEvolutionData)
       .catch(() => setProductEvolutionData([]));
-  }, [productId, startWeek, endWeek]);
+  }, [selectedModel, startWeek, endWeek]);
 
   useEffect(() => {
     loadProductEvolution();
@@ -435,14 +438,11 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
       <StatsFilters
         supplierId={supplierId}
         setSupplierId={setSupplierId}
-        productId={productId}
-        setProductId={setProductId}
         startWeek={startWeek}
         setStartWeek={setStartWeek}
         endWeek={endWeek}
         setEndWeek={setEndWeek}
         suppliers={suppliers}
-        products={products}
       />
 
       <div className="space-y-6">
@@ -472,19 +472,37 @@ function StatisticsPage({ onBack }: StatisticsPageProps) {
         </div>
 
         {/* Comparaison prix produit par fournisseur */}
-        {productId && (
-          <div className="card overflow-hidden">
-            <h2 className="font-semibold mb-2 flex items-center">
+        <div className="card overflow-hidden">
+          <div className="flex flex-wrap items-center gap-4 mb-2">
+            <h2 className="font-semibold flex items-center">
               Comparaison prix produit par fournisseur
               <InfoButton text="Prix moyen du produit selectionne compare entre fournisseurs au fil des semaines." />
             </h2>
-            <MultiLineChart series={productEvolutionSeries} />
-            {productEvolutionSeries.length > 0 && <Legend items={productEvolutionLegend} />}
-            {productEvolutionSeries.length === 0 && (
-              <p className="text-center text-sm text-[var(--color-text-muted)] mt-2">Pas de donnees pour ce produit</p>
-            )}
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="bg-[var(--color-bg-input)] border border-[var(--color-border-strong)] rounded-md px-3 py-2 text-sm"
+            >
+              <option value="">Selectionner un produit</option>
+              {models.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
           </div>
-        )}
+          {selectedModel ? (
+            <>
+              <MultiLineChart series={productEvolutionSeries} />
+              {productEvolutionSeries.length > 0 && <Legend items={productEvolutionLegend} />}
+              {productEvolutionSeries.length === 0 && (
+                <p className="text-center text-sm text-[var(--color-text-muted)] mt-2">Pas de donnees pour ce produit</p>
+              )}
+            </>
+          ) : (
+            <p className="text-center text-sm text-[var(--color-text-muted)] py-8">Selectionnez un produit pour afficher la comparaison</p>
+          )}
+        </div>
 
         {/* Nombre de produits par fournisseur */}
         <div className="card overflow-hidden">

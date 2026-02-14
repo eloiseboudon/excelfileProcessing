@@ -29,6 +29,8 @@ def _build_stats_query(filters):
         query = query.filter(Product.brand_id == filters["brand_id"])
     if filters.get("product_id"):
         query = query.filter(Product.id == filters["product_id"])
+    if filters.get("model"):
+        query = query.filter(Product.model == filters["model"])
 
     start_week = filters.get("start_week")
     if start_week:
@@ -315,7 +317,7 @@ def supplier_price_evolution():
     """
     filters = {
         "supplier_id": request.args.get("supplier_id", type=int),
-        "product_id": request.args.get("product_id", type=int),
+        "model": request.args.get("model"),
         "start_week": request.args.get("start_week"),
         "end_week": request.args.get("end_week"),
     }

@@ -644,13 +644,13 @@ export async function fetchSupplierPriceDistribution() {
 
 export async function fetchSupplierPriceEvolution(params?: {
   supplierId?: number;
-  productId?: number;
+  model?: string;
   startWeek?: string;
   endWeek?: string;
 }) {
   const search = new URLSearchParams();
   if (params?.supplierId) search.set('supplier_id', String(params.supplierId));
-  if (params?.productId) search.set('product_id', String(params.productId));
+  if (params?.model) search.set('model', params.model);
   if (params?.startWeek) search.set('start_week', params.startWeek);
   if (params?.endWeek) search.set('end_week', params.endWeek);
   const qs = search.toString();

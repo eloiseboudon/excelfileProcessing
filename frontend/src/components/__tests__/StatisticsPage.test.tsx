@@ -69,10 +69,11 @@ describe('StatisticsPage', () => {
     expect(onBack).toHaveBeenCalledOnce();
   });
 
-  it('shows product comparison chart when a product is selected', async () => {
+  it('shows placeholder then chart when a model is selected', async () => {
     mockFetchProducts.mockResolvedValue([
       { id: 1, model: 'iPhone 15' },
       { id: 2, model: 'Galaxy S24' },
+      { id: 3, model: 'iPhone 15' },
     ]);
     mockEvolution.mockResolvedValue([
       { supplier: 'SupA', week: 'S01-2025', avg_price: 100 },
@@ -82,16 +83,18 @@ describe('StatisticsPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('Tous produits')).toBeDefined();
+      expect(screen.getByText('Comparaison prix produit par fournisseur')).toBeDefined();
+      expect(screen.getByText('Selectionnez un produit pour afficher la comparaison')).toBeDefined();
     });
 
-    expect(screen.queryByText('Comparaison prix produit par fournisseur')).toBeNull();
+    const productSelect = screen.getByDisplayValue('Selectionner un produit');
+    const options = productSelect.querySelectorAll('option');
+    expect(options.length).toBe(3);
 
-    const productSelect = screen.getByDisplayValue('Tous produits');
-    fireEvent.change(productSelect, { target: { value: '1' } });
+    fireEvent.change(productSelect, { target: { value: 'iPhone 15' } });
 
     await waitFor(() => {
-      expect(screen.getByText('Comparaison prix produit par fournisseur')).toBeDefined();
+      expect(screen.queryByText('Selectionnez un produit pour afficher la comparaison')).toBeNull();
     });
   });
 });
