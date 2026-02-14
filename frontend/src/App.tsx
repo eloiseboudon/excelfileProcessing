@@ -1,4 +1,4 @@
-import { ChevronDown, LibraryBig, LogOut, RefreshCw, Search, Settings } from 'lucide-react';
+import { BarChart3, ChevronDown, LibraryBig, LogOut, RefreshCw, Search, Settings } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { fetchApitest, setAuthToken, setRefreshToken } from './api';
 import AdminPage from './components/AdminPage';
@@ -124,6 +124,23 @@ function App() {
                   <Search className="w-4 h-4" />
                   <span>Moteur de recherche</span>
                 </button>
+
+                {role !== 'client' && (
+                  <button
+                    onClick={() => {
+                      setCurrentPage('statistics');
+                      setShowSettingsMenu(false);
+                    }}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      currentPage === 'statistics'
+                        ? 'bg-[#B8860B]/15 text-[#B8860B]'
+                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-elevated)]'
+                    }`}
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                    <span>Statistiques</span>
+                  </button>
+                )}
               </nav>
             </div>
 
@@ -157,6 +174,20 @@ function App() {
                 >
                   <Search className="w-5 h-5" />
                 </button>
+                {role !== 'client' && (
+                  <button
+                    onClick={() => {
+                      setCurrentPage('statistics');
+                      setShowSettingsMenu(false);
+                    }}
+                    className={`p-2 rounded-md transition-colors ${
+                      currentPage === 'statistics' ? 'text-[#B8860B] bg-[#B8860B]/15' : 'text-[var(--color-text-muted)]'
+                    }`}
+                    aria-label="Statistiques"
+                  >
+                    <BarChart3 className="w-5 h-5" />
+                  </button>
+                )}
               </div>
 
               {/* Settings dropdown */}
