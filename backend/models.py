@@ -265,6 +265,7 @@ class TemporaryImport(db.Model):
     supplier = db.relationship(
         "Supplier", backref=db.backref("temporary_imports", lazy=True)
     )
+    region = db.Column(db.String(30), nullable=True)
 
 
 class Brand(db.Model):
@@ -354,6 +355,7 @@ class Product(db.Model):
     norme = db.relationship("NormeOption", backref=db.backref("products", lazy=True))
 
     recommended_price = db.Column(db.Float, nullable=True)
+    region = db.Column(db.String(30), nullable=True)
 
 
 class ProductCalculation(db.Model):
@@ -480,3 +482,51 @@ class OdooSyncJob(db.Model):
     report_errors = db.Column(JSONB, nullable=True)
     deleted_count = db.Column(db.Integer, default=0)
     report_deleted = db.Column(JSONB, nullable=True)
+
+
+class ModelReference(db.Model):
+    __tablename__ = "model_references"
+
+    id = db.Column(db.Integer, primary_key=True)
+    manufacturer_code = db.Column(db.String(50), nullable=False, unique=True)
+    commercial_name = db.Column(db.String(100), nullable=False)
+    brand_id = db.Column(db.Integer, db.ForeignKey("brands.id"), nullable=True)
+    brand = db.relationship("Brand", backref=db.backref("model_references", lazy=True))
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class LabelCache(db.Model):
+    __tablename__ = "label_cache"
+    __table_args__ = (
+        db.UniqueConstraint("supplier_id", "normalized_label", name="uix_label_cache"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=False)
+    supplier = db.relationship("Supplier", backref=db.backref("label_cache", lazy=True))
+    normalized_label = db.Column(db.String(300), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey("products.id"), nullable=True)
+    product = db.relationship("Product", backref=db.backref("label_cache", lazy=True))
+    match_score = db.Column(db.Integer, nullable=True)
+    match_source = db.Column(db.String(20), nullable=False)
+    extracted_attributes = db.Column(JSONB, nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    last_used_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class PendingMatch(db.Model):
+    __tablename__ = "pending_matches"
+
+    id = db.Column(db.Integer, primary_key=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=False)
+    supplier = db.relationship("Supplier", backref=db.backref("pending_matches", lazy=True))
+    temporary_import_id = db.Column(
+        db.Integer, db.ForeignKey("temporary_imports.id"), nullable=True
+    )
+    source_label = db.Column(db.String(300), nullable=False)
+    extracted_attributes = db.Column(JSONB, nullable=False)
+    candidates = db.Column(JSONB, nullable=False)
+    status = db.Column(db.String(20), default="pending")
+    resolved_product_id = db.Column(db.Integer, db.ForeignKey("products.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    resolved_at = db.Column(db.DateTime, nullable=True)
