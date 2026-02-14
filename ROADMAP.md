@@ -176,6 +176,21 @@ Composants concernes : `MatchingPanel`, `DataImportPage`
 
 ---
 
+## Optimisation du deploiement (implementee)
+
+Reduction du temps de deploiement de ~3 minutes a ~1 minute via plusieurs optimisations :
+
+- **Layer caching Docker** : suppression du flag `--no-cache` pour reutiliser les couches de dependances (`pip install`, `npm ci`) quand elles n'ont pas change
+- **Suppression du build frontend redondant** : le `npm ci && npm run build` etait execute sur le VPS puis refait dans le Dockerfile. Seul le build Docker est conserve
+- **Reduction du downtime** : les images sont buildees AVANT l'arret des containers (downtime reduit a ~5-10s)
+- **Polling actif** : remplacement du `sleep 30` par une boucle de polling (curl toutes les 2s, max 30 tentatives) pour les health checks et migrations
+- **Pipeline GitHub simplifie** : suppression du job `build` dans `deploy.yml` qui installait et buildait le frontend sur le runner GitHub sans utiliser le resultat
+- **Dockerfile frontend simplifie** : suppression des diagnostics (`echo`, `ls`, `find`, `tree`), des retries Rollup et des tentatives de downgrade Vite. Combinaison des `RUN` pour reduire les couches Docker
+
+Fichiers concernes : `deploy-ci.sh`, `.github/workflows/deploy.yml`, `frontend/Dockerfile`
+
+---
+
 ## Tests automatises (implementee)
 
 Infrastructure de tests unitaires et d'integration pour le backend et le frontend, integree dans la CI GitHub Actions.

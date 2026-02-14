@@ -44,6 +44,9 @@ function MatchingPanel() {
   // Stats
   const [stats, setStats] = useState<MatchingStatsData | null>(null);
 
+  // Error
+  const [error, setError] = useState<string | null>(null);
+
   // Loading
   const [loadingPending, setLoadingPending] = useState(false);
 
@@ -82,6 +85,7 @@ function MatchingPanel() {
   async function handleRun() {
     setRunning(true);
     setReport(null);
+    setError(null);
     try {
       const result = await runMatching(selectedSupplier);
       setReport(result);
@@ -92,7 +96,17 @@ function MatchingPanel() {
       loadPending();
       loadStats();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erreur inconnue';
+      let msg: string;
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        msg = 'Le rapprochement a pris trop de temps (timeout). Essayez avec un seul fournisseur.';
+      } else if (err instanceof TypeError && err.message === 'Failed to fetch') {
+        msg = 'Impossible de contacter le serveur. Verifiez votre connexion ou que le backend est demarre.';
+      } else if (err instanceof Error) {
+        msg = err.message;
+      } else {
+        msg = 'Erreur inconnue lors du rapprochement';
+      }
+      setError(msg);
       notify(msg, 'error');
     } finally {
       setRunning(false);
@@ -176,6 +190,19 @@ function MatchingPanel() {
             {running ? 'Rapprochement en cours...' : 'Lancer le rapprochement'}
           </button>
         </div>
+
+        {/* Erreur inline */}
+        {error && !running && (
+          <div className="mt-4 flex items-start gap-2 p-3 rounded-md bg-[var(--color-bg-elevated)] border border-red-500/30">
+            <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-red-400">
+                Echec du rapprochement
+              </p>
+              <p className="text-sm text-red-400/80 mt-1">{error}</p>
+            </div>
+          </div>
+        )}
 
         {/* Rapport */}
         {report && (

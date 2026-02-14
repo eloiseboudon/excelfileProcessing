@@ -42,22 +42,22 @@ for envfile in .env backend/.env frontend/.env; do
 done
 
 # 4. Injection des secrets dans .env
-if [ -n "${ODOO_ENCRYPTION_KEY:-}" ]; then
-    if grep -q "^ODOO_ENCRYPTION_KEY=" "$APP_DIR/.env" 2>/dev/null; then
-        sed -i "s|^ODOO_ENCRYPTION_KEY=.*|ODOO_ENCRYPTION_KEY=${ODOO_ENCRYPTION_KEY}|" "$APP_DIR/.env"
-        log "ODOO_ENCRYPTION_KEY mise a jour dans .env"
-    else
-        echo "ODOO_ENCRYPTION_KEY=${ODOO_ENCRYPTION_KEY}" >> "$APP_DIR/.env"
-        log "ODOO_ENCRYPTION_KEY ajoutee dans .env"
+for SECRET_NAME in ODOO_ENCRYPTION_KEY ANTHROPIC_API_KEY; do
+    SECRET_VALUE=$(eval echo "\${${SECRET_NAME}:-}")
+    if [ -n "$SECRET_VALUE" ]; then
+        if grep -q "^${SECRET_NAME}=" "$APP_DIR/.env" 2>/dev/null; then
+            sed -i "s|^${SECRET_NAME}=.*|${SECRET_NAME}=${SECRET_VALUE}|" "$APP_DIR/.env"
+            log "${SECRET_NAME} mise a jour dans .env"
+        else
+            echo "${SECRET_NAME}=${SECRET_VALUE}" >> "$APP_DIR/.env"
+            log "${SECRET_NAME} ajoutee dans .env"
+        fi
     fi
-fi
+done
 
-# 5. Build frontend
-log "Build du frontend..."
-cd "$APP_DIR/frontend"
-npm ci
-npm run build
-cd "$APP_DIR"
+# 5. Build des images Docker (AVANT l'arret pour reduire le downtime)
+log "Build des images Docker..."
+docker compose -f "$COMPOSE_FILE" build
 
 # 6. Arret des containers
 log "Arret des containers..."
@@ -68,50 +68,53 @@ log "Nettoyage des conteneurs residuels..."
 docker rm -f postgres_prod ajt_backend_prod ajt_frontend_prod 2>/dev/null || true
 docker network rm ajtpro_default 2>/dev/null || true
 
-# 7. Rebuild des images
-log "Rebuild des images Docker..."
-docker compose -f "$COMPOSE_FILE" build --no-cache
-
-# 8. Demarrage des containers
+# 7. Demarrage des containers
 log "Demarrage des containers..."
 docker compose -f "$COMPOSE_FILE" up -d
 
-# 9. Attente + migrations Alembic
-log "Attente que les services demarrent (30s)..."
-sleep 30
+# 8. Attente que le backend soit pret + migrations Alembic
+log "Attente que le backend demarre..."
+for i in $(seq 1 30); do
+    if docker compose -f "$COMPOSE_FILE" exec -T backend alembic upgrade head 2>/dev/null; then
+        log "Migrations Alembic appliquees"
+        break
+    fi
+    if [ "$i" -eq 30 ]; then
+        warn "Backend non pret apres 60s, tentative de migration forcee..."
+        docker compose -f "$COMPOSE_FILE" exec -T backend alembic upgrade head || warn "Migrations echouees"
+    fi
+    sleep 2
+done
 
-log "Application des migrations Alembic..."
-docker compose -f "$COMPOSE_FILE" exec -T backend alembic upgrade head || warn "Migrations echouees ou non necessaires"
-
-# 10. Health checks
+# 9. Health checks
 log "Health checks..."
 HEALTH_OK=true
 
-for i in $(seq 1 10); do
+for i in $(seq 1 30); do
     if curl -sf http://localhost:3000 > /dev/null 2>&1; then
         log "Frontend OK (port 3000)"
         break
     fi
-    if [ "$i" -eq 10 ]; then
-        warn "Frontend non accessible apres 10 tentatives"
+    if [ "$i" -eq 30 ]; then
+        warn "Frontend non accessible apres 30 tentatives"
         HEALTH_OK=false
     fi
-    sleep 5
+    sleep 2
 done
 
-for i in $(seq 1 10); do
+for i in $(seq 1 30); do
     if curl -sf http://localhost:8000 > /dev/null 2>&1; then
         log "Backend OK (port 8000)"
         break
     fi
-    if [ "$i" -eq 10 ]; then
-        warn "Backend non accessible apres 10 tentatives"
+    if [ "$i" -eq 30 ]; then
+        warn "Backend non accessible apres 30 tentatives"
         HEALTH_OK=false
     fi
-    sleep 5
+    sleep 2
 done
 
-# 11. Resume
+# 10. Resume
 echo ""
 log "===== DEPLOIEMENT TERMINE ====="
 log "Commit  : $(git rev-parse --short HEAD)"
