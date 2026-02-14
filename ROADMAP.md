@@ -169,7 +169,7 @@ Module de matching intelligent qui utilise Claude Haiku (Anthropic) pour associe
 - **Lotissement (limit)** : parametre `limit` sur `run_matching_job` pour traiter les produits par lots (50, 100, 200 ou tous). Evite les timeouts 504 nginx/gunicorn sur les grands catalogues. Le rapport inclut `remaining` pour que l'utilisateur sache combien de produits restent a traiter. Selecteur de limite visible dans l'interface
 - **7 endpoints API** : run, pending, validate, reject, stats, cache, delete cache
 
-Modeles ajoutes : `ModelReference`, `LabelCache`, `PendingMatch`. Colonne `region` ajoutee sur `Product` et `TemporaryImport`.
+Modeles ajoutes : `ModelReference`, `LabelCache`, `PendingMatch`. Colonne `region` ajoutee sur `Product` et `SupplierCatalog` (anciennement `TemporaryImport`).
 
 Pre-requis : cle API Anthropic (`ANTHROPIC_API_KEY` dans `.env`). Cout estime : < 0.30€ par sync de 3000 produits.
 
@@ -230,3 +230,19 @@ Infrastructure de tests unitaires et d'integration pour le backend et le fronten
 - Tests executes automatiquement sur chaque push et pull request vers `main`
 - **Job Summary** : recap des resultats (tests passes/echoues) affiche dans l'onglet Actions de GitHub
 - **Deploy** (`.github/workflows/deploy.yml`) : deploiement automatique sur le VPS via SSH apres chaque push sur `main`
+
+---
+
+## Renommage supplier_catalog + refresh a la demande (implementee)
+
+Renommage de la table `temporary_imports` en `supplier_catalog` pour mieux refleter son role de cache des catalogues fournisseurs, et ajout d'un bouton de refresh manuel.
+
+- **Migration Alembic** : renommage table, sequence, PK, index unique, 7 FK et 1 FK referente (`pending_matches`)
+- **Modele SQLAlchemy** : `TemporaryImport` → `SupplierCatalog`, backrefs mis a jour
+- **Backend** : toutes les references mises a jour dans `routes/products.py`, `routes/matching.py`, `utils/etl.py`, `utils/calculations.py`, `utils/llm_matching.py`
+- **Nouvelle route** : `POST /supplier_catalog/refresh` — force le re-fetch de tous les catalogues fournisseurs configures, contourne le check quotidien
+- **Frontend** : bouton "Rafraichir les catalogues" sur SearchPage avec spinner et toast de confirmation
+- **Tests** : 2 nouveaux tests pour la route refresh, references mises a jour dans 4 fichiers de tests existants
+- **Documentation** : ARCHITECTURE.md, api_supplier_sync.md, LLM.md, fonctionnalites_app.md, ROADMAP.md mis a jour
+
+Fichiers concernes : `backend/models.py`, `backend/routes/products.py`, `backend/routes/matching.py`, `backend/utils/etl.py`, `backend/utils/calculations.py`, `backend/utils/llm_matching.py`, `frontend/src/api.ts`, `frontend/src/components/SearchPage.tsx`

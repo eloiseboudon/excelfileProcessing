@@ -58,11 +58,11 @@ anthropic>=0.40.0
 
 def upgrade():
     op.add_column('products', sa.Column('region', sa.String(30), nullable=True))
-    op.add_column('temporary_imports', sa.Column('region', sa.String(30), nullable=True))
+    op.add_column('supplier_catalog', sa.Column('region', sa.String(30), nullable=True))
 
 def downgrade():
     op.drop_column('products', 'region')
-    op.drop_column('temporary_imports', 'region')
+    op.drop_column('supplier_catalog', 'region')
 ```
 
 Valeurs attendues : `null` (EU par défaut), `"US"`, `"IN"`, `"DE"`, etc.
@@ -73,7 +73,7 @@ class Product(db.Model):
     # ... colonnes existantes ...
     region = db.Column(db.String(30), nullable=True)  # NOUVEAU
 
-class TemporaryImport(db.Model):
+class SupplierCatalog(db.Model):
     # ... colonnes existantes ...
     region = db.Column(db.String(30), nullable=True)  # NOUVEAU
 ```
@@ -147,7 +147,7 @@ class PendingMatch(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=False)
     supplier = db.relationship("Supplier")
-    temporary_import_id = db.Column(db.Integer, db.ForeignKey("temporary_imports.id"), nullable=True)
+    temporary_import_id = db.Column(db.Integer, db.ForeignKey("supplier_catalog.id"), nullable=True)
     source_label = db.Column(db.String(300), nullable=False)
     extracted_attributes = db.Column(db.JSON, nullable=False)
     candidates = db.Column(db.JSON, nullable=False)  # [{product_id, score, details}]
@@ -387,7 +387,7 @@ def run_matching_job(supplier_id: int | None = None) -> dict:
     """
     Flux principal :
     
-    1. Charger les temporary_imports (filtrés par supplier_id si fourni)
+    1. Charger les supplier_catalog (filtrés par supplier_id si fourni)
     2. Dédupliquer les libellés uniques
     3. Pour chaque libellé unique :
        a. Vérifier le label_cache → si trouvé, utiliser le résultat caché
@@ -422,7 +422,7 @@ bp = Blueprint("matching", __name__)
 @token_required("admin")
 def run_matching():
     """
-    Lance le matching LLM sur les temporary_imports.
+    Lance le matching LLM sur les supplier_catalog.
     Body optionnel : {"supplier_id": int}
     Retourne le rapport de matching.
     """
@@ -537,7 +537,7 @@ Dans le dashboard existant, un petit widget :
 
 ```
 1. L'admin lance la sync Yukatel (pipeline ETL existant)
-   → 3000 lignes dans temporary_imports
+   → 3000 lignes dans supplier_catalog
    → Rapport : "2100 matchés par EAN, 900 sans correspondance"
 
 2. L'admin clique sur [🔗 Lancer le rapprochement]

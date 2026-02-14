@@ -29,7 +29,7 @@ from models import (
     Product,
     Supplier,
     SupplierProductRef,
-    TemporaryImport,
+    SupplierCatalog,
     db,
 )
 
@@ -519,7 +519,7 @@ def run_matching_job(
 ) -> Dict[str, Any]:
     """Orchestrate the full LLM matching process.
 
-    1. Load unmatched TemporaryImports (no SupplierProductRef)
+    1. Load unmatched SupplierCatalogs (no SupplierProductRef)
     2. Deduplicate labels, check LabelCache
     3. Batch LLM extraction (25/call)
     4. Score >= 90 -> auto-match
@@ -541,7 +541,7 @@ def run_matching_job(
     batch_size = _get_env_int("LLM_BATCH_SIZE", 25)
 
     # Step 1: Load unmatched temporary imports
-    query = TemporaryImport.query
+    query = SupplierCatalog.query
     if supplier_id:
         query = query.filter_by(supplier_id=supplier_id)
 
@@ -565,7 +565,7 @@ def run_matching_job(
             unmatched.append(ti)
 
     # Step 2: Deduplicate labels and check cache
-    label_to_imports: Dict[str, List[TemporaryImport]] = {}
+    label_to_imports: Dict[str, List[SupplierCatalog]] = {}
     for ti in unmatched:
         label = ti.description or ti.model or ""
         normalized = normalize_label(label)
@@ -580,7 +580,7 @@ def run_matching_job(
     error_message: Optional[str] = None
     total_input_tokens = 0
     total_output_tokens = 0
-    labels_to_extract: List[Tuple[str, str, List[TemporaryImport]]] = []
+    labels_to_extract: List[Tuple[str, str, List[SupplierCatalog]]] = []
 
     # Check cache
     for normalized, temp_imports in label_to_imports.items():
@@ -712,7 +712,7 @@ def run_matching_job(
 # ---------------------------------------------------------------------------
 
 def _create_supplier_ref(
-    supplier_id: int, ti: TemporaryImport, product_id: int
+    supplier_id: int, ti: SupplierCatalog, product_id: int
 ) -> None:
     """Create a SupplierProductRef if it doesn't already exist."""
     existing = SupplierProductRef.query.filter_by(

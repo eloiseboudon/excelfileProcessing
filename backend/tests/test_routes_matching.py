@@ -13,7 +13,7 @@ from models import (
     Product,
     Supplier,
     SupplierProductRef,
-    TemporaryImport,
+    SupplierCatalog,
     db,
 )
 
@@ -254,8 +254,8 @@ class TestValidateMatch:
         assert rv.status_code == 400
 
     def test_validate_copies_identifiers(self, client, admin_headers, product, supplier):
-        """Validate should copy ean/part_number from TemporaryImport to SupplierProductRef."""
-        temp = TemporaryImport(
+        """Validate should copy ean/part_number from SupplierCatalog to SupplierProductRef."""
+        temp = SupplierCatalog(
             description="SM-S938B 256 BLK",
             ean="1112223334445",
             part_number="SM-S938B",
@@ -345,8 +345,8 @@ class TestRejectMatch:
         assert pm.resolved_product_id is not None
 
     def test_reject_create_copies_identifiers(self, client, admin_headers, supplier, brand):
-        """Reject+create should copy ean/part_number from TemporaryImport to SupplierProductRef."""
-        temp = TemporaryImport(
+        """Reject+create should copy ean/part_number from SupplierCatalog to SupplierProductRef."""
+        temp = SupplierCatalog(
             description="SM-S938B 256 BLK",
             ean="5556667778880",
             part_number="SM-S938B",

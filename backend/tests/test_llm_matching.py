@@ -17,7 +17,7 @@ from models import (
     Product,
     Supplier,
     SupplierProductRef,
-    TemporaryImport,
+    SupplierCatalog,
     db,
 )
 from utils.llm_matching import (
@@ -500,7 +500,7 @@ class TestRunMatchingJob:
         color_translations,
     ):
         # Create unmatched temp imports
-        ti1 = TemporaryImport(
+        ti1 = SupplierCatalog(
             description="Samsung Galaxy S25 Ultra 256Go Noir",
             model="SM-S938B",
             quantity=5,
@@ -508,7 +508,7 @@ class TestRunMatchingJob:
             ean="1234567890123",
             supplier_id=supplier.id,
         )
-        ti2 = TemporaryImport(
+        ti2 = SupplierCatalog(
             description="Unknown Product XYZ",
             model="XYZ-123",
             quantity=1,
@@ -565,7 +565,7 @@ class TestRunMatchingJob:
     ):
         """limit parameter should truncate labels_to_extract and report remaining."""
         for i in range(5):
-            ti = TemporaryImport(
+            ti = SupplierCatalog(
                 description=f"Product {i}",
                 model=f"Model-{i}",
                 quantity=1,
@@ -611,7 +611,7 @@ class TestRunMatchingJob:
         )
         db.session.add(cache)
 
-        ti = TemporaryImport(
+        ti = SupplierCatalog(
             description="Samsung Galaxy S25 Ultra 256Go Noir",
             quantity=1,
             selling_price=1200.0,
@@ -629,7 +629,7 @@ class TestRunMatchingJob:
     @patch("utils.llm_matching.call_llm_extraction")
     def test_no_unmatched(self, mock_llm, supplier, product_s25):
         # Create a matched import (has SupplierProductRef)
-        ti = TemporaryImport(
+        ti = SupplierCatalog(
             description="Already matched",
             quantity=1,
             selling_price=100.0,

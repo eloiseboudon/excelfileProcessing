@@ -223,10 +223,10 @@ class SupplierProductRef(db.Model):
     last_seen_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 
-class TemporaryImport(db.Model):
-    __tablename__ = "temporary_imports"
+class SupplierCatalog(db.Model):
+    __tablename__ = "supplier_catalog"
     __table_args__ = (
-        db.UniqueConstraint("ean", "supplier_id", name="uix_temp_ean_supplier"),
+        db.UniqueConstraint("ean", "supplier_id", name="uix_supplier_catalog_ean_supplier"),
     )
 
     id = db.Column(db.Integer, primary_key=True)
@@ -246,24 +246,24 @@ class TemporaryImport(db.Model):
     norme_id = db.Column(db.Integer, db.ForeignKey("norme_options.id"), nullable=True)
 
     # Relations
-    brand = db.relationship("Brand", backref=db.backref("temporary_imports", lazy=True))
+    brand = db.relationship("Brand", backref=db.backref("supplier_catalog", lazy=True))
     memory = db.relationship(
-        "MemoryOption", backref=db.backref("temporary_imports", lazy=True)
+        "MemoryOption", backref=db.backref("supplier_catalog", lazy=True)
     )
-    color = db.relationship("Color", backref=db.backref("temporary_imports", lazy=True))
+    color = db.relationship("Color", backref=db.backref("supplier_catalog", lazy=True))
     type = db.relationship(
-        "DeviceType", backref=db.backref("temporary_imports", lazy=True)
+        "DeviceType", backref=db.backref("supplier_catalog", lazy=True)
     )
     ram = db.relationship(
-        "RAMOption", backref=db.backref("temporary_imports", lazy=True)
+        "RAMOption", backref=db.backref("supplier_catalog", lazy=True)
     )
     norme = db.relationship(
-        "NormeOption", backref=db.backref("temporary_imports", lazy=True)
+        "NormeOption", backref=db.backref("supplier_catalog", lazy=True)
     )
 
     supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=True)
     supplier = db.relationship(
-        "Supplier", backref=db.backref("temporary_imports", lazy=True)
+        "Supplier", backref=db.backref("supplier_catalog", lazy=True)
     )
     region = db.Column(db.String(30), nullable=True)
 
@@ -521,7 +521,7 @@ class PendingMatch(db.Model):
     supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=False)
     supplier = db.relationship("Supplier", backref=db.backref("pending_matches", lazy=True))
     temporary_import_id = db.Column(
-        db.Integer, db.ForeignKey("temporary_imports.id"), nullable=True
+        db.Integer, db.ForeignKey("supplier_catalog.id"), nullable=True
     )
     source_label = db.Column(db.String(300), nullable=False)
     extracted_attributes = db.Column(JSONB, nullable=False)
