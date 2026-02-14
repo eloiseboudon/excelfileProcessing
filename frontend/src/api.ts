@@ -717,6 +717,7 @@ export interface MatchingReport {
   pending_review: number;
   auto_created: number;
   errors: number;
+  error_message?: string;
   cost_estimate: number;
   duration_seconds: number;
 }
