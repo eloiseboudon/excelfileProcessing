@@ -1,6 +1,8 @@
 import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import MultiSelectFilter from './MultiSelectFilter';
 import type { ProductItem, Column } from './ProductReference';
+import SortableColumnHeader from './SortableColumnHeader';
+import type { SortConfig } from './SortableColumnHeader';
 
 interface FilterOptions {
   brandOptions: string[];
@@ -38,6 +40,8 @@ interface ProductReferenceTableProps {
   rowsPerPage: number;
   onPageChange: (page: number) => void;
   onRowsPerPageChange: (rowsPerPage: number) => void;
+  sortConfig: SortConfig;
+  onSort: (column: string) => void;
 }
 
 function ProductReferenceTable({
@@ -58,6 +62,8 @@ function ProductReferenceTable({
   rowsPerPage,
   onPageChange,
   onRowsPerPageChange,
+  sortConfig,
+  onSort,
 }: ProductReferenceTableProps) {
   const { brandOptions, colorOptions, memoryOptions, typeOptions, ramOptions, normeOptions } =
     filterOptions;
@@ -271,7 +277,12 @@ function ProductReferenceTable({
                 (col) =>
                   visibleColumns.includes(col.key) && (
                     <th key={col.key} className="px-3 py-2 border-b border-[var(--color-border-default)]">
-                      {col.label}
+                      <SortableColumnHeader
+                        label={col.label}
+                        columnKey={col.key}
+                        currentSort={sortConfig}
+                        onSort={onSort}
+                      />
                     </th>
                   )
               )}

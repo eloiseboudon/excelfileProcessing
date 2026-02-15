@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { SortConfig } from './SortableColumnHeader';
 import {
   fetchProducts,
   fetchBrands,
@@ -149,8 +150,34 @@ function ProductReference() {
     })
   );
 
-  const totalPages = Math.max(1, Math.ceil(filteredData.length / rowsPerPage));
-  const paginatedData = filteredData.slice(
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ column: null, direction: null });
+
+  const handleSort = useCallback((column: string) => {
+    setSortConfig((prev) => {
+      if (prev.column !== column) return { column, direction: 'asc' };
+      if (prev.direction === 'asc') return { column, direction: 'desc' };
+      return { column: null, direction: null };
+    });
+  }, []);
+
+  const sortedData = useMemo(() => {
+    if (!sortConfig.column || !sortConfig.direction) return filteredData;
+    return [...filteredData].sort((a, b) => {
+      const aVal: any = (a as any)[sortConfig.column!];
+      const bVal: any = (b as any)[sortConfig.column!];
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      if (typeof aVal === 'number' && typeof bVal === 'number')
+        return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
+      return sortConfig.direction === 'asc'
+        ? String(aVal).localeCompare(String(bVal), 'fr')
+        : String(bVal).localeCompare(String(aVal), 'fr');
+    });
+  }, [filteredData, sortConfig]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedData.length / rowsPerPage));
+  const paginatedData = sortedData.slice(
     (currentPage - 1) * rowsPerPage,
     currentPage * rowsPerPage
   );
@@ -339,6 +366,8 @@ function ProductReference() {
         rowsPerPage={rowsPerPage}
         onPageChange={setCurrentPage}
         onRowsPerPageChange={setRowsPerPage}
+        sortConfig={sortConfig}
+        onSort={handleSort}
       />
     </div>
   );

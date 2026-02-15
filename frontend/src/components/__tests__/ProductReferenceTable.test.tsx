@@ -99,6 +99,8 @@ const defaultProps = {
   rowsPerPage: 20,
   onPageChange: vi.fn(),
   onRowsPerPageChange: vi.fn(),
+  sortConfig: { column: null, direction: null } as { column: string | null; direction: 'asc' | 'desc' | null },
+  onSort: vi.fn(),
 };
 
 describe('ProductReferenceTable', () => {

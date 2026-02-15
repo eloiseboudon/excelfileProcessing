@@ -273,11 +273,29 @@ Fichiers concernes : `backend/models.py`, `backend/routes/products.py`, `backend
 - ~~ajouter un filtre par modele de produit~~
 
 ## ~~2. Ajouter un systeme de logs pour le backend~~ (implementee)
-## 3. Meilleures gestions de toutes les filtres des tableaux
-- Filtre ascendant/descendant
-- choix case à cocher par colonne
-- pouvoir taper dans les filtres pour choisis (comme dans excel)
+## ~~3. Meilleures gestions de toutes les filtres des tableaux~~ (implementee)
+- ~~Filtre ascendant/descendant~~
+- ~~choix case a cocher par colonne~~
+- ~~pouvoir taper dans les filtres pour choisis (comme dans excel)~~
 
-## 4. Dans le referentiel produit il y a des doublons :
-- memoire "512 Go" VS "512GB"
-- RAM : "4" VS "4Go"
+## Filtres Excel pour tableaux (implementee)
+
+Ajout de fonctionnalites de filtrage et tri avances type Excel sur les tableaux Produits et Referentiel :
+
+- **Tri ascendant/descendant** par colonne : clic sur l'en-tete pour trier (cycle : aucun → ascendant → descendant → aucun). Icone doree quand un tri est actif, icone grisee par defaut
+- **Recherche textuelle dans les filtres multi-selection** : champ de recherche en haut du dropdown pour filtrer rapidement les options (case-insensitive, reset a la fermeture)
+- **Tri intelligent** : tri numerique pour les colonnes de prix/marges, tri alphabetique locale (`fr`) pour les colonnes texte, valeurs null toujours en fin de liste
+
+Composants concernes : `SortableColumnHeader` (nouveau), `MultiSelectFilter` (recherche ajoutee), `ProductsPage`, `ProductTable`, `ProductReference`, `ProductReferenceTable`
+
+---
+
+## Normalisation memoire/RAM (implementee)
+
+Correction des doublons dans le referentiel produit via normalisation centralisee des valeurs de stockage et RAM :
+
+- **Probleme** : valeurs heterogenes ("512 Go" vs "512GB", "4" vs "4Go") provenant de sources differentes (API fournisseurs, Odoo, LLM matching) → doublons dans les filtres
+- **Solution** : fonctions `normalize_storage()` et `normalize_ram()` dans `backend/utils/normalize.py` — format canonique `"X Go"` / `"X To"`
+- **Points d'entree normalises** : ETL (`etl.py`), sync Odoo (`odoo_sync.py`), matching LLM (`llm_matching.py`)
+- **Migration** : `k1_normalize_memory_ram` — fusion des doublons existants avec reassignation des FK (products, supplier_catalog)
+- **Tests** : 26 cas dans `backend/tests/test_normalize.py`

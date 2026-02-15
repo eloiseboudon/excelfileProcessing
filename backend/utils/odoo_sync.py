@@ -8,6 +8,7 @@ import xmlrpc.client
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
+from utils.normalize import normalize_ram, normalize_storage
 from models import (
     Brand,
     Color,
@@ -133,7 +134,9 @@ def _build_lookup(model_cls, attr: str) -> Dict[str, int]:
     }
 
 
-def _find_or_create(model_cls, attr: str, value: str, lookup: Dict[str, int]) -> int:
+def _find_or_create(
+    model_cls, attr: str, value: str, lookup: Dict[str, int], **extra_kwargs
+) -> int:
     """Find a reference row by value or create it. Returns the id."""
     key = value.strip().lower()
     if key in lookup:
@@ -142,7 +145,7 @@ def _find_or_create(model_cls, attr: str, value: str, lookup: Dict[str, int]) ->
     if row:
         lookup[key] = row.id
         return row.id
-    new_row = model_cls(**{attr: value.strip()})
+    new_row = model_cls(**{attr: value.strip()}, **extra_kwargs)
     db.session.add(new_row)
     db.session.flush()
     lookup[key] = new_row.id
@@ -315,11 +318,17 @@ def _process_single_product(
 
     memory_id = None
     if "memory" in attrs:
-        memory_id = _find_or_create(MemoryOption, "memory", attrs["memory"], memory_lookup)
+        normalized_mem = normalize_storage(attrs["memory"]) or attrs["memory"].strip()
+        digits = re.sub(r"[^\d]", "", normalized_mem)
+        tcp_val = int(digits) if digits else 0
+        memory_id = _find_or_create(
+            MemoryOption, "memory", normalized_mem, memory_lookup, tcp_value=tcp_val
+        )
 
     ram_id = None
     if "ram" in attrs:
-        ram_id = _find_or_create(RAMOption, "ram", attrs["ram"], ram_lookup)
+        normalized_ram = normalize_ram(attrs["ram"]) or attrs["ram"].strip()
+        ram_id = _find_or_create(RAMOption, "ram", normalized_ram, ram_lookup)
 
     norme_id = None
     if "norme" in attrs:

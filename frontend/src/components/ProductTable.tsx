@@ -1,5 +1,7 @@
 import type { AggregatedProduct } from './ProductsPage';
 import ProductFilters from './ProductFilters';
+import SortableColumnHeader from './SortableColumnHeader';
+import type { SortConfig } from './SortableColumnHeader';
 
 interface ProductTableProps {
   columns: { key: string; label: string }[];
@@ -24,6 +26,8 @@ interface ProductTableProps {
   typeOptions: string[];
   ramOptions: string[];
   normeOptions: string[];
+  sortConfig: SortConfig;
+  onSort: (column: string) => void;
 }
 
 function ProductTable({
@@ -49,6 +53,8 @@ function ProductTable({
   typeOptions,
   ramOptions,
   normeOptions,
+  sortConfig,
+  onSort,
 }: ProductTableProps) {
   return (
     <table className="table border-0">
@@ -77,7 +83,12 @@ function ProductTable({
             (col) =>
               visibleColumns.includes(col.key) && (
                 <th key={col.key} className="px-3 py-2 border-b border-[var(--color-border-default)]">
-                  {col.label}
+                  <SortableColumnHeader
+                    label={col.label}
+                    columnKey={col.key}
+                    currentSort={sortConfig}
+                    onSort={onSort}
+                  />
                 </th>
               )
           )}
