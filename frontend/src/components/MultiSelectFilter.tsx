@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 
 interface MultiSelectFilterProps {
   options: string[];
@@ -9,11 +10,39 @@ interface MultiSelectFilterProps {
 function MultiSelectFilter({ options, selected, onChange }: MultiSelectFilterProps) {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+
+  const updatePosition = useCallback(() => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    setDropdownStyle({
+      position: 'fixed',
+      top: rect.bottom + 4,
+      left: rect.left,
+      minWidth: rect.width,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    updatePosition();
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [open, updatePosition]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        buttonRef.current && !buttonRef.current.contains(target) &&
+        dropdownRef.current && !dropdownRef.current.contains(target)
+      ) {
         setOpen(false);
       }
     }
@@ -37,19 +66,24 @@ function MultiSelectFilter({ options, selected, onChange }: MultiSelectFilterPro
 
   const filteredOptions = options
     .filter((opt) => opt.toLowerCase().includes(searchQuery.toLowerCase()))
-    .sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
+    .sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base', numeric: true }));
 
   return (
-    <div className="relative" ref={containerRef}>
+    <div className="relative">
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         className="w-full px-2 py-1 bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-strong)] rounded text-left overflow-hidden whitespace-nowrap text-ellipsis"
       >
         {selected.length ? selected.join(', ') : 'Tous'}
       </button>
-      {open && (
-        <div className="absolute z-10 mt-1 max-h-60 overflow-auto bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-strong)] rounded shadow-lg">
+      {open && createPortal(
+        <div
+          ref={dropdownRef}
+          style={dropdownStyle}
+          className="z-50 max-h-60 overflow-auto bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-strong)] rounded shadow-lg"
+        >
           <div className="p-1.5 border-b border-[var(--color-border-default)]">
             <input
               type="text"
@@ -71,7 +105,8 @@ function MultiSelectFilter({ options, selected, onChange }: MultiSelectFilterPro
               <span>{opt}</span>
             </label>
           ))}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
