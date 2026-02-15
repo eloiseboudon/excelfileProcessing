@@ -290,6 +290,12 @@ Composants concernes : `SortableColumnHeader` (nouveau), `MultiSelectFilter` (re
 
 ---
 
-## 4. Dans le referentiel produit il y a des doublons :
-- memoire "512 Go" VS "512GB"
-- RAM : "4" VS "4Go"
+## Normalisation memoire/RAM (implementee)
+
+Correction des doublons dans le referentiel produit via normalisation centralisee des valeurs de stockage et RAM :
+
+- **Probleme** : valeurs heterogenes ("512 Go" vs "512GB", "4" vs "4Go") provenant de sources differentes (API fournisseurs, Odoo, LLM matching) → doublons dans les filtres
+- **Solution** : fonctions `normalize_storage()` et `normalize_ram()` dans `backend/utils/normalize.py` — format canonique `"X Go"` / `"X To"`
+- **Points d'entree normalises** : ETL (`etl.py`), sync Odoo (`odoo_sync.py`), matching LLM (`llm_matching.py`)
+- **Migration** : `k1_normalize_memory_ram` — fusion des doublons existants avec reassignation des FK (products, supplier_catalog)
+- **Tests** : 26 cas dans `backend/tests/test_normalize.py`

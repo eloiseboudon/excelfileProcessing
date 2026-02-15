@@ -169,6 +169,7 @@ ajtpro/
 │   │   ├── llm_matching.py    # Module matching LLM (extraction, scoring, orchestration)
 │   │   ├── logging_config.py  # Configuration logging centralise (fichier JSON + console)
 │   │   ├── odoo_scheduler.py  # Planificateur synchro auto Odoo
+│   │   ├── normalize.py       # Normalisation valeurs memoire/RAM (ex: "512GB" → "512 Go")
 │   │   ├── odoo_sync.py       # Client XML-RPC et moteur synchro Odoo
 │   │   └── pricing.py         # Constantes et fonctions de tarification partagees
 │   ├── app.py                # Point d'entree Flask

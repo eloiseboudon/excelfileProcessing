@@ -15,6 +15,7 @@ from sqlalchemy.orm import joinedload
 
 logger = logging.getLogger(__name__)
 
+from utils.normalize import normalize_ram, normalize_storage
 from models import (
     ApiEndpoint,
     ApiFetchJob,
@@ -866,8 +867,8 @@ def _persist_supplier_catalog(
             description=cleaned_row["description"],
             brand=_stringify(record.get("brand")),
             color=_stringify(record.get("color")),
-            memory=_stringify(record.get("memory")),
-            ram=_stringify(record.get("ram")),
+            memory=normalize_storage(_stringify(record.get("memory"))) or _stringify(record.get("memory")),
+            ram=normalize_ram(_stringify(record.get("ram"))) or _stringify(record.get("ram")),
             norme=_stringify(record.get("norme")),
             device_type=_stringify(record.get("device_type")),
             quantity=quantity_value,

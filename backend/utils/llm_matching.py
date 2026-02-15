@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from flask import current_app
 from sqlalchemy import func
 
+from utils.normalize import normalize_storage
 from models import (
     Brand,
     Color,
@@ -443,15 +444,16 @@ def _find_or_create_memory(storage: str) -> Optional[int]:
     """Find memory option or create it."""
     if not storage:
         return None
+    normalized = normalize_storage(storage) or storage.strip()
     mem = MemoryOption.query.filter(
-        func.lower(MemoryOption.memory) == storage.lower()
+        func.lower(MemoryOption.memory) == normalized.lower()
     ).first()
     if mem:
         return mem.id
     # Extract numeric value for tcp_value
-    digits = re.sub(r"[^\d]", "", storage)
+    digits = re.sub(r"[^\d]", "", normalized)
     tcp_val = int(digits) if digits else 0
-    mem = MemoryOption(memory=storage, tcp_value=tcp_val)
+    mem = MemoryOption(memory=normalized, tcp_value=tcp_val)
     db.session.add(mem)
     db.session.flush()
     return mem.id
