@@ -35,9 +35,9 @@ function MultiSelectFilter({ options, selected, onChange }: MultiSelectFilterPro
     }
   };
 
-  const filteredOptions = options.filter((opt) =>
-    opt.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredOptions = options
+    .filter((opt) => opt.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
 
   return (
     <div className="relative" ref={containerRef}>

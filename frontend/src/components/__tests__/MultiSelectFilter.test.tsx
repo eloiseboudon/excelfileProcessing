@@ -69,4 +69,20 @@ describe('MultiSelectFilter', () => {
     expect(screen.getByText('Apple')).toBeInTheDocument();
     expect(screen.queryByText('Samsung')).not.toBeInTheDocument();
   });
+
+  it('displays options in alphabetical order', async () => {
+    const user = userEvent.setup();
+    render(
+      <MultiSelectFilter
+        options={['Xiaomi', 'Apple', 'Samsung', 'Honor']}
+        selected={[]}
+        onChange={vi.fn()}
+      />
+    );
+    await user.click(screen.getByText('Tous'));
+    const labels = screen.getAllByRole('checkbox').map(
+      (cb) => cb.closest('label')!.textContent
+    );
+    expect(labels).toEqual(['Apple', 'Honor', 'Samsung', 'Xiaomi']);
+  });
 });
