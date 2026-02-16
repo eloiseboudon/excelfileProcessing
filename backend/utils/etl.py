@@ -23,6 +23,7 @@ from models import (
     MappingVersion,
     ImportHistory,
     ParsedItem,
+    PendingMatch,
     Product,
     ProductCalculation,
     RawIngest,
@@ -780,6 +781,12 @@ def _persist_supplier_catalog(
     parsed_records: List[Dict[str, Any]],
 ) -> Tuple[List[Dict[str, Any]], int, int, int, int]:
     """Deduplicate and persist supplier catalog entries and parsed items."""
+    # Detach pending_matches referencing this supplier's catalog before bulk delete
+    catalog_ids = db.session.query(SupplierCatalog.id).filter_by(supplier_id=supplier_id)
+    PendingMatch.query.filter(
+        PendingMatch.temporary_import_id.in_(catalog_ids)
+    ).update({PendingMatch.temporary_import_id: None}, synchronize_session=False)
+
     SupplierCatalog.query.filter_by(supplier_id=supplier_id).delete(synchronize_session=False)
 
     seen_keys: Set[Tuple[str, str, str]] = set()
