@@ -823,6 +823,8 @@ export interface MatchingStatsData {
   total_manual: number;
   cache_hit_rate: number;
   total_catalog_unprocessed: number;
+  total_catalog_never_processed: number;
+  total_catalog_pending_review: number;
   by_supplier: {
     supplier_id: number;
     name: string;

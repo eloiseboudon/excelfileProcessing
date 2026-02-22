@@ -267,38 +267,41 @@ def matching_stats():
     total_all = total_pending + total_processed
     progress_pct = round(total_processed / total_all * 100, 1) if total_all > 0 else 0.0
 
-    # Produits du catalogue fournisseur jamais inclus dans un lot de rapprochement :
-    # - pas de PendingMatch lié (temporary_import_id)
-    # - pas de SupplierProductRef correspondant (EAN + supplier)
+    # Produits du catalogue fournisseur sans SupplierProductRef (même logique que run_matching_job) :
+    # - pas de SupplierProductRef avec même (supplier_id, ean)
     # - possède une description ou un modèle (traitable par le LLM)
-    in_pending_match = db.session.query(PendingMatch.temporary_import_id).filter(
-        PendingMatch.temporary_import_id.isnot(None)
-    )
-    has_product_ref = (
+    has_ref_by_ean = (
         db.session.query(SupplierProductRef.id)
         .filter(
             SupplierProductRef.supplier_id == SupplierCatalog.supplier_id,
-            db.or_(
-                db.and_(
-                    SupplierCatalog.ean.isnot(None),
-                    SupplierProductRef.ean == SupplierCatalog.ean,
-                ),
-                db.and_(
-                    SupplierCatalog.part_number.isnot(None),
-                    SupplierProductRef.part_number == SupplierCatalog.part_number,
-                ),
-            ),
+            SupplierProductRef.ean == SupplierCatalog.ean,
+            SupplierCatalog.ean.isnot(None),
         )
         .exists()
     )
-    total_catalog_unprocessed = SupplierCatalog.query.filter(
-        ~SupplierCatalog.id.in_(in_pending_match),
-        ~has_product_ref,
+    processable_filter = [
+        ~has_ref_by_ean,
         db.or_(
             SupplierCatalog.description.isnot(None),
             SupplierCatalog.model.isnot(None),
         ),
+    ]
+
+    # Total sans SupplierProductRef (inclut ceux en attente de validation)
+    total_catalog_unprocessed = SupplierCatalog.query.filter(*processable_filter).count()
+
+    # Parmi ceux-là, ceux qui ont déjà un PendingMatch "pending" (en attente de validation user)
+    already_in_pending = db.session.query(PendingMatch.temporary_import_id).filter(
+        PendingMatch.temporary_import_id.isnot(None),
+        PendingMatch.status == "pending",
+    )
+    total_catalog_pending_review = SupplierCatalog.query.filter(
+        *processable_filter,
+        SupplierCatalog.id.in_(already_in_pending),
     ).count()
+
+    # Ceux jamais envoyés dans un lot LLM
+    total_catalog_never_processed = total_catalog_unprocessed - total_catalog_pending_review
 
     # By supplier
     by_supplier = []
@@ -336,6 +339,8 @@ def matching_stats():
         "total_manual": total_manual,
         "cache_hit_rate": cache_hit_rate,
         "total_catalog_unprocessed": total_catalog_unprocessed,
+        "total_catalog_never_processed": total_catalog_never_processed,
+        "total_catalog_pending_review": total_catalog_pending_review,
         "by_supplier": by_supplier,
     }), 200
 
