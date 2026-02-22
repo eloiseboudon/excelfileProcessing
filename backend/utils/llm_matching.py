@@ -559,9 +559,19 @@ def run_matching_job(
                 if ref.ean:
                     matched_eans.add((sid, ref.ean))
 
+    # Load IDs of catalog entries that already have a pending PendingMatch
+    # to avoid re-queuing them and creating duplicates
+    existing_pending_ids: set[int] = {
+        pm.temporary_import_id
+        for pm in PendingMatch.query.filter_by(status="pending").all()
+        if pm.temporary_import_id is not None
+    }
+
     unmatched = []
     for ti in all_temp_imports:
         if ti.ean and (ti.supplier_id, ti.ean) in matched_eans:
+            continue
+        if ti.id in existing_pending_ids:
             continue
         if ti.description or ti.model:
             unmatched.append(ti)

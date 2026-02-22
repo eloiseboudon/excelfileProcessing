@@ -306,20 +306,30 @@ function MatchingPanel() {
         )}
       </div>
 
-      {/* Produits catalogue non encore traites */}
+      {/* Produits catalogue non encore lies au referentiel */}
       {stats && stats.total_catalog_unprocessed > 0 && (
-        <div className="flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
-          <span className="text-amber-400 text-lg font-bold shrink-0">
-            {stats.total_catalog_unprocessed}
-          </span>
-          <div>
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 space-y-2">
+          <div className="flex items-center gap-3">
+            <span className="text-amber-400 text-lg font-bold shrink-0">
+              {stats.total_catalog_unprocessed}
+            </span>
             <p className="text-sm font-medium text-amber-300">
-              produit{stats.total_catalog_unprocessed > 1 ? 's' : ''} du catalogue non encore rapproche{stats.total_catalog_unprocessed > 1 ? 's' : ''}
+              produit{stats.total_catalog_unprocessed > 1 ? 's' : ''} du catalogue sans correspondance dans le referentiel
             </p>
-            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-              Ces produits fournisseurs n'ont jamais ete inclus dans un lot de rapprochement LLM.
-              Lancez une association automatique pour les traiter.
-            </p>
+          </div>
+          <div className="flex gap-4 text-xs text-[var(--color-text-muted)]">
+            {stats.total_catalog_never_processed > 0 && (
+              <span>
+                <strong className="text-amber-400">{stats.total_catalog_never_processed}</strong>
+                {' '}jamais traite{stats.total_catalog_never_processed > 1 ? 's' : ''} — lancez le rapprochement LLM
+              </span>
+            )}
+            {stats.total_catalog_pending_review > 0 && (
+              <span>
+                <strong className="text-[var(--color-text-primary)]">{stats.total_catalog_pending_review}</strong>
+                {' '}en attente de votre validation ci-dessous
+              </span>
+            )}
           </div>
         </div>
       )}
