@@ -306,20 +306,62 @@ function MatchingPanel() {
         )}
       </div>
 
-      {/* Stats */}
+      {/* Suivi de progression */}
       {stats && (
-        <div className="card">
-          <h3 className="text-sm font-semibold text-[var(--color-text-heading)] mb-3">
-            Statistiques
-          </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <ReportCard label="En cache" value={stats.total_cached} />
-            <ReportCard label="En attente" value={stats.total_pending} />
-            <ReportCard label="Auto-matches" value={stats.total_auto_matched} />
-            <ReportCard
-              label="Taux de cache"
-              value={`${stats.cache_hit_rate}%`}
+        <div className="card space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-[var(--color-text-heading)]">
+              Suivi du rapprochement
+            </h3>
+            <span className="text-xs text-[var(--color-text-muted)]">
+              {stats.total_processed} traite{stats.total_processed > 1 ? 's' : ''} sur {stats.total_all} ({stats.progress_pct}%)
+            </span>
+          </div>
+
+          {/* Barre de progression */}
+          <div className="w-full h-2.5 bg-[var(--color-bg-elevated)] rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${stats.progress_pct}%`,
+                background: 'linear-gradient(to right, #B8860B, #DAA520)',
+              }}
             />
+          </div>
+
+          {/* Compteurs par statut */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <StatusCard
+              label="En attente"
+              value={stats.total_pending}
+              color="text-amber-400"
+              dot="bg-amber-400"
+            />
+            <StatusCard
+              label="Valides"
+              value={stats.total_validated}
+              color="text-emerald-400"
+              dot="bg-emerald-400"
+            />
+            <StatusCard
+              label="Rejetes"
+              value={stats.total_rejected}
+              color="text-[var(--color-text-muted)]"
+              dot="bg-[var(--color-border-default)]"
+            />
+            <StatusCard
+              label="Crees"
+              value={stats.total_created}
+              color="text-sky-400"
+              dot="bg-sky-400"
+            />
+          </div>
+
+          {/* Cache */}
+          <div className="flex items-center gap-4 pt-1 border-t border-[var(--color-border-subtle)] text-xs text-[var(--color-text-muted)]">
+            <span>Cache : <strong className="text-[var(--color-text-primary)]">{stats.total_cached}</strong> entrees</span>
+            <span>Taux de cache : <strong className="text-[var(--color-text-primary)]">{stats.cache_hit_rate}%</strong></span>
+            <span>Auto-matches : <strong className="text-[var(--color-text-primary)]">{stats.total_auto_matched}</strong></span>
           </div>
         </div>
       )}
@@ -406,6 +448,28 @@ function ReportCard({
         {value}
       </div>
       <div className="text-xs text-[var(--color-text-muted)]">{label}</div>
+    </div>
+  );
+}
+
+function StatusCard({
+  label,
+  value,
+  color,
+  dot,
+}: {
+  label: string;
+  value: number;
+  color: string;
+  dot: string;
+}) {
+  return (
+    <div className="bg-[var(--color-bg-elevated)] rounded-md p-3 flex items-center gap-3">
+      <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${dot}`} />
+      <div>
+        <div className={`text-lg font-bold ${color}`}>{value}</div>
+        <div className="text-xs text-[var(--color-text-muted)]">{label}</div>
+      </div>
     </div>
   );
 }

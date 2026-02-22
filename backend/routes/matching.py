@@ -257,8 +257,15 @@ def matching_stats():
     """Aggregated matching statistics."""
     total_cached = LabelCache.query.count()
     total_pending = PendingMatch.query.filter_by(status="pending").count()
+    total_validated = PendingMatch.query.filter_by(status="validated").count()
+    total_rejected = PendingMatch.query.filter_by(status="rejected").count()
+    total_created = PendingMatch.query.filter_by(status="created").count()
     total_auto_matched = LabelCache.query.filter_by(match_source="auto").count()
     total_manual = LabelCache.query.filter_by(match_source="manual").count()
+
+    total_processed = total_validated + total_rejected + total_created
+    total_all = total_pending + total_processed
+    progress_pct = round(total_processed / total_all * 100, 1) if total_all > 0 else 0.0
 
     # By supplier
     by_supplier = []
@@ -286,6 +293,12 @@ def matching_stats():
     return jsonify({
         "total_cached": total_cached,
         "total_pending": total_pending,
+        "total_validated": total_validated,
+        "total_rejected": total_rejected,
+        "total_created": total_created,
+        "total_processed": total_processed,
+        "total_all": total_all,
+        "progress_pct": progress_pct,
         "total_auto_matched": total_auto_matched,
         "total_manual": total_manual,
         "cache_hit_rate": cache_hit_rate,

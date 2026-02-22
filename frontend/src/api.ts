@@ -813,6 +813,12 @@ export interface PendingMatchList {
 export interface MatchingStatsData {
   total_cached: number;
   total_pending: number;
+  total_validated: number;
+  total_rejected: number;
+  total_created: number;
+  total_processed: number;
+  total_all: number;
+  progress_pct: number;
   total_auto_matched: number;
   total_manual: number;
   cache_hit_rate: number;
