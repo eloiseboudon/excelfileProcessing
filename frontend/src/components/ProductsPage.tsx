@@ -390,11 +390,127 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
       return obj;
     });
 
-  const handleExportExcel = () => {
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(buildExportRows());
-    XLSX.utils.book_append_sheet(wb, ws, 'Data');
-    XLSX.writeFile(wb, `tcp_marge_${getCurrentTimestamp()}.xlsx`);
+  const handleExportExcel = async () => {
+    if (!filteredData.length) return;
+
+    const ExcelJS = (await import('exceljs')).default;
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Tarif AJT PRO');
+
+    ws.columns = [{ width: 70 }, { width: 12 }];
+
+    // ISO week number
+    const now = new Date();
+    const wd = new Date(now);
+    wd.setHours(0, 0, 0, 0);
+    wd.setDate(wd.getDate() + 3 - (wd.getDay() + 6) % 7);
+    const w1 = new Date(wd.getFullYear(), 0, 4);
+    const week = 1 + Math.round(((wd.getTime() - w1.getTime()) / 86400000 - 3 + (w1.getDay() + 6) % 7) / 7);
+
+    // Monday and Friday of current week
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (now.getDay() + 6) % 7);
+    const friday = new Date(monday);
+    friday.setDate(monday.getDate() + 4);
+    const fmt = (d: Date) => d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+
+    const addMergedRow = (text: string, fontSize = 12, bold = true, color?: string) => {
+      const row = ws.addRow([text, null]);
+      ws.mergeCells(row.number, 1, row.number, 2);
+      row.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+      row.getCell(1).font = { bold, size: fontSize, color: color ? { argb: color } : undefined };
+      return row;
+    };
+
+    // Header section matching the Excel template
+    addMergedRow('TARIF AJT PRO', 12, true);
+    addMergedRow(`Semaine n\u00b0${week}`, 12, true);
+    addMergedRow(`Du ${fmt(monday)} au ${fmt(friday)}`, 12, true);
+    ws.addRow([]);
+    addMergedRow('T\u00e9l\u00a0: 05 54 55 56 57 / +33 757 02 45 21 - contact@ajtpro.com', 12, true);
+    ws.addRow([]);
+    ws.addRow([]);
+    ws.addRow([]);
+    addMergedRow('AJTPro votre partenaire Pro Actif\u00a0!', 12, true);
+    ws.addRow([]);
+    ws.addRow([]);
+
+    // Column headers
+    const hdrRow = ws.addRow(['Nom produit', 'Prix']);
+    hdrRow.getCell(1).font = { bold: true, size: 12 };
+    hdrRow.getCell(1).alignment = { horizontal: 'center' };
+    hdrRow.getCell(2).font = { bold: true, size: 12 };
+    hdrRow.getCell(2).alignment = { horizontal: 'center' };
+
+    // Group by brand
+    const brandMap = new Map<string, AggregatedProduct[]>();
+    filteredData.forEach((p) => {
+      const brand = (p.brand || 'Autres').trim().toUpperCase();
+      if (!brandMap.has(brand)) brandMap.set(brand, []);
+      brandMap.get(brand)!.push(p);
+    });
+    const sortedBrands = [...brandMap.keys()].sort();
+    let total = 0;
+
+    sortedBrands.forEach((brand) => {
+      const products = brandMap.get(brand)!;
+
+      // Brand header — gold background
+      const brandRow = ws.addRow([brand, null]);
+      ws.mergeCells(brandRow.number, 1, brandRow.number, 2);
+      brandRow.getCell(1).font = { bold: true, size: 12 };
+      brandRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFC000' } };
+      brandRow.getCell(1).alignment = { horizontal: 'center' };
+
+      // Group by type within brand
+      const typeMap = new Map<string, AggregatedProduct[]>();
+      products.forEach((p) => {
+        const t = (p.type || '').trim();
+        if (!typeMap.has(t)) typeMap.set(t, []);
+        typeMap.get(t)!.push(p);
+      });
+      const multiType = typeMap.size > 1;
+
+      typeMap.forEach((list, type) => {
+        if (multiType && type) {
+          // Type sub-header — red background, white text
+          const typeRow = ws.addRow([type, null]);
+          ws.mergeCells(typeRow.number, 1, typeRow.number, 2);
+          typeRow.getCell(1).font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
+          typeRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC00000' } };
+        }
+
+        list.sort((a, b) => (a.description || '').localeCompare(b.description || '', 'fr'));
+        list.forEach((p) => {
+          const name = p.description || [p.brand, p.model, p.memory, p.color].filter(Boolean).join(' ');
+          const price = p.averagePrice > 0 ? p.averagePrice : null;
+          const prow = ws.addRow([name, price]);
+          prow.getCell(1).font = { bold: true, size: 12 };
+          prow.getCell(2).font = { bold: true, size: 12 };
+          if (price !== null) prow.getCell(2).numFmt = '#,##0.00';
+          total++;
+        });
+      });
+    });
+
+    // Footer
+    const footerRow = ws.addRow([
+      `Tarif HT TCP incluse / hors DEEE de 2,56\u00a0\u20ac HT par pi\u00e8ce / FRA`,
+    ]);
+    footerRow.getCell(1).font = { italic: true, size: 11 };
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `ajt_tarif_s${week}_${getCurrentTimestamp()}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
   };
 
   const handleSavePrices = async () => {
@@ -580,152 +696,144 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
   };
 
   const handleExportHtml = () => {
-    if (!filteredData.length) return;
+    const rows = buildExportRows();
+    if (!rows.length) return;
+    const headers = Object.keys(rows[0]);
+    const now = new Date().toLocaleString('fr-FR');
 
-    const now = new Date();
-    const exportDate = now.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' });
-
-    // ISO week number
-    const wd = new Date(now);
-    wd.setHours(0, 0, 0, 0);
-    wd.setDate(wd.getDate() + 3 - (wd.getDay() + 6) % 7);
-    const w1 = new Date(wd.getFullYear(), 0, 4);
-    const week = 1 + Math.round(((wd.getTime() - w1.getTime()) / 86400000 - 3 + (w1.getDay() + 6) % 7) / 7);
-
-    const escHtml = (s: string) =>
-      s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-    // Group by brand (uppercase), then by type within brand
-    const brandMap = new Map<string, AggregatedProduct[]>();
-    filteredData.forEach((p) => {
-      const brand = (p.brand || 'Autres').trim().toUpperCase();
-      if (!brandMap.has(brand)) brandMap.set(brand, []);
-      brandMap.get(brand)!.push(p);
+    // Detect numeric columns (>50% of values are numbers)
+    const numericCols = new Set<string>();
+    headers.forEach((h) => {
+      const vals = rows.map((r) => r[h]).filter((v) => v !== null && v !== undefined && v !== '');
+      if (!vals.length) return;
+      if (vals.filter((v) => typeof v === 'number').length / vals.length > 0.5) numericCols.add(h);
     });
-    const sortedBrands = [...brandMap.keys()].sort();
 
-    let tbodyHtml = '';
-    let total = 0;
+    const isMarginCol = (h: string) => h.toLowerCase().includes('marge');
 
-    sortedBrands.forEach((brand) => {
-      const products = brandMap.get(brand)!;
-      tbodyHtml += `<tr class="bh" data-brand="${escHtml(brand)}"><td colspan="2">${escHtml(brand)}</td></tr>\n`;
+    const fmtCell = (v: any, h: string): string => {
+      if (v === null || v === undefined) return '';
+      if (typeof v === 'number') {
+        if (h.includes('%')) return v.toFixed(1) + '\u202f%';
+        if (numericCols.has(h)) return v.toFixed(2);
+      }
+      return String(v);
+    };
 
-      const typeMap = new Map<string, AggregatedProduct[]>();
-      products.forEach((p) => {
-        const t = (p.type || '').trim();
-        if (!typeMap.has(t)) typeMap.set(t, []);
-        typeMap.get(t)!.push(p);
-      });
-      const multiType = typeMap.size > 1;
+    const thHtml = headers
+      .map((h, i) => `<th onclick="srt(${i})">${h}<span id="ic${i}"></span></th>`)
+      .join('');
 
-      typeMap.forEach((list, type) => {
-        if (multiType && type) {
-          tbodyHtml += `<tr class="th" data-brand="${escHtml(brand)}" data-type="${escHtml(type)}"><td colspan="2">${escHtml(type)}</td></tr>\n`;
-        }
-        list.sort((a, b) => (a.description || '').localeCompare(b.description || '', 'fr'));
-        list.forEach((p) => {
-          const name = escHtml(p.description || [p.brand, p.model, p.memory, p.color].filter(Boolean).join(' '));
-          const price = p.averagePrice > 0 ? p.averagePrice.toFixed(2) + '\u00a0\u20ac' : '\u2014';
-          const typeAttr = multiType && type ? ` data-type="${escHtml(type)}"` : '';
-          tbodyHtml += `<tr class="pr" data-brand="${escHtml(brand)}"${typeAttr}><td>${name}</td><td class="px">${price}</td></tr>\n`;
-          total++;
-        });
-      });
-    });
+    const tbodyHtml = rows
+      .map((r) => {
+        const cells = headers.map((h) => {
+          const v = r[h];
+          const raw = typeof v === 'number' ? v : (v ?? '');
+          const disp = fmtCell(v, h);
+          const isMargin = isMarginCol(h) && typeof v === 'number';
+          const cls = isMargin ? (v < 0 ? ' class="neg"' : v > 0 ? ' class="pos"' : '') : '';
+          return `<td data-raw="${raw}"${cls}>${disp}</td>`;
+        }).join('');
+        return `<tr>${cells}</tr>`;
+      })
+      .join('\n');
 
     const html = `<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TARIF AJT PRO \u2014 Semaine ${week}</title>
+<title>Export TCP / Marges \u2014 AJT Pro</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Arial,Helvetica,sans-serif;background:#fff;color:#000;font-size:12px}
-.hdr{text-align:center;padding:20px 24px 14px;border-bottom:2px solid #000}
-.hdr h1{font-size:22px;font-weight:bold;letter-spacing:2px;margin-bottom:6px}
-.hdr p{font-size:11px;color:#333;line-height:1.7}
-.hdr .tagline{font-style:italic;color:#555;margin-top:4px}
-.toolbar{padding:8px 16px;background:#f5f5f5;border-bottom:1px solid #ddd;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10}
-.sw{position:relative;flex:1;max-width:300px}
-.si{position:absolute;left:8px;top:50%;transform:translateY(-50%);color:#999;pointer-events:none}
-input[type=search]{width:100%;border:1px solid #ccc;border-radius:4px;padding:5px 8px 5px 26px;font-size:12px;outline:none;background:#fff}
-input[type=search]:focus{border-color:#B8860B;box-shadow:0 0 0 2px #B8860B22}
-.ctr{font-size:11px;color:#555;margin-left:auto}
-.ctr b{color:#B8860B;font-weight:bold}
-table{width:100%;border-collapse:collapse}
-thead th{background:#000;color:#fff;font-weight:bold;padding:7px 14px;text-align:left;font-size:12px;position:sticky;z-index:9}
-thead th:last-child{text-align:right;width:100px}
-tr.bh td{background:#FFC000;color:#000;font-weight:bold;text-align:center;padding:7px 14px;font-size:13px;letter-spacing:.8px;border-bottom:1px solid #e6a800}
-tr.th td{background:#C00000;color:#fff;font-weight:bold;padding:5px 14px;font-size:11px;letter-spacing:.3px}
-tr.pr{border-bottom:1px solid #eee}
-tr.pr:nth-child(even){background:#fafafa}
-tr.pr:hover{background:#fffbea}
-tr.pr td{padding:5px 14px;font-size:12px}
-td.px{text-align:right;font-weight:bold;white-space:nowrap;font-variant-numeric:tabular-nums}
-.ftr{padding:10px 16px;font-size:10px;color:#666;border-top:1px solid #ddd;text-align:center;background:#f9f9f9}
-.empty{text-align:center;padding:40px;color:#999;font-size:13px;display:none}
-@media print{
-  .toolbar{display:none}
-  thead th{position:static}
-  tr.pr:hover{background:inherit}
-  .ftr{position:fixed;bottom:0;width:100%}
-}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0a0a0a;color:#e4e4e7;min-height:100vh}
+header{background:#18181b;border-bottom:1px solid #3f3f46;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20}
+.logo{display:flex;align-items:center;gap:8px}
+.dot{width:9px;height:9px;border-radius:50%;background:#B8860B;box-shadow:0 0 8px #B8860B88}
+.brand{font-size:15px;font-weight:700;color:#B8860B;letter-spacing:.4px}
+.sep{color:#3f3f46;margin:0 6px}
+.subtitle{font-size:13px;color:#a1a1aa}
+.meta{font-size:11px;color:#52525b}
+.toolbar{background:#111113;border-bottom:1px solid #27272a;padding:9px 24px;display:flex;align-items:center;gap:10px;position:sticky;top:49px;z-index:19}
+.sw{position:relative;flex:1;max-width:340px}
+.si{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:#52525b;font-size:13px;pointer-events:none}
+input[type=search]{width:100%;background:#1c1c1e;border:1px solid #3f3f46;border-radius:6px;color:#e4e4e7;padding:6px 10px 6px 30px;font-size:13px;outline:none;transition:border-color .15s}
+input[type=search]:focus{border-color:#B8860B}
+input[type=search]::placeholder{color:#52525b}
+.counter{font-size:12px;color:#71717a;margin-left:auto;white-space:nowrap}
+.counter b{color:#B8860B}
+.wrap{overflow-x:auto;padding:16px 24px 40px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{background:#111113;color:#a1a1aa;font-weight:600;text-align:left;padding:9px 12px;white-space:nowrap;border-bottom:2px solid #B8860B;cursor:pointer;user-select:none}
+thead th:hover{color:#e4e4e7;background:#1a1a1e}
+thead th span{display:inline-block;margin-left:4px;color:#B8860B;font-size:10px;width:10px}
+tbody tr{border-bottom:1px solid #1f1f23}
+tbody tr:hover{background:rgba(184,134,11,.07)}
+tbody td{padding:7px 12px;white-space:nowrap;color:#d4d4d8}
+td.pos{color:#4ade80;font-weight:500}
+td.neg{color:#f87171;font-weight:500}
+.empty{text-align:center;padding:60px 24px;color:#52525b;font-size:14px;display:none}
 </style>
 </head>
 <body>
-<div class="hdr">
-  <h1>TARIF AJT PRO</h1>
-  <p>Semaine n\u00b0${week} &mdash; Export du ${exportDate}</p>
-  <p>T\u00e9l\u00a0: 05 54 55 56 57 / +33 757 02 45 21 &mdash; contact@ajtpro.com</p>
-  <p class="tagline">AJTPro votre partenaire Pro Actif\u00a0!</p>
-</div>
+<header>
+  <div class="logo">
+    <div class="dot"></div>
+    <span class="brand">AJT Pro</span>
+    <span class="sep">|</span>
+    <span class="subtitle">Export TCP / Marges</span>
+  </div>
+  <span class="meta">Export\u00e9 le ${now}&nbsp;&nbsp;\u00b7&nbsp;&nbsp;${rows.length} produits</span>
+</header>
 <div class="toolbar">
   <div class="sw">
-    <span class="si">&#9906;</span>
-    <input type="search" id="q" placeholder="Rechercher un produit\u2026" oninput="flt()" autocomplete="off">
+    <span class="si">&#128269;</span>
+    <input type="search" id="q" placeholder="Rechercher\u2026" oninput="flt()" autocomplete="off">
   </div>
-  <div class="ctr"><b id="cnt">${total}</b>\u00a0/\u00a0${total} produits</div>
+  <div class="counter"><b id="cnt">${rows.length}</b>&thinsp;/&thinsp;${rows.length} r\u00e9sultats</div>
 </div>
-<table>
-  <thead><tr><th id="thd">Nom produit</th><th>Prix HT</th></tr></thead>
-  <tbody id="tb">
-${tbodyHtml}
-  </tbody>
-</table>
-<div class="empty" id="empty">Aucun produit trouv\u00e9.</div>
-<div class="ftr">Tarif HT TCP incluse &mdash; hors DEEE de 2,56\u00a0\u20ac HT par pi\u00e8ce &mdash; ${total} r\u00e9f\u00e9rences au ${exportDate}</div>
+<div class="wrap">
+  <table id="tbl">
+    <thead><tr>${thHtml}</tr></thead>
+    <tbody id="tb">${tbodyHtml}</tbody>
+  </table>
+  <div class="empty" id="empty">Aucun r\u00e9sultat pour cette recherche.</div>
+</div>
 <script>
 (function(){
-  var tbl=document.querySelector('table');
-  var pr=Array.from(document.querySelectorAll('#tb .pr'));
-  var thd=document.getElementById('thd');
-  // Align thead sticky top under toolbar
-  var tbH=document.querySelector('.toolbar').offsetHeight;
-  document.querySelectorAll('thead th').forEach(function(th){th.style.top=tbH+'px';});
+  var sc=-1,sd=1;
+  var ar=Array.from(document.querySelectorAll('#tb tr'));
+  function gv(row,col){
+    var td=row.cells[col];
+    if(!td)return'';
+    var r=td.getAttribute('data-raw');
+    if(r!==null&&r!==''&&!isNaN(Number(r)))return Number(r);
+    return td.textContent.trim().toLowerCase();
+  }
+  window.srt=function(col){
+    if(sc===col){sd*=-1;}else{sc=col;sd=1;}
+    document.querySelectorAll('thead th span').forEach(function(s){s.textContent='';});
+    document.querySelector('#ic'+col).textContent=sd===1?' \u25b2':' \u25bc';
+    var tb=document.getElementById('tb');
+    ar.sort(function(a,b){
+      var av=gv(a,col),bv=gv(b,col);
+      if(typeof av==='number'&&typeof bv==='number')return(av-bv)*sd;
+      return String(av).localeCompare(String(bv),'fr')*sd;
+    });
+    ar.forEach(function(r){tb.appendChild(r);});
+  };
   window.flt=function(){
     var q=document.getElementById('q').value.trim().toLowerCase();
     var n=0;
-    pr.forEach(function(r){
-      var ok=!q||r.textContent.toLowerCase().includes(q);
-      r.style.display=ok?'':'none';
-      if(ok)n++;
-    });
-    document.querySelectorAll('#tb .bh').forEach(function(bh){
-      var b=bh.getAttribute('data-brand');
-      var vis=Array.from(document.querySelectorAll('#tb .pr[data-brand="'+b+'"]')).some(function(r){return r.style.display!=='none';});
-      bh.style.display=vis?'':'none';
-    });
-    document.querySelectorAll('#tb .th').forEach(function(th){
-      var b=th.getAttribute('data-brand');
-      var t=th.getAttribute('data-type');
-      var vis=Array.from(document.querySelectorAll('#tb .pr[data-brand="'+b+'"][data-type="'+t+'"]')).some(function(r){return r.style.display!=='none';});
-      th.style.display=vis?'':'none';
+    ar.forEach(function(row){
+      var txt=Array.from(row.cells).map(function(td){return td.textContent;}).join(' ').toLowerCase();
+      var show=!q||txt.includes(q);
+      row.style.display=show?'':'none';
+      if(show)n++;
     });
     document.getElementById('cnt').textContent=n;
     document.getElementById('empty').style.display=n===0?'':'none';
-    tbl.style.display=n===0?'none':'';
+    document.getElementById('tbl').style.display=n===0?'none':'';
   };
 })();
 </script>
@@ -734,7 +842,7 @@ ${tbodyHtml}
 
     const blob = new Blob([html], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
-    const filename = `ajt_tarif_s${week}_${getCurrentTimestamp()}.html`;
+    const filename = `ajt_tcp_${getCurrentTimestamp()}.html`;
 
     const link = document.createElement('a');
     link.href = url;
