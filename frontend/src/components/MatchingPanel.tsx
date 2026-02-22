@@ -306,6 +306,24 @@ function MatchingPanel() {
         )}
       </div>
 
+      {/* Produits catalogue non encore traites */}
+      {stats && stats.total_catalog_unprocessed > 0 && (
+        <div className="flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <span className="text-amber-400 text-lg font-bold shrink-0">
+            {stats.total_catalog_unprocessed}
+          </span>
+          <div>
+            <p className="text-sm font-medium text-amber-300">
+              produit{stats.total_catalog_unprocessed > 1 ? 's' : ''} du catalogue non encore rapproche{stats.total_catalog_unprocessed > 1 ? 's' : ''}
+            </p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+              Ces produits fournisseurs n'ont jamais ete inclus dans un lot de rapprochement LLM.
+              Lancez une association automatique pour les traiter.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Suivi de progression */}
       {stats && (
         <div className="card space-y-4">

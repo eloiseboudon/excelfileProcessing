@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
-from sqlalchemy import cast, func, String
+from sqlalchemy import cast, exists, func, String
 
 from models import (
     LabelCache,
@@ -267,6 +267,39 @@ def matching_stats():
     total_all = total_pending + total_processed
     progress_pct = round(total_processed / total_all * 100, 1) if total_all > 0 else 0.0
 
+    # Produits du catalogue fournisseur jamais inclus dans un lot de rapprochement :
+    # - pas de PendingMatch lié (temporary_import_id)
+    # - pas de SupplierProductRef correspondant (EAN + supplier)
+    # - possède une description ou un modèle (traitable par le LLM)
+    in_pending_match = db.session.query(PendingMatch.temporary_import_id).filter(
+        PendingMatch.temporary_import_id.isnot(None)
+    )
+    has_product_ref = (
+        db.session.query(SupplierProductRef.id)
+        .filter(
+            SupplierProductRef.supplier_id == SupplierCatalog.supplier_id,
+            db.or_(
+                db.and_(
+                    SupplierCatalog.ean.isnot(None),
+                    SupplierProductRef.ean == SupplierCatalog.ean,
+                ),
+                db.and_(
+                    SupplierCatalog.part_number.isnot(None),
+                    SupplierProductRef.part_number == SupplierCatalog.part_number,
+                ),
+            ),
+        )
+        .exists()
+    )
+    total_catalog_unprocessed = SupplierCatalog.query.filter(
+        ~SupplierCatalog.id.in_(in_pending_match),
+        ~has_product_ref,
+        db.or_(
+            SupplierCatalog.description.isnot(None),
+            SupplierCatalog.model.isnot(None),
+        ),
+    ).count()
+
     # By supplier
     by_supplier = []
     suppliers = Supplier.query.all()
@@ -302,6 +335,7 @@ def matching_stats():
         "total_auto_matched": total_auto_matched,
         "total_manual": total_manual,
         "cache_hit_rate": cache_hit_rate,
+        "total_catalog_unprocessed": total_catalog_unprocessed,
         "by_supplier": by_supplier,
     }), 200
 
