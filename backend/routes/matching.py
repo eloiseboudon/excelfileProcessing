@@ -267,24 +267,55 @@ def matching_stats():
     total_all = total_pending + total_processed
     progress_pct = round(total_processed / total_all * 100, 1) if total_all > 0 else 0.0
 
-    # Produits du catalogue fournisseur sans SupplierProductRef (même logique que run_matching_job) :
-    # - pas de SupplierProductRef avec même (supplier_id, ean)
-    # - possède une description ou un modèle (traitable par le LLM)
-    has_ref_by_ean = (
+    # Produits du catalogue fournisseur sans SupplierProductRef.
+    # _create_supplier_ref identifie un ref par (supplier_id, ean, part_number) avec NULL-safe
+    # comparison. On reproduit la même logique ici pour détecter tous les refs existants,
+    # y compris ceux créés pour des items sans EAN (ean=None, matchés par part_number).
+    has_product_ref = (
         db.session.query(SupplierProductRef.id)
         .filter(
             SupplierProductRef.supplier_id == SupplierCatalog.supplier_id,
-            SupplierProductRef.ean == SupplierCatalog.ean,
-            SupplierCatalog.ean.isnot(None),
+            # Comparaison NULL-safe sur EAN : (NULL=NULL) OU (val=val)
+            db.or_(
+                db.and_(
+                    SupplierCatalog.ean.is_(None),
+                    SupplierProductRef.ean.is_(None),
+                ),
+                db.and_(
+                    SupplierCatalog.ean.isnot(None),
+                    SupplierProductRef.ean == SupplierCatalog.ean,
+                ),
+            ),
+            # Comparaison NULL-safe sur part_number
+            db.or_(
+                db.and_(
+                    SupplierCatalog.part_number.is_(None),
+                    SupplierProductRef.part_number.is_(None),
+                ),
+                db.and_(
+                    SupplierCatalog.part_number.isnot(None),
+                    SupplierProductRef.part_number == SupplierCatalog.part_number,
+                ),
+            ),
         )
         .exists()
     )
+    # Filtre aligné avec le job Python :
+    # - if ti.description or ti.model  → truthy, exclut les chaînes vides
+    # - if not sid: continue           → exclut les items sans fournisseur
     processable_filter = [
-        ~has_ref_by_ean,
+        ~has_product_ref,
         db.or_(
-            SupplierCatalog.description.isnot(None),
-            SupplierCatalog.model.isnot(None),
+            db.and_(
+                SupplierCatalog.description.isnot(None),
+                SupplierCatalog.description != "",
+            ),
+            db.and_(
+                SupplierCatalog.model.isnot(None),
+                SupplierCatalog.model != "",
+            ),
         ),
+        SupplierCatalog.supplier_id.isnot(None),
     ]
 
     # Total sans SupplierProductRef (inclut ceux en attente de validation)
