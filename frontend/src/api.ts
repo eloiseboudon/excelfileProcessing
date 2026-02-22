@@ -824,6 +824,7 @@ export interface MatchingStatsData {
   cache_hit_rate: number;
   total_catalog_unprocessed: number;
   total_catalog_never_processed: number;
+  total_catalog_never_processed_labels: number;
   total_catalog_pending_review: number;
   by_supplier: {
     supplier_id: number;

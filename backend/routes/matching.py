@@ -303,6 +303,28 @@ def matching_stats():
     # Ceux jamais envoyés dans un lot LLM
     total_catalog_never_processed = total_catalog_unprocessed - total_catalog_pending_review
 
+    # Labels uniques parmi les jamais traités (même normalisation que normalize_label Python :
+    # lowercase + strip + remplacement non-\w\s par espace + réduction espaces multiples)
+    # Ce chiffre correspond exactement à ce que le job LLM voit comme "total_labels"
+    _raw_label = func.coalesce(SupplierCatalog.description, SupplierCatalog.model)
+    _normalized = func.lower(
+        func.trim(
+            func.regexp_replace(
+                func.regexp_replace(_raw_label, r"[^\w\s]", " ", "g"),
+                r"\s+", " ", "g",
+            )
+        )
+    )
+    total_catalog_never_processed_labels = (
+        db.session.query(func.count(func.distinct(_normalized)))
+        .filter(
+            *processable_filter,
+            ~SupplierCatalog.id.in_(already_in_pending),
+        )
+        .scalar()
+        or 0
+    )
+
     # By supplier
     by_supplier = []
     suppliers = Supplier.query.all()
@@ -340,6 +362,7 @@ def matching_stats():
         "cache_hit_rate": cache_hit_rate,
         "total_catalog_unprocessed": total_catalog_unprocessed,
         "total_catalog_never_processed": total_catalog_never_processed,
+        "total_catalog_never_processed_labels": total_catalog_never_processed_labels,
         "total_catalog_pending_review": total_catalog_pending_review,
         "by_supplier": by_supplier,
     }), 200

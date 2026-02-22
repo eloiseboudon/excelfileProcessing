@@ -320,8 +320,13 @@ function MatchingPanel() {
           <div className="flex gap-4 text-xs text-[var(--color-text-muted)]">
             {stats.total_catalog_never_processed > 0 && (
               <span>
-                <strong className="text-amber-400">{stats.total_catalog_never_processed}</strong>
-                {' '}jamais traite{stats.total_catalog_never_processed > 1 ? 's' : ''} — lancez le rapprochement LLM
+                <strong className="text-amber-400">{stats.total_catalog_never_processed_labels}</strong>
+                {' '}label{stats.total_catalog_never_processed_labels > 1 ? 's' : ''} unique{stats.total_catalog_never_processed_labels > 1 ? 's' : ''} a traiter
+                {' '}
+                <span className="opacity-60">
+                  ({stats.total_catalog_never_processed} article{stats.total_catalog_never_processed > 1 ? 's' : ''})
+                </span>
+                {' '}— lancez le rapprochement LLM
               </span>
             )}
             {stats.total_catalog_pending_review > 0 && (
