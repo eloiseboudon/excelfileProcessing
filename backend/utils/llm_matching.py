@@ -549,15 +549,17 @@ def run_matching_job(
 
     all_temp_imports = query.all()
 
-    # Find which temp imports already have a SupplierProductRef
-    matched_eans = set()
+    # Find which temp imports already have a SupplierProductRef.
+    # Use the same (supplier_id, ean, part_number) key as _create_supplier_ref so that
+    # items matched by part_number (ean=None) are also detected as already processed.
+    # Python set handles None correctly: (1, None, "X") == (1, None, "X") → True.
+    matched_keys: set[tuple] = set()
     if all_temp_imports:
         supplier_ids = {ti.supplier_id for ti in all_temp_imports if ti.supplier_id}
         for sid in supplier_ids:
             refs = SupplierProductRef.query.filter_by(supplier_id=sid).all()
             for ref in refs:
-                if ref.ean:
-                    matched_eans.add((sid, ref.ean))
+                matched_keys.add((sid, ref.ean, ref.part_number))
 
     # Load IDs of catalog entries that already have a pending PendingMatch
     # to avoid re-queuing them and creating duplicates
@@ -569,7 +571,7 @@ def run_matching_job(
 
     unmatched = []
     for ti in all_temp_imports:
-        if ti.ean and (ti.supplier_id, ti.ean) in matched_eans:
+        if (ti.supplier_id, ti.ean, ti.part_number) in matched_keys:
             continue
         if ti.id in existing_pending_ids:
             continue
