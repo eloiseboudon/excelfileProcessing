@@ -156,7 +156,7 @@ describe('MatchingPanel', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/150 produits restants a traiter/)
+        screen.getByText(/150 labels? non traites? dans ce passage/)
       ).toBeInTheDocument();
     });
   });

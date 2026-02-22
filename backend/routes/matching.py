@@ -303,6 +303,24 @@ def matching_stats():
     # Ceux jamais envoyés dans un lot LLM
     total_catalog_never_processed = total_catalog_unprocessed - total_catalog_pending_review
 
+    # Labels uniques parmi les jamais traités — on charge les labels en Python et on applique
+    # normalize_label() exactement comme run_matching_job (compatible SQLite + PostgreSQL)
+    never_processed_labels = (
+        db.session.query(
+            func.coalesce(SupplierCatalog.description, SupplierCatalog.model)
+        )
+        .filter(
+            *processable_filter,
+            ~SupplierCatalog.id.in_(already_in_pending),
+        )
+        .all()
+    )
+    total_catalog_never_processed_labels = len({
+        normalize_label(row[0])
+        for row in never_processed_labels
+        if row[0] and normalize_label(row[0])
+    })
+
     # By supplier
     by_supplier = []
     suppliers = Supplier.query.all()
@@ -340,6 +358,7 @@ def matching_stats():
         "cache_hit_rate": cache_hit_rate,
         "total_catalog_unprocessed": total_catalog_unprocessed,
         "total_catalog_never_processed": total_catalog_never_processed,
+        "total_catalog_never_processed_labels": total_catalog_never_processed_labels,
         "total_catalog_pending_review": total_catalog_pending_review,
         "by_supplier": by_supplier,
     }), 200
