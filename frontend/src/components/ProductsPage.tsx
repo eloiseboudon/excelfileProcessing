@@ -583,43 +583,150 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
     const rows = buildExportRows();
     if (!rows.length) return;
     const headers = Object.keys(rows[0]);
+    const now = new Date().toLocaleString('fr-FR');
 
-    const tableHead = headers.map((h) => `<th>${h}</th>`).join('');
-    const tableRows = rows
-      .map(
-        (r) =>
-          `<tr>${headers
-            .map((h) => `<td>${r[h] ?? ''}</td>`)
-            .join('')}</tr>`
-      )
+    // Detect numeric columns (>50% of values are numbers)
+    const numericCols = new Set<string>();
+    headers.forEach((h) => {
+      const vals = rows.map((r) => r[h]).filter((v) => v !== null && v !== undefined && v !== '');
+      if (!vals.length) return;
+      if (vals.filter((v) => typeof v === 'number').length / vals.length > 0.5) numericCols.add(h);
+    });
+
+    const isMarginCol = (h: string) => h.toLowerCase().includes('marge');
+
+    const fmtCell = (v: any, h: string): string => {
+      if (v === null || v === undefined) return '';
+      if (typeof v === 'number') {
+        if (h.includes('%')) return v.toFixed(1) + '\u202f%';
+        if (numericCols.has(h)) return v.toFixed(2);
+      }
+      return String(v);
+    };
+
+    const thHtml = headers
+      .map((h, i) => `<th onclick="srt(${i})">${h}<span id="ic${i}"></span></th>`)
       .join('');
 
-    const style = `
-      body {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
-        color: white;
-        padding: 20px;
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 14px;
-      }
-      th, td {
-        border: 1px solid #3f3f46;
-        padding: 8px;
-      }
-      th { background: #27272a; }
-      tr:nth-child(odd) { background: #18181b; }
-      tr:nth-child(even) { background: #27272a; }
-    `;
+    const tbodyHtml = rows
+      .map((r) => {
+        const cells = headers.map((h) => {
+          const v = r[h];
+          const raw = typeof v === 'number' ? v : (v ?? '');
+          const disp = fmtCell(v, h);
+          const isMargin = isMarginCol(h) && typeof v === 'number';
+          const cls = isMargin ? (v < 0 ? ' class="neg"' : v > 0 ? ' class="pos"' : '') : '';
+          return `<td data-raw="${raw}"${cls}>${disp}</td>`;
+        }).join('');
+        return `<tr>${cells}</tr>`;
+      })
+      .join('\n');
 
-    const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Export TCP/Marge</title><style>${style}</style></head><body><table><thead><tr>${tableHead}</tr></thead><tbody>${tableRows}</tbody></table></body></html>`;
+    const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Export TCP / Marges \u2014 AJT Pro</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0a0a0a;color:#e4e4e7;min-height:100vh}
+header{background:#18181b;border-bottom:1px solid #3f3f46;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20}
+.logo{display:flex;align-items:center;gap:8px}
+.dot{width:9px;height:9px;border-radius:50%;background:#B8860B;box-shadow:0 0 8px #B8860B88}
+.brand{font-size:15px;font-weight:700;color:#B8860B;letter-spacing:.4px}
+.sep{color:#3f3f46;margin:0 6px}
+.subtitle{font-size:13px;color:#a1a1aa}
+.meta{font-size:11px;color:#52525b}
+.toolbar{background:#111113;border-bottom:1px solid #27272a;padding:9px 24px;display:flex;align-items:center;gap:10px;position:sticky;top:49px;z-index:19}
+.sw{position:relative;flex:1;max-width:340px}
+.si{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:#52525b;font-size:13px;pointer-events:none}
+input[type=search]{width:100%;background:#1c1c1e;border:1px solid #3f3f46;border-radius:6px;color:#e4e4e7;padding:6px 10px 6px 30px;font-size:13px;outline:none;transition:border-color .15s}
+input[type=search]:focus{border-color:#B8860B}
+input[type=search]::placeholder{color:#52525b}
+.counter{font-size:12px;color:#71717a;margin-left:auto;white-space:nowrap}
+.counter b{color:#B8860B}
+.wrap{overflow-x:auto;padding:16px 24px 40px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{background:#111113;color:#a1a1aa;font-weight:600;text-align:left;padding:9px 12px;white-space:nowrap;border-bottom:2px solid #B8860B;cursor:pointer;user-select:none}
+thead th:hover{color:#e4e4e7;background:#1a1a1e}
+thead th span{display:inline-block;margin-left:4px;color:#B8860B;font-size:10px;width:10px}
+tbody tr{border-bottom:1px solid #1f1f23}
+tbody tr:hover{background:rgba(184,134,11,.07)}
+tbody td{padding:7px 12px;white-space:nowrap;color:#d4d4d8}
+td.pos{color:#4ade80;font-weight:500}
+td.neg{color:#f87171;font-weight:500}
+.empty{text-align:center;padding:60px 24px;color:#52525b;font-size:14px;display:none}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <div class="dot"></div>
+    <span class="brand">AJT Pro</span>
+    <span class="sep">|</span>
+    <span class="subtitle">Export TCP / Marges</span>
+  </div>
+  <span class="meta">Export\u00e9 le ${now}&nbsp;&nbsp;\u00b7&nbsp;&nbsp;${rows.length} produits</span>
+</header>
+<div class="toolbar">
+  <div class="sw">
+    <span class="si">&#128269;</span>
+    <input type="search" id="q" placeholder="Rechercher\u2026" oninput="flt()" autocomplete="off">
+  </div>
+  <div class="counter"><b id="cnt">${rows.length}</b>&thinsp;/&thinsp;${rows.length} r\u00e9sultats</div>
+</div>
+<div class="wrap">
+  <table id="tbl">
+    <thead><tr>${thHtml}</tr></thead>
+    <tbody id="tb">${tbodyHtml}</tbody>
+  </table>
+  <div class="empty" id="empty">Aucun r\u00e9sultat pour cette recherche.</div>
+</div>
+<script>
+(function(){
+  var sc=-1,sd=1;
+  var ar=Array.from(document.querySelectorAll('#tb tr'));
+  function gv(row,col){
+    var td=row.cells[col];
+    if(!td)return'';
+    var r=td.getAttribute('data-raw');
+    if(r!==null&&r!==''&&!isNaN(Number(r)))return Number(r);
+    return td.textContent.trim().toLowerCase();
+  }
+  window.srt=function(col){
+    if(sc===col){sd*=-1;}else{sc=col;sd=1;}
+    document.querySelectorAll('thead th span').forEach(function(s){s.textContent='';});
+    document.querySelector('#ic'+col).textContent=sd===1?' \u25b2':' \u25bc';
+    var tb=document.getElementById('tb');
+    ar.sort(function(a,b){
+      var av=gv(a,col),bv=gv(b,col);
+      if(typeof av==='number'&&typeof bv==='number')return(av-bv)*sd;
+      return String(av).localeCompare(String(bv),'fr')*sd;
+    });
+    ar.forEach(function(r){tb.appendChild(r);});
+  };
+  window.flt=function(){
+    var q=document.getElementById('q').value.trim().toLowerCase();
+    var n=0;
+    ar.forEach(function(row){
+      var txt=Array.from(row.cells).map(function(td){return td.textContent;}).join(' ').toLowerCase();
+      var show=!q||txt.includes(q);
+      row.style.display=show?'':'none';
+      if(show)n++;
+    });
+    document.getElementById('cnt').textContent=n;
+    document.getElementById('empty').style.display=n===0?'':'none';
+    document.getElementById('tbl').style.display=n===0?'none':'';
+  };
+})();
+</script>
+</body>
+</html>`;
 
     const blob = new Blob([html], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
-    const filename = `ajt_product_${getCurrentTimestamp()}.html`;
+    const filename = `ajt_tcp_${getCurrentTimestamp()}.html`;
 
     const link = document.createElement('a');
     link.href = url;
@@ -629,8 +736,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
     document.body.removeChild(link);
 
     window.open(url, '_blank');
-
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
   };
 
   const paginationControls = (
