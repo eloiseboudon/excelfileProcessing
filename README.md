@@ -322,7 +322,7 @@ Pre-requis : creer un compte Anthropic, generer une cle API et ajouter `ANTHROPI
 
 Le projet dispose d'un pipeline GitHub Actions complet :
 
-- **CI** (`.github/workflows/ci.yml`) : tests frontend (Vitest) et backend (pytest) executes en parallele sur chaque push et pull request vers `main`. Un recap des resultats (tests passes/echoues) est affiche dans le Job Summary de chaque job. Le secret JWT de test fait 32+ octets pour eviter les warnings `InsecureKeyLengthWarning`.
+- **CI** (`.github/workflows/ci.yml`) : tests frontend (Vitest) et backend (pytest) executes en parallele sur chaque push et pull request vers `main`. Un recap des resultats (tests passes/echoues) est affiche dans le Job Summary de chaque job. Le secret JWT de test fait 32+ octets pour eviter les warnings `InsecureKeyLengthWarning`. Un groupe de concurrence (`concurrency`) annule automatiquement les runs obsoletes sur la meme branche pour eviter les queues de CI inutiles.
 - **Deploy** (`.github/workflows/deploy.yml`) : deploiement automatique sur le VPS via SSH apres chaque push sur `main`. Le pipeline lance directement le deploy SSH sans job de build intermediaire (le build frontend est fait dans le Dockerfile). Le script `deploy-ci.sh` est optimise pour un deploy en ~1 minute : layer caching Docker, build avant arret des containers (downtime ~5-10s), polling actif au lieu d'attente fixe.
 
 ### Referentiel produit
@@ -436,7 +436,7 @@ Le gabarit OpenAPI se trouve dans `backend/swagger_template.yml`.
 
 ### Tests backend
 
-Le framework `pytest` est configure dans le backend (SQLite in-memory, pas besoin de PostgreSQL) — 199 tests dans 14 fichiers :
+Le framework `pytest` est configure dans le backend (SQLite in-memory, pas besoin de PostgreSQL) — 229 tests dans 14 fichiers :
 
 ```bash
 cd backend
@@ -446,7 +446,7 @@ python -m pytest tests/ -v
 
 ### Tests frontend
 
-Le framework `vitest` avec Testing Library est configure dans le frontend — 160 tests dans 17 fichiers :
+Le framework `vitest` avec Testing Library est configure dans le frontend — 161 tests dans 17 fichiers :
 
 ```bash
 cd frontend

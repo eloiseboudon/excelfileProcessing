@@ -19,6 +19,7 @@ from models import (
     NormeOption,
     OdooConfig,
     OdooSyncJob,
+    PendingMatch,
     Product,
     ProductCalculation,
     RAMOption,
@@ -447,6 +448,10 @@ def _delete_orphaned_products(
             # Detach supplier refs (set product_id to NULL)
             SupplierProductRef.query.filter_by(product_id=product_id).update(
                 {"product_id": None}
+            )
+            # Detach pending matches referencing this product as resolved
+            PendingMatch.query.filter_by(resolved_product_id=product_id).update(
+                {"resolved_product_id": None}, synchronize_session=False
             )
             # Delete product calculations
             ProductCalculation.query.filter_by(product_id=product_id).delete()

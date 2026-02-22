@@ -299,3 +299,137 @@ Correction des doublons dans le referentiel produit via normalisation centralise
 - **Points d'entree normalises** : ETL (`etl.py`), sync Odoo (`odoo_sync.py`), matching LLM (`llm_matching.py`)
 - **Migration** : `k1_normalize_memory_ram` — fusion des doublons existants avec reassignation des FK (products, supplier_catalog)
 - **Tests** : 26 cas dans `backend/tests/test_normalize.py`
+
+---
+
+## Corrections de stabilite ETL (implementee)
+
+Correction d'une violation de contrainte FK bloquant la synchronisation quotidienne des fournisseurs en production.
+
+- **Probleme** : la sync quotidienne echouait avec une `ForeignKeyViolation` — le bulk DELETE de `supplier_catalog` supprimait des lignes encore referencees par des `pending_matches.temporary_import_id` non resolus
+- **Fix** : avant le bulk DELETE, nullification de `pending_matches.temporary_import_id` pour les entrees qui referencent le catalogue du fournisseur concerne. Le code de resolution de matchs gere deja le cas `temporary_import_id = None`
+- **Tests** : 2 cas dans `backend/tests/test_etl_persist.py` (securite FK + cas nominal sans pending_matches)
+
+Fichiers concernes : `backend/utils/etl.py`, `backend/tests/test_etl_persist.py`
+
+---
+
+## Optimisation CI — annulation des runs obsoletes (implementee)
+
+Ajout d'un groupe de concurrence (`concurrency`) dans le pipeline CI GitHub Actions.
+
+- **Probleme** : plusieurs pushs rapides sur la meme branche generaient une file de jobs CI, tous executes en serie meme quand les precedents etaient devenus obsoletes
+- **Fix** : le champ `concurrency` annule automatiquement le run en cours sur la branche lorsqu'un nouveau push arrive, conservant uniquement le run le plus recent
+- **Impact** : reduction des minutes CI consommees et des attentes inutiles en cas de pushs frequents
+
+Fichiers concernes : `.github/workflows/ci.yml`
+
+---
+
+# Dette technique et ameliorations identifiees
+
+## Refactorisation backend — DRY violations
+
+### Serialisation produit dupliquee (priorite haute)
+
+Le bloc de serialisation des attributs produit (`brand`, `memory`, `color`, `type`, `ram`, `norme`) avec gestion du null est copie-colle **4 fois** dans `backend/routes/products.py` :
+
+- lignes ~360 (`list_product_calculations`)
+- lignes ~563 (`list_products`)
+- lignes ~627 (`export_calculates`)
+- lignes ~434 (`internal_products`)
+
+Correction : extraire une fonction `_serialize_product(p: Product) -> dict`.
+
+### Selection du mapping fournisseur dupliquee (priorite haute)
+
+La logique de selection du meilleur mapping actif (sinon le plus recent) existe dans `backend/routes/imports.py` sous `_select_mapping()`, mais est recopiee **2 fois** dans `backend/routes/products.py` (fonctions `_ensure_daily_supplier_cache` et `refresh_supplier_catalog`).
+
+Correction : importer et appeler `_select_mapping` depuis `imports.py` dans `products.py`.
+
+### Nettoyage numerique dans `etl.py` (priorite basse)
+
+`_coerce_int` et `_coerce_float` dans `backend/utils/etl.py` partagent le meme bloc de nettoyage de chaine (strip, remplacement espace insecable, normalisation virgule/point). A extraire en `_normalize_numeric_string(value: str) -> str`.
+
+---
+
+## Performance backend — N+1 queries dans `matching_stats`
+
+`matching_stats()` dans `backend/routes/matching.py` effectue **4 requetes COUNT separees par fournisseur** (total cached, pending, matched, manual). Avec N fournisseurs = 1 + 4N requetes SQL.
+
+Correction : remplacer par des requetes agregees `GROUP BY supplier_id` via `func.count()`.
+
+---
+
+## Refactorisation frontend — DRY violations
+
+### Hook `useProductAttributeOptions` manquant (priorite haute)
+
+Le bloc `Promise.all([fetchBrands(), fetchColors(), fetchMemoryOptions(), fetchDeviceTypes(), fetchRAMOptions(), fetchNormeOptions()])` suivi des setState correspondants est copie **3 fois** :
+
+- `frontend/src/components/ProductsPage.tsx`
+- `frontend/src/components/ProductAdmin.tsx`
+- `frontend/src/components/ProductReference.tsx`
+
+Correction : extraire un hook `useProductAttributeOptions()` retournant `{ brands, colors, memories, types, rams, normes }`.
+
+### Calcul de marge duplique dans `ProductsPage.tsx` (priorite basse)
+
+La logique `tcp + baseBuyPrice + normalizedMargin` et derivation du `margePercent` est dupliquee dans `applyBulkMargin` et `handleProductMarginUpdate`. A extraire en fonction utilitaire.
+
+### Merging d'options duplique dans `ProductsPage.tsx` (priorite basse)
+
+Le pattern `Array.from(new Set([...prev, ...usedXxx]))` est repete 6 fois de suite (pour brand, color, memory, type, ram, norme) dans le meme `useEffect`. A extraire en fonction commune `mergeOptions(data, key, setter)`.
+
+---
+
+## Composants trop volumineux (refactorisation a planifier)
+
+| Fichier | Lignes | Probleme |
+|---------|--------|---------|
+| `frontend/src/components/SupplierApiAdmin.tsx` | ~1014 | Gestion APIs + endpoints + mappings + fields + formulaires dans un seul composant |
+| `frontend/src/components/ProductsPage.tsx` | ~878 | Tri + export + marge + pagination + orchestration dans un seul composant |
+| `backend/utils/etl.py` fonction `_update_product_prices_from_records` | ~232 | Matching + mise a jour prix + construction rapport dans la meme fonction |
+| `backend/utils/llm_matching.py` | ~756 (fichier entier) | Normalisation + contexte + extraction LLM + scoring + persistance melangees |
+
+---
+
+## Tests manquants — Backend
+
+### Routes sans aucune couverture
+
+- `backend/routes/references.py` : 4 endpoints CRUD generiques pour 9 types de donnees (marques, couleurs, memoire, types, RAM, normes, exclusions, fournisseurs, formats import) — zero test
+- `backend/routes/imports.py` : endpoints REST ETL (`fetch_supplier_api`, `list_supplier_api_config`, `verify_import`, `last_import`, `list_supplier_api_reports`) — zero test
+- `backend/routes/settings.py` : `list_graph_settings` et `update_graph_setting` — zero test
+
+### Routes partiellement couvertes
+
+- `backend/routes/products.py` : `export_calculates`, `refresh_week`, `list_product_calculations`, `internal_products` sans tests (seuls `list_products`, CRUD, `product_price_summary` et `supplier_catalog/refresh` ont des tests)
+
+---
+
+## Tests manquants — Frontend
+
+Composants sans aucun test dans `frontend/src/components/` :
+
+- `AdminPage.tsx`
+- `DataImportPage.tsx`
+- `FormattingPage.tsx`
+- `ImportPreviewModal.tsx`
+- `ProcessingPage.tsx`
+- `ProductAdmin.tsx`
+- `ProductEditModal.tsx`
+- `ProductFilters.tsx`
+- `ProductsPage.tsx` (composant central, ~878 lignes — priorite haute)
+- `ProductTable.tsx`
+- `SearchControls.tsx`
+- `SearchPage.tsx`
+- `SupplierApiAdmin.tsx` (~1014 lignes — priorite haute)
+- `SupplierApiReports.tsx`
+- `SupplierApiSyncPanel.tsx`
+- `SupplierPriceModal.tsx`
+- `TranslationAdmin.tsx`
+- `UserAdmin.tsx`
+- `WeekToolbar.tsx`
+
+Composants avec tests existants : `App`, `LoginPage`, `LogsPanel`, `MatchingPanel`, `MultiSelectFilter`, `NotificationProvider`, `OdooSyncPanel`, `ProductReference`, `ProductReferenceForm`, `ProductReferenceTable`, `SortableColumnHeader`, `StatisticsPage`.
