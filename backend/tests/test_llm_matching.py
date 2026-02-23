@@ -323,6 +323,7 @@ class TestCallLlmExtraction:
 
 class TestScoreMatch:
     def test_perfect_match(self, product_s25, color_translations):
+        """All fields match, no region info on either side → max 95 pts."""
         extracted = {
             "brand": "Samsung",
             "model_family": "Galaxy S25 Ultra",
@@ -332,6 +333,29 @@ class TestScoreMatch:
         }
         mappings = {"color_translations": {"black": "Noir"}}
         score, details = score_match(extracted, product_s25, mappings)
+        assert score == 95
+
+    def test_perfect_match_with_region(self, brand_samsung, memory_256, color_noir, color_translations):
+        """All fields match including region → 100 pts."""
+        p = Product(
+            model="Galaxy S25 Ultra",
+            brand_id=brand_samsung.id,
+            memory_id=memory_256.id,
+            color_id=color_noir.id,
+            region="EU",
+        )
+        db.session.add(p)
+        db.session.commit()
+
+        extracted = {
+            "brand": "Samsung",
+            "model_family": "Galaxy S25 Ultra",
+            "storage": "256 Go",
+            "color": "Noir",
+            "region": "EU",
+        }
+        mappings = {"color_translations": {"black": "Noir"}}
+        score, details = score_match(extracted, p, mappings)
         assert score == 100
 
     def test_brand_mismatch_returns_zero(self, product_s25):
@@ -340,11 +364,111 @@ class TestScoreMatch:
         assert score == 0
         assert details.get("disqualified") == "brand_mismatch"
 
+    def test_brand_none_does_not_disqualify(self, product_s25):
+        """If extracted brand is missing, must not disqualify."""
+        extracted = {"brand": None, "model_family": "Galaxy S25 Ultra", "storage": "256 Go"}
+        score, details = score_match(extracted, product_s25, {})
+        assert score > 0
+        assert details.get("disqualified") != "brand_mismatch"
+
     def test_storage_mismatch_returns_zero(self, product_s25):
         extracted = {"brand": "Samsung", "model_family": "Galaxy S25 Ultra", "storage": "128 Go"}
         score, details = score_match(extracted, product_s25, {})
         assert score == 0
         assert details.get("disqualified") == "storage_mismatch"
+
+    def test_color_mismatch_disqualifies(self, brand_apple, memory_128):
+        """Orange label must not match Bleu product."""
+        color_bleu = Color(color="Bleu")
+        db.session.add(color_bleu)
+        db.session.commit()
+
+        product_bleu = Product(
+            model="iPhone 17 Pro",
+            brand_id=brand_apple.id,
+            memory_id=memory_128.id,
+            color_id=color_bleu.id,
+        )
+        db.session.add(product_bleu)
+        db.session.commit()
+
+        extracted = {
+            "brand": "Apple",
+            "model_family": "iPhone 17 Pro",
+            "storage": "128 Go",
+            "color": "Orange",
+            "region": None,
+        }
+        score, details = score_match(extracted, product_bleu, {})
+        assert score == 0
+        assert details.get("disqualified") == "color_mismatch"
+
+    def test_color_none_does_not_disqualify(self, brand_apple, memory_128):
+        """If product has no color, extracted color must not disqualify."""
+        product_no_color = Product(
+            model="iPhone 17 Pro",
+            brand_id=brand_apple.id,
+            memory_id=memory_128.id,
+        )
+        db.session.add(product_no_color)
+        db.session.commit()
+
+        extracted = {
+            "brand": "Apple",
+            "model_family": "iPhone 17 Pro",
+            "storage": "128 Go",
+            "color": "Orange",
+            "region": None,
+        }
+        score, details = score_match(extracted, product_no_color, {})
+        assert score > 0
+        assert details.get("disqualified") != "color_mismatch"
+
+    def test_region_mismatch_disqualifies(self, brand_apple, memory_128, color_noir):
+        """Indian Spec label must not match EU product."""
+        product_eu = Product(
+            model="iPhone 16",
+            brand_id=brand_apple.id,
+            memory_id=memory_128.id,
+            color_id=color_noir.id,
+            region="EU",
+        )
+        db.session.add(product_eu)
+        db.session.commit()
+
+        extracted = {
+            "brand": "Apple",
+            "model_family": "iPhone 16",
+            "storage": "128 Go",
+            "color": "Noir",
+            "region": "IN",
+        }
+        score, details = score_match(extracted, product_eu, {})
+        assert score == 0
+        assert details.get("disqualified") == "region_mismatch"
+
+    def test_region_none_does_not_disqualify(self, brand_apple, memory_128, color_noir):
+        """If product has no region, the extracted region must not disqualify."""
+        product_no_region = Product(
+            model="iPhone 16",
+            brand_id=brand_apple.id,
+            memory_id=memory_128.id,
+            color_id=color_noir.id,
+            region=None,
+        )
+        db.session.add(product_no_region)
+        db.session.commit()
+
+        extracted = {
+            "brand": "Apple",
+            "model_family": "iPhone 16",
+            "storage": "128 Go",
+            "color": "Noir",
+            "region": "IN",
+        }
+        score, details = score_match(extracted, product_no_region, {})
+        assert score > 0
+        assert details.get("disqualified") != "region_mismatch"
 
     def test_device_type_mismatch_returns_zero(self, brand_apple, memory_128, color_noir, device_type):
         """A Watch should never match a Smartphone regardless of brand/color."""

@@ -299,15 +299,18 @@ def score_match(
     details: Dict[str, Any] = {}
     score = 0
 
-    # --- Brand (15 pts) ---
+    # --- Brand (hard disqualifier if both sides have a brand and they differ) ---
     ext_brand = (extracted.get("brand") or "").strip().lower()
     prod_brand = (product.brand.brand if product.brand else "").lower()
-    if not ext_brand or not prod_brand or ext_brand != prod_brand:
+    if ext_brand and prod_brand:
+        if ext_brand != prod_brand:
+            details["brand"] = 0
+            details["disqualified"] = "brand_mismatch"
+            return 0, details
+        details["brand"] = 15
+        score += 15
+    else:
         details["brand"] = 0
-        details["disqualified"] = "brand_mismatch"
-        return 0, details
-    details["brand"] = 15
-    score += 15
 
     # --- Device type (hard disqualifier if both sides have a meaningful type) ---
     ext_type = _normalize_device_type(extracted.get("device_type") or "")
@@ -373,33 +376,37 @@ def score_match(
     else:
         details["model_family"] = 0
 
-    # --- Color (15 pts) ---
+    # --- Color (hard disqualifier if both sides have a color and they differ) ---
     ext_color = (extracted.get("color") or "").strip().lower()
     prod_color = (product.color.color if product.color else "").lower()
     color_translations = mappings.get("color_translations", {})
 
     if ext_color and prod_color:
-        if ext_color == prod_color:
-            details["color"] = 15
-            score += 15
-        elif color_translations.get(ext_color, "").lower() == prod_color:
+        normalized_ext = color_translations.get(ext_color, ext_color).lower()
+        if normalized_ext == prod_color or ext_color == prod_color:
             details["color"] = 15
             score += 15
         else:
             details["color"] = 0
-            score -= 5
+            details["disqualified"] = "color_mismatch"
+            return 0, details
     elif not ext_color and not prod_color:
         details["color"] = 15
         score += 15
     else:
         details["color"] = 0
 
-    # --- Region (5 pts) ---
-    ext_region = extracted.get("region")
-    prod_region = product.region
-    if ext_region == prod_region:
-        details["region"] = 5
-        score += 5
+    # --- Region (hard disqualifier if both sides have a region and they differ) ---
+    ext_region = (extracted.get("region") or "").strip() or None
+    prod_region = (product.region or "").strip() or None
+    if ext_region and prod_region:
+        if ext_region.upper() == prod_region.upper():
+            details["region"] = 5
+            score += 5
+        else:
+            details["region"] = 0
+            details["disqualified"] = "region_mismatch"
+            return 0, details
     else:
         details["region"] = 0
 
