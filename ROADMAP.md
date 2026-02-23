@@ -360,7 +360,262 @@ Fichiers concernes : `.github/workflows/ci.yml`
 
 # Dette technique et ameliorations identifiees
 
-## Refactorisation backend — DRY violations
+## Securite (priorite critique)
+
+### JWT_SECRET avec fallback faible
+
+- **Fichier** : `backend/utils/auth.py:10`
+- **Probleme** : le fallback par defaut est `"secret-key"` si `JWT_SECRET` n'est pas defini — un attaquant peut forger des tokens
+- **Correction** : lever une exception au demarrage si la variable est absente ou < 32 caracteres
+
+### Refresh token stocke dans localStorage
+
+- **Fichier** : `frontend/src/api.ts:6-18`
+- **Probleme** : le refresh token est dans `localStorage`, accessible par n'importe quel script JS (XSS)
+- **Correction** : migrer vers un cookie HTTPOnly secure avec `SameSite=Strict`
+
+### PostgreSQL expose en production
+
+- **Fichier** : `docker-compose.prod.yml:75`
+- **Probleme** : `ports: "5432:5432"` expose la base sur le reseau du VPS
+- **Correction** : supprimer la directive `ports` ou la restreindre a `"127.0.0.1:5432:5432"`
+
+### Credentials base hardcodes dans docker-compose
+
+- **Fichier** : `docker-compose.yml:35`, `docker-compose.prod.yml:70`
+- **Probleme** : `POSTGRES_PASSWORD=ajt_password` en dur dans des fichiers versiones
+- **Correction** : utiliser `${POSTGRES_PASSWORD:-ajt_password}` et definir la variable dans `.env` (non versionne)
+
+### CORS wildcard par defaut
+
+- **Fichier** : `backend/app.py:22-30`
+- **Probleme** : si `FRONTEND_URL` n'est pas defini, CORS autorise `*` (toutes origines)
+- **Correction** : exiger `FRONTEND_URL` au demarrage ou utiliser un defaut restrictif
+
+---
+
+## Securite (priorite haute)
+
+### Nginx CORS trop permissif
+
+- **Fichier** : `frontend/nginx.conf:56`
+- **Probleme** : `Access-Control-Allow-Origin: *` sur le serveur frontend alors que le backend a une config restrictive
+- **Correction** : aligner sur le domaine de prod `https://ajtpro.tulip-saas.fr`
+
+### Pas de protection CSRF
+
+- **Fichier** : `frontend/src/api.ts`
+- **Probleme** : aucun token CSRF sur les requetes POST/PUT/DELETE
+- **Correction** : ajouter une validation origin/referer cote backend ou implementer un double-submit cookie
+
+---
+
+## Performance backend
+
+### N+1 queries dans `matching_stats` (existant)
+
+`matching_stats()` dans `backend/routes/matching.py` effectue **4 requetes COUNT separees par fournisseur**. Avec N fournisseurs = 1 + 4N requetes SQL.
+
+Correction : remplacer par des requetes agregees `GROUP BY supplier_id` via `func.count()`.
+
+### Export sans pagination
+
+- **Fichier** : `backend/routes/products.py:620`
+- **Probleme** : `export_calculates` charge TOUS les `ProductCalculation` en memoire sans LIMIT
+- **Correction** : ajouter un LIMIT de securite (ex: 10 000) ou paginer
+
+### Timeout XML-RPC manquant
+
+- **Fichier** : `backend/utils/odoo_sync.py:66-67`
+- **Probleme** : les appels XML-RPC vers Odoo n'ont aucun timeout — requete potentiellement infinie si le serveur est injoignable
+- **Correction** : ajouter un `transport` avec timeout (60s) au `ServerProxy`
+
+### Lecture du fichier de log en entier
+
+- **Fichier** : `backend/routes/logs.py:69`
+- **Probleme** : `log_path.read_text()` charge le fichier entier en memoire avant de slicer les N dernieres lignes
+- **Correction** : lire depuis la fin du fichier (tail) ou streamer
+
+### Limites non bornees sur certaines routes
+
+- **Fichier** : `backend/routes/products.py:295,606,620`
+- **Probleme** : `per_page` et `limit` convertis en int sans borne superieure
+- **Correction** : appliquer `min(limit, MAX_LIMIT)` systematiquement
+
+---
+
+## Performance frontend
+
+### Pas de lazy loading pour les composants lourds
+
+- **Fichiers** : `StatisticsPage.tsx`, `FormattingPage.tsx`, `MatchingPanel.tsx`
+- **Probleme** : composants de 500-1000 lignes charges de maniere synchrone
+- **Correction** : utiliser `React.lazy()` + `Suspense` pour le code splitting
+
+### useCallback/useMemo manquants sur les handlers
+
+- **Fichier** : `ProductsPage.tsx` (23 useState + 7 useEffect)
+- **Probleme** : handlers recrees a chaque render, provoquant des re-renders en cascade des enfants
+- **Correction** : wrapper les handlers dans `useCallback`, les calculs derivatifs dans `useMemo`
+
+### Extraction d'options inefficace
+
+- **Fichier** : `ProductsPage.tsx:197-239`
+- **Probleme** : a chaque changement de `data`, 6 iterations completes pour extraire les options uniques (brand, color, etc.)
+- **Correction** : remplacer par un `useMemo` unique qui calcule toutes les options en une passe
+
+### Cache pip manquant dans la CI
+
+- **Fichier** : `.github/workflows/ci.yml:60-66`
+- **Probleme** : chaque run CI retelecharge tous les packages pip (~2-3 min)
+- **Correction** : ajouter `actions/cache@v4` sur `~/.cache/pip` avec cle `requirements.txt`
+
+---
+
+## Robustesse et qualite du code — Backend
+
+### Rollback manquant dans les handlers d'exception
+
+- **Fichier** : `backend/routes/odoo.py:116`
+- **Probleme** : `except Exception` retourne une 500 sans `db.session.rollback()` — la session reste dirty
+- **Correction** : ajouter `db.session.rollback()` dans tous les handlers d'exception des routes
+
+### Erreurs silencieuses
+
+- **Fichier** : `frontend/src/api.ts:66`
+- **Probleme** : `.catch(() => ({}))` sur le parsing JSON masque les erreurs reseau
+- **Correction** : logger l'erreur et retourner un objet d'erreur explicite
+
+### Masquage de mot de passe fragile
+
+- **Fichier** : `backend/routes/odoo.py:75`
+- **Probleme** : la comparaison `password != "********"` peut echouer si le vrai mot de passe est cette chaine
+- **Correction** : utiliser un champ flag `password_changed: bool` ou un sentinelle non ambigu
+
+### Magic numbers eparpilles
+
+- **Fichiers** : `backend/routes/imports.py`, `stats.py`, `logs.py`
+- **Probleme** : limites (100, 200, 20, 1000) en dur dans le code
+- **Correction** : extraire en constantes de module (`MAX_LIMIT`, `DEFAULT_PAGE_SIZE`, etc.)
+
+---
+
+## Robustesse et qualite du code — Frontend
+
+### TypeScript `any` repandu
+
+- **Fichiers** : `ProductsPage.tsx`, `ProductReference.tsx`, `OdooSyncPanel.tsx`, `api.ts`
+- **Probleme** : l'usage de `any` annule les garanties de typage et rend le refactoring risque
+- **Correction** : typer les reponses API (`ApiResponse<T>`) et remplacer les `any` par des types explicites
+
+### console.error oublies en production
+
+- **Fichiers** : `FormattingPage.tsx:309`, `SearchPage.tsx:157`, `ProcessingPage.tsx:98,123,269`
+- **Probleme** : `console.error` de debug laisses dans le code de production
+- **Correction** : remplacer par le systeme de notification (`notify()`) ou supprimer
+
+### Pas d'Error Boundary
+
+- **Fichier** : app entiere
+- **Probleme** : une erreur runtime dans un composant crashe toute l'application
+- **Correction** : creer un composant `ErrorBoundary` et wrapper les pages principales
+
+### Race condition sur le refresh token
+
+- **Fichier** : `frontend/src/api.ts:27-50`
+- **Probleme** : plusieurs 401 concurrents declenchent plusieurs refresh simultanes
+- **Correction** : ajouter un mutex (promesse partagee) pour serialiser les refresh
+
+### Pas d'AbortController
+
+- **Fichiers** : `SearchPage.tsx`, `MatchingPanel.tsx`, `ProductsPage.tsx`
+- **Probleme** : si l'utilisateur quitte la page pendant un fetch, la requete continue en memoire
+- **Correction** : utiliser `AbortController` dans le cleanup des `useEffect`
+
+---
+
+## UX et accessibilite
+
+### Etats de chargement manquants
+
+- **Fichiers** : `ProductsPage.tsx`, `SearchPage.tsx`
+- **Probleme** : pas de spinner/skeleton pendant le chargement initial — la page parait vide
+- **Correction** : ajouter un etat `loading` avec indicateur visuel
+
+### Etats vides manquants
+
+- **Fichiers** : `ProductsPage.tsx`, `SearchPage.tsx`, `MatchingPanel.tsx`, `StatisticsPage.tsx`
+- **Probleme** : quand il n'y a pas de donnees, les tableaux affichent un vide sans explication
+- **Correction** : afficher un message "Aucun resultat" avec bouton de reinitialisation des filtres
+
+### Accessibilite insuffisante
+
+- **Probleme** : seulement 9 `aria-label` sur 34+ composants. Pas de `role` sur les dropdowns custom, pas de `aria-live` sur les mises a jour asynchrones, pas de navigation clavier dans les modales
+- **Correction** : audit ARIA complet, ajout de `onKeyDown` pour Escape/Tab dans les modales et dropdowns
+
+### Modale ImportPreviewModal non fermable au clic exterieur
+
+- **Fichier** : `frontend/src/components/ImportPreviewModal.tsx`
+- **Correction** : ajouter un `onClick` sur l'overlay pour fermer
+
+---
+
+## Infrastructure et deploiement
+
+### Backend Docker tourne en root
+
+- **Fichier** : `backend/Dockerfile`
+- **Probleme** : Gunicorn tourne en tant que root dans le conteneur
+- **Correction** : creer un utilisateur non-root (`RUN useradd -m appuser && USER appuser`)
+
+### Pas de .dockerignore backend
+
+- **Fichier** : `backend/`
+- **Probleme** : le build Docker inclut `__pycache__`, `tests/`, `.pytest_cache`, `.env`
+- **Correction** : creer `backend/.dockerignore` pour exclure les fichiers non necessaires au runtime
+
+### Pas de rollback en cas d'echec deploy
+
+- **Fichier** : `deploy-ci.sh`
+- **Probleme** : si les health checks echouent apres un deploy, le script affiche un warning mais ne fait rien — l'application reste cassee
+- **Correction** : implementer un rollback automatique (`git reset --hard HEAD~1` + restart) quand les health checks echouent
+
+### deploy-ci.sh fait un git reset --hard sans sauvegarde
+
+- **Fichier** : `deploy-ci.sh:34`
+- **Probleme** : `git reset --hard origin/main` supprime tout changement local sans avertissement
+- **Correction** : ajouter un `git stash` automatique avant le reset si des changements locaux existent
+
+### Pas de limites de ressources Docker
+
+- **Fichier** : `docker-compose.prod.yml`
+- **Probleme** : aucune limite CPU/memoire — un matching LLM lourd peut saturer le VPS
+- **Correction** : ajouter `deploy.resources.limits` (ex: 2 CPU, 2 Go RAM pour le backend)
+
+### Connection pooling SQLAlchemy non configure
+
+- **Probleme** : Gunicorn 4 workers × connexions non poolees peut epuiser `max_connections` PostgreSQL
+- **Correction** : configurer `pool_size=10, max_overflow=20, pool_pre_ping=True` dans `create_engine()`
+
+### Endpoint /health superficiel
+
+- **Probleme** : le health check Docker teste juste la connectivite HTTP, pas l'etat reel (DB, etc.)
+- **Correction** : ajouter un `GET /health` qui execute `SELECT 1` et retourne l'etat DB + timestamp
+
+### Pas de centralisation des logs Docker
+
+- **Probleme** : logs perdus au restart des conteneurs, pas de rotation configuree
+- **Correction** : ajouter `logging: { driver: "json-file", options: { max-size: "10m", max-file: "3" } }` dans docker-compose.prod.yml
+
+### Timeout Nginx potentiellement insuffisant
+
+- **Fichier** : `frontend/nginx.conf:150`
+- **Probleme** : `proxy_read_timeout 300s` (5 min) peut etre court pour les jobs de matching LLM
+- **Correction** : augmenter a 600s
+
+---
+
+## Refactorisation backend — DRY violations (existant)
 
 ### Serialisation produit dupliquee (priorite haute)
 
@@ -385,15 +640,7 @@ Correction : importer et appeler `_select_mapping` depuis `imports.py` dans `pro
 
 ---
 
-## Performance backend — N+1 queries dans `matching_stats`
-
-`matching_stats()` dans `backend/routes/matching.py` effectue **4 requetes COUNT separees par fournisseur** (total cached, pending, matched, manual). Avec N fournisseurs = 1 + 4N requetes SQL.
-
-Correction : remplacer par des requetes agregees `GROUP BY supplier_id` via `func.count()`.
-
----
-
-## Refactorisation frontend — DRY violations
+## Refactorisation frontend — DRY violations (existant)
 
 ### Hook `useProductAttributeOptions` manquant (priorite haute)
 
@@ -415,32 +662,33 @@ Le pattern `Array.from(new Set([...prev, ...usedXxx]))` est repete 6 fois de sui
 
 ---
 
-## Composants trop volumineux (refactorisation a planifier)
+## Composants trop volumineux (existant + enrichi)
 
-| Fichier | Lignes | Probleme |
-|---------|--------|---------|
-| `frontend/src/components/SupplierApiAdmin.tsx` | ~1014 | Gestion APIs + endpoints + mappings + fields + formulaires dans un seul composant |
-| `frontend/src/components/ProductsPage.tsx` | ~878 | Tri + export + marge + pagination + orchestration dans un seul composant |
-| `backend/utils/etl.py` fonction `_update_product_prices_from_records` | ~232 | Matching + mise a jour prix + construction rapport dans la meme fonction |
-| `backend/utils/llm_matching.py` | ~756 (fichier entier) | Normalisation + contexte + extraction LLM + scoring + persistance melangees |
+| Fichier | Lignes | Probleme | Refactoring propose |
+|---------|--------|---------|---------------------|
+| `SupplierApiAdmin.tsx` | ~1014 | APIs + endpoints + mappings + fields + formulaires | Extraire `EndpointForm`, `MappingEditor`, `FieldList` |
+| `ProductsPage.tsx` | ~927 | Tri + export + marge + pagination + modale | Extraire `useProductsFiltering` (hook), `ProductsExport` (logique export) |
+| `MatchingPanel.tsx` | ~797 | Run + polling + stats + validation + rejection | Extraire `useMatchingPolling` (hook), `MatchingStats`, `PendingMatchList` |
+| `backend/utils/etl.py` | ~232 (fn) | Matching + mise a jour prix + rapport | Decouper en 3 fonctions distinctes |
+| `backend/utils/llm_matching.py` | ~756 | Normalisation + extraction LLM + scoring + persistance | Separer `extraction.py`, `scoring.py`, `persistence.py` |
 
 ---
 
-## Tests manquants — Backend
+## Tests manquants — Backend (existant)
 
 ### Routes sans aucune couverture
 
-- `backend/routes/references.py` : 4 endpoints CRUD generiques pour 9 types de donnees (marques, couleurs, memoire, types, RAM, normes, exclusions, fournisseurs, formats import) — zero test
+- `backend/routes/references.py` : 4 endpoints CRUD generiques pour 9 types de donnees — zero test
 - `backend/routes/imports.py` : endpoints REST ETL (`fetch_supplier_api`, `list_supplier_api_config`, `verify_import`, `last_import`, `list_supplier_api_reports`) — zero test
 - `backend/routes/settings.py` : `list_graph_settings` et `update_graph_setting` — zero test
 
 ### Routes partiellement couvertes
 
-- `backend/routes/products.py` : `export_calculates`, `refresh_week`, `list_product_calculations`, `internal_products` sans tests (seuls `list_products`, CRUD, `product_price_summary` et `supplier_catalog/refresh` ont des tests)
+- `backend/routes/products.py` : `export_calculates`, `refresh_week`, `list_product_calculations`, `internal_products` sans tests
 
 ---
 
-## Tests manquants — Frontend
+## Tests manquants — Frontend (existant)
 
 Composants sans aucun test dans `frontend/src/components/` :
 
@@ -452,7 +700,7 @@ Composants sans aucun test dans `frontend/src/components/` :
 - `ProductAdmin.tsx`
 - `ProductEditModal.tsx`
 - `ProductFilters.tsx`
-- `ProductsPage.tsx` (composant central, ~878 lignes — priorite haute)
+- `ProductsPage.tsx` (composant central, ~927 lignes — priorite haute)
 - `ProductTable.tsx`
 - `SearchControls.tsx`
 - `SearchPage.tsx`

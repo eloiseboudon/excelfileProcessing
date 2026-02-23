@@ -117,7 +117,7 @@ Relations :
 
 | Table              | Role                                                                                     |
 | ------------------ | ---------------------------------------------------------------------------------------- |
-| `users`            | Comptes utilisateurs (username, password_hash, role : `admin` ou `user`).                |
+| `users`            | Comptes utilisateurs (username, password_hash, role : `admin`, `user` ou `client`).      |
 | `user_settings`    | Preferences utilisateur (ex. : graphiques visibles sur le tableau de bord).              |
 | `graph_settings`   | Activation/desactivation des types de graphiques sur la page statistiques.               |
 | `odoo_config`      | Configuration de connexion Odoo (URL, base, identifiants chiffres Fernet).               |

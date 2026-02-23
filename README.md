@@ -316,7 +316,10 @@ Pre-requis : creer un compte Anthropic, generer une cle API et ajouter `ANTHROPI
 
 - Page de connexion avec logo AJT Pro, champs avec icones et labels, toggle visibilite mot de passe (icone oeil)
 - Jetons JWT (acces + rafraichissement)
-- Acces conditionnel selon le role (admin / client)
+- Acces conditionnel selon le role :
+  - **admin** : acces complet (Produits, Recherche, Statistiques, Admin, Synchro)
+  - **user** : acces lecture (Produits, Recherche, Statistiques) — pas d'admin ni synchro
+  - **client** : vue tarif simplifiee (Prix de vente, Modele, Description) + export XLSX 3 colonnes
 
 ### CI/CD
 
@@ -436,7 +439,7 @@ Le gabarit OpenAPI se trouve dans `backend/swagger_template.yml`.
 
 ### Tests backend
 
-Le framework `pytest` est configure dans le backend (SQLite in-memory, pas besoin de PostgreSQL) — 229 tests dans 14 fichiers :
+Le framework `pytest` est configure dans le backend (SQLite in-memory, pas besoin de PostgreSQL) — 245 tests dans 14 fichiers :
 
 ```bash
 cd backend
