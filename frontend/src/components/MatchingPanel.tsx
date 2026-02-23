@@ -6,7 +6,6 @@ import {
   Link,
   Loader2,
   Play,
-  Plus,
   Search,
   Tag,
   X,
@@ -202,16 +201,11 @@ function MatchingPanel() {
     }
   }
 
-  async function handleReject(pm: PendingMatchItem, createProduct: boolean) {
+  async function handleReject(pm: PendingMatchItem) {
     const scrollY = window.scrollY;
     try {
-      await rejectMatch(pm.id, createProduct);
-      notify(
-        createProduct
-          ? `Nouveau produit cree depuis : ${pm.source_label}`
-          : `Match rejete : ${pm.source_label}`,
-        'success'
-      );
+      await rejectMatch(pm.id, false);
+      notify(`Match rejete : ${pm.source_label}`, 'success');
       await loadPending();
       loadStats();
       requestAnimationFrame(() => window.scrollTo(0, scrollY));
@@ -651,7 +645,7 @@ function PendingMatchRow({
   canValidate: boolean;
   showActions: boolean;
   onValidate: (pm: PendingMatchItem, candidate: MatchingCandidate) => void;
-  onReject: (pm: PendingMatchItem, createProduct: boolean) => void;
+  onReject: (pm: PendingMatchItem) => void;
 }) {
   const attrs = pm.extracted_attributes;
   const badges = [
@@ -737,15 +731,7 @@ function PendingMatchRow({
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => onReject(pm, true)}
-            className="btn btn-secondary text-xs py-1 px-2 flex items-center gap-1"
-          >
-            <Plus className="w-3 h-3" />
-            Creer produit
-          </button>
-          <button
-            type="button"
-            onClick={() => onReject(pm, false)}
+            onClick={() => onReject(pm)}
             className="btn btn-secondary text-xs py-1 px-2 flex items-center gap-1"
           >
             <X className="w-3 h-3" />
