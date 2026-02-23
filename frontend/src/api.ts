@@ -838,6 +838,17 @@ export interface MatchingStatsData {
     matched: number;
     manual: number;
   }[];
+  last_run?: {
+    status: 'running' | 'completed' | 'error';
+    ran_at: string;
+    total_products?: number;
+    auto_matched?: number;
+    pending_review?: number;
+    auto_rejected?: number;
+    not_found?: number;
+    errors?: number;
+    error_message?: string | null;
+  } | null;
 }
 
 export interface CacheEntry {
