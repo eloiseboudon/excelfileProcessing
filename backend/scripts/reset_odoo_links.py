@@ -16,6 +16,9 @@ Usage :
     cd backend
     python3 scripts/reset_odoo_links.py           # mode interactif
     python3 scripts/reset_odoo_links.py --dry-run  # simulation sans commit
+
+Dépendance unique : psycopg2-binary
+    pip3 install psycopg2-binary
 """
 from __future__ import annotations
 
@@ -23,6 +26,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 
 # ---------------------------------------------------------------------------
@@ -43,10 +47,10 @@ def _load_dotenv(path: Path) -> None:
 _load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 try:
-    from sqlalchemy import create_engine, text
+    import psycopg2
 except ImportError:
-    print("ERROR: sqlalchemy non disponible.", file=sys.stderr)
-    print("       pip3 install sqlalchemy psycopg2-binary", file=sys.stderr)
+    print("ERROR: psycopg2 non disponible.", file=sys.stderr)
+    print("       pip3 install psycopg2-binary", file=sys.stderr)
     sys.exit(1)
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -55,36 +59,58 @@ if not DATABASE_URL:
     sys.exit(1)
 
 
+def _connect():
+    parsed = urlparse(DATABASE_URL)
+    return psycopg2.connect(
+        host=parsed.hostname,
+        port=parsed.port or 5432,
+        dbname=parsed.path.lstrip("/"),
+        user=parsed.username,
+        password=parsed.password,
+    )
+
+
 def run(dry_run: bool) -> None:
-    engine = create_engine(DATABASE_URL)
+    conn = _connect()
+    conn.autocommit = False
+    cur = conn.cursor()
 
-    with engine.connect() as conn:
-        links = conn.execute(text("SELECT COUNT(*) FROM internal_products")).scalar()
-        jobs = conn.execute(text("SELECT COUNT(*) FROM odoo_sync_jobs")).scalar()
+    cur.execute("SELECT COUNT(*) FROM internal_products")
+    links = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) FROM odoo_sync_jobs")
+    jobs = cur.fetchone()[0]
 
-        print("=" * 60)
-        print("RESET ODOO — MODE MINIMAL (liens + jobs)")
-        print("=" * 60)
-        print(f"  internal_products  : {links} enregistrement(s)")
-        print(f"  odoo_sync_jobs     : {jobs} enregistrement(s)")
-        print()
+    print("=" * 60)
+    print("RESET ODOO — MODE MINIMAL (liens + jobs)")
+    print("=" * 60)
+    print(f"  internal_products  : {links} enregistrement(s)")
+    print(f"  odoo_sync_jobs     : {jobs} enregistrement(s)")
+    print()
 
-        if dry_run:
-            print("[DRY-RUN] Aucune modification appliquée.")
-            return
+    if dry_run:
+        print("[DRY-RUN] Aucune modification appliquée.")
+        cur.close()
+        conn.close()
+        return
 
-        if links == 0 and jobs == 0:
-            print("Rien à supprimer.")
-            return
+    if links == 0 and jobs == 0:
+        print("Rien à supprimer.")
+        cur.close()
+        conn.close()
+        return
 
-        confirm = input("Confirmer la suppression ? [oui/N] ").strip().lower()
-        if confirm != "oui":
-            print("Annulé.")
-            sys.exit(0)
+    confirm = input("Confirmer la suppression ? [oui/N] ").strip().lower()
+    if confirm != "oui":
+        print("Annulé.")
+        cur.close()
+        conn.close()
+        sys.exit(0)
 
-        conn.execute(text("DELETE FROM internal_products"))
-        conn.execute(text("DELETE FROM odoo_sync_jobs"))
-        conn.commit()
+    cur.execute("DELETE FROM internal_products")
+    cur.execute("DELETE FROM odoo_sync_jobs")
+    conn.commit()
+    cur.close()
+    conn.close()
 
     print(f"✓ {links} lien(s) Odoo supprimé(s)")
     print(f"✓ {jobs} job(s) de synchronisation supprimé(s)")
