@@ -465,10 +465,15 @@ def find_best_matches(
 
     results = []
     for match_score, details, product in scored[:top_n]:
+        parts = [product.model or product.description or f"Product #{product.id}"]
+        if product.memory:
+            parts.append(product.memory.memory)
+        if product.color:
+            parts.append(product.color.color)
         results.append({
             "product_id": product.id,
             "score": match_score,
-            "product_name": product.model or product.description or f"Product #{product.id}",
+            "product_name": " — ".join(parts),
             "details": details,
         })
 
