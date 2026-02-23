@@ -905,6 +905,7 @@ def _persist_supplier_catalog(
             selling_price=price_value,
             ean=cleaned_row["ean"],
             part_number=cleaned_row["part_number"],
+            supplier_sku=cleaned_row["supplier_sku"],
         )
         db.session.add(catalog_entry)
 
