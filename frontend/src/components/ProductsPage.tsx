@@ -461,6 +461,20 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
     }
   };
 
+  const handleExportExcelClient = async () => {
+    if (!filteredData.length) return;
+    const XLSX_lib = await import('xlsx');
+    const rows = filteredData.map((p) => ({
+      'Prix de vente': p.averagePrice > 0 ? p.averagePrice : '',
+      'Modèle': p.model ?? '',
+      'Description': p.description ?? '',
+    }));
+    const ws = XLSX_lib.utils.json_to_sheet(rows);
+    const wb = XLSX_lib.utils.book_new();
+    XLSX_lib.utils.book_append_sheet(wb, ws, 'Tarif');
+    XLSX_lib.writeFile(wb, `ajt_tarif_${getCurrentTimestamp()}.xlsx`);
+  };
+
   const handleExportJSON = () => {
     const dataStr = JSON.stringify(buildExportRows(), null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
@@ -699,20 +713,20 @@ td.neg{color:#f87171;font-weight:500}
           Gérez les prix, marges et le référentiel produits. Semaine en cours : {getCurrentWeekYear()}
         </p>
       </div>
-      <div className="border-b border-[var(--color-border-subtle)] mb-6">
-        <nav className="flex gap-4">
-          <button
-            type="button"
-            onClick={() => setTab('calculations')}
-            className={`px-2 pb-3 text-sm font-medium transition-colors border-b-2 ${
-              tab === 'calculations'
-                ? 'border-[#B8860B] text-[var(--color-text-heading)]'
-                : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
-            }`}
-          >
-            TCP/Marges
-          </button>
-          {role !== 'client' && (
+      {role !== 'client' && (
+        <div className="border-b border-[var(--color-border-subtle)] mb-6">
+          <nav className="flex gap-4">
+            <button
+              type="button"
+              onClick={() => setTab('calculations')}
+              className={`px-2 pb-3 text-sm font-medium transition-colors border-b-2 ${
+                tab === 'calculations'
+                  ? 'border-[#B8860B] text-[var(--color-text-heading)]'
+                  : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
+              }`}
+            >
+              TCP/Marges
+            </button>
             <button
               type="button"
               onClick={() => setTab('reference')}
@@ -724,55 +738,83 @@ td.neg{color:#f87171;font-weight:500}
             >
               Référentiel
             </button>
-          )}
-        </nav>
-      </div>
-      {tab === 'calculations' && (
+          </nav>
+        </div>
+      )}
+      {role === 'client' && (
+        <>
+          <div className="card p-4 mb-6">
+            <div className="flex items-center gap-2">
+              <button onClick={handleExportExcelClient} className="btn btn-secondary text-sm">
+                Export XLSX
+              </button>
+            </div>
+          </div>
+          <div className="card overflow-hidden">
+            <div className="overflow-auto">
+              <ProductTable
+                columns={columns}
+                baseColumns={baseColumns}
+                visibleColumns={visibleColumns}
+                paginatedData={paginatedData}
+                suppliers={suppliers}
+                role={role}
+                filters={filters}
+                setFilters={setFilters}
+                brandOptions={brandOptions}
+                colorOptions={colorOptions}
+                memoryOptions={memoryOptions}
+                typeOptions={typeOptions}
+                ramOptions={ramOptions}
+                normeOptions={normeOptions}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+              />
+            </div>
+            <div className="px-4 py-3 border-t border-[var(--color-border-subtle)]">
+              {paginationControls}
+            </div>
+          </div>
+        </>
+      )}
+      {role !== 'client' && tab === 'calculations' && (
         <>
           <div className="card p-4 mb-6 overflow-visible relative z-20">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="flex flex-wrap items-center gap-2">
-                {role !== 'client' && (
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowColumnMenu((s) => !s)}
-                      className="btn btn-secondary text-sm"
-                    >
-                      Colonnes
-                    </button>
-                    {showColumnMenu && (
-                      <div className="absolute z-50 mt-2 p-4 min-w-[10rem] bg-[var(--color-bg-input)] text-[var(--color-text-primary)] border border-[var(--color-border-strong)] rounded-md shadow-2xl flex flex-col gap-2">
-                        {columns.map((col) => (
-                          <label key={col.key} className="flex items-center space-x-2 text-sm">
-                            <input
-                              type="checkbox"
-                              checked={visibleColumns.includes(col.key)}
-                              onChange={() => toggleColumn(col.key)}
-                              className="rounded"
-                            />
-                            <span>{col.label}</span>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-                {role !== 'client' && (
-                  <div className="w-px h-6 bg-[var(--color-border-subtle)]" />
-                )}
-                {role !== 'client' && (
+                <div className="relative">
                   <button
-                    onClick={handleRecalculate}
-                    disabled={recalculating}
-                    className="btn btn-primary text-sm"
+                    onClick={() => setShowColumnMenu((s) => !s)}
+                    className="btn btn-secondary text-sm"
                   >
-                    <RefreshCw className={`w-4 h-4 ${recalculating ? 'animate-spin' : ''}`} />
-                    {recalculating ? 'Recalcul...' : 'Recalculer'}
+                    Colonnes
                   </button>
-                )}
-                {role !== 'client' && (
-                  <div className="w-px h-6 bg-[var(--color-border-subtle)]" />
-                )}
+                  {showColumnMenu && (
+                    <div className="absolute z-50 mt-2 p-4 min-w-[10rem] bg-[var(--color-bg-input)] text-[var(--color-text-primary)] border border-[var(--color-border-strong)] rounded-md shadow-2xl flex flex-col gap-2">
+                      {columns.map((col) => (
+                        <label key={col.key} className="flex items-center space-x-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={visibleColumns.includes(col.key)}
+                            onChange={() => toggleColumn(col.key)}
+                            className="rounded"
+                          />
+                          <span>{col.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="w-px h-6 bg-[var(--color-border-subtle)]" />
+                <button
+                  onClick={handleRecalculate}
+                  disabled={recalculating}
+                  className="btn btn-primary text-sm"
+                >
+                  <RefreshCw className={`w-4 h-4 ${recalculating ? 'animate-spin' : ''}`} />
+                  {recalculating ? 'Recalcul...' : 'Recalculer'}
+                </button>
+                <div className="w-px h-6 bg-[var(--color-border-subtle)]" />
                 <button onClick={handleExportExcel} className="btn btn-secondary text-sm">
                   Export Excel
                 </button>
@@ -812,7 +854,7 @@ td.neg{color:#f87171;font-weight:500}
           </div>
         </>
       )}
-      {tab === 'reference' && <ProductReference />}
+      {role !== 'client' && tab === 'reference' && <ProductReference />}
     </div>
   );
 }

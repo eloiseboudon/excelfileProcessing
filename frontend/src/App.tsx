@@ -10,7 +10,7 @@ import StatisticsPage from './components/StatisticsPage';
 
 function App() {
   const storedRole = localStorage.getItem('role');
-  const defaultPage = storedRole && storedRole !== 'client' ? 'products' : 'search';
+  const defaultPage = storedRole ? 'products' : 'search';
   const [currentPage, setCurrentPage] = useState<'search' | 'products' | 'dataImport' | 'statistics' | 'admin' | 'sync'>(defaultPage);
   const [apiTestMessage, setApiTestMessage] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
@@ -30,7 +30,7 @@ function App() {
     localStorage.setItem('role', userRole);
     setAuthToken(newToken);
     setRefreshToken(newRefresh);
-    setCurrentPage(userRole !== 'client' ? 'products' : 'search');
+    setCurrentPage('products');
   };
 
   const handleLogout = () => {
@@ -110,20 +110,22 @@ function App() {
                   </button>
                 )}
 
-                <button
-                  onClick={() => {
-                    setCurrentPage('search');
-                    setShowSettingsMenu(false);
-                  }}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                    currentPage === 'search'
-                      ? 'bg-[#B8860B]/15 text-[#B8860B]'
-                      : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-elevated)]'
-                  }`}
-                >
-                  <Search className="w-4 h-4" />
-                  <span>Moteur de recherche</span>
-                </button>
+                {role !== 'client' && (
+                  <button
+                    onClick={() => {
+                      setCurrentPage('search');
+                      setShowSettingsMenu(false);
+                    }}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      currentPage === 'search'
+                        ? 'bg-[#B8860B]/15 text-[#B8860B]'
+                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-elevated)]'
+                    }`}
+                  >
+                    <Search className="w-4 h-4" />
+                    <span>Moteur de recherche</span>
+                  </button>
+                )}
 
                 {role !== 'client' && (
                   <button
@@ -162,18 +164,20 @@ function App() {
                     <LibraryBig className="w-5 h-5" />
                   </button>
                 )}
-                <button
-                  onClick={() => {
-                    setCurrentPage('search');
-                    setShowSettingsMenu(false);
-                  }}
-                  className={`p-2 rounded-md transition-colors ${
-                    currentPage === 'search' ? 'text-[#B8860B] bg-[#B8860B]/15' : 'text-[var(--color-text-muted)]'
-                  }`}
-                  aria-label="Moteur de recherche"
-                >
-                  <Search className="w-5 h-5" />
-                </button>
+                {role !== 'client' && (
+                  <button
+                    onClick={() => {
+                      setCurrentPage('search');
+                      setShowSettingsMenu(false);
+                    }}
+                    className={`p-2 rounded-md transition-colors ${
+                      currentPage === 'search' ? 'text-[#B8860B] bg-[#B8860B]/15' : 'text-[var(--color-text-muted)]'
+                    }`}
+                    aria-label="Moteur de recherche"
+                  >
+                    <Search className="w-5 h-5" />
+                  </button>
+                )}
                 {role !== 'client' && (
                   <button
                     onClick={() => {
@@ -190,7 +194,7 @@ function App() {
                 )}
               </div>
 
-              {/* Settings dropdown */}
+              {/* Settings dropdown — admin only for admin/sync entries */}
               <div className="relative" ref={settingsMenuRef}>
                 <button
                   onClick={() => setShowSettingsMenu((prev) => !prev)}
@@ -206,7 +210,7 @@ function App() {
                 </button>
                 {showSettingsMenu && (
                   <div className="absolute right-0 mt-2 w-48 rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] shadow-xl z-50 py-1">
-                    {role !== 'client' && (
+                    {role !== 'client' && role !== 'user' && (
                       <>
                         <button
                           onClick={() => {
@@ -253,12 +257,12 @@ function App() {
       {/* Page Content */}
       <main className="flex-1">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-          {currentPage === 'search' && <SearchPage />}
-          {role !== 'client' && currentPage === 'dataImport' && <DataImportPage />}
+          {currentPage === 'search' && role !== 'client' && <SearchPage />}
+          {currentPage === 'products' && <ProductsPage role={role} />}
+          {role !== 'client' && role !== 'user' && currentPage === 'dataImport' && <DataImportPage />}
           {role !== 'client' && currentPage === 'statistics' && <StatisticsPage />}
-          {role !== 'client' && currentPage === 'admin' && <AdminPage />}
-          {role !== 'client' && currentPage === 'sync' && <DataImportPage />}
-          {role !== 'client' && currentPage === 'products' && <ProductsPage role={role} />}
+          {role !== 'client' && role !== 'user' && currentPage === 'admin' && <AdminPage />}
+          {role !== 'client' && role !== 'user' && currentPage === 'sync' && <DataImportPage />}
           {currentPage !== 'admin' && currentPage !== 'sync' && (
             <div className="text-center mt-8 mb-6">
               <button
