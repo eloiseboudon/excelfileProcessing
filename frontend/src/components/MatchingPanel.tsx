@@ -687,8 +687,13 @@ function PendingMatchRow({
                 </span>
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-[var(--color-text-primary)] truncate">
-                  {c.product_name}
+                <div className="flex items-baseline gap-2">
+                  <span className="text-[var(--color-text-primary)] truncate">
+                    {c.product_name}
+                  </span>
+                  <span className="text-[10px] text-[var(--color-text-muted)] shrink-0">
+                    #{c.product_id}
+                  </span>
                 </div>
                 <ScoreDetails details={c.details} />
               </div>

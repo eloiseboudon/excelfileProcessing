@@ -103,15 +103,36 @@ def list_pending():
     total = query.count()
     items = query.offset((page - 1) * per_page).limit(per_page).all()
 
+    # Enrich candidate product_name with memory + color in a single batch query
+    all_product_ids = {
+        c["product_id"]
+        for pm in items
+        for c in (pm.candidates or [])
+        if c.get("product_id")
+    }
+    product_labels: dict[int, str] = {}
+    if all_product_ids:
+        for p in Product.query.filter(Product.id.in_(all_product_ids)).all():
+            parts = [p.model or p.description or f"#{p.id}"]
+            if p.memory:
+                parts.append(p.memory.memory)
+            if p.color:
+                parts.append(p.color.color)
+            product_labels[p.id] = " — ".join(parts)
+
     results = []
     for pm in items:
+        enriched = [
+            {**c, "product_name": product_labels.get(c.get("product_id"), c.get("product_name", ""))}
+            for c in (pm.candidates or [])
+        ]
         results.append({
             "id": pm.id,
             "supplier_id": pm.supplier_id,
             "supplier_name": pm.supplier.name if pm.supplier else None,
             "source_label": pm.source_label,
             "extracted_attributes": pm.extracted_attributes,
-            "candidates": pm.candidates,
+            "candidates": enriched,
             "status": pm.status,
             "created_at": pm.created_at.isoformat() if pm.created_at else None,
         })
