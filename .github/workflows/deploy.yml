@@ -5,8 +5,89 @@ on:
     branches:
       - main
 
+concurrency:
+  group: deploy-main
+  cancel-in-progress: true
+
 jobs:
+  frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Run tests
+        run: npx vitest run --reporter=verbose --reporter=json --outputFile=test-results.json
+        working-directory: frontend
+
+      - name: Test summary
+        if: always()
+        working-directory: frontend
+        run: |
+          TOTAL=$(jq '.numTotalTests' test-results.json)
+          PASSED=$(jq '.numPassedTests' test-results.json)
+          FAILED=$(jq '.numFailedTests' test-results.json)
+          if [ "$FAILED" -gt 0 ]; then STATUS="❌"; else STATUS="✅"; fi
+          echo "## $STATUS Frontend Tests" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Total | Passed | Failed |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-------|--------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| $TOTAL | $PASSED | $FAILED |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build
+        run: npm run build
+        working-directory: frontend
+
+  backend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+        working-directory: backend
+
+      - name: Run tests
+        run: pytest tests/ -v --junitxml=test-results.xml
+        working-directory: backend
+        env:
+          DATABASE_URL: "sqlite:///:memory:"
+          JWT_SECRET: "ci-test-secret-key-with-at-least-32-bytes!"
+
+      - name: Test summary
+        if: always()
+        working-directory: backend
+        run: |
+          TOTAL=$(python3 -c "import xml.etree.ElementTree as ET; print(ET.parse('test-results.xml').getroot().find('testsuite').get('tests',0))")
+          FAILURES=$(python3 -c "import xml.etree.ElementTree as ET; print(ET.parse('test-results.xml').getroot().find('testsuite').get('failures',0))")
+          ERRORS=$(python3 -c "import xml.etree.ElementTree as ET; print(ET.parse('test-results.xml').getroot().find('testsuite').get('errors',0))")
+          DURATION=$(python3 -c "import xml.etree.ElementTree as ET; print(f\"{float(ET.parse('test-results.xml').getroot().find('testsuite').get('time',0)):.2f}\")")
+          FAILED=$((FAILURES + ERRORS))
+          PASSED=$((TOTAL - FAILED))
+          if [ "$FAILED" -gt 0 ]; then STATUS="❌"; else STATUS="✅"; fi
+          echo "## $STATUS Backend Tests" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Total | Passed | Failed | Duration |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-------|--------|--------|----------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| $TOTAL | $PASSED | $FAILED | ${DURATION}s |" >> "$GITHUB_STEP_SUMMARY"
+
   deploy:
+    needs: [frontend, backend]
     runs-on: ubuntu-latest
 
     steps:
