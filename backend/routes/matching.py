@@ -12,6 +12,7 @@ from models import (
     LabelCache,
     PendingMatch,
     Product,
+    ProductCalculation,
     Supplier,
     SupplierProductRef,
     SupplierCatalog,
@@ -410,9 +411,10 @@ def matching_stats():
         cache_hit_rate = round(total_cached / total_entries * 100, 1)
 
     total_odoo_products = Product.query.count()
+    # Products matched = Odoo products that have at least one supplier price calculation
+    # (set by recalculate_product_calculations via EAN, attributes, or LabelCache)
     total_odoo_matched = (
-        db.session.query(func.count(func.distinct(SupplierProductRef.product_id)))
-        .filter(SupplierProductRef.product_id.isnot(None))
+        db.session.query(func.count(func.distinct(ProductCalculation.product_id)))
         .scalar()
     ) or 0
     total_odoo_unmatched = total_odoo_products - total_odoo_matched
