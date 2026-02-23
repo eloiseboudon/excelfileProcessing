@@ -474,7 +474,11 @@ def assign_device_types():
     )
     products = products_no_type + products_skip_type
 
-    type_cache: dict[str, int] = {dt.type: dt.id for dt in DeviceType.query.all()}
+    type_cache: dict[str, int] = {
+        dt.type.lower(): dt.id for dt in DeviceType.query.all()
+    }
+    # "A définir" is the fallback type for products that can't be classified
+    fallback_id = type_cache.get("a définir") or type_cache.get("a definir")
 
     classified_count = 0
     unclassified_count = 0
@@ -483,15 +487,13 @@ def assign_device_types():
         brand = product.brand.brand if product.brand else None
         new_type_name = classify_device_type(product.model, brand)
         if new_type_name:
-            if not dry_run:
-                if new_type_name not in type_cache:
-                    dt = DeviceType(type=new_type_name)
-                    db.session.add(dt)
-                    db.session.flush()
-                    type_cache[new_type_name] = dt.id
-                product.type_id = type_cache[new_type_name]
+            type_id = type_cache.get(new_type_name.lower())
+            if type_id and not dry_run:
+                product.type_id = type_id
             classified_count += 1
         else:
+            if fallback_id and not dry_run:
+                product.type_id = fallback_id
             unclassified_count += 1
 
     if not dry_run:

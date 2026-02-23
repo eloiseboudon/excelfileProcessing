@@ -476,8 +476,9 @@ class TestAssignTypes:
 
     def test_classifies_known_model(self, client, admin_headers):
         """Product with 'iphone' in model should be assigned Smartphone type."""
+        dt = DeviceType(type="Smartphone")
         b = Brand(brand="Apple")
-        db.session.add(b)
+        db.session.add_all([dt, b])
         db.session.commit()
 
         p = Product(model="iPhone 15 Pro 256 Go", brand_id=b.id)
