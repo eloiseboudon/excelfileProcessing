@@ -332,36 +332,25 @@ def score_match(
 
     # --- Storage (25 pts) ---
     ext_storage = _normalize_storage(extracted.get("storage"))
-    # Official Odoo storage (from dedicated memory field) — used for hard disqualification
-    prod_storage_official = _normalize_storage(product.memory.memory if product.memory else None)
-    # Inferred storage from model name — used for scoring only, never for disqualification
-    prod_storage_inferred = (
-        _normalize_storage(product.model)
-        if prod_storage_official is None and product.model
-        else None
-    )
+    # Use official memory field first, fall back to model name
+    prod_storage = _normalize_storage(product.memory.memory if product.memory else None)
+    if prod_storage is None and product.model:
+        prod_storage = _normalize_storage(product.model)
 
-    if ext_storage and prod_storage_official:
-        # Both sides have definitive storage → hard disqualifier on mismatch
-        if ext_storage == prod_storage_official:
+    if ext_storage and prod_storage:
+        # Both sides have storage → hard disqualifier on mismatch
+        if ext_storage == prod_storage:
             details["storage"] = 25
             score += 25
         else:
             details["storage"] = 0
             details["disqualified"] = "storage_mismatch"
             return 0, details
-    elif ext_storage and prod_storage_inferred:
-        # Catalog has storage, Odoo storage is inferred from model name → soft check, no disqualify
-        if ext_storage == prod_storage_inferred:
-            details["storage"] = 25
-            score += 25
-        else:
-            details["storage"] = 0  # mismatch with inferred value → 0 pts, no hard disqualify
-    elif ext_storage or prod_storage_official:
-        # One side definitively has storage, the other doesn't → 0 pts, no disqualify
+    elif ext_storage or prod_storage:
+        # Only one side has storage → 0 pts, no disqualify
         details["storage"] = 0
     else:
-        # Neither side has definitive storage → assume OK
+        # Neither side has storage → assume OK
         details["storage"] = 25
         score += 25
 

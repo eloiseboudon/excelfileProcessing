@@ -207,7 +207,8 @@ function MatchingPanel() {
   }
 
   const totalPages = Math.ceil(pendingTotal / perPage);
-  const readOnly = statusFilter !== 'pending';
+  const canValidate = statusFilter === 'pending' || statusFilter === 'rejected';
+  const showActions = statusFilter === 'pending';
 
   const paginationControls = totalPages > 1 ? (
     <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
@@ -539,7 +540,8 @@ function MatchingPanel() {
               <PendingMatchRow
                 key={pm.id}
                 pm={pm}
-                readOnly={readOnly}
+                canValidate={canValidate}
+                showActions={showActions}
                 onValidate={handleValidate}
                 onReject={handleReject}
               />
@@ -625,12 +627,14 @@ function ScoreDetails({ details }: { details: Record<string, number> }) {
 
 function PendingMatchRow({
   pm,
-  readOnly,
+  canValidate,
+  showActions,
   onValidate,
   onReject,
 }: {
   pm: PendingMatchItem;
-  readOnly: boolean;
+  canValidate: boolean;
+  showActions: boolean;
   onValidate: (pm: PendingMatchItem, candidate: MatchingCandidate) => void;
   onReject: (pm: PendingMatchItem, createProduct: boolean) => void;
 }) {
@@ -697,7 +701,7 @@ function PendingMatchRow({
                 </div>
                 <ScoreDetails details={c.details} />
               </div>
-              {!readOnly && (
+              {canValidate && (
                 <button
                   type="button"
                   onClick={() => onValidate(pm, c)}
@@ -714,7 +718,7 @@ function PendingMatchRow({
       )}
 
       {/* Actions */}
-      {!readOnly && (
+      {showActions && (
         <div className="flex gap-2">
           <button
             type="button"
