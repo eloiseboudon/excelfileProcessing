@@ -346,6 +346,29 @@ class TestScoreMatch:
         assert score == 0
         assert details.get("disqualified") == "storage_mismatch"
 
+    def test_device_type_mismatch_returns_zero(self, brand_apple, memory_128, color_noir, device_type):
+        """A Watch should never match a Smartphone regardless of brand/color."""
+        iphone = Product(
+            model="iPhone 13",
+            brand_id=brand_apple.id,
+            memory_id=memory_128.id,
+            color_id=color_noir.id,
+            type_id=device_type.id,  # Smartphone
+        )
+        db.session.add(iphone)
+        db.session.commit()
+
+        extracted = {
+            "brand": "Apple",
+            "model_family": "Watch Ultra 3",
+            "storage": None,
+            "color": "Noir",
+            "device_type": "Montre connectee",
+        }
+        score, details = score_match(extracted, iphone, {})
+        assert score == 0
+        assert details.get("disqualified") == "device_type_mismatch"
+
     def test_color_via_translation(self, product_s25, color_translations):
         extracted = {
             "brand": "Samsung",

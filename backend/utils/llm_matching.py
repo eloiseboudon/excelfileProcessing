@@ -294,6 +294,14 @@ def score_match(
     details["brand"] = 15
     score += 15
 
+    # --- Device type (hard disqualifier if both sides have a type) ---
+    ext_type = (extracted.get("device_type") or "").strip().lower()
+    prod_type = (product.type.type if product.type else "").strip().lower()
+    if ext_type and prod_type and _fuzzy_ratio(ext_type, prod_type) < 0.6:
+        details["device_type"] = 0
+        details["disqualified"] = "device_type_mismatch"
+        return 0, details
+
     # --- Storage (25 pts) ---
     ext_storage = _normalize_storage(extracted.get("storage"))
     prod_storage = _normalize_storage(product.memory.memory if product.memory else None)
