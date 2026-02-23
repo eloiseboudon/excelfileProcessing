@@ -924,6 +924,17 @@ export async function deleteMatchingCache(cacheId: number) {
   return crudRequest('DELETE', `${API_BASE}/matching/cache/${cacheId}`);
 }
 
+export interface AssignTypesResult {
+  classified: number;
+  unclassified: number;
+  total: number;
+  dry_run: boolean;
+}
+
+export async function assignDeviceTypes(dryRun = false): Promise<AssignTypesResult> {
+  return crudRequest('POST', `${API_BASE}/matching/assign-types`, { dry_run: dryRun });
+}
+
 // ---------------------------------------------------------------------------
 // Logs
 // ---------------------------------------------------------------------------

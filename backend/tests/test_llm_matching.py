@@ -346,6 +346,74 @@ class TestScoreMatch:
         assert score == 0
         assert details.get("disqualified") == "storage_mismatch"
 
+    def test_device_type_mismatch_returns_zero(self, brand_apple, memory_128, color_noir, device_type):
+        """A Watch should never match a Smartphone regardless of brand/color."""
+        iphone = Product(
+            model="iPhone 13",
+            brand_id=brand_apple.id,
+            memory_id=memory_128.id,
+            color_id=color_noir.id,
+            type_id=device_type.id,  # Smartphone
+        )
+        db.session.add(iphone)
+        db.session.commit()
+
+        extracted = {
+            "brand": "Apple",
+            "model_family": "Watch Ultra 3",
+            "storage": None,
+            "color": "Noir",
+            "device_type": "Montre connectee",
+        }
+        score, details = score_match(extracted, iphone, {})
+        assert score == 0
+        assert details.get("disqualified") == "device_type_mismatch"
+
+    def test_label_similarity_bonus(self, product_s25, color_translations):
+        """Exact raw label match gives a +10 bonus, capped at 100."""
+        extracted = {
+            "brand": "Samsung",
+            "model_family": "Galaxy S25 Ultra",
+            "storage": "256 Go",
+            "color": "Noir",
+            "region": None,
+            "raw_label": "Galaxy S25 Ultra",
+        }
+        mappings = {"color_translations": {}}
+        score, details = score_match(extracted, product_s25, mappings)
+        assert details["label_similarity"] == 10
+        assert score == 100  # capped at 100
+
+    def test_label_similarity_malus(self, brand_apple, memory_128, color_noir):
+        """Very different raw label penalises a borderline match."""
+        # iPhone without device_type so device_type disqualifier doesn't fire
+        iphone = Product(
+            model="iPhone 13",
+            brand_id=brand_apple.id,
+            memory_id=memory_128.id,
+            color_id=color_noir.id,
+        )
+        db.session.add(iphone)
+        db.session.commit()
+
+        base = {
+            "brand": "Apple",
+            "model_family": "Watch Ultra 3",
+            "storage": None,
+            "color": None,
+            "region": None,
+            "device_type": None,
+        }
+        mappings = {"color_translations": {}}
+        score_without, _ = score_match({**base}, product=iphone, mappings=mappings)
+        score_with, details = score_match(
+            {**base, "raw_label": "Watch Apple Watch Ultra 3 2025 5G 49mm Black Titanium"},
+            product=iphone,
+            mappings=mappings,
+        )
+        assert details["label_similarity"] == -10
+        assert score_with < score_without
+
     def test_color_via_translation(self, product_s25, color_translations):
         extracted = {
             "brand": "Samsung",

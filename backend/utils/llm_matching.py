@@ -271,6 +271,21 @@ def _fuzzy_ratio(a: str, b: str) -> float:
     return SequenceMatcher(None, a.lower(), b.lower()).ratio()
 
 
+# Device types that carry no category information — skip disqualification
+_DEVICE_TYPE_SKIP: set[str] = {"all", "a définir", "a definir"}
+
+# Synonyms to normalize before comparison
+_DEVICE_TYPE_SYNONYMS: Dict[str, str] = {
+    "téléphone": "smartphone",
+    "telephone": "smartphone",
+}
+
+
+def _normalize_device_type(value: str) -> str:
+    normalized = value.strip().lower()
+    return _DEVICE_TYPE_SYNONYMS.get(normalized, normalized)
+
+
 def score_match(
     extracted: Dict[str, Any],
     product: Product,
@@ -293,6 +308,16 @@ def score_match(
         return 0, details
     details["brand"] = 15
     score += 15
+
+    # --- Device type (hard disqualifier if both sides have a meaningful type) ---
+    ext_type = _normalize_device_type(extracted.get("device_type") or "")
+    prod_type_raw = (product.type.type if product.type else "").strip().lower()
+    if prod_type_raw not in _DEVICE_TYPE_SKIP:
+        prod_type = _normalize_device_type(prod_type_raw)
+        if ext_type and prod_type and _fuzzy_ratio(ext_type, prod_type) < 0.6:
+            details["device_type"] = 0
+            details["disqualified"] = "device_type_mismatch"
+            return 0, details
 
     # --- Storage (25 pts) ---
     ext_storage = _normalize_storage(extracted.get("storage"))
@@ -369,7 +394,25 @@ def score_match(
     else:
         details["region"] = 0
 
-    return max(score, 0), details
+    # --- Label similarity bonus/malus (up to ±10 pts) ---
+    raw_label = (extracted.get("raw_label") or "").strip()
+    if raw_label and product.model:
+        ratio = _fuzzy_ratio(normalize_label(raw_label), normalize_label(product.model))
+        if ratio >= 0.80:
+            details["label_similarity"] = 10
+            score += 10
+        elif ratio >= 0.60:
+            details["label_similarity"] = 5
+            score += 5
+        elif ratio < 0.25:
+            details["label_similarity"] = -10
+            score = max(score - 10, 0)
+        else:
+            details["label_similarity"] = 0
+    else:
+        details["label_similarity"] = 0
+
+    return min(max(score, 0), 100), details
 
 
 # ---------------------------------------------------------------------------
@@ -667,7 +710,9 @@ def run_matching_job(
             total_output_tokens += token_info.get("output_tokens", 0) // max(len(batch_labels), 1)
 
             # Step 5: Score against referential
+            extraction["raw_label"] = original_label
             best = find_best_matches(extraction, all_products, mappings, top_n=3)
+            extraction.pop("raw_label", None)
             top_score = best[0]["score"] if best else 0
 
             if top_score >= threshold_auto:

@@ -8,10 +8,12 @@ import {
   Play,
   Plus,
   Search,
+  Tag,
   X,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import {
+  assignDeviceTypes,
   fetchPendingMatches,
   fetchMatchingStats,
   fetchSuppliers,
@@ -41,6 +43,7 @@ function MatchingPanel() {
   // Run state
   const [running, setRunning] = useState(false);
   const [matchLimit, setMatchLimit] = useState<number | undefined>(50);
+  const [assigningTypes, setAssigningTypes] = useState(false);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Pending matches
@@ -150,6 +153,23 @@ function MatchingPanel() {
       setError(msg);
       notify(msg, 'error');
       setRunning(false);
+    }
+  }
+
+  async function handleAssignTypes() {
+    setAssigningTypes(true);
+    try {
+      const result = await assignDeviceTypes(false);
+      notify(
+        `Types assignes : ${result.classified} produits classes, ${result.unclassified} non identifies`,
+        'success'
+      );
+      loadStats();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erreur';
+      notify(msg, 'error');
+    } finally {
+      setAssigningTypes(false);
     }
   }
 
@@ -274,6 +294,20 @@ function MatchingPanel() {
                 Lancer le rapprochement
               </>
             )}
+          </button>
+          <button
+            type="button"
+            onClick={handleAssignTypes}
+            disabled={assigningTypes}
+            className="btn btn-secondary flex items-center gap-2"
+            title="Assigner automatiquement les types aux produits sans type (règles métier)"
+          >
+            {assigningTypes ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Tag className="w-4 h-4" />
+            )}
+            Assigner les types
           </button>
         </div>
 
