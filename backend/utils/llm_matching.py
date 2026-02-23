@@ -377,7 +377,25 @@ def score_match(
     else:
         details["region"] = 0
 
-    return max(score, 0), details
+    # --- Label similarity bonus/malus (up to ±10 pts) ---
+    raw_label = (extracted.get("raw_label") or "").strip()
+    if raw_label and product.model:
+        ratio = _fuzzy_ratio(normalize_label(raw_label), normalize_label(product.model))
+        if ratio >= 0.80:
+            details["label_similarity"] = 10
+            score += 10
+        elif ratio >= 0.60:
+            details["label_similarity"] = 5
+            score += 5
+        elif ratio < 0.25:
+            details["label_similarity"] = -10
+            score = max(score - 10, 0)
+        else:
+            details["label_similarity"] = 0
+    else:
+        details["label_similarity"] = 0
+
+    return min(max(score, 0), 100), details
 
 
 # ---------------------------------------------------------------------------
@@ -675,7 +693,9 @@ def run_matching_job(
             total_output_tokens += token_info.get("output_tokens", 0) // max(len(batch_labels), 1)
 
             # Step 5: Score against referential
+            extraction["raw_label"] = original_label
             best = find_best_matches(extraction, all_products, mappings, top_n=3)
+            extraction.pop("raw_label", None)
             top_score = best[0]["score"] if best else 0
 
             if top_score >= threshold_auto:
