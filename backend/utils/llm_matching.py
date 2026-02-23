@@ -729,7 +729,6 @@ def run_matching_job(
     auto_matched = 0
     pending_review = 0
     not_found = 0
-    matched_cache_ids: set[int] = set()
 
     for product in products_to_process:
         prod_brand = (product.brand.brand if product.brand else "").strip().lower()
@@ -742,9 +741,6 @@ def run_matching_job(
             )
         else:
             candidates_list = all_cache_entries
-
-        # Exclude cache entries already matched in this run
-        candidates_list = [e for e in candidates_list if e.id not in matched_cache_ids]
 
         if not candidates_list:
             not_found += 1
@@ -774,7 +770,6 @@ def run_matching_job(
             top_cache.match_score = top_score
             top_cache.match_source = "auto"
             top_cache.last_used_at = datetime.now(timezone.utc)
-            matched_cache_ids.add(top_cache.id)
             auto_matched += 1
 
         elif top_score >= threshold_review:
@@ -805,7 +800,6 @@ def run_matching_job(
                 status="pending",
             )
             db.session.add(pm)
-            matched_cache_ids.add(top_cache.id)
             pending_review += 1
 
         else:
