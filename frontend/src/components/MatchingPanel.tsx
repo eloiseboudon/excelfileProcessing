@@ -335,21 +335,21 @@ function MatchingPanel() {
         )}
       </div>
 
-      {/* Produits catalogue non encore lies au referentiel */}
-      {stats && stats.total_catalog_unprocessed > 0 && (
+      {/* Produits Odoo sans correspondance fournisseur */}
+      {stats && stats.total_odoo_unmatched > 0 && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 space-y-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-amber-400/70">
-            Catalogue fournisseur — articles sans correspondance
+            Produits Odoo sans correspondance fournisseur
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-amber-500/10 rounded-md px-3 py-2">
               <div className="text-xl font-bold text-amber-400">
-                {stats.total_catalog_never_processed}
+                {stats.total_odoo_unmatched - stats.total_pending}
               </div>
               <div className="text-xs text-[var(--color-text-muted)] mt-0.5">
                 jamais soumis au LLM
               </div>
-              {stats.total_catalog_never_processed > 0 && (
+              {(stats.total_odoo_unmatched - stats.total_pending) > 0 && (
                 <div className="text-xs text-amber-400/60 mt-1">
                   → lancez le rapprochement
                 </div>
@@ -357,12 +357,12 @@ function MatchingPanel() {
             </div>
             <div className="bg-[var(--color-bg-elevated)] rounded-md px-3 py-2">
               <div className="text-xl font-bold text-[var(--color-text-primary)]">
-                {stats.total_catalog_pending_review}
+                {stats.total_pending}
               </div>
               <div className="text-xs text-[var(--color-text-muted)] mt-0.5">
                 en attente de validation
               </div>
-              {stats.total_catalog_pending_review > 0 && (
+              {stats.total_pending > 0 && (
                 <div className="text-xs text-[var(--color-text-muted)]/60 mt-1">
                   → validez les matchs ci-dessous
                 </div>

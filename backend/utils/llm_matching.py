@@ -594,15 +594,15 @@ def run_matching_job(
     supplier_id: Optional[int] = None,
     limit: Optional[int] = None,
 ) -> Dict[str, Any]:
-    """Orchestrate the full LLM matching process.
+    """Orchestrate the LLM matching process (product-centric direction).
 
-    1. Load unmatched SupplierCatalogs (no SupplierProductRef)
-    2. Deduplicate labels, check LabelCache
-    3. Batch LLM extraction (25/call)
-    4. Score >= 90 -> auto-match
-    5. Score 50-89 -> PendingMatch
-    6. Score < 50 -> create Product
-    7. Return report
+    Phase 1: Extract all unextracted SupplierCatalog labels → LabelCache
+             (product_id=None, match_source='extracted').
+    Phase 2: For each Odoo Product without SupplierProductRef, score against
+             extracted cache entries.
+             Score >= 90 → auto-match + SupplierProductRef.
+             50-89 → PendingMatch.
+             < 50 → not_found (no product created).
     """
     api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     if not api_key:
@@ -617,164 +617,199 @@ def run_matching_job(
     threshold_review = _get_env_int("MATCH_THRESHOLD_REVIEW", 50)
     batch_size = _get_env_int("LLM_BATCH_SIZE", 25)
 
-    # Step 1: Load unmatched temporary imports
-    query = SupplierCatalog.query
+    # -----------------------------------------------------------------------
+    # Phase 1: Extract unextracted SupplierCatalog labels → LabelCache
+    # -----------------------------------------------------------------------
+    catalog_query = SupplierCatalog.query
     if supplier_id:
-        query = query.filter_by(supplier_id=supplier_id)
+        catalog_query = catalog_query.filter_by(supplier_id=supplier_id)
+    all_catalogs = catalog_query.all()
 
-    all_temp_imports = query.all()
-
-    # Find which temp imports already have a SupplierProductRef.
-    # Use the same (supplier_id, ean, part_number) key as _create_supplier_ref so that
-    # items matched by part_number (ean=None) are also detected as already processed.
-    # Python set handles None correctly: (1, None, "X") == (1, None, "X") → True.
-    matched_keys: set[tuple] = set()
-    if all_temp_imports:
-        supplier_ids = {ti.supplier_id for ti in all_temp_imports if ti.supplier_id}
-        for sid in supplier_ids:
-            refs = SupplierProductRef.query.filter_by(supplier_id=sid).filter(
-                SupplierProductRef.product_id.isnot(None)
-            ).all()
-            for ref in refs:
-                matched_keys.add((sid, ref.ean, ref.part_number, ref.supplier_sku))
-
-    # Load IDs of catalog entries that already have a pending PendingMatch
-    # to avoid re-queuing them and creating duplicates
-    existing_pending_ids: set[int] = {
-        pm.temporary_import_id
-        for pm in PendingMatch.query.filter_by(status="pending").all()
-        if pm.temporary_import_id is not None
-    }
-
-    unmatched = []
-    for ti in all_temp_imports:
-        if (ti.supplier_id, ti.ean, ti.part_number, ti.supplier_sku) in matched_keys:
-            continue
-        if ti.id in existing_pending_ids:
-            continue
-        if ti.description or ti.model:
-            unmatched.append(ti)
-
-    # Step 2: Deduplicate labels and check cache
-    label_to_imports: Dict[str, List[SupplierCatalog]] = {}
-    for ti in unmatched:
+    # Build (supplier_id, normalized_label) → [SupplierCatalog entries]
+    label_to_catalogs: Dict[Tuple[int, str], List[SupplierCatalog]] = {}
+    for ti in all_catalogs:
         label = ti.description or ti.model or ""
         normalized = normalize_label(label)
-        if normalized:
-            label_to_imports.setdefault(normalized, []).append(ti)
+        if normalized and ti.supplier_id:
+            key = (ti.supplier_id, normalized)
+            label_to_catalogs.setdefault(key, []).append(ti)
 
-    from_cache = 0
-    auto_matched = 0
-    pending_review = 0
-    auto_created = 0
+    # Determine which labels need LLM extraction
+    labels_to_extract: List[Tuple[int, str, str]] = []  # (supplier_id, normalized, original)
+    for (sid, normalized), catalogs in label_to_catalogs.items():
+        cached = LabelCache.query.filter_by(
+            supplier_id=sid, normalized_label=normalized
+        ).first()
+        if not cached:
+            original_label = catalogs[0].description or catalogs[0].model or ""
+            labels_to_extract.append((sid, normalized, original_label))
+
+    from_cache = len(label_to_catalogs) - len(labels_to_extract)
+    llm_calls = 0
     errors = 0
     error_message: Optional[str] = None
     total_input_tokens = 0
     total_output_tokens = 0
-    labels_to_extract: List[Tuple[str, str, List[SupplierCatalog]]] = []
 
-    # Check cache
-    for normalized, temp_imports in label_to_imports.items():
-        first_ti = temp_imports[0]
-        sid = first_ti.supplier_id
-        if not sid:
-            continue
-
-        cached = LabelCache.query.filter_by(
-            supplier_id=sid, normalized_label=normalized
-        ).first()
-
-        if cached:
-            cached.last_used_at = datetime.now(timezone.utc)
-            from_cache += 1
-            if cached.product_id:
-                # Create SupplierProductRef for all matching imports
-                for ti in temp_imports:
-                    _create_supplier_ref(sid, ti, cached.product_id)
-                auto_matched += 1
-        else:
-            original_label = first_ti.description or first_ti.model or ""
-            labels_to_extract.append((normalized, original_label, temp_imports))
-
-    # Apply limit to labels_to_extract (batching)
-    total_to_extract = len(labels_to_extract)
-    if limit is not None and limit > 0 and len(labels_to_extract) > limit:
-        labels_to_extract = labels_to_extract[:limit]
-    remaining = total_to_extract - len(labels_to_extract)
-
-    # Step 3: Load products for scoring
-    all_products = Product.query.all()
-    mappings = _build_mappings()
     context = build_context()
 
-    # Step 4: Batch LLM extraction
-    llm_calls = 0
-    original_labels = [item[1] for item in labels_to_extract]
-
-    for batch_start in range(0, len(original_labels), batch_size):
-        batch_labels = original_labels[batch_start:batch_start + batch_size]
+    # Batch LLM extraction for Phase 1
+    for batch_start in range(0, len(labels_to_extract), batch_size):
         batch_items = labels_to_extract[batch_start:batch_start + batch_size]
+        batch_labels = [item[2] for item in batch_items]
 
         try:
             extractions = call_llm_extraction(batch_labels, context)
             llm_calls += 1
         except Exception as exc:
-            current_app.logger.error("LLM extraction failed: %s", exc)
+            current_app.logger.error("LLM extraction Phase 1 failed: %s", exc)
             errors += len(batch_labels)
             if error_message is None:
                 error_message = str(exc)
             continue
 
-        # Process each extraction
         for idx, extraction in enumerate(extractions):
             if idx >= len(batch_items):
                 break
-
-            normalized, original_label, temp_imports = batch_items[idx]
-            first_ti = temp_imports[0]
-            sid = first_ti.supplier_id
-            if not sid:
-                continue
-
-            # Track token usage
+            sid, normalized, original_label = batch_items[idx]
             token_info = extraction.pop("_token_info", {})
             total_input_tokens += token_info.get("input_tokens", 0) // max(len(batch_labels), 1)
             total_output_tokens += token_info.get("output_tokens", 0) // max(len(batch_labels), 1)
-
-            # Step 5: Score against referential
             extraction["raw_label"] = original_label
-            best = find_best_matches(extraction, all_products, mappings, top_n=3)
-            extraction.pop("raw_label", None)
-            top_score = best[0]["score"] if best else 0
+            _save_extraction_cache(sid, normalized, extraction)
 
-            if top_score >= threshold_auto:
-                # Auto-match
-                product_id = best[0]["product_id"]
-                for ti in temp_imports:
-                    _create_supplier_ref(sid, ti, product_id)
-                _save_cache(sid, normalized, product_id, top_score, "auto", extraction)
-                auto_matched += 1
+    db.session.flush()
 
-            elif top_score >= threshold_review:
-                # Pending review
-                pm = PendingMatch(
-                    supplier_id=sid,
-                    temporary_import_id=first_ti.id,
-                    source_label=original_label,
-                    extracted_attributes=extraction,
-                    candidates=best,
-                    status="pending",
-                )
-                db.session.add(pm)
-                pending_review += 1
+    # -----------------------------------------------------------------------
+    # Phase 2: Match Odoo Products against extracted cache entries
+    # -----------------------------------------------------------------------
+    matched_product_ids: set[int] = {
+        row[0]
+        for row in db.session.query(SupplierProductRef.product_id)
+        .filter(SupplierProductRef.product_id.isnot(None))
+        .distinct()
+        .all()
+    }
 
-            else:
-                # Create new product
-                product = create_product_from_extraction(extraction, original_label)
-                for ti in temp_imports:
-                    _create_supplier_ref(sid, ti, product.id)
-                _save_cache(sid, normalized, product.id, top_score, "auto", extraction)
-                auto_created += 1
+    # Exclude products already queued in a pending match
+    pending_product_ids: set[int] = set()
+    for pm in PendingMatch.query.filter_by(status="pending").all():
+        for c in pm.candidates or []:
+            if c.get("product_id"):
+                pending_product_ids.add(c["product_id"])
+
+    all_products_list = Product.query.all()
+    products_to_process = [
+        p for p in all_products_list
+        if p.id not in matched_product_ids and p.id not in pending_product_ids
+    ]
+
+    total_unmatched = len(products_to_process)
+    if limit is not None and limit > 0:
+        products_to_process = products_to_process[:limit]
+    remaining = total_unmatched - len(products_to_process)
+
+    # Load extracted cache entries awaiting matching (product_id=None)
+    cache_filter_args = [
+        LabelCache.match_source == "extracted",
+        LabelCache.product_id.is_(None),
+    ]
+    if supplier_id:
+        cache_filter_args.append(LabelCache.supplier_id == supplier_id)
+    all_cache_entries = LabelCache.query.filter(*cache_filter_args).all()
+
+    # Pre-build brand → cache entries index for fast filtering
+    brand_to_entries: Dict[str, List[LabelCache]] = {}
+    for entry in all_cache_entries:
+        attrs = entry.extracted_attributes or {}
+        brand = (attrs.get("brand") or "").strip().lower()
+        brand_to_entries.setdefault(brand, []).append(entry)
+
+    mappings = _build_mappings()
+    auto_matched = 0
+    pending_review = 0
+    not_found = 0
+    matched_cache_ids: set[int] = set()
+
+    for product in products_to_process:
+        prod_brand = (product.brand.brand if product.brand else "").strip().lower()
+
+        # Brand-filtered candidates + no-brand entries as fallback
+        if prod_brand:
+            candidates_list = (
+                brand_to_entries.get(prod_brand, [])
+                + brand_to_entries.get("", [])
+            )
+        else:
+            candidates_list = all_cache_entries
+
+        # Exclude cache entries already matched in this run
+        candidates_list = [e for e in candidates_list if e.id not in matched_cache_ids]
+
+        if not candidates_list:
+            not_found += 1
+            continue
+
+        scored: List[Tuple[int, Dict, LabelCache]] = []
+        for cache_entry in candidates_list:
+            attrs = dict(cache_entry.extracted_attributes or {})
+            score, details = score_match(attrs, product, mappings)
+            if score > 0:
+                scored.append((score, details, cache_entry))
+
+        if not scored:
+            not_found += 1
+            continue
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+        top_score, top_details, top_cache = scored[0]
+
+        if top_score >= threshold_auto:
+            catalog_entries = label_to_catalogs.get(
+                (top_cache.supplier_id, top_cache.normalized_label), []
+            )
+            for ti in catalog_entries:
+                _create_supplier_ref(ti.supplier_id, ti, product.id)
+            top_cache.product_id = product.id
+            top_cache.match_score = top_score
+            top_cache.match_source = "auto"
+            top_cache.last_used_at = datetime.now(timezone.utc)
+            matched_cache_ids.add(top_cache.id)
+            auto_matched += 1
+
+        elif top_score >= threshold_review:
+            catalog_entries = label_to_catalogs.get(
+                (top_cache.supplier_id, top_cache.normalized_label), []
+            )
+            first_catalog = catalog_entries[0] if catalog_entries else None
+            original_label = (
+                (top_cache.extracted_attributes or {}).get("raw_label")
+                or top_cache.normalized_label
+            )
+            product_name = " — ".join(filter(None, [
+                product.model or product.description,
+                product.memory.memory if product.memory else None,
+                product.color.color if product.color else None,
+            ]))
+            pm = PendingMatch(
+                supplier_id=top_cache.supplier_id,
+                temporary_import_id=first_catalog.id if first_catalog else None,
+                source_label=original_label,
+                extracted_attributes=top_cache.extracted_attributes or {},
+                candidates=[{
+                    "product_id": product.id,
+                    "score": top_score,
+                    "product_name": product_name,
+                    "details": top_details,
+                }],
+                status="pending",
+            )
+            db.session.add(pm)
+            matched_cache_ids.add(top_cache.id)
+            pending_review += 1
+
+        else:
+            not_found += 1
 
     db.session.commit()
 
@@ -786,12 +821,12 @@ def run_matching_job(
     duration = round(time.time() - start_time, 2)
 
     return {
-        "total_labels": len(label_to_imports),
+        "total_products": len(products_to_process),
         "from_cache": from_cache,
         "llm_calls": llm_calls,
         "auto_matched": auto_matched,
         "pending_review": pending_review,
-        "auto_created": auto_created,
+        "not_found": not_found,
         "errors": errors,
         "error_message": error_message,
         "cost_estimate": cost_estimate,
@@ -803,6 +838,30 @@ def run_matching_job(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _save_extraction_cache(
+    supplier_id: int,
+    normalized_label: str,
+    extracted: Dict[str, Any],
+) -> None:
+    """Save extracted attributes without product_id (pre-matching phase)."""
+    existing = LabelCache.query.filter_by(
+        supplier_id=supplier_id, normalized_label=normalized_label
+    ).first()
+    if existing:
+        existing.extracted_attributes = extracted
+        existing.last_used_at = datetime.now(timezone.utc)
+    else:
+        cache = LabelCache(
+            supplier_id=supplier_id,
+            normalized_label=normalized_label,
+            product_id=None,
+            match_score=None,
+            match_source="extracted",
+            extracted_attributes=extracted,
+        )
+        db.session.add(cache)
+
 
 def _create_supplier_ref(
     supplier_id: int, ti: SupplierCatalog, product_id: int

@@ -753,7 +753,7 @@ class TestRunMatchingJob:
         device_type,
         color_translations,
     ):
-        # Create unmatched temp imports
+        # Phase 1: create catalog entries to extract
         ti1 = SupplierCatalog(
             description="Samsung Galaxy S25 Ultra 256Go Noir",
             model="SM-S938B",
@@ -773,7 +773,7 @@ class TestRunMatchingJob:
         db.session.add_all([ti1, ti2])
         db.session.commit()
 
-        # Mock LLM response
+        # Mock LLM response (Phase 1 extraction of 2 labels)
         mock_llm.return_value = [
             {
                 "brand": "Samsung",
@@ -797,11 +797,13 @@ class TestRunMatchingJob:
 
         report = run_matching_job(supplier_id=supplier.id)
 
-        assert report["total_labels"] == 2
+        # Phase 1: 2 labels extracted, 0 from cache
         assert report["from_cache"] == 0
         assert report["llm_calls"] == 1
-        assert report["auto_matched"] + report["auto_created"] + report["pending_review"] == 2
         assert report["errors"] == 0
+        # Phase 2: 1 product (product_s25) processed
+        assert report["total_products"] == 1
+        assert report["auto_matched"] + report["not_found"] + report["pending_review"] == 1
         assert "duration_seconds" in report
         assert "remaining" in report
 
@@ -882,7 +884,7 @@ class TestRunMatchingJob:
 
     @patch("utils.llm_matching.call_llm_extraction")
     def test_no_unmatched(self, mock_llm, supplier, product_s25):
-        # Create a matched import (has SupplierProductRef)
+        # Create a catalog entry with an existing SupplierProductRef
         ti = SupplierCatalog(
             description="Already matched",
             quantity=1,
@@ -901,7 +903,13 @@ class TestRunMatchingJob:
         db.session.add(ref)
         db.session.commit()
 
+        # Phase 1 extracts catalog labels regardless of matching status
+        mock_llm.return_value = [
+            {"brand": "Unknown", "model_family": "Already matched", "storage": None,
+             "color": None, "device_type": None, "region": None, "confidence": 0.5}
+        ]
+
         report = run_matching_job(supplier_id=supplier.id)
 
-        assert report["total_labels"] == 0
-        mock_llm.assert_not_called()
+        # Phase 2: product_s25 already has a SupplierProductRef → not processed
+        assert report["total_products"] == 0
