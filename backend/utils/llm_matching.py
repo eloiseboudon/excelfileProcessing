@@ -271,6 +271,21 @@ def _fuzzy_ratio(a: str, b: str) -> float:
     return SequenceMatcher(None, a.lower(), b.lower()).ratio()
 
 
+# Device types that carry no category information — skip disqualification
+_DEVICE_TYPE_SKIP: set[str] = {"all", "a définir", "a definir"}
+
+# Synonyms to normalize before comparison
+_DEVICE_TYPE_SYNONYMS: Dict[str, str] = {
+    "téléphone": "smartphone",
+    "telephone": "smartphone",
+}
+
+
+def _normalize_device_type(value: str) -> str:
+    normalized = value.strip().lower()
+    return _DEVICE_TYPE_SYNONYMS.get(normalized, normalized)
+
+
 def score_match(
     extracted: Dict[str, Any],
     product: Product,
@@ -294,13 +309,15 @@ def score_match(
     details["brand"] = 15
     score += 15
 
-    # --- Device type (hard disqualifier if both sides have a type) ---
-    ext_type = (extracted.get("device_type") or "").strip().lower()
-    prod_type = (product.type.type if product.type else "").strip().lower()
-    if ext_type and prod_type and _fuzzy_ratio(ext_type, prod_type) < 0.6:
-        details["device_type"] = 0
-        details["disqualified"] = "device_type_mismatch"
-        return 0, details
+    # --- Device type (hard disqualifier if both sides have a meaningful type) ---
+    ext_type = _normalize_device_type(extracted.get("device_type") or "")
+    prod_type_raw = (product.type.type if product.type else "").strip().lower()
+    if prod_type_raw not in _DEVICE_TYPE_SKIP:
+        prod_type = _normalize_device_type(prod_type_raw)
+        if ext_type and prod_type and _fuzzy_ratio(ext_type, prod_type) < 0.6:
+            details["device_type"] = 0
+            details["disqualified"] = "device_type_mismatch"
+            return 0, details
 
     # --- Storage (25 pts) ---
     ext_storage = _normalize_storage(extracted.get("storage"))
