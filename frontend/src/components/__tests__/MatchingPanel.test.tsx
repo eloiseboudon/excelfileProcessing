@@ -102,19 +102,8 @@ describe('MatchingPanel', () => {
     expect(screen.getByText('Tous')).toBeInTheDocument();
   });
 
-  it('runs matching with default limit and shows report', async () => {
-    mockRunMatching.mockResolvedValue({
-      total_labels: 10,
-      from_cache: 3,
-      llm_calls: 1,
-      auto_matched: 5,
-      pending_review: 2,
-      auto_created: 0,
-      errors: 0,
-      cost_estimate: 0.0012,
-      duration_seconds: 3.5,
-      remaining: 0,
-    });
+  it('runs matching and shows in-progress banner', async () => {
+    mockRunMatching.mockResolvedValue(undefined);
 
     renderPanel();
     await waitFor(() => {
@@ -128,24 +117,15 @@ describe('MatchingPanel', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText('5')).toBeInTheDocument();
-      expect(screen.getByText('Matches auto')).toBeInTheDocument();
+      expect(screen.getByText('Arreter le suivi')).toBeInTheDocument();
+      expect(
+        screen.getByText(/Rapprochement en cours/)
+      ).toBeInTheDocument();
     });
   });
 
-  it('shows remaining count after run with limit', async () => {
-    mockRunMatching.mockResolvedValue({
-      total_labels: 50,
-      from_cache: 0,
-      llm_calls: 2,
-      auto_matched: 30,
-      pending_review: 10,
-      auto_created: 10,
-      errors: 0,
-      cost_estimate: 0.005,
-      duration_seconds: 5.0,
-      remaining: 150,
-    });
+  it('stops polling when stop button is clicked', async () => {
+    mockRunMatching.mockResolvedValue(undefined);
 
     renderPanel();
     await waitFor(() => {
@@ -155,9 +135,13 @@ describe('MatchingPanel', () => {
     fireEvent.click(screen.getByText('Lancer le rapprochement'));
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/150 labels? non traites? dans ce passage/)
-      ).toBeInTheDocument();
+      expect(screen.getByText('Arreter le suivi')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Arreter le suivi'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Lancer le rapprochement')).toBeInTheDocument();
     });
   });
 
