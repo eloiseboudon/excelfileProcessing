@@ -346,6 +346,15 @@ def score_match(
         prod_model = prod_model[len(prod_brand):].strip()
 
     if ext_model and prod_model:
+        # Hard disqualifier: same model name structure but different version number
+        # e.g. "iphone 16" vs "iphone 15", "galaxy s25" vs "galaxy s24"
+        ext_ver = re.search(r'\d+', ext_model)
+        prod_ver = re.search(r'\d+', prod_model)
+        if ext_ver and prod_ver and ext_ver.group() != prod_ver.group():
+            details["model_family"] = 0
+            details["disqualified"] = "model_version_mismatch"
+            return 0, details
+
         ratio = _fuzzy_ratio(ext_model, prod_model)
         if ratio >= 0.95:
             details["model_family"] = 40
@@ -456,10 +465,15 @@ def find_best_matches(
 
     results = []
     for match_score, details, product in scored[:top_n]:
+        parts = [product.model or product.description or f"Product #{product.id}"]
+        if product.memory:
+            parts.append(product.memory.memory)
+        if product.color:
+            parts.append(product.color.color)
         results.append({
             "product_id": product.id,
             "score": match_score,
-            "product_name": product.model or product.description or f"Product #{product.id}",
+            "product_name": " — ".join(parts),
             "details": details,
         })
 

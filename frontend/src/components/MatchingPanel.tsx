@@ -586,6 +586,43 @@ function StatusCard({
   );
 }
 
+const SCORE_LABELS: Record<string, string> = {
+  brand: 'Marque',
+  storage: 'Stockage',
+  model_family: 'Modèle',
+  color: 'Couleur',
+  region: 'Région',
+  label_similarity: 'Libellé',
+};
+
+function ScoreDetails({ details }: { details: Record<string, number> }) {
+  const entries = Object.entries(details).filter(
+    ([k]) => k !== 'disqualified' && k in SCORE_LABELS
+  );
+  if (entries.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-1">
+      {entries.map(([key, val]) => {
+        const color =
+          val > 0
+            ? 'text-emerald-400 border-emerald-500/30'
+            : val < 0
+            ? 'text-red-400 border-red-500/30'
+            : 'text-[var(--color-text-muted)] border-[var(--color-border-subtle)]';
+        return (
+          <span
+            key={key}
+            className={`inline-flex items-center gap-1 px-1.5 py-0 rounded text-[10px] border ${color}`}
+          >
+            {SCORE_LABELS[key]}
+            <strong>{val > 0 ? `+${val}` : val}</strong>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 function PendingMatchRow({
   pm,
   readOnly,
@@ -636,12 +673,9 @@ function PendingMatchRow({
       {pm.candidates.length > 0 && (
         <div className="space-y-1.5">
           {pm.candidates.map((c, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-3 text-sm"
-            >
+            <div key={i} className="flex items-start gap-3 text-sm">
               {/* Score bar */}
-              <div className="flex items-center gap-2 min-w-[120px]">
+              <div className="flex items-center gap-2 min-w-[120px] pt-0.5">
                 <div className="w-16 h-2 rounded-full bg-[var(--color-bg-elevated)] overflow-hidden">
                   <div
                     className="h-full rounded-full bg-[#B8860B]"
@@ -652,14 +686,17 @@ function PendingMatchRow({
                   {c.score}%
                 </span>
               </div>
-              <span className="text-[var(--color-text-primary)] flex-1 truncate">
-                {c.product_name}
-              </span>
+              <div className="flex-1 min-w-0">
+                <div className="text-[var(--color-text-primary)] truncate">
+                  {c.product_name}
+                </div>
+                <ScoreDetails details={c.details} />
+              </div>
               {!readOnly && (
                 <button
                   type="button"
                   onClick={() => onValidate(pm, c)}
-                  className="btn btn-primary text-xs py-1 px-2 flex items-center gap-1"
+                  className="btn btn-primary text-xs py-1 px-2 flex items-center gap-1 shrink-0"
                   title="Valider ce match"
                 >
                   <Check className="w-3 h-3" />

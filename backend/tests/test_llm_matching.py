@@ -369,6 +369,50 @@ class TestScoreMatch:
         assert score == 0
         assert details.get("disqualified") == "device_type_mismatch"
 
+    def test_model_version_mismatch_disqualifies(self, brand_apple, memory_128, color_noir):
+        """iPhone 16 label must not match iPhone 15 product despite identical other attributes."""
+        iphone15 = Product(
+            model="iPhone 15",
+            brand_id=brand_apple.id,
+            memory_id=memory_128.id,
+            color_id=color_noir.id,
+        )
+        db.session.add(iphone15)
+        db.session.commit()
+
+        extracted = {
+            "brand": "Apple",
+            "model_family": "iPhone 16",
+            "storage": "128 Go",
+            "color": "Noir",
+            "region": None,
+        }
+        score, details = score_match(extracted, iphone15, {})
+        assert score == 0
+        assert details.get("disqualified") == "model_version_mismatch"
+
+    def test_model_same_version_different_variant_is_not_disqualified(self, brand_apple, memory_128, color_noir):
+        """iPhone 16 Pro must not be disqualified against iPhone 16 (same version number)."""
+        iphone16 = Product(
+            model="iPhone 16 Pro",
+            brand_id=brand_apple.id,
+            memory_id=memory_128.id,
+            color_id=color_noir.id,
+        )
+        db.session.add(iphone16)
+        db.session.commit()
+
+        extracted = {
+            "brand": "Apple",
+            "model_family": "iPhone 16",
+            "storage": "128 Go",
+            "color": "Noir",
+            "region": None,
+        }
+        score, details = score_match(extracted, iphone16, {})
+        assert score > 0
+        assert details.get("disqualified") != "model_version_mismatch"
+
     def test_label_similarity_bonus(self, product_s25, color_translations):
         """Exact raw label match gives a +10 bonus, capped at 100."""
         extracted = {
@@ -385,10 +429,10 @@ class TestScoreMatch:
         assert score == 100  # capped at 100
 
     def test_label_similarity_malus(self, brand_apple, memory_128, color_noir):
-        """Very different raw label penalises a borderline match."""
-        # iPhone without device_type so device_type disqualifier doesn't fire
+        """Very different raw label penalises a match — version numbers must match to reach this check."""
+        # iPhone 13 Pro: model_family will match exactly (version 13 == 13), no version disqualifier
         iphone = Product(
-            model="iPhone 13",
+            model="iPhone 13 Pro",
             brand_id=brand_apple.id,
             memory_id=memory_128.id,
             color_id=color_noir.id,
@@ -398,7 +442,7 @@ class TestScoreMatch:
 
         base = {
             "brand": "Apple",
-            "model_family": "Watch Ultra 3",
+            "model_family": "iPhone 13 Pro",
             "storage": None,
             "color": None,
             "region": None,
@@ -407,7 +451,7 @@ class TestScoreMatch:
         mappings = {"color_translations": {}}
         score_without, _ = score_match({**base}, product=iphone, mappings=mappings)
         score_with, details = score_match(
-            {**base, "raw_label": "Watch Apple Watch Ultra 3 2025 5G 49mm Black Titanium"},
+            {**base, "raw_label": "Samsung Galaxy S25 Ultra 256 Go Phantom Black"},
             product=iphone,
             mappings=mappings,
         )
