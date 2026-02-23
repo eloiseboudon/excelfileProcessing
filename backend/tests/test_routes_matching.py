@@ -107,53 +107,34 @@ class TestMatchingAuth:
 
 
 class TestRunMatching:
-    @patch("routes.matching.run_matching_job")
-    def test_run_global(self, mock_run, client, admin_headers):
-        mock_run.return_value = {
-            "total_labels": 10,
-            "from_cache": 5,
-            "llm_calls": 1,
-            "auto_matched": 3,
-            "pending_review": 1,
-            "auto_created": 1,
-            "errors": 0,
-            "cost_estimate": 0.002,
-            "duration_seconds": 2.5,
-        }
+    @patch("routes.matching._run_matching_background")
+    def test_run_global(self, mock_bg, client, admin_headers):
         rv = client.post("/matching/run", headers=admin_headers)
-        assert rv.status_code == 200
+        assert rv.status_code == 202
         data = rv.get_json()
-        assert data["total_labels"] == 10
-        mock_run.assert_called_once_with(supplier_id=None, limit=None)
+        assert data["status"] == "started"
 
-    @patch("routes.matching.run_matching_job")
-    def test_run_with_supplier(self, mock_run, client, admin_headers, supplier):
-        mock_run.return_value = {"total_labels": 0, "from_cache": 0, "llm_calls": 0,
-                                  "auto_matched": 0, "pending_review": 0, "auto_created": 0,
-                                  "errors": 0, "cost_estimate": 0, "duration_seconds": 0}
+    @patch("routes.matching._run_matching_background")
+    def test_run_with_supplier(self, mock_bg, client, admin_headers, supplier):
         rv = client.post(
             "/matching/run",
             headers=admin_headers,
             data=json.dumps({"supplier_id": supplier.id}),
         )
-        assert rv.status_code == 200
-        mock_run.assert_called_once_with(supplier_id=supplier.id, limit=None)
+        assert rv.status_code == 202
+        data = rv.get_json()
+        assert data["status"] == "started"
 
-    @patch("routes.matching.run_matching_job")
-    def test_run_with_limit(self, mock_run, client, admin_headers):
-        mock_run.return_value = {"total_labels": 5, "from_cache": 0, "llm_calls": 1,
-                                  "auto_matched": 3, "pending_review": 1, "auto_created": 1,
-                                  "errors": 0, "cost_estimate": 0, "duration_seconds": 1,
-                                  "remaining": 10}
+    @patch("routes.matching._run_matching_background")
+    def test_run_with_limit(self, mock_bg, client, admin_headers):
         rv = client.post(
             "/matching/run",
             headers=admin_headers,
             data=json.dumps({"limit": 50}),
         )
-        assert rv.status_code == 200
-        mock_run.assert_called_once_with(supplier_id=None, limit=50)
+        assert rv.status_code == 202
         data = rv.get_json()
-        assert data["remaining"] == 10
+        assert data["status"] == "started"
 
     def test_run_invalid_supplier(self, client, admin_headers):
         rv = client.post(

@@ -561,7 +561,7 @@ def run_matching_job(
                 SupplierProductRef.product_id.isnot(None)
             ).all()
             for ref in refs:
-                matched_keys.add((sid, ref.ean, ref.part_number))
+                matched_keys.add((sid, ref.ean, ref.part_number, ref.supplier_sku))
 
     # Load IDs of catalog entries that already have a pending PendingMatch
     # to avoid re-queuing them and creating duplicates
@@ -573,7 +573,7 @@ def run_matching_job(
 
     unmatched = []
     for ti in all_temp_imports:
-        if (ti.supplier_id, ti.ean, ti.part_number) in matched_keys:
+        if (ti.supplier_id, ti.ean, ti.part_number, ti.supplier_sku) in matched_keys:
             continue
         if ti.id in existing_pending_ids:
             continue
@@ -735,6 +735,7 @@ def _create_supplier_ref(
         supplier_id=supplier_id,
         ean=ti.ean,
         part_number=ti.part_number,
+        supplier_sku=ti.supplier_sku,
     ).first()
     if existing:
         existing.product_id = product_id
@@ -745,6 +746,7 @@ def _create_supplier_ref(
             product_id=product_id,
             ean=ti.ean,
             part_number=ti.part_number,
+            supplier_sku=ti.supplier_sku,
             last_seen_at=datetime.now(timezone.utc),
         )
         db.session.add(ref)
