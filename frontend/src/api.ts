@@ -811,6 +811,7 @@ export interface PendingMatchList {
 }
 
 export interface MatchingStatsData {
+  total_odoo_products: number;
   total_cached: number;
   total_pending: number;
   total_validated: number;
