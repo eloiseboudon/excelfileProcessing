@@ -332,23 +332,36 @@ def score_match(
 
     # --- Storage (25 pts) ---
     ext_storage = _normalize_storage(extracted.get("storage"))
-    prod_storage = _normalize_storage(product.memory.memory if product.memory else None)
-    # Fallback: some products embed storage in the model name with no memory record
-    if prod_storage is None and product.model:
-        prod_storage = _normalize_storage(product.model)
-    if ext_storage and prod_storage:
-        if ext_storage == prod_storage:
+    # Official Odoo storage (from dedicated memory field) — used for hard disqualification
+    prod_storage_official = _normalize_storage(product.memory.memory if product.memory else None)
+    # Inferred storage from model name — used for scoring only, never for disqualification
+    prod_storage_inferred = (
+        _normalize_storage(product.model)
+        if prod_storage_official is None and product.model
+        else None
+    )
+
+    if ext_storage and prod_storage_official:
+        # Both sides have definitive storage → hard disqualifier on mismatch
+        if ext_storage == prod_storage_official:
             details["storage"] = 25
             score += 25
         else:
             details["storage"] = 0
             details["disqualified"] = "storage_mismatch"
             return 0, details
-    elif ext_storage and not prod_storage:
-        details["storage"] = 0
-    elif not ext_storage and prod_storage:
+    elif ext_storage and prod_storage_inferred:
+        # Catalog has storage, Odoo storage is inferred from model name → soft check, no disqualify
+        if ext_storage == prod_storage_inferred:
+            details["storage"] = 25
+            score += 25
+        else:
+            details["storage"] = 0  # mismatch with inferred value → 0 pts, no hard disqualify
+    elif ext_storage or prod_storage_official:
+        # One side definitively has storage, the other doesn't → 0 pts, no disqualify
         details["storage"] = 0
     else:
+        # Neither side has definitive storage → assume OK
         details["storage"] = 25
         score += 25
 
@@ -691,9 +704,11 @@ def run_matching_job(
         .all()
     }
 
-    # Exclude products already queued in a pending match
+    # Exclude products already queued in a pending or auto-rejected match
     pending_product_ids: set[int] = set()
-    for pm in PendingMatch.query.filter_by(status="pending").all():
+    for pm in PendingMatch.query.filter(
+        PendingMatch.status.in_(["pending", "rejected"])
+    ).all():
         for c in pm.candidates or []:
             if c.get("product_id"):
                 pending_product_ids.add(c["product_id"])
@@ -728,6 +743,7 @@ def run_matching_job(
     mappings = _build_mappings()
     auto_matched = 0
     pending_review = 0
+    auto_rejected = 0
     not_found = 0
 
     for product in products_to_process:
@@ -747,14 +763,46 @@ def run_matching_job(
             continue
 
         scored: List[Tuple[int, Dict, LabelCache]] = []
+        best_disqualified: Optional[Tuple[Dict, LabelCache]] = None
+
         for cache_entry in candidates_list:
             attrs = dict(cache_entry.extracted_attributes or {})
             score, details = score_match(attrs, product, mappings)
             if score > 0:
                 scored.append((score, details, cache_entry))
+            elif best_disqualified is None and details.get("disqualified"):
+                best_disqualified = (details, cache_entry)
 
         if not scored:
-            not_found += 1
+            if best_disqualified is not None:
+                # All candidates triggered a hard disqualifier → auto-reject
+                disq_details, disq_entry = best_disqualified
+                original_label = (
+                    (disq_entry.extracted_attributes or {}).get("raw_label")
+                    or disq_entry.normalized_label
+                )
+                product_name = " — ".join(filter(None, [
+                    product.model or product.description,
+                    product.memory.memory if product.memory else None,
+                    product.color.color if product.color else None,
+                ]))
+                pm = PendingMatch(
+                    supplier_id=disq_entry.supplier_id,
+                    temporary_import_id=None,
+                    source_label=original_label,
+                    extracted_attributes=disq_entry.extracted_attributes or {},
+                    candidates=[{
+                        "product_id": product.id,
+                        "score": 0,
+                        "product_name": product_name,
+                        "details": disq_details,
+                    }],
+                    status="rejected",
+                )
+                db.session.add(pm)
+                auto_rejected += 1
+            else:
+                not_found += 1
             continue
 
         scored.sort(key=lambda x: x[0], reverse=True)
@@ -820,6 +868,7 @@ def run_matching_job(
         "llm_calls": llm_calls,
         "auto_matched": auto_matched,
         "pending_review": pending_review,
+        "auto_rejected": auto_rejected,
         "not_found": not_found,
         "errors": errors,
         "error_message": error_message,
