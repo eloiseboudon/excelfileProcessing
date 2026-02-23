@@ -7,6 +7,7 @@ import pytest
 
 from models import (
     Brand,
+    DeviceType,
     LabelCache,
     MemoryOption,
     PendingMatch,
@@ -433,6 +434,90 @@ class TestMatchingStats:
 # ---------------------------------------------------------------------------
 # GET /matching/cache & DELETE /matching/cache/<id>
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# POST /matching/assign-types
+# ---------------------------------------------------------------------------
+
+
+class TestAssignTypes:
+    def test_requires_auth(self, client):
+        rv = client.post("/matching/assign-types")
+        assert rv.status_code == 401
+
+    def test_requires_admin(self, client, client_headers):
+        rv = client.post("/matching/assign-types", headers=client_headers)
+        assert rv.status_code == 403
+
+    def test_dry_run_returns_structure(self, client, admin_headers, product):
+        rv = client.post(
+            "/matching/assign-types",
+            headers=admin_headers,
+            data=json.dumps({"dry_run": True}),
+        )
+        assert rv.status_code == 200
+        data = rv.get_json()
+        assert "classified" in data
+        assert "unclassified" in data
+        assert "total" in data
+        assert data["dry_run"] is True
+
+    def test_dry_run_does_not_persist(self, client, admin_headers, product):
+        """Dry run must not change the product type in DB."""
+        original_type_id = product.type_id
+        client.post(
+            "/matching/assign-types",
+            headers=admin_headers,
+            data=json.dumps({"dry_run": True}),
+        )
+        db.session.refresh(product)
+        assert product.type_id == original_type_id
+
+    def test_classifies_known_model(self, client, admin_headers):
+        """Product with 'iphone' in model should be assigned Smartphone type."""
+        b = Brand(brand="Apple")
+        db.session.add(b)
+        db.session.commit()
+
+        p = Product(model="iPhone 15 Pro 256 Go", brand_id=b.id)
+        db.session.add(p)
+        db.session.commit()
+
+        rv = client.post(
+            "/matching/assign-types",
+            headers=admin_headers,
+            data=json.dumps({}),
+        )
+        assert rv.status_code == 200
+        data = rv.get_json()
+        assert data["classified"] >= 1
+
+        db.session.refresh(p)
+        assert p.type is not None
+        assert p.type.type == "Smartphone"
+
+    def test_skips_product_with_existing_meaningful_type(self, client, admin_headers):
+        """Product already classified as Smartphone should not be re-processed."""
+        dt = DeviceType(type="Smartphone")
+        db.session.add(dt)
+        b = Brand(brand="Apple")
+        db.session.add(b)
+        db.session.commit()
+
+        p = Product(model="iPhone 14", brand_id=b.id, type_id=dt.id)
+        db.session.add(p)
+        db.session.commit()
+
+        rv = client.post(
+            "/matching/assign-types",
+            headers=admin_headers,
+            data=json.dumps({}),
+        )
+        assert rv.status_code == 200
+        data = rv.get_json()
+        # Product was already Smartphone — should not appear in total
+        assert data["total"] == 0
 
 
 class TestCacheEndpoints:

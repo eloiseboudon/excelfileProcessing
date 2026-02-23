@@ -8,6 +8,7 @@ from flask import Blueprint, current_app, jsonify, request
 from sqlalchemy import cast, exists, func, String
 
 from models import (
+    DeviceType,
     LabelCache,
     PendingMatch,
     Product,
@@ -23,6 +24,7 @@ from utils.llm_matching import (
     normalize_label,
     run_matching_job,
 )
+from utils.type_classifier import classify_device_type
 
 logger = logging.getLogger(__name__)
 
@@ -451,6 +453,60 @@ def list_cache():
         "total": total,
         "page": page,
         "per_page": per_page,
+    }), 200
+
+
+@bp.route("/matching/assign-types", methods=["POST"])
+@token_required("admin")
+def assign_device_types():
+    """Assign device types to products with null or non-informative type using keyword rules."""
+    data = request.get_json(silent=True) or {}
+    dry_run = bool(data.get("dry_run", False))
+
+    _SKIP = {"all", "a définir", "a definir"}
+
+    products_no_type = Product.query.filter(Product.type_id.is_(None)).all()
+    products_skip_type = (
+        Product.query
+        .join(DeviceType, Product.type_id == DeviceType.id)
+        .filter(func.lower(DeviceType.type).in_(list(_SKIP)))
+        .all()
+    )
+    products = products_no_type + products_skip_type
+
+    type_cache: dict[str, int] = {dt.type: dt.id for dt in DeviceType.query.all()}
+
+    classified_count = 0
+    unclassified_count = 0
+
+    for product in products:
+        brand = product.brand.brand if product.brand else None
+        new_type_name = classify_device_type(product.model, brand)
+        if new_type_name:
+            if not dry_run:
+                if new_type_name not in type_cache:
+                    dt = DeviceType(type=new_type_name)
+                    db.session.add(dt)
+                    db.session.flush()
+                    type_cache[new_type_name] = dt.id
+                product.type_id = type_cache[new_type_name]
+            classified_count += 1
+        else:
+            unclassified_count += 1
+
+    if not dry_run:
+        db.session.commit()
+        log_activity("matching.assign_types", details={
+            "classified": classified_count,
+            "unclassified": unclassified_count,
+            "total": len(products),
+        })
+
+    return jsonify({
+        "classified": classified_count,
+        "unclassified": unclassified_count,
+        "total": len(products),
+        "dry_run": dry_run,
     }), 200
 
 
