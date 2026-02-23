@@ -1,9 +1,10 @@
 """API endpoints for LLM-based product matching."""
 
 import logging
+import threading
 from datetime import datetime, timezone
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 from sqlalchemy import cast, exists, func, String
 
 from models import (
@@ -28,10 +29,19 @@ logger = logging.getLogger(__name__)
 bp = Blueprint("matching", __name__)
 
 
+def _run_matching_background(app, supplier_id, limit) -> None:
+    """Run matching job in a background thread with its own app context."""
+    with app.app_context():
+        try:
+            run_matching_job(supplier_id=supplier_id, limit=limit)
+        except Exception:
+            logger.exception("Erreur background rapprochement LLM")
+
+
 @bp.route("/matching/run", methods=["POST"])
 @token_required("admin")
 def run_matching():
-    """Launch LLM matching on unmatched supplier catalog entries."""
+    """Launch LLM matching asynchronously — returns 202 immediately."""
     data = request.get_json(silent=True) or {}
     supplier_id = data.get("supplier_id")
     limit = data.get("limit")
@@ -46,19 +56,19 @@ def run_matching():
         if not supplier:
             return jsonify({"error": "Fournisseur introuvable"}), 404
 
-    try:
-        report = run_matching_job(supplier_id=supplier_id, limit=limit)
-    except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
-    except Exception as exc:
-        logger.exception("Erreur lors du rapprochement LLM")
-        return jsonify({"error": "Erreur interne lors du rapprochement"}), 500
+    app = current_app._get_current_object()
+    thread = threading.Thread(
+        target=_run_matching_background,
+        args=(app, supplier_id, limit),
+        daemon=True,
+    )
+    thread.start()
 
     log_activity("matching.run", details={
-        "auto_matched": report.get("auto_matched"),
-        "pending_review": report.get("pending_review"),
+        "supplier_id": supplier_id,
+        "limit": limit,
     })
-    return jsonify(report), 200
+    return jsonify({"status": "started"}), 202
 
 
 @bp.route("/matching/pending", methods=["GET"])

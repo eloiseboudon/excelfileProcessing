@@ -857,25 +857,17 @@ export interface CacheList {
   per_page: number;
 }
 
-export async function runMatching(supplierId?: number, limit?: number) {
+export async function runMatching(supplierId?: number, limit?: number): Promise<void> {
   const body: Record<string, unknown> = {};
   if (supplierId) body.supplier_id = supplierId;
   if (limit) body.limit = limit;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000);
-  try {
-    const res = await fetchWithAuth(`${API_BASE}/matching/run`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-    if (!res.ok) {
-      throw new Error(await extractErrorMessage(res));
-    }
-    return res.json() as Promise<MatchingReport>;
-  } finally {
-    clearTimeout(timeout);
+  const res = await fetchWithAuth(`${API_BASE}/matching/run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new Error(await extractErrorMessage(res));
   }
 }
 

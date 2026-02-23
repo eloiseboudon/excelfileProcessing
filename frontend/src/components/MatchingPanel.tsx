@@ -16,7 +16,6 @@ import {
   fetchMatchingStats,
   fetchSuppliers,
   MatchingCandidate,
-  MatchingReport,
   MatchingStatsData,
   PendingMatchItem,
   rejectMatch,
@@ -41,8 +40,8 @@ function MatchingPanel() {
 
   // Run state
   const [running, setRunning] = useState(false);
-  const [report, setReport] = useState<MatchingReport | null>(null);
   const [matchLimit, setMatchLimit] = useState<number | undefined>(50);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Pending matches
   const [pending, setPending] = useState<PendingMatchItem[]>([]);
@@ -108,24 +107,40 @@ function MatchingPanel() {
     }, 400);
   }
 
+  function stopPolling() {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    setRunning(false);
+  }
+
   async function handleRun() {
+    if (running) {
+      stopPolling();
+      return;
+    }
     setRunning(true);
-    setReport(null);
     setError(null);
     try {
-      const result = await runMatching(selectedSupplier, matchLimit);
-      setReport(result);
-      notify(
-        `Rapprochement termine : ${result.auto_matched} matches, ${result.pending_review} en attente, ${result.auto_created} crees`,
-        'success'
-      );
-      loadPending();
-      loadStats();
+      await runMatching(selectedSupplier, matchLimit);
+      notify('Rapprochement lance en arriere-plan — les stats se mettent a jour automatiquement', 'success');
+
+      // Poll stats + list every 5s for up to 10 minutes
+      let elapsed = 0;
+      const MAX_DURATION = 10 * 60 * 1000;
+      const POLL_INTERVAL = 5000;
+      pollIntervalRef.current = setInterval(() => {
+        elapsed += POLL_INTERVAL;
+        loadStats();
+        loadPending();
+        if (elapsed >= MAX_DURATION) {
+          stopPolling();
+        }
+      }, POLL_INTERVAL);
     } catch (err: unknown) {
       let msg: string;
-      if (err instanceof DOMException && err.name === 'AbortError') {
-        msg = 'Le rapprochement a pris trop de temps (timeout). Essayez avec un seul fournisseur.';
-      } else if (err instanceof TypeError && err.message === 'Failed to fetch') {
+      if (err instanceof TypeError && err.message === 'Failed to fetch') {
         msg = 'Impossible de contacter le serveur. Verifiez votre connexion ou que le backend est demarre.';
       } else if (err instanceof Error) {
         msg = err.message;
@@ -134,7 +149,6 @@ function MatchingPanel() {
       }
       setError(msg);
       notify(msg, 'error');
-    } finally {
       setRunning(false);
     }
   }
@@ -247,15 +261,19 @@ function MatchingPanel() {
           <button
             type="button"
             onClick={handleRun}
-            disabled={running}
-            className="btn btn-primary flex items-center gap-2"
+            className={`btn flex items-center gap-2 ${running ? 'btn-secondary' : 'btn-primary'}`}
           >
             {running ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Arreter le suivi
+              </>
             ) : (
-              <Play className="w-4 h-4" />
+              <>
+                <Play className="w-4 h-4" />
+                Lancer le rapprochement
+              </>
             )}
-            {running ? 'Rapprochement en cours...' : 'Lancer le rapprochement'}
           </button>
         </div>
 
@@ -272,37 +290,14 @@ function MatchingPanel() {
           </div>
         )}
 
-        {/* Rapport */}
-        {report && (
-          <>
-            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-              <ReportCard label="Matches auto" value={report.auto_matched} />
-              <ReportCard label="En attente" value={report.pending_review} />
-              <ReportCard label="Crees" value={report.auto_created} />
-              <ReportCard label="Depuis cache" value={report.from_cache} />
-              <ReportCard label="Erreurs" value={report.errors} />
-              <ReportCard
-                label="Cout estime"
-                value={`${report.cost_estimate.toFixed(4)} €`}
-              />
-            </div>
-            {report.remaining > 0 && (
-              <div className="mt-3 flex items-center gap-2 p-3 rounded-md bg-[var(--color-bg-elevated)] border border-[var(--color-border-subtle)]">
-                <AlertTriangle className="w-4 h-4 text-[#B8860B] shrink-0" />
-                <p className="text-sm text-[var(--color-text-primary)]">
-                  Limite de lot atteinte — {report.remaining} label{report.remaining > 1 ? 's' : ''} non traite{report.remaining > 1 ? 's' : ''} dans ce passage. Relancez pour continuer.
-                </p>
-              </div>
-            )}
-            {report.errors > 0 && report.error_message && (
-              <div className="mt-3 flex items-start gap-2 p-3 rounded-md bg-[var(--color-bg-elevated)] border border-red-500/30">
-                <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-                <p className="text-sm text-red-400">
-                  {report.error_message}
-                </p>
-              </div>
-            )}
-          </>
+        {/* Bandeau "en cours" */}
+        {running && (
+          <div className="mt-4 flex items-center gap-2 p-3 rounded-md bg-[var(--color-bg-elevated)] border border-[var(--color-border-subtle)]">
+            <Loader2 className="w-4 h-4 animate-spin text-[#B8860B] shrink-0" />
+            <p className="text-sm text-[var(--color-text-primary)]">
+              Rapprochement en cours — les statistiques se mettent a jour toutes les 5s.
+            </p>
+          </div>
         )}
       </div>
 
@@ -529,22 +524,6 @@ function MatchingPanel() {
   );
 }
 
-function ReportCard({
-  label,
-  value,
-}: {
-  label: string;
-  value: number | string;
-}) {
-  return (
-    <div className="bg-[var(--color-bg-elevated)] rounded-md p-3 text-center">
-      <div className="text-lg font-bold text-[var(--color-text-heading)]">
-        {value}
-      </div>
-      <div className="text-xs text-[var(--color-text-muted)]">{label}</div>
-    </div>
-  );
-}
 
 function StatusCard({
   label,
