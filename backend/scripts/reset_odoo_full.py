@@ -86,6 +86,11 @@ def run(dry_run: bool) -> None:
     cur.execute("SELECT product_id FROM internal_products WHERE product_id IS NOT NULL")
     odoo_product_ids = [r[0] for r in cur.fetchall()]
 
+    # Si internal_products est vide (reset partiel précédent), récupérer tous les produits restants
+    if not odoo_product_ids:
+        cur.execute("SELECT id FROM products")
+        odoo_product_ids = [r[0] for r in cur.fetchall()]
+
     # Comptage de l'impact
     p_count = len(odoo_product_ids)
     cur.execute("SELECT COUNT(*) FROM internal_products")
