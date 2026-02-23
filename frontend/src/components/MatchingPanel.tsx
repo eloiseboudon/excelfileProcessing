@@ -45,6 +45,8 @@ function MatchingPanel() {
   const [matchLimit, setMatchLimit] = useState<number | undefined>(50);
   const [assigningTypes, setAssigningTypes] = useState(false);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const prevProcessedRef = useRef<number>(-1);
+  const unchangedCountRef = useRef<number>(0);
 
   // Pending matches
   const [pending, setPending] = useState<PendingMatchItem[]>([]);
@@ -96,9 +98,9 @@ function MatchingPanel() {
   }
 
   function loadStats() {
-    fetchMatchingStats()
-      .then(setStats)
-      .catch(() => {});
+    return fetchMatchingStats()
+      .then((data) => { setStats(data); return data; })
+      .catch(() => undefined);
   }
 
   function handleModelInputChange(value: string) {
@@ -128,15 +130,28 @@ function MatchingPanel() {
     try {
       await runMatching(selectedSupplier, matchLimit);
       notify('Rapprochement lance en arriere-plan — les stats se mettent a jour automatiquement', 'success');
+      prevProcessedRef.current = -1;
+      unchangedCountRef.current = 0;
 
-      // Poll stats + list every 5s for up to 10 minutes
+      // Poll stats + list every 5s; stop when total_processed is stable for 2 polls (job done)
       let elapsed = 0;
       const MAX_DURATION = 10 * 60 * 1000;
       const POLL_INTERVAL = 5000;
-      pollIntervalRef.current = setInterval(() => {
+      pollIntervalRef.current = setInterval(async () => {
         elapsed += POLL_INTERVAL;
-        loadStats();
+        const data = await loadStats();
         loadPending();
+        const processed = data?.total_processed ?? 0;
+        if (processed === prevProcessedRef.current) {
+          unchangedCountRef.current += 1;
+          if (unchangedCountRef.current >= 2) {
+            stopPolling();
+            notify('Rapprochement termine', 'success');
+          }
+        } else {
+          unchangedCountRef.current = 0;
+          prevProcessedRef.current = processed;
+        }
         if (elapsed >= MAX_DURATION) {
           stopPolling();
         }
