@@ -375,7 +375,10 @@ def matching_stats():
     if total_entries > 0:
         cache_hit_rate = round(total_cached / total_entries * 100, 1)
 
+    total_odoo_products = Product.query.count()
+
     return jsonify({
+        "total_odoo_products": total_odoo_products,
         "total_cached": total_cached,
         "total_pending": total_pending,
         "total_validated": total_validated,

@@ -346,52 +346,77 @@ function MatchingPanel() {
       {/* Suivi de progression */}
       {stats && (
         <div className="card space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-[var(--color-text-heading)]">
-              Suivi du rapprochement
-            </h3>
-            <span className="text-xs text-[var(--color-text-muted)]">
-              {stats.total_processed} traite{stats.total_processed > 1 ? 's' : ''} sur {stats.total_all} ({stats.progress_pct}%)
-            </span>
+          <h3 className="text-sm font-semibold text-[var(--color-text-heading)]">
+            Couverture LLM
+          </h3>
+
+          {/* Produits Odoo vs labels traités */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-[var(--color-bg-elevated)] rounded-md p-4 text-center">
+              <div className="text-3xl font-bold text-[var(--color-text-heading)]">
+                {stats.total_odoo_products}
+              </div>
+              <div className="text-xs text-[var(--color-text-muted)] mt-1">produits Odoo en base</div>
+            </div>
+            <div className="bg-[var(--color-bg-elevated)] rounded-md p-4 text-center">
+              <div className="text-3xl font-bold text-[#B8860B]">
+                {stats.total_all}
+              </div>
+              <div className="text-xs text-[var(--color-text-muted)] mt-1">labels traites par le LLM</div>
+            </div>
           </div>
 
-          {/* Barre de progression */}
-          <div className="w-full h-2.5 bg-[var(--color-bg-elevated)] rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{
-                width: `${stats.progress_pct}%`,
-                background: 'linear-gradient(to right, #B8860B, #DAA520)',
-              }}
-            />
-          </div>
+          {/* Répartition des matchs */}
+          <div className="pt-2 border-t border-[var(--color-border-subtle)] space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-[var(--color-text-heading)]">Repartition des matchs</span>
+              <span className="text-xs text-[var(--color-text-muted)]">
+                {stats.total_processed} traite{stats.total_processed > 1 ? 's' : ''} sur {stats.total_all} ({stats.progress_pct}%)
+              </span>
+            </div>
 
-          {/* Compteurs par statut */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <StatusCard
-              label="En attente"
-              value={stats.total_pending}
-              color="text-amber-400"
-              dot="bg-amber-400"
-            />
-            <StatusCard
-              label="Valides"
-              value={stats.total_validated}
-              color="text-emerald-400"
-              dot="bg-emerald-400"
-            />
-            <StatusCard
-              label="Rejetes"
-              value={stats.total_rejected}
-              color="text-[var(--color-text-muted)]"
-              dot="bg-[var(--color-border-default)]"
-            />
-            <StatusCard
-              label="Crees"
-              value={stats.total_created}
-              color="text-sky-400"
-              dot="bg-sky-400"
-            />
+            {/* Barre de progression */}
+            <div className="w-full h-2 bg-[var(--color-bg-elevated)] rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${stats.progress_pct}%`,
+                  background: 'linear-gradient(to right, #B8860B, #DAA520)',
+                }}
+              />
+            </div>
+
+            {/* Compteurs par statut avec % */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <StatusCard
+                label="En attente"
+                value={stats.total_pending}
+                color="text-amber-400"
+                dot="bg-amber-400"
+                pct={stats.total_all > 0 ? Math.round(stats.total_pending / stats.total_all * 100) : 0}
+              />
+              <StatusCard
+                label="Valides"
+                value={stats.total_validated}
+                color="text-emerald-400"
+                dot="bg-emerald-400"
+                pct={stats.total_all > 0 ? Math.round(stats.total_validated / stats.total_all * 100) : 0}
+              />
+              <StatusCard
+                label="Rejetes"
+                value={stats.total_rejected}
+                color="text-[var(--color-text-muted)]"
+                dot="bg-[var(--color-border-default)]"
+                pct={stats.total_all > 0 ? Math.round(stats.total_rejected / stats.total_all * 100) : 0}
+              />
+              <StatusCard
+                label="Crees"
+                value={stats.total_created}
+                color="text-sky-400"
+                dot="bg-sky-400"
+                pct={stats.total_all > 0 ? Math.round(stats.total_created / stats.total_all * 100) : 0}
+              />
+            </div>
           </div>
 
           {/* Cache */}
@@ -494,11 +519,13 @@ function StatusCard({
   value,
   color,
   dot,
+  pct,
 }: {
   label: string;
   value: number;
   color: string;
   dot: string;
+  pct?: number;
 }) {
   return (
     <div className="bg-[var(--color-bg-elevated)] rounded-md p-3 flex items-center gap-3">
@@ -506,6 +533,9 @@ function StatusCard({
       <div>
         <div className={`text-lg font-bold ${color}`}>{value}</div>
         <div className="text-xs text-[var(--color-text-muted)]">{label}</div>
+        {pct !== undefined && (
+          <div className="text-xs font-medium text-[var(--color-text-secondary)]">{pct}%</div>
+        )}
       </div>
     </div>
   );
