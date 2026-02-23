@@ -187,8 +187,8 @@ describe('MatchingPanel', () => {
     expect(screen.getByText('256 Go')).toBeInTheDocument();
     expect(screen.getByText('85%')).toBeInTheDocument();
     expect(screen.getByText('Valider')).toBeInTheDocument();
-    expect(screen.getByText('Creer produit')).toBeInTheDocument();
     expect(screen.getByText('Ignorer')).toBeInTheDocument();
+    expect(screen.queryByText('Creer produit')).not.toBeInTheDocument();
   });
 
   it('validates a match', async () => {
@@ -226,7 +226,7 @@ describe('MatchingPanel', () => {
     });
   });
 
-  it('rejects a match with product creation', async () => {
+  it('ignores a match', async () => {
     mockFetchPending.mockResolvedValue({
       items: [
         {
@@ -244,18 +244,18 @@ describe('MatchingPanel', () => {
       page: 1,
       per_page: 10,
     });
-    mockRejectMatch.mockResolvedValue({ status: 'created' });
+    mockRejectMatch.mockResolvedValue({ status: 'rejected' });
 
     renderPanel();
 
     await waitFor(() => {
-      expect(screen.getByText('Creer produit')).toBeInTheDocument();
+      expect(screen.getByText('Ignorer')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText('Creer produit'));
+    fireEvent.click(screen.getByText('Ignorer'));
 
     await waitFor(() => {
-      expect(mockRejectMatch).toHaveBeenCalledWith(2, true);
+      expect(mockRejectMatch).toHaveBeenCalledWith(2, false);
     });
   });
 
@@ -377,7 +377,6 @@ describe('MatchingPanel', () => {
     });
 
     expect(screen.queryByText('Valider')).not.toBeInTheDocument();
-    expect(screen.queryByText('Creer produit')).not.toBeInTheDocument();
     expect(screen.queryByText('Ignorer')).not.toBeInTheDocument();
   });
 
