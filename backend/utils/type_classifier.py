@@ -27,19 +27,24 @@ _MODEL_RULES: List[Tuple[List[str], str]] = [
     ),
     # Montre
     (
-        ["watch", "galaxy watch", "gear s3", "gear s4", "band fit", "smartwatch"],
+        ["watch", "galaxy watch", "gear s3", "gear s4", "band fit", "smartwatch",
+         "galaxy fit"],
         "Montre",
     ),
     # Tablette
     (
         ["ipad", "galaxy tab", " tab s", " tab a ", "mediapad", "matepad",
-         "surface pro", "surface go"],
+         "surface pro", "surface go",
+         "poco pad", "redmi pad", "pad 7", "pad 12"],
         "Tablette",
     ),
-    # Smart home Google → Accessoire
+    # Smart home / trackers / streaming → Accessoire
     (
         ["nest cam", "nest doorbell", "nest wifi", "nest pro wifi",
-         "nest hub", "google home"],
+         "nest hub", "google home",
+         "safetag", "smarttag",
+         "projecteur", "tv stick", "tv box",
+         "home base", "qivicon"],
         "Accessoire",
     ),
     # Câble
@@ -67,7 +72,10 @@ _MODEL_RULES: List[Tuple[List[str], str]] = [
     (
         ["iphone", " ds ", "dual sim", "dualsim",
          "pixel 6", "pixel 7", "pixel 8", "pixel 9", "pixel 10",
-         "nothing phone"],
+         "nothing phone",
+         "galaxy z fold", "galaxy z flip",
+         "galaxy m0", "galaxy m1", "galaxy m2", "galaxy m3", "galaxy m4", "galaxy m5",
+         "xcover"],
         "Smartphone",
     ),
 ]
