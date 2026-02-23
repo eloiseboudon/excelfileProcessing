@@ -31,13 +31,40 @@ logger = logging.getLogger(__name__)
 
 bp = Blueprint("matching", __name__)
 
+# Dernier résultat de run (partagé dans le process courant — mono-worker dev / Gunicorn)
+_last_run_result: dict = {}
+
 
 def _run_matching_background(app, supplier_id, limit) -> None:
     """Run matching job in a background thread with its own app context."""
+    global _last_run_result
+    _last_run_result = {
+        "status": "running",
+        "ran_at": datetime.now(timezone.utc).isoformat(),
+    }
     with app.app_context():
         try:
-            run_matching_job(supplier_id=supplier_id, limit=limit)
-        except Exception:
+            result = run_matching_job(supplier_id=supplier_id, limit=limit)
+            _last_run_result = {
+                **result,
+                "status": "completed",
+                "ran_at": datetime.now(timezone.utc).isoformat(),
+            }
+            logger.info(
+                "Matching termine: %d produits, %d auto, %d review, %d rejetes, %d non trouves, %d erreurs",
+                result.get("total_products", 0),
+                result.get("auto_matched", 0),
+                result.get("pending_review", 0),
+                result.get("auto_rejected", 0),
+                result.get("not_found", 0),
+                result.get("errors", 0),
+            )
+        except Exception as exc:
+            _last_run_result = {
+                "status": "error",
+                "error_message": str(exc),
+                "ran_at": datetime.now(timezone.utc).isoformat(),
+            }
             logger.exception("Erreur background rapprochement LLM")
 
 
@@ -441,6 +468,7 @@ def matching_stats():
         "total_catalog_never_processed_labels": total_catalog_never_processed_labels,
         "total_catalog_pending_review": total_catalog_pending_review,
         "by_supplier": by_supplier,
+        "last_run": _last_run_result or None,
     }), 200
 
 

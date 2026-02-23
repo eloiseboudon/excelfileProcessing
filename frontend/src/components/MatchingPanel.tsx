@@ -43,9 +43,9 @@ function MatchingPanel() {
   const [running, setRunning] = useState(false);
   const [matchLimit, setMatchLimit] = useState<number | undefined>(50);
   const [assigningTypes, setAssigningTypes] = useState(false);
+  const [lastRunSummary, setLastRunSummary] = useState<MatchingStatsData['last_run']>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const prevProcessedRef = useRef<number>(-1);
-  const unchangedCountRef = useRef<number>(0);
+  const runStartTimeRef = useRef<number>(0);
 
   // Pending matches
   const [pending, setPending] = useState<PendingMatchItem[]>([]);
@@ -129,10 +129,10 @@ function MatchingPanel() {
     try {
       await runMatching(selectedSupplier, matchLimit);
       notify('Rapprochement lance en arriere-plan — les stats se mettent a jour automatiquement', 'success');
-      prevProcessedRef.current = -1;
-      unchangedCountRef.current = 0;
+      runStartTimeRef.current = Date.now();
+      setLastRunSummary(null);
 
-      // Poll stats + list every 5s; stop when total_processed is stable for 2 polls (job done)
+      // Poll stats + list every 5s; stop when last_run.status is completed/error for this run
       let elapsed = 0;
       const MAX_DURATION = 10 * 60 * 1000;
       const POLL_INTERVAL = 5000;
@@ -140,16 +140,25 @@ function MatchingPanel() {
         elapsed += POLL_INTERVAL;
         const data = await loadStats();
         loadPending();
-        const processed = data?.total_processed ?? 0;
-        if (processed === prevProcessedRef.current) {
-          unchangedCountRef.current += 1;
-          if (unchangedCountRef.current >= 2) {
+
+        const lr = data?.last_run;
+        if (lr && (lr.status === 'completed' || lr.status === 'error')) {
+          const ranAt = lr.ran_at ? new Date(lr.ran_at).getTime() : 0;
+          if (ranAt >= runStartTimeRef.current) {
             stopPolling();
-            notify('Rapprochement termine', 'success');
+            setLastRunSummary(lr);
+            if (lr.status === 'error') {
+              notify(`Erreur rapprochement : ${lr.error_message ?? 'Erreur inconnue'}`, 'error');
+            } else if (!lr.total_products) {
+              notify('Aucun nouveau produit a traiter — tout est deja en attente ou apparie', 'info');
+            } else {
+              notify(
+                `Rapprochement termine — ${lr.auto_matched ?? 0} auto, ${lr.pending_review ?? 0} a valider`,
+                'success'
+              );
+            }
+            return;
           }
-        } else {
-          unchangedCountRef.current = 0;
-          prevProcessedRef.current = processed;
         }
         if (elapsed >= MAX_DURATION) {
           stopPolling();
@@ -341,6 +350,48 @@ function MatchingPanel() {
             <p className="text-sm text-[var(--color-text-primary)]">
               Rapprochement en cours — les statistiques se mettent a jour toutes les 5s.
             </p>
+          </div>
+        )}
+
+        {/* Résumé dernier run */}
+        {!running && lastRunSummary && (
+          <div className={`mt-4 p-3 rounded-md border text-sm ${
+            lastRunSummary.status === 'error'
+              ? 'bg-[var(--color-bg-elevated)] border-red-500/30'
+              : 'bg-[var(--color-bg-elevated)] border-[var(--color-border-subtle)]'
+          }`}>
+            {lastRunSummary.status === 'error' ? (
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-medium text-red-400">Erreur lors du rapprochement</p>
+                  <p className="text-red-400/80 mt-0.5">{lastRunSummary.error_message}</p>
+                </div>
+              </div>
+            ) : !lastRunSummary.total_products ? (
+              <p className="text-[var(--color-text-muted)]">
+                Aucun nouveau produit a traiter — tous les produits sont deja en attente de validation ou apparies.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-4 text-[var(--color-text-secondary)]">
+                <span>{lastRunSummary.total_products} produits traites</span>
+                {(lastRunSummary.auto_matched ?? 0) > 0 && (
+                  <span className="text-green-400">{lastRunSummary.auto_matched} auto-matches</span>
+                )}
+                {(lastRunSummary.pending_review ?? 0) > 0 && (
+                  <span className="text-[#B8860B]">{lastRunSummary.pending_review} a valider</span>
+                )}
+                {(lastRunSummary.auto_rejected ?? 0) > 0 && (
+                  <span>{lastRunSummary.auto_rejected} rejetes auto</span>
+                )}
+                {(lastRunSummary.not_found ?? 0) > 0 && (
+                  <span className="text-[var(--color-text-muted)]">{lastRunSummary.not_found} sans correspondance</span>
+                )}
+                {(lastRunSummary.errors ?? 0) > 0 && (
+                  <span className="text-red-400">{lastRunSummary.errors} erreurs LLM</span>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
