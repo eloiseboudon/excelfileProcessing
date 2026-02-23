@@ -160,7 +160,7 @@ def validate_match():
     if not pm:
         return jsonify({"error": "Match en attente introuvable"}), 404
 
-    if pm.status != "pending":
+    if pm.status not in ("pending", "rejected"):
         return jsonify({"error": f"Match deja traite (statut: {pm.status})"}), 400
 
     product = db.session.get(Product, product_id)
