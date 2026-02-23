@@ -377,9 +377,9 @@ class TestScoreMatch:
         assert score == 0
         assert details.get("disqualified") == "storage_mismatch"
 
-    def test_storage_mismatch_in_model_name_no_disqualify(self, brand_apple):
-        """Storage inferred from model name (no memory record) must NOT hard-disqualify.
-        The match gets 0 pts for storage but remains eligible for pending review."""
+    def test_storage_mismatch_in_model_name_disqualifies(self, brand_apple):
+        """Storage inferred from model name (no memory record) must hard-disqualify
+        when supplier storage differs — model name is treated as a definitive storage source."""
         product_1tb = Product(
             model="iPhone 17 Pro Max 1TB",
             brand_id=brand_apple.id,
@@ -393,9 +393,8 @@ class TestScoreMatch:
             "storage": "512 Go",
         }
         score, details = score_match(extracted, product_1tb, {})
-        # No hard disqualify — product.memory is None so Odoo storage is null
-        assert details.get("disqualified") != "storage_mismatch"
-        assert details.get("storage") == 0  # 0 pts for storage mismatch, but no disqualify
+        assert score == 0
+        assert details.get("disqualified") == "storage_mismatch"
 
     def test_color_mismatch_disqualifies(self, brand_apple, memory_128):
         """Orange label must not match Bleu product."""
