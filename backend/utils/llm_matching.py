@@ -299,15 +299,18 @@ def score_match(
     details: Dict[str, Any] = {}
     score = 0
 
-    # --- Brand (15 pts) ---
+    # --- Brand (hard disqualifier if both sides have a brand and they differ) ---
     ext_brand = (extracted.get("brand") or "").strip().lower()
     prod_brand = (product.brand.brand if product.brand else "").lower()
-    if not ext_brand or not prod_brand or ext_brand != prod_brand:
+    if ext_brand and prod_brand:
+        if ext_brand != prod_brand:
+            details["brand"] = 0
+            details["disqualified"] = "brand_mismatch"
+            return 0, details
+        details["brand"] = 15
+        score += 15
+    else:
         details["brand"] = 0
-        details["disqualified"] = "brand_mismatch"
-        return 0, details
-    details["brand"] = 15
-    score += 15
 
     # --- Device type (hard disqualifier if both sides have a meaningful type) ---
     ext_type = _normalize_device_type(extracted.get("device_type") or "")

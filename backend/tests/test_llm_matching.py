@@ -364,6 +364,13 @@ class TestScoreMatch:
         assert score == 0
         assert details.get("disqualified") == "brand_mismatch"
 
+    def test_brand_none_does_not_disqualify(self, product_s25):
+        """If extracted brand is missing, must not disqualify."""
+        extracted = {"brand": None, "model_family": "Galaxy S25 Ultra", "storage": "256 Go"}
+        score, details = score_match(extracted, product_s25, {})
+        assert score > 0
+        assert details.get("disqualified") != "brand_mismatch"
+
     def test_storage_mismatch_returns_zero(self, product_s25):
         extracted = {"brand": "Samsung", "model_family": "Galaxy S25 Ultra", "storage": "128 Go"}
         score, details = score_match(extracted, product_s25, {})
