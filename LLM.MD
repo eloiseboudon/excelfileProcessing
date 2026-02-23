@@ -5,7 +5,7 @@
 **Projet** : AJT PRO
 **Module** : Rapprochement produits fournisseurs par extraction LLM
 **Date** : 11/02/2026
-**Statut** : Validé — prêt pour implémentation
+**Statut** : Implémenté et en production (mis à jour 23/02/2026)
 
 ---
 
@@ -658,3 +658,66 @@ Le module LLM matching est composé de 3 couches principales :
   - PendingMatch — Matchs en attente de validation manuelle (attributs extraits + candidats)
   - ModelReference — Table de correspondance codes constructeur → nom commercial (ex: SM-S938B
   → Galaxy S25 Ultra)
+
+---
+
+## 8. Evolutions post-implémentation (en production)
+
+### 8.1 Direction product-centric (refactor b86c248)
+
+Le sens du matching a été inversé. L'algorithme itère désormais sur les **produits Odoo non matchés** (plutôt que sur les labels catalogue). Pour chaque produit, il recherche dans le catalogue fournisseur quel label lui correspond.
+
+**Avantage** : exhaustivité garantie sur le référentiel Odoo. Chaque produit est traité une fois. La couverture est mesurable en % du référentiel.
+
+**Impact** : la contrainte `matched_cache_ids` (1 cache entry → 1 produit max) a été supprimée. Un même label catalogue peut maintenant correspondre à plusieurs produits Odoo.
+
+### 8.2 Auto-rejet sur hard disqualifiers (commit 6bfb82d)
+
+Quand **tous** les candidats d'un produit déclenchent un hard disqualifier (marque, couleur, stockage, région), le moteur crée automatiquement un `PendingMatch(status='rejected')` au lieu de laisser le produit silencieusement non traité.
+
+Le match rejeté conserve le meilleur candidat disqualifié pour traçabilité (la raison du rejet est visible dans l'interface).
+
+Les produits déjà en `pending` ou `rejected` sont exclus du run suivant.
+
+### 8.3 Règle both-sides-non-null pour le stockage (commit 1937da0)
+
+Le stockage disqualifie uniquement quand **les deux côtés ont une valeur identifiable** :
+- Côté Odoo : champ `memory.memory` officiel OU stockage lisible dans le nom du modèle (ex: "iPhone 14 128GB")
+- Côté fournisseur : champ `storage` extrait par le LLM
+
+Si un seul côté a le stockage → 0 pts, pas de hard disqualification.
+
+```python
+# Logique actuelle dans score_match()
+prod_storage = normalize_storage(product.memory.memory if product.memory else None)
+if prod_storage is None and product.model:
+    prod_storage = normalize_storage(product.model)  # fallback nom de modèle
+
+if ext_storage and prod_storage:
+    # Hard disqualify si différents
+elif ext_storage or prod_storage:
+    # 0 pts, pas de disqualification
+else:
+    # +25 pts (pas de contrainte stockage des deux côtés)
+```
+
+### 8.4 Validation depuis la vue Rejetés (commit 74404ff)
+
+Un admin peut corriger un auto-rejet en cliquant "Valider" depuis la vue `status=rejected`.
+
+- Backend : `validate_match` accepte désormais `status in ('pending', 'rejected')`
+- Frontend : `canValidate = status === 'pending' || status === 'rejected'`; les boutons "Créer produit" / "Ignorer" restent exclusifs à `status === 'pending'`
+
+### 8.5 Cohérence statistique total_odoo_matched (commit a74c445)
+
+Le compteur "produits Odoo matchés" dans les stats du matching utilise désormais :
+
+```python
+COUNT(DISTINCT ProductCalculation.product_id)
+```
+
+Plutôt que `COUNT(DISTINCT SupplierProductRef.product_id)`. Cela reflète la vraie couverture (ETL EAN/attributs + LLM), cohérente avec ce qu'affiche la vue TCP/Marges.
+
+### 8.6 Arrêt automatique du polling (commit 14784b3)
+
+Le suivi de progression s'arrête automatiquement quand `total_processed` reste stable pendant 2 polls consécutifs (~10 secondes après la fin du job), au lieu d'attendre systématiquement 10 minutes.

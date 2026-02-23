@@ -263,6 +263,38 @@ Fichiers concernes : `backend/models.py`, `backend/routes/products.py`, `backend
 
 ---
 
+## Affinement du matching LLM — regles de disqualification et coherence (implementee)
+
+Serie d'ameliorations du moteur de matching LLM pour augmenter la couverture et reduire les faux positifs :
+
+- **Direction product-centric** : inversion du sens de matching. Le moteur itere sur les **produits Odoo** non matches (plutot que sur les labels catalogue), ce qui garantit que chaque produit est traite une fois et permet une couverture exhaustive du referentiel
+- **Suppression de la contrainte 1:1 cache→produit** : un meme label catalogue peut maintenant matcher plusieurs produits Odoo distincts (ex: meme iPhone 15 chez deux fournisseurs differents)
+- **Auto-rejet sur hard disqualifiers** : quand tous les candidats d'un produit declenchent un disqualificateur (marque, couleur, stockage, region), un `PendingMatch(status='rejected')` est cree automatiquement pour traçabilite, sans laisser le produit silencieusement non traite
+- **Regle both-sides-non-null pour le stockage** : le stockage disqualifie uniquement quand les deux cotes ont une valeur identifiable — champ `memory` officiel Odoo OU stockage lisible dans le nom du modele. Un seul cote avec stockage = 0 pts, pas de disqualification
+- **Bouton valider dans la vue Rejetes** : un admin peut corriger un auto-rejet en validant manuellement le match depuis la vue statut=rejected. Le backend accepte `status in ('pending', 'rejected')` dans la route validate
+- **Arret automatique du polling** : le suivi de progression s'arrete automatiquement quand `total_processed` reste stable 2 polls consecutifs (~10s apres la fin du job), plutot que d'attendre 10 minutes dans tous les cas
+- **Coherence stat total_odoo_matched** : le compteur "produits Odoo matches" utilise desormais `COUNT(DISTINCT ProductCalculation.product_id)` — coherent avec ce qu'affiche TCP/Marges (80 produits) plutot que `SupplierProductRef.product_id` (uniquement les validations LLM manuelles)
+
+Fichiers concernes : `backend/utils/llm_matching.py`, `backend/tests/test_llm_matching.py`, `backend/routes/matching.py`, `frontend/src/components/MatchingPanel.tsx`
+
+---
+
+## Restauration clic sur lignes TCP/Marges (implementee)
+
+Le clic sur une ligne du tableau TCP/Marges (role admin/user) rouvre la modale `SupplierPriceModal` avec le detail des prix par fournisseur et la possibilite d'editer la marge. Fonctionnalite supprimee par erreur lors du refactor read-only, restauree avec `onRowClick` prop sur `ProductTable`.
+
+Fichiers concernes : `frontend/src/components/ProductTable.tsx`, `frontend/src/components/ProductsPage.tsx`
+
+---
+
+## Documentation des vues (implementee)
+
+Ajout de `docs/VUES.md` : documentation exhaustive de chaque vue de l'application (source de donnees, endpoints utilises, actions disponibles, points de coherence et risques).
+
+Fichier cree : `docs/VUES.md`
+
+---
+
 # Prochaines etapes
 
 ## ~~1. Ameliorations vue Rapprochement LLM~~ (implementee)
