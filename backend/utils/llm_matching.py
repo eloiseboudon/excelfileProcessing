@@ -346,6 +346,15 @@ def score_match(
         prod_model = prod_model[len(prod_brand):].strip()
 
     if ext_model and prod_model:
+        # Hard disqualifier: same model name structure but different version number
+        # e.g. "iphone 16" vs "iphone 15", "galaxy s25" vs "galaxy s24"
+        ext_ver = re.search(r'\d+', ext_model)
+        prod_ver = re.search(r'\d+', prod_model)
+        if ext_ver and prod_ver and ext_ver.group() != prod_ver.group():
+            details["model_family"] = 0
+            details["disqualified"] = "model_version_mismatch"
+            return 0, details
+
         ratio = _fuzzy_ratio(ext_model, prod_model)
         if ratio >= 0.95:
             details["model_family"] = 40
