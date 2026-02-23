@@ -557,7 +557,9 @@ def run_matching_job(
     if all_temp_imports:
         supplier_ids = {ti.supplier_id for ti in all_temp_imports if ti.supplier_id}
         for sid in supplier_ids:
-            refs = SupplierProductRef.query.filter_by(supplier_id=sid).all()
+            refs = SupplierProductRef.query.filter_by(supplier_id=sid).filter(
+                SupplierProductRef.product_id.isnot(None)
+            ).all()
             for ref in refs:
                 matched_keys.add((sid, ref.ean, ref.part_number))
 
