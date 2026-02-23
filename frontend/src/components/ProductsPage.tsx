@@ -1,13 +1,11 @@
 import { ArrowLeft, ChevronLeft, ChevronRight, Package, RefreshCw } from 'lucide-react';
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import * as XLSX from 'xlsx';
-import { calculateProducts, fetchProductPriceSummary, updateProduct } from '../api';
+import { calculateProducts, fetchProductPriceSummary } from '../api';
 import { getCurrentTimestamp, getCurrentWeekYear } from '../utils/date';
-import ProductEditModal from './ProductEditModal';
 import ProductReference from './ProductReference';
 import ProductTable from './ProductTable';
 import type { SortConfig } from './SortableColumnHeader';
-import SupplierPriceModal from './SupplierPriceModal';
 
 import {
   fetchBrands,
@@ -63,7 +61,6 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
   const [data, setData] = useState<AggregatedProduct[]>([]);
   const [suppliers, setSuppliers] = useState<string[]>([]);
   const [filters, setFilters] = useState<Record<string, string | string[]>>({});
-  const [editedPrices, setEditedPrices] = useState<Record<number, number>>({});
   const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
   const [showColumnMenu, setShowColumnMenu] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -75,29 +72,8 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
   const [ramOptions, setRamOptions] = useState<string[]>([]);
   const [normeOptions, setNormeOptions] = useState<string[]>([]);
   const [tab, setTab] = useState<'calculations' | 'reference'>('calculations');
-  const [selectedProduct, setSelectedProduct] = useState<AggregatedProduct | null>(null);
-  const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
-  const [showBulkMarginModal, setShowBulkMarginModal] = useState(false);
-  const [bulkMarginValue, setBulkMarginValue] = useState('');
   const [recalculating, setRecalculating] = useState(false);
   const notify = useNotification();
-  const modifiedCount = Object.keys(editedPrices).length;
-  const hasEdits = modifiedCount > 0;
-  const selectedCount = selectedProducts.length;
-  const selectedSet = useMemo(() => new Set(selectedProducts), [selectedProducts]);
-
-  const getBaseBuyPrice = (product: AggregatedProduct) => {
-    const buyValues = Object.values(product.buyPrices || {}).filter(
-      (value): value is number => typeof value === 'number' && !Number.isNaN(value)
-    );
-    if (typeof product.minBuyPrice === 'number' && !Number.isNaN(product.minBuyPrice)) {
-      return product.minBuyPrice;
-    }
-    if (buyValues.length) {
-      return Math.min(...buyValues);
-    }
-    return 0;
-  };
 
   const baseColumns: { key: string; label: string }[] = useMemo(() => {
     if (role === 'client') {
@@ -166,14 +142,6 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
         setNormeOptions([]);
       });
   }, []);
-
-  useEffect(() => {
-    const existingIds = new Set(data.map((item) => item.id));
-    setSelectedProducts((prev) => {
-      const filtered = prev.filter((id) => existingIds.has(id));
-      return filtered.length === prev.length ? prev : filtered;
-    });
-  }, [data]);
 
   useEffect(() => {
     const usedBrands = Array.from(
@@ -281,91 +249,6 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
     }
   }, [totalPages, currentPage]);
 
-  const toggleProductSelection = (productId: number) => {
-    setSelectedProducts((prev) => {
-      const updated = new Set(prev);
-      if (updated.has(productId)) {
-        updated.delete(productId);
-      } else {
-        updated.add(productId);
-      }
-      return Array.from(updated);
-    });
-  };
-
-  const toggleSelectAllCurrentPage = () => {
-    const pageIds = paginatedData.map((row) => row.id);
-    const allSelected = pageIds.every((id) => selectedSet.has(id));
-    setSelectedProducts((prev) => {
-      const updated = new Set(prev);
-      if (allSelected) {
-        pageIds.forEach((id) => updated.delete(id));
-      } else {
-        pageIds.forEach((id) => updated.add(id));
-      }
-      return Array.from(updated);
-    });
-  };
-
-  const openBulkMarginModal = () => {
-    setBulkMarginValue('');
-    setShowBulkMarginModal(true);
-  };
-
-  const closeBulkMarginModal = () => {
-    setShowBulkMarginModal(false);
-    setBulkMarginValue('');
-  };
-
-  const applyBulkMargin = () => {
-    const trimmed = bulkMarginValue.trim();
-    if (!trimmed) {
-      notify('Veuillez indiquer une marge', 'error');
-      return;
-    }
-    const normalized = trimmed.replace(/,/g, '.');
-    const parsed = Number(normalized);
-    if (Number.isNaN(parsed)) {
-      notify('Marge invalide', 'error');
-      return;
-    }
-    const normalizedMargin = Number(parsed.toFixed(2));
-    if (!selectedProducts.length) {
-      closeBulkMarginModal();
-      return;
-    }
-
-    const selectedIds = new Set(selectedProducts);
-    const updatedPrices: Record<number, number> = {};
-    setData((prev) =>
-      prev.map((product) => {
-        if (!selectedIds.has(product.id)) {
-          return product;
-        }
-        const tcpValue = Number.isFinite(product.tcp) ? product.tcp : 0;
-        const baseBuyPrice = getBaseBuyPrice(product);
-        const newPrice = Number((tcpValue + baseBuyPrice + normalizedMargin).toFixed(2));
-        const baseCost = baseBuyPrice + tcpValue;
-        const newPercent = baseCost
-          ? Number(((normalizedMargin / baseCost) * 100).toFixed(4))
-          : null;
-        updatedPrices[product.id] = newPrice;
-        return {
-          ...product,
-          marge: normalizedMargin,
-          margePercent: newPercent,
-          averagePrice: newPrice,
-        };
-      })
-    );
-    setEditedPrices((prev) => ({ ...prev, ...updatedPrices }));
-    notify(
-      `${selectedIds.size} produit${selectedIds.size === 1 ? '' : 's'} mis à jour (en attente d'enregistrement)`,
-      'success'
-    );
-    closeBulkMarginModal();
-  };
-
   const toggleColumn = (key: string) => {
     setVisibleColumns((prev) =>
       prev.includes(key) ? prev.filter((c) => c !== key) : [...prev, key]
@@ -381,9 +264,6 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
         if (c.key.startsWith('pa_')) {
           const sup = c.key.slice(3);
           val = row.buyPrices[sup];
-        }
-        if (c.key === 'averagePrice' && editedPrices[row.id] !== undefined) {
-          val = editedPrices[row.id];
         }
         obj[c.label] = val;
       });
@@ -511,107 +391,6 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
     link.click();
     document.body.removeChild(link);
     setTimeout(() => URL.revokeObjectURL(url), 2000);
-  };
-
-  const handleSavePrices = async () => {
-    const entries = Object.entries(editedPrices);
-    if (!entries.length) return;
-    try {
-      await Promise.all(
-        entries.map(([id, price]) => {
-          const prod = data.find((p) => p.id === Number(id));
-          return updateProduct(Number(id), {
-            recommended_price: price,
-            marge: prod?.marge,
-            marge_percent: prod?.margePercent ?? undefined,
-          });
-        })
-      );
-      notify(`${entries.length} prix mis à jour`, 'success');
-      setEditedPrices({});
-    } catch {
-      notify("Erreur lors de l'enregistrement", 'error');
-    }
-  };
-
-  const handleProductMarginUpdate = async (
-    productId: number,
-    margin: number,
-    marginPercent: number | null
-  ) => {
-    const product = data.find((p) => p.id === productId);
-    if (!product) {
-      return;
-    }
-
-    const baseBuyPrice = getBaseBuyPrice(product);
-    const tcpValue = Number.isFinite(product.tcp) ? product.tcp : 0;
-    const normalizedMargin = Number(margin.toFixed(2));
-    const baseCost = baseBuyPrice + tcpValue;
-    const derivedPercent = baseCost
-      ? Number(((normalizedMargin / baseCost) * 100).toFixed(4))
-      : marginPercent !== null
-        ? Number(marginPercent.toFixed(4))
-        : null;
-    const recommendedPrice = Number((baseCost + normalizedMargin).toFixed(2));
-
-    try {
-      await updateProduct(productId, {
-        marge: normalizedMargin,
-        marge_percent: derivedPercent ?? undefined,
-        recommended_price: recommendedPrice,
-      });
-    } catch (err) {
-      notify('Erreur lors de la mise à jour de la marge', 'error');
-      throw err;
-    }
-
-    const refreshProduct = (item: AggregatedProduct): AggregatedProduct => {
-      const updatedLatest: AggregatedProduct['latestCalculations'] = {};
-      Object.entries(item.latestCalculations || {}).forEach(([supplier, detail]) => {
-        const detailData = detail ?? {};
-        const buyPrice = detailData.price ?? item.buyPrices[supplier] ?? 0;
-        const tcp = detailData.tcp ?? item.tcp ?? 0;
-        const calcBaseCost = buyPrice + tcp;
-        const supplierPercent = calcBaseCost
-          ? Number(((normalizedMargin / calcBaseCost) * 100).toFixed(4))
-          : derivedPercent;
-        const newMax = Number((tcp + buyPrice + normalizedMargin).toFixed(2));
-        updatedLatest[supplier] = {
-          ...detailData,
-          marge: normalizedMargin,
-          margePercent: supplierPercent,
-          prixhtMax: newMax,
-        };
-      });
-
-      const updatedSalePrices = { ...item.salePrices };
-      Object.entries(updatedLatest).forEach(([supplier, detail]) => {
-        if (detail?.prixhtMax !== undefined) {
-          updatedSalePrices[supplier] = detail.prixhtMax;
-        }
-      });
-
-      return {
-        ...item,
-        marge: normalizedMargin,
-        margePercent: derivedPercent,
-        averagePrice: recommendedPrice,
-        salePrices: updatedSalePrices,
-        latestCalculations: updatedLatest,
-      };
-    };
-
-    setData((prev) => prev.map((item) => (item.id === productId ? refreshProduct(item) : item)));
-    setSelectedProduct((prev) =>
-      prev && prev.id === productId ? refreshProduct(prev) : prev
-    );
-    setEditedPrices((prev) => {
-      const next = { ...prev };
-      delete next[productId];
-      return next;
-    });
-    notify('Marge mise à jour', 'success');
   };
 
   const refreshData = () => {
@@ -1004,30 +783,6 @@ td.neg{color:#f87171;font-weight:500}
                   Génère HTML
                 </button>
               </div>
-              {role !== 'client' && (
-                <div className="flex flex-col items-end gap-2 md:items-center md:flex-row md:gap-4">
-                  {selectedCount > 0 && (
-                    <button
-                      onClick={openBulkMarginModal}
-                      className="btn btn-secondary text-sm"
-                    >
-                      Mise à jour marge ({selectedCount})
-                    </button>
-                  )}
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm text-[var(--color-text-secondary)]">
-                      {modifiedCount} produit{modifiedCount === 1 ? '' : 's'} modifié{modifiedCount === 1 ? '' : 's'}
-                    </span>
-                    <button
-                      onClick={handleSavePrices}
-                      className="btn btn-primary text-sm"
-                      disabled={!hasEdits}
-                    >
-                      Enregistrer ({modifiedCount})
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
           <div className="card overflow-hidden">
@@ -1039,14 +794,6 @@ td.neg{color:#f87171;font-weight:500}
                 paginatedData={paginatedData}
                 suppliers={suppliers}
                 role={role}
-                editedPrices={editedPrices}
-                setEditedPrices={setEditedPrices}
-                setData={setData}
-                selectedSet={selectedSet}
-                toggleProductSelection={toggleProductSelection}
-                toggleSelectAllCurrentPage={toggleSelectAllCurrentPage}
-                setSelectedProduct={setSelectedProduct}
-                getBaseBuyPrice={getBaseBuyPrice}
                 filters={filters}
                 setFilters={setFilters}
                 brandOptions={brandOptions}
@@ -1066,33 +813,6 @@ td.neg{color:#f87171;font-weight:500}
         </>
       )}
       {tab === 'reference' && <ProductReference />}
-      {role !== 'client' && selectedProduct && (
-        <SupplierPriceModal
-          prices={selectedProduct.salePrices}
-          stocks={selectedProduct.stockLevels}
-          calculations={selectedProduct.latestCalculations}
-          currentMargin={selectedProduct.marge}
-          currentMarginPercent={selectedProduct.margePercent}
-          baseCost={
-            getBaseBuyPrice(selectedProduct) +
-            (Number.isFinite(selectedProduct.tcp) ? selectedProduct.tcp : 0)
-          }
-          recommendedPrice={selectedProduct.averagePrice}
-          onUpdateMargin={(margin, percent) =>
-            handleProductMarginUpdate(selectedProduct.id, margin, percent)
-          }
-          onClose={() => setSelectedProduct(null)}
-        />
-      )}
-      {showBulkMarginModal && (
-        <ProductEditModal
-          selectedCount={selectedCount}
-          bulkMarginValue={bulkMarginValue}
-          setBulkMarginValue={setBulkMarginValue}
-          closeBulkMarginModal={closeBulkMarginModal}
-          applyBulkMargin={applyBulkMargin}
-        />
-      )}
     </div>
   );
 }

@@ -6,14 +6,9 @@ import {
   fetchColors,
   fetchMemoryOptions,
   fetchDeviceTypes,
-  bulkUpdateProducts,
-  createProduct,
   fetchRAMOptions,
   fetchNormeOptions,
-  deleteProduct,
-  bulkDeleteProducts,
 } from '../api';
-import { useNotification } from './NotificationProvider';
 import ProductReferenceForm from './ProductReferenceForm';
 import ProductReferenceTable from './ProductReferenceTable';
 
@@ -43,28 +38,17 @@ export interface Column {
 
 function ProductReference() {
   const [products, setProducts] = useState<ProductItem[]>([]);
-  const [edited, setEdited] = useState<Record<number, Partial<ProductItem>>>({});
   const [filters, setFilters] = useState<Record<string, string | string[]>>({});
   const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
   const [showColumnMenu, setShowColumnMenu] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(20);
-  const [brands, setBrands] = useState<any[]>([]);
-  const [colors, setColors] = useState<any[]>([]);
-  const [memories, setMemories] = useState<any[]>([]);
-  const [types, setTypes] = useState<any[]>([]);
-  const [rams, setRams] = useState<any[]>([]);
-  const [normes, setNormes] = useState<any[]>([]);
-  const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
-  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
-  const notify = useNotification();
   const [brandOptions, setBrandOptions] = useState<string[]>([]);
   const [colorOptions, setColorOptions] = useState<string[]>([]);
   const [memoryOptions, setMemoryOptions] = useState<string[]>([]);
   const [typeOptions, setTypeOptions] = useState<string[]>([]);
   const [ramOptions, setRamOptions] = useState<string[]>([]);
   const [normeOptions, setNormeOptions] = useState<string[]>([]);
-  const selectedCount = selectedProducts.length;
 
   const columns: Column[] = [
     { key: 'id', label: 'ID' },
@@ -96,12 +80,6 @@ function ProductReference() {
       fetchNormeOptions(),
     ])
       .then(([b, c, m, t, r, n]) => {
-        setBrands(b as any[]);
-        setColors(c as any[]);
-        setMemories(m as any[]);
-        setTypes(t as any[]);
-        setRams(r as any[]);
-        setNormes(n as any[]);
         setBrandOptions((b as any[]).map((br) => br.brand));
         setColorOptions((c as any[]).map((co) => co.color));
         setMemoryOptions((m as any[]).map((me) => me.memory));
@@ -110,12 +88,6 @@ function ProductReference() {
         setNormeOptions((n as any[]).map((no) => no.norme));
       })
       .catch(() => {
-        setBrands([]);
-        setColors([]);
-        setMemories([]);
-        setTypes([]);
-        setRams([]);
-        setNormes([]);
         setBrandOptions([]);
         setColorOptions([]);
         setMemoryOptions([]);
@@ -128,12 +100,6 @@ function ProductReference() {
   useEffect(() => {
     setCurrentPage(1);
   }, [filters, rowsPerPage]);
-
-  useEffect(() => {
-    setSelectedProducts((prev) =>
-      prev.filter((id) => products.some((product) => product.id === id))
-    );
-  }, [products]);
 
   const filteredData = products.filter((row) =>
     columns.every((col) => {
@@ -194,132 +160,6 @@ function ProductReference() {
     );
   };
 
-  const handleChange = (
-    id: number,
-    field: keyof ProductItem,
-    value: string | number | null
-  ) => {
-    setProducts((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, [field]: value } : p))
-    );
-    setEdited((prev) => ({
-      ...prev,
-      [id]: { ...(prev[id] || {}), [field]: value },
-    }));
-  };
-
-  const removeEditedEntries = (ids: number[]) => {
-    if (!ids.length) return;
-    setEdited((prev) => {
-      const updated = { ...prev };
-      ids.forEach((pid) => {
-        delete updated[pid];
-      });
-      return updated;
-    });
-  };
-
-  const toggleSelectProduct = (id: number) => {
-    setSelectedProducts((prev) =>
-      prev.includes(id) ? prev.filter((pid) => pid !== id) : [...prev, id]
-    );
-  };
-
-  const handleDelete = async (id: number) => {
-    if (id < 0) {
-      setProducts((prev) => prev.filter((product) => product.id !== id));
-      removeEditedEntries([id]);
-      setSelectedProducts((prev) => prev.filter((pid) => pid !== id));
-      notify('Produit supprimé', 'success');
-      return;
-    }
-    if (!window.confirm('Supprimer ce produit ?')) return;
-    try {
-      await deleteProduct(id);
-      setProducts((prev) => prev.filter((product) => product.id !== id));
-      removeEditedEntries([id]);
-      setSelectedProducts((prev) => prev.filter((pid) => pid !== id));
-      notify('Produit supprimé', 'success');
-    } catch {
-      notify('Erreur lors de la suppression', 'error');
-    }
-  };
-
-  const handleBulkDelete = async () => {
-    if (!selectedCount || isBulkDeleting) return;
-    if (
-      !window.confirm(
-        `Confirmez-vous la suppression de ${selectedCount} produit(s) ?`
-      )
-    )
-      return;
-
-    setIsBulkDeleting(true);
-    const localIds = selectedProducts.filter((id) => id < 0);
-    const remoteIds = selectedProducts.filter((id) => id > 0);
-    let deletedRemoteIds: number[] = [];
-
-    if (remoteIds.length) {
-      try {
-        const response = await bulkDeleteProducts(remoteIds);
-        deletedRemoteIds = Array.isArray(response?.deleted)
-          ? (response.deleted as number[])
-          : remoteIds;
-      } catch {
-        notify('Erreur lors de la suppression', 'error');
-      }
-    }
-
-    const idsToRemove = Array.from(
-      new Set<number>([...localIds, ...deletedRemoteIds])
-    );
-
-    if (idsToRemove.length) {
-      setProducts((prev) =>
-        prev.filter((product) => !idsToRemove.includes(product.id))
-      );
-      removeEditedEntries(idsToRemove);
-      setSelectedProducts((prev) =>
-        prev.filter((pid) => !idsToRemove.includes(pid))
-      );
-      notify(`${idsToRemove.length} produit(s) supprimé(s)`, 'success');
-    }
-
-    setIsBulkDeleting(false);
-  };
-
-  const saveAll = async () => {
-    const toCreate: any[] = [];
-    const toUpdate: any[] = [];
-    Object.entries(edited).forEach(([id, changes]) => {
-      const numId = Number(id);
-      if (numId < 0) {
-        const { brand, memory, color, type, ram, norme, ...rest } = {
-          ...(changes as any),
-        };
-        toCreate.push(rest);
-      } else {
-        toUpdate.push({ id: numId, ...(changes as any) });
-      }
-    });
-    if (!toCreate.length && !toUpdate.length) return;
-    try {
-      await Promise.all(toCreate.map((p) => createProduct(p)));
-      if (toCreate.length) {
-        notify(`${toCreate.length} produit(s) créés`, 'success');
-      }
-      if (toUpdate.length) {
-        await bulkUpdateProducts(toUpdate);
-        notify(`${toUpdate.length} produit(s) mis à jour`, 'success');
-      }
-      setEdited({});
-      const res = await fetchProducts();
-      setProducts(res as ProductItem[]);
-    } catch {
-      notify("Erreur lors de l'enregistrement", 'error');
-    }
-  };
-
   return (
     <div>
       <ProductReferenceForm
@@ -328,11 +168,6 @@ function ProductReference() {
         showColumnMenu={showColumnMenu}
         onToggleColumnMenu={() => setShowColumnMenu((s) => !s)}
         onToggleColumn={toggleColumn}
-        onSave={saveAll}
-        onBulkDelete={handleBulkDelete}
-        selectedCount={selectedCount}
-        isBulkDeleting={isBulkDeleting}
-        hasEdits={Object.keys(edited).length > 0}
       />
       <ProductReferenceTable
         columns={columns}
@@ -348,18 +183,6 @@ function ProductReference() {
           ramOptions,
           normeOptions,
         }}
-        referenceData={{
-          brands,
-          colors,
-          memories,
-          types,
-          rams,
-          normes,
-        }}
-        selectedProducts={selectedProducts}
-        onToggleSelectProduct={toggleSelectProduct}
-        onChange={handleChange}
-        onDelete={handleDelete}
         filteredCount={filteredData.length}
         currentPage={currentPage}
         totalPages={totalPages}
