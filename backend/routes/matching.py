@@ -415,11 +415,13 @@ def matching_stats():
         .filter(SupplierProductRef.product_id.isnot(None))
         .scalar()
     ) or 0
+    total_odoo_unmatched = total_odoo_products - total_odoo_matched
     coverage_pct = round(total_odoo_matched / total_odoo_products * 100, 1) if total_odoo_products > 0 else 0.0
 
     return jsonify({
         "total_odoo_products": total_odoo_products,
         "total_odoo_matched": total_odoo_matched,
+        "total_odoo_unmatched": total_odoo_unmatched,
         "coverage_pct": coverage_pct,
         "total_cached": total_cached,
         "total_pending": total_pending,
