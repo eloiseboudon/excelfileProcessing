@@ -394,12 +394,17 @@ def score_match(
     else:
         details["color"] = 0
 
-    # --- Region (5 pts) ---
-    ext_region = extracted.get("region")
-    prod_region = product.region
-    if ext_region == prod_region:
-        details["region"] = 5
-        score += 5
+    # --- Region (hard disqualifier if both sides have a region and they differ) ---
+    ext_region = (extracted.get("region") or "").strip() or None
+    prod_region = (product.region or "").strip() or None
+    if ext_region and prod_region:
+        if ext_region.upper() == prod_region.upper():
+            details["region"] = 5
+            score += 5
+        else:
+            details["region"] = 0
+            details["disqualified"] = "region_mismatch"
+            return 0, details
     else:
         details["region"] = 0
 
