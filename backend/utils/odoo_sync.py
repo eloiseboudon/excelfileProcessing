@@ -48,7 +48,7 @@ ATTRIBUTE_MAP: Dict[str, str] = {
 }
 
 BATCH_SIZE = 200
-MAX_REPORT_ITEMS = 200
+MAX_REPORT_ITEMS = 10_000
 
 
 # ---------------------------------------------------------------------------
