@@ -376,9 +376,17 @@ def matching_stats():
         cache_hit_rate = round(total_cached / total_entries * 100, 1)
 
     total_odoo_products = Product.query.count()
+    total_odoo_matched = (
+        db.session.query(func.count(func.distinct(SupplierProductRef.product_id)))
+        .filter(SupplierProductRef.product_id.isnot(None))
+        .scalar()
+    ) or 0
+    coverage_pct = round(total_odoo_matched / total_odoo_products * 100, 1) if total_odoo_products > 0 else 0.0
 
     return jsonify({
         "total_odoo_products": total_odoo_products,
+        "total_odoo_matched": total_odoo_matched,
+        "coverage_pct": coverage_pct,
         "total_cached": total_cached,
         "total_pending": total_pending,
         "total_validated": total_validated,

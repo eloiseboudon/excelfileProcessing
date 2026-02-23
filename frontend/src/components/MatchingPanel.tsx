@@ -350,19 +350,36 @@ function MatchingPanel() {
             Couverture LLM
           </h3>
 
-          {/* Produits Odoo vs labels traités */}
+          {/* Produits Odoo matchés vs total */}
           <div className="grid grid-cols-2 gap-4">
+            <div className="bg-[var(--color-bg-elevated)] rounded-md p-4 text-center">
+              <div className="text-3xl font-bold text-[#B8860B]">
+                {stats.total_odoo_matched}
+              </div>
+              <div className="text-xs text-[var(--color-text-muted)] mt-1">produits Odoo matches</div>
+            </div>
             <div className="bg-[var(--color-bg-elevated)] rounded-md p-4 text-center">
               <div className="text-3xl font-bold text-[var(--color-text-heading)]">
                 {stats.total_odoo_products}
               </div>
               <div className="text-xs text-[var(--color-text-muted)] mt-1">produits Odoo en base</div>
             </div>
-            <div className="bg-[var(--color-bg-elevated)] rounded-md p-4 text-center">
-              <div className="text-3xl font-bold text-[#B8860B]">
-                {stats.total_all}
-              </div>
-              <div className="text-xs text-[var(--color-text-muted)] mt-1">labels traites par le LLM</div>
+          </div>
+
+          {/* Barre de couverture */}
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs text-[var(--color-text-muted)]">
+              <span>Couverture catalogue</span>
+              <span className="font-medium text-[var(--color-text-primary)]">{stats.coverage_pct}%</span>
+            </div>
+            <div className="w-full h-2 bg-[var(--color-bg-elevated)] rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${stats.coverage_pct}%`,
+                  background: 'linear-gradient(to right, #B8860B, #DAA520)',
+                }}
+              />
             </div>
           </div>
 

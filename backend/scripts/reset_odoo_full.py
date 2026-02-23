@@ -23,6 +23,9 @@ Usage :
     cd backend
     python3 scripts/reset_odoo_full.py           # mode interactif
     python3 scripts/reset_odoo_full.py --dry-run  # simulation sans commit
+
+Dépendance unique : psycopg2-binary
+    pip3 install psycopg2-binary
 """
 from __future__ import annotations
 
@@ -30,6 +33,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 
 # ---------------------------------------------------------------------------
@@ -50,10 +54,10 @@ def _load_dotenv(path: Path) -> None:
 _load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 try:
-    from sqlalchemy import create_engine, text
+    import psycopg2
 except ImportError:
-    print("ERROR: sqlalchemy non disponible.", file=sys.stderr)
-    print("       pip3 install sqlalchemy psycopg2-binary", file=sys.stderr)
+    print("ERROR: psycopg2 non disponible.", file=sys.stderr)
+    print("       pip3 install psycopg2-binary", file=sys.stderr)
     sys.exit(1)
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -62,112 +66,117 @@ if not DATABASE_URL:
     sys.exit(1)
 
 
+def _connect():
+    parsed = urlparse(DATABASE_URL)
+    return psycopg2.connect(
+        host=parsed.hostname,
+        port=parsed.port or 5432,
+        dbname=parsed.path.lstrip("/"),
+        user=parsed.username,
+        password=parsed.password,
+    )
+
+
 def run(dry_run: bool) -> None:
-    engine = create_engine(DATABASE_URL)
+    conn = _connect()
+    conn.autocommit = False
+    cur = conn.cursor()
 
-    with engine.connect() as conn:
-        # Collecte des product_id liés à Odoo
-        rows = conn.execute(
-            text("SELECT product_id FROM internal_products WHERE product_id IS NOT NULL")
-        ).fetchall()
-        odoo_product_ids = [r[0] for r in rows]
+    # Collecte des product_id liés à Odoo
+    cur.execute("SELECT product_id FROM internal_products WHERE product_id IS NOT NULL")
+    odoo_product_ids = [r[0] for r in cur.fetchall()]
 
-        # Comptage de l'impact
-        p_count = len(odoo_product_ids)
-        ip_count = conn.execute(text("SELECT COUNT(*) FROM internal_products")).scalar()
-        pm_count = conn.execute(text("SELECT COUNT(*) FROM pending_matches")).scalar()
-        job_count = conn.execute(text("SELECT COUNT(*) FROM odoo_sync_jobs")).scalar()
+    # Comptage de l'impact
+    p_count = len(odoo_product_ids)
+    cur.execute("SELECT COUNT(*) FROM internal_products")
+    ip_count = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) FROM pending_matches")
+    pm_count = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) FROM odoo_sync_jobs")
+    job_count = cur.fetchone()[0]
 
-        lc_count = pc_count = spr_count = 0
-        if odoo_product_ids:
-            ids_tuple = tuple(odoo_product_ids)
-            lc_count = conn.execute(
-                text("SELECT COUNT(*) FROM label_cache WHERE product_id = ANY(:ids)"),
-                {"ids": list(ids_tuple)},
-            ).scalar()
-            pc_count = conn.execute(
-                text("SELECT COUNT(*) FROM product_calculations WHERE product_id = ANY(:ids)"),
-                {"ids": list(ids_tuple)},
-            ).scalar()
-            spr_count = conn.execute(
-                text("SELECT COUNT(*) FROM supplier_product_refs WHERE product_id = ANY(:ids)"),
-                {"ids": list(ids_tuple)},
-            ).scalar()
+    lc_count = pc_count = spr_count = 0
+    if odoo_product_ids:
+        cur.execute("SELECT COUNT(*) FROM label_cache WHERE product_id = ANY(%s)", (odoo_product_ids,))
+        lc_count = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM product_calculations WHERE product_id = ANY(%s)", (odoo_product_ids,))
+        pc_count = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM supplier_product_refs WHERE product_id = ANY(%s)", (odoo_product_ids,))
+        spr_count = cur.fetchone()[0]
 
-        print("=" * 60)
-        print("RESET ODOO — MODE COMPLET")
-        print("=" * 60)
-        print(f"  Produits Odoo identifiés       : {p_count}")
-        print()
-        print("  Données à supprimer :")
-        print(f"    pending_matches              : {pm_count} (tous)")
-        print(f"    label_cache                  : {lc_count} (liés aux produits Odoo)")
-        print(f"    product_calculations         : {pc_count}")
-        print(f"    supplier_product_refs        : {spr_count} product_id → NULL")
-        print(f"    internal_products            : {ip_count}")
-        print(f"    products                     : {p_count}")
-        print(f"    odoo_sync_jobs               : {job_count}")
-        print()
+    print("=" * 60)
+    print("RESET ODOO — MODE COMPLET")
+    print("=" * 60)
+    print(f"  Produits Odoo identifiés       : {p_count}")
+    print()
+    print("  Données à supprimer :")
+    print(f"    pending_matches              : {pm_count} (tous)")
+    print(f"    label_cache                  : {lc_count} (liés aux produits Odoo)")
+    print(f"    product_calculations         : {pc_count}")
+    print(f"    supplier_product_refs        : {spr_count} product_id → NULL")
+    print(f"    internal_products            : {ip_count}")
+    print(f"    products                     : {p_count}")
+    print(f"    odoo_sync_jobs               : {job_count}")
+    print()
 
-        if dry_run:
-            print("[DRY-RUN] Aucune modification appliquée.")
-            return
+    if dry_run:
+        print("[DRY-RUN] Aucune modification appliquée.")
+        cur.close()
+        conn.close()
+        return
 
-        if p_count == 0 and job_count == 0:
-            print("Rien à supprimer.")
-            return
+    if p_count == 0 and job_count == 0:
+        print("Rien à supprimer.")
+        cur.close()
+        conn.close()
+        return
 
-        print("⚠️  Cette opération est IRRÉVERSIBLE.")
-        confirm = input("Taper 'RESET' pour confirmer : ").strip()
-        if confirm != "RESET":
-            print("Annulé.")
-            sys.exit(0)
+    print("⚠️  Cette opération est IRRÉVERSIBLE.")
+    confirm = input("Taper 'RESET' pour confirmer : ").strip()
+    if confirm != "RESET":
+        print("Annulé.")
+        cur.close()
+        conn.close()
+        sys.exit(0)
 
-        # 1. Suppression de tous les pending_matches
-        r = conn.execute(text("DELETE FROM pending_matches"))
-        print(f"  ✓ {r.rowcount} pending_matches supprimés")
+    # 1. Suppression de tous les pending_matches
+    cur.execute("DELETE FROM pending_matches")
+    print(f"  ✓ {cur.rowcount} pending_matches supprimés")
 
-        # 2. Suppression du cache LLM lié aux produits Odoo
-        if odoo_product_ids:
-            r = conn.execute(
-                text("DELETE FROM label_cache WHERE product_id = ANY(:ids)"),
-                {"ids": odoo_product_ids},
-            )
-            print(f"  ✓ {r.rowcount} label_cache supprimés")
+    # 2. Suppression du cache LLM lié aux produits Odoo
+    if odoo_product_ids:
+        cur.execute("DELETE FROM label_cache WHERE product_id = ANY(%s)", (odoo_product_ids,))
+        print(f"  ✓ {cur.rowcount} label_cache supprimés")
 
-        # 3. Suppression des calculs TCP/marge
-        if odoo_product_ids:
-            r = conn.execute(
-                text("DELETE FROM product_calculations WHERE product_id = ANY(:ids)"),
-                {"ids": odoo_product_ids},
-            )
-            print(f"  ✓ {r.rowcount} product_calculations supprimés")
+    # 3. Suppression des calculs TCP/marge
+    if odoo_product_ids:
+        cur.execute("DELETE FROM product_calculations WHERE product_id = ANY(%s)", (odoo_product_ids,))
+        print(f"  ✓ {cur.rowcount} product_calculations supprimés")
 
-        # 4. Détachement des supplier_product_refs (product_id → NULL)
-        if odoo_product_ids:
-            r = conn.execute(
-                text("UPDATE supplier_product_refs SET product_id = NULL WHERE product_id = ANY(:ids)"),
-                {"ids": odoo_product_ids},
-            )
-            print(f"  ✓ {r.rowcount} supplier_product_refs détachés (product_id = NULL)")
+    # 4. Détachement des supplier_product_refs (product_id → NULL)
+    if odoo_product_ids:
+        cur.execute(
+            "UPDATE supplier_product_refs SET product_id = NULL WHERE product_id = ANY(%s)",
+            (odoo_product_ids,),
+        )
+        print(f"  ✓ {cur.rowcount} supplier_product_refs détachés (product_id = NULL)")
 
-        # 5. Suppression des liens Odoo
-        r = conn.execute(text("DELETE FROM internal_products"))
-        print(f"  ✓ {r.rowcount} internal_products supprimés")
+    # 5. Suppression des liens Odoo
+    cur.execute("DELETE FROM internal_products")
+    print(f"  ✓ {cur.rowcount} internal_products supprimés")
 
-        # 6. Suppression des produits Odoo
-        if odoo_product_ids:
-            r = conn.execute(
-                text("DELETE FROM products WHERE id = ANY(:ids)"),
-                {"ids": odoo_product_ids},
-            )
-            print(f"  ✓ {r.rowcount} products supprimés")
+    # 6. Suppression des produits Odoo
+    if odoo_product_ids:
+        cur.execute("DELETE FROM products WHERE id = ANY(%s)", (odoo_product_ids,))
+        print(f"  ✓ {cur.rowcount} products supprimés")
 
-        # 7. Suppression de l'historique des syncs
-        r = conn.execute(text("DELETE FROM odoo_sync_jobs"))
-        print(f"  ✓ {r.rowcount} odoo_sync_jobs supprimés")
+    # 7. Suppression de l'historique des syncs
+    cur.execute("DELETE FROM odoo_sync_jobs")
+    print(f"  ✓ {cur.rowcount} odoo_sync_jobs supprimés")
 
-        conn.commit()
+    conn.commit()
+    cur.close()
+    conn.close()
 
     print()
     print("✓ Reset complet terminé.")
