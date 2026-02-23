@@ -370,6 +370,53 @@ class TestScoreMatch:
         assert score == 0
         assert details.get("disqualified") == "storage_mismatch"
 
+    def test_color_mismatch_disqualifies(self, brand_apple, memory_128):
+        """Orange label must not match Bleu product."""
+        color_bleu = Color(color="Bleu")
+        db.session.add(color_bleu)
+        db.session.commit()
+
+        product_bleu = Product(
+            model="iPhone 17 Pro",
+            brand_id=brand_apple.id,
+            memory_id=memory_128.id,
+            color_id=color_bleu.id,
+        )
+        db.session.add(product_bleu)
+        db.session.commit()
+
+        extracted = {
+            "brand": "Apple",
+            "model_family": "iPhone 17 Pro",
+            "storage": "128 Go",
+            "color": "Orange",
+            "region": None,
+        }
+        score, details = score_match(extracted, product_bleu, {})
+        assert score == 0
+        assert details.get("disqualified") == "color_mismatch"
+
+    def test_color_none_does_not_disqualify(self, brand_apple, memory_128):
+        """If product has no color, extracted color must not disqualify."""
+        product_no_color = Product(
+            model="iPhone 17 Pro",
+            brand_id=brand_apple.id,
+            memory_id=memory_128.id,
+        )
+        db.session.add(product_no_color)
+        db.session.commit()
+
+        extracted = {
+            "brand": "Apple",
+            "model_family": "iPhone 17 Pro",
+            "storage": "128 Go",
+            "color": "Orange",
+            "region": None,
+        }
+        score, details = score_match(extracted, product_no_color, {})
+        assert score > 0
+        assert details.get("disqualified") != "color_mismatch"
+
     def test_region_mismatch_disqualifies(self, brand_apple, memory_128, color_noir):
         """Indian Spec label must not match EU product."""
         product_eu = Product(

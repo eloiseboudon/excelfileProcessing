@@ -373,21 +373,20 @@ def score_match(
     else:
         details["model_family"] = 0
 
-    # --- Color (15 pts) ---
+    # --- Color (hard disqualifier if both sides have a color and they differ) ---
     ext_color = (extracted.get("color") or "").strip().lower()
     prod_color = (product.color.color if product.color else "").lower()
     color_translations = mappings.get("color_translations", {})
 
     if ext_color and prod_color:
-        if ext_color == prod_color:
-            details["color"] = 15
-            score += 15
-        elif color_translations.get(ext_color, "").lower() == prod_color:
+        normalized_ext = color_translations.get(ext_color, ext_color).lower()
+        if normalized_ext == prod_color or ext_color == prod_color:
             details["color"] = 15
             score += 15
         else:
             details["color"] = 0
-            score -= 5
+            details["disqualified"] = "color_mismatch"
+            return 0, details
     elif not ext_color and not prod_color:
         details["color"] = 15
         score += 15
