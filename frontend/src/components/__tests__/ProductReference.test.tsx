@@ -57,10 +57,6 @@ vi.mock('../../api', () => ({
   fetchDeviceTypes: vi.fn().mockResolvedValue([{ id: 1, type: 'Smartphone' }]),
   fetchRAMOptions: vi.fn().mockResolvedValue([]),
   fetchNormeOptions: vi.fn().mockResolvedValue([]),
-  bulkUpdateProducts: vi.fn().mockResolvedValue({}),
-  createProduct: vi.fn().mockResolvedValue({}),
-  deleteProduct: vi.fn().mockResolvedValue({}),
-  bulkDeleteProducts: vi.fn().mockResolvedValue({ deleted: [] }),
   setAuthToken: vi.fn(),
   setRefreshToken: vi.fn(),
 }));
@@ -81,15 +77,14 @@ describe('ProductReference', () => {
   it('renders the toolbar buttons', () => {
     renderProductReference();
     expect(screen.getByText('Colonnes')).toBeInTheDocument();
-    expect(screen.getByText('Enregistrer')).toBeInTheDocument();
   });
 
   it('renders the table after loading products', async () => {
     renderProductReference();
     await waitFor(() => {
-      expect(screen.getByDisplayValue('iPhone 15')).toBeInTheDocument();
+      expect(screen.getByText('iPhone 15')).toBeInTheDocument();
     });
-    expect(screen.getByDisplayValue('Galaxy S24')).toBeInTheDocument();
+    expect(screen.getByText('Galaxy S24')).toBeInTheDocument();
   });
 
   it('renders column headers', async () => {
@@ -110,9 +105,13 @@ describe('ProductReference', () => {
     expect(screen.getByLabelText('Page suivante')).toBeInTheDocument();
   });
 
-  it('disables save button when no edits exist', () => {
+  it('renders products as read-only text cells', async () => {
     renderProductReference();
-    const saveButton = screen.getByText('Enregistrer');
-    expect(saveButton).toBeDisabled();
+    await waitFor(() => {
+      expect(screen.getByText('iPhone 15')).toBeInTheDocument();
+    });
+    // In read-only mode, no editable inputs for product data
+    const inputsWithValue = screen.queryAllByDisplayValue('iPhone 15');
+    expect(inputsWithValue).toHaveLength(0);
   });
 });

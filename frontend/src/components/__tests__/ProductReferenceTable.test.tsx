@@ -72,27 +72,6 @@ const defaultProps = {
     ramOptions: [],
     normeOptions: [],
   },
-  referenceData: {
-    brands: [
-      { id: 1, brand: 'Apple' },
-      { id: 2, brand: 'Samsung' },
-    ],
-    colors: [
-      { id: 1, color: 'Noir' },
-      { id: 2, color: 'Blanc' },
-    ],
-    memories: [
-      { id: 1, memory: '128 Go' },
-      { id: 2, memory: '256 Go' },
-    ],
-    types: [{ id: 1, type: 'Smartphone' }],
-    rams: [],
-    normes: [],
-  },
-  selectedProducts: [] as number[],
-  onToggleSelectProduct: vi.fn(),
-  onChange: vi.fn(),
-  onDelete: vi.fn(),
   filteredCount: 2,
   currentPage: 1,
   totalPages: 1,
@@ -112,14 +91,13 @@ describe('ProductReferenceTable', () => {
     expect(screen.getByText('Mémoire')).toBeInTheDocument();
     expect(screen.getByText('Couleur')).toBeInTheDocument();
     expect(screen.getByText('EAN')).toBeInTheDocument();
-    expect(screen.getByText('Actions')).toBeInTheDocument();
   });
 
-  it('renders product data in rows', () => {
+  it('renders product data in rows as read-only text', () => {
     render(<ProductReferenceTable {...defaultProps} />);
-    expect(screen.getByDisplayValue('iPhone 15')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('Galaxy S24')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('1234567890123')).toBeInTheDocument();
+    expect(screen.getByText('iPhone 15')).toBeInTheDocument();
+    expect(screen.getByText('Galaxy S24')).toBeInTheDocument();
+    expect(screen.getByText('1234567890123')).toBeInTheDocument();
   });
 
   it('renders pagination info', () => {
@@ -152,18 +130,6 @@ describe('ProductReferenceTable', () => {
     expect(onPageChange).toHaveBeenCalledWith(2);
   });
 
-  it('renders checkboxes for product selection', () => {
-    render(<ProductReferenceTable {...defaultProps} />);
-    const checkboxes = screen.getAllByRole('checkbox');
-    expect(checkboxes.length).toBeGreaterThanOrEqual(2);
-  });
-
-  it('renders delete buttons for each row', () => {
-    render(<ProductReferenceTable {...defaultProps} />);
-    const deleteButtons = screen.getAllByTitle('Supprimer');
-    expect(deleteButtons).toHaveLength(2);
-  });
-
   it('renders multi-select filters for reference columns', () => {
     render(<ProductReferenceTable {...defaultProps} />);
     const tousButtons = screen.getAllByText('Tous');
@@ -175,7 +141,6 @@ describe('ProductReferenceTable', () => {
     render(<ProductReferenceTable {...defaultProps} />);
     // id, model, description, ean = 4 text filters
     const textInputs = screen.getAllByRole('textbox');
-    // text filter inputs + editable cell inputs
     expect(textInputs.length).toBeGreaterThanOrEqual(4);
   });
 });
