@@ -12,6 +12,7 @@ interface ProductTableProps {
   role?: string;
   filters: Record<string, string | string[]>;
   setFilters: (filters: Record<string, string | string[]>) => void;
+  onRowClick?: (product: AggregatedProduct) => void;
   brandOptions: string[];
   colorOptions: string[];
   memoryOptions: string[];
@@ -39,6 +40,7 @@ function ProductTable({
   normeOptions,
   sortConfig,
   onSort,
+  onRowClick,
 }: ProductTableProps) {
   return (
     <table className="table border-0">
@@ -81,7 +83,8 @@ function ProductTable({
           return (
             <tr
               key={String(row.id)}
-              className="odd:bg-[var(--color-bg-surface)] even:bg-[var(--color-bg-elevated)] hover:bg-[var(--color-bg-elevated)]/80"
+              className={`odd:bg-[var(--color-bg-surface)] even:bg-[var(--color-bg-elevated)] hover:bg-[var(--color-bg-elevated)]/80 ${onRowClick ? 'cursor-pointer' : ''}`}
+              onClick={onRowClick ? () => onRowClick(row) : undefined}
             >
               {columns.map((col) => {
                 if (!visibleColumns.includes(col.key)) return null;
