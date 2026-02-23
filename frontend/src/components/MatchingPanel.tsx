@@ -453,6 +453,21 @@ function MatchingPanel() {
               {statusLabels[statusFilter]} ({pendingTotal})
             </h3>
             <select
+              value={selectedSupplier ?? ''}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedSupplier(val ? Number(val) : undefined);
+                setPendingPage(1);
+              }}
+              className="rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] px-2 py-1 text-xs"
+              data-testid="supplier-filter"
+            >
+              <option value="">Tous les fournisseurs</option>
+              {suppliers.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            <select
               value={statusFilter}
               onChange={(e) => {
                 setStatusFilter(e.target.value);
