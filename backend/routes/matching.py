@@ -308,6 +308,7 @@ def matching_stats():
         db.session.query(SupplierProductRef.id)
         .filter(
             SupplierProductRef.supplier_id == SupplierCatalog.supplier_id,
+            SupplierProductRef.product_id.isnot(None),
             # Comparaison NULL-safe sur EAN : (NULL=NULL) OU (val=val)
             db.or_(
                 db.and_(
