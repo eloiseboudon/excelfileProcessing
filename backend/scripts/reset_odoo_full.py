@@ -2,7 +2,7 @@
 Reset COMPLET des données Odoo.
 
 Supprime, dans l'ordre des dépendances FK :
-  1. pending_matches          (tous — les produits référencés sont supprimés)
+  1. pending_matches          (tous)
   2. label_cache              (entrées liées aux produits Odoo)
   3. product_calculations     (calculs TCP/marge liés aux produits Odoo)
   4. supplier_product_refs    (product_id mis à NULL — les entrées catalog restent)
@@ -21,73 +21,92 @@ catalogue produit doit être entièrement reconstruit depuis la nouvelle base.
 
 Usage :
     cd backend
-    python scripts/reset_odoo_full.py           # mode interactif
-    python scripts/reset_odoo_full.py --dry-run  # simulation sans commit
+    python3 scripts/reset_odoo_full.py           # mode interactif
+    python3 scripts/reset_odoo_full.py --dry-run  # simulation sans commit
 """
 from __future__ import annotations
 
 import argparse
-import sys
 import os
+import sys
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app import create_app
-from models import (
-    InternalProduct,
-    LabelCache,
-    OdooSyncJob,
-    PendingMatch,
-    Product,
-    ProductCalculation,
-    SupplierProductRef,
-    db,
-)
+# ---------------------------------------------------------------------------
+# Chargement du .env (racine du projet, deux niveaux au-dessus de scripts/)
+# ---------------------------------------------------------------------------
+def _load_dotenv(path: Path) -> None:
+    if not path.exists():
+        return
+    with open(path) as f:
+        for raw in f:
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, val = line.partition("=")
+            os.environ.setdefault(key.strip(), val.strip().strip('"').strip("'"))
+
+
+_load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+try:
+    from sqlalchemy import create_engine, text
+except ImportError:
+    print("ERROR: sqlalchemy non disponible.", file=sys.stderr)
+    print("       pip3 install sqlalchemy psycopg2-binary", file=sys.stderr)
+    sys.exit(1)
+
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    print("ERROR: DATABASE_URL non défini. Vérifier le fichier .env à la racine du projet.", file=sys.stderr)
+    sys.exit(1)
 
 
 def run(dry_run: bool) -> None:
-    app = create_app()
-    with app.app_context():
+    engine = create_engine(DATABASE_URL)
+
+    with engine.connect() as conn:
         # Collecte des product_id liés à Odoo
-        odoo_links = InternalProduct.query.all()
-        odoo_product_ids = [lnk.product_id for lnk in odoo_links if lnk.product_id]
-        odoo_product_ids_set = set(odoo_product_ids)
+        rows = conn.execute(
+            text("SELECT product_id FROM internal_products WHERE product_id IS NOT NULL")
+        ).fetchall()
+        odoo_product_ids = [r[0] for r in rows]
 
         # Comptage de l'impact
-        pm_count = PendingMatch.query.count()
-        lc_count = (
-            LabelCache.query.filter(LabelCache.product_id.in_(odoo_product_ids_set)).count()
-            if odoo_product_ids_set else 0
-        )
-        pc_count = (
-            ProductCalculation.query.filter(
-                ProductCalculation.product_id.in_(odoo_product_ids_set)
-            ).count()
-            if odoo_product_ids_set else 0
-        )
-        spr_count = (
-            SupplierProductRef.query.filter(
-                SupplierProductRef.product_id.in_(odoo_product_ids_set)
-            ).count()
-            if odoo_product_ids_set else 0
-        )
-        ip_count = len(odoo_links)
         p_count = len(odoo_product_ids)
-        job_count = OdooSyncJob.query.count()
+        ip_count = conn.execute(text("SELECT COUNT(*) FROM internal_products")).scalar()
+        pm_count = conn.execute(text("SELECT COUNT(*) FROM pending_matches")).scalar()
+        job_count = conn.execute(text("SELECT COUNT(*) FROM odoo_sync_jobs")).scalar()
+
+        lc_count = pc_count = spr_count = 0
+        if odoo_product_ids:
+            ids_tuple = tuple(odoo_product_ids)
+            lc_count = conn.execute(
+                text("SELECT COUNT(*) FROM label_cache WHERE product_id = ANY(:ids)"),
+                {"ids": list(ids_tuple)},
+            ).scalar()
+            pc_count = conn.execute(
+                text("SELECT COUNT(*) FROM product_calculations WHERE product_id = ANY(:ids)"),
+                {"ids": list(ids_tuple)},
+            ).scalar()
+            spr_count = conn.execute(
+                text("SELECT COUNT(*) FROM supplier_product_refs WHERE product_id = ANY(:ids)"),
+                {"ids": list(ids_tuple)},
+            ).scalar()
 
         print("=" * 60)
         print("RESET ODOO — MODE COMPLET")
         print("=" * 60)
-        print(f"  Produits Odoo identifiés    : {p_count}")
+        print(f"  Produits Odoo identifiés       : {p_count}")
         print()
         print("  Données à supprimer :")
-        print(f"    pending_matches            : {pm_count} (tous)")
-        print(f"    label_cache                : {lc_count} (liés aux produits Odoo)")
-        print(f"    product_calculations       : {pc_count}")
-        print(f"    supplier_product_refs      : {spr_count} product_id → NULL")
-        print(f"    internal_products          : {ip_count}")
-        print(f"    products                   : {p_count}")
-        print(f"    odoo_sync_jobs             : {job_count}")
+        print(f"    pending_matches              : {pm_count} (tous)")
+        print(f"    label_cache                  : {lc_count} (liés aux produits Odoo)")
+        print(f"    product_calculations         : {pc_count}")
+        print(f"    supplier_product_refs        : {spr_count} product_id → NULL")
+        print(f"    internal_products            : {ip_count}")
+        print(f"    products                     : {p_count}")
+        print(f"    odoo_sync_jobs               : {job_count}")
         print()
 
         if dry_run:
@@ -105,54 +124,58 @@ def run(dry_run: bool) -> None:
             sys.exit(0)
 
         # 1. Suppression de tous les pending_matches
-        deleted_pm = PendingMatch.query.delete(synchronize_session=False)
-        print(f"  ✓ {deleted_pm} pending_matches supprimés")
+        r = conn.execute(text("DELETE FROM pending_matches"))
+        print(f"  ✓ {r.rowcount} pending_matches supprimés")
 
         # 2. Suppression du cache LLM lié aux produits Odoo
-        if odoo_product_ids_set:
-            deleted_lc = LabelCache.query.filter(
-                LabelCache.product_id.in_(odoo_product_ids_set)
-            ).delete(synchronize_session=False)
-            print(f"  ✓ {deleted_lc} label_cache supprimés")
+        if odoo_product_ids:
+            r = conn.execute(
+                text("DELETE FROM label_cache WHERE product_id = ANY(:ids)"),
+                {"ids": odoo_product_ids},
+            )
+            print(f"  ✓ {r.rowcount} label_cache supprimés")
 
         # 3. Suppression des calculs TCP/marge
-        if odoo_product_ids_set:
-            deleted_pc = ProductCalculation.query.filter(
-                ProductCalculation.product_id.in_(odoo_product_ids_set)
-            ).delete(synchronize_session=False)
-            print(f"  ✓ {deleted_pc} product_calculations supprimés")
+        if odoo_product_ids:
+            r = conn.execute(
+                text("DELETE FROM product_calculations WHERE product_id = ANY(:ids)"),
+                {"ids": odoo_product_ids},
+            )
+            print(f"  ✓ {r.rowcount} product_calculations supprimés")
 
         # 4. Détachement des supplier_product_refs (product_id → NULL)
-        if odoo_product_ids_set:
-            updated_spr = SupplierProductRef.query.filter(
-                SupplierProductRef.product_id.in_(odoo_product_ids_set)
-            ).update({"product_id": None}, synchronize_session=False)
-            print(f"  ✓ {updated_spr} supplier_product_refs détachés (product_id = NULL)")
+        if odoo_product_ids:
+            r = conn.execute(
+                text("UPDATE supplier_product_refs SET product_id = NULL WHERE product_id = ANY(:ids)"),
+                {"ids": odoo_product_ids},
+            )
+            print(f"  ✓ {r.rowcount} supplier_product_refs détachés (product_id = NULL)")
 
         # 5. Suppression des liens Odoo
-        deleted_ip = InternalProduct.query.delete(synchronize_session=False)
-        print(f"  ✓ {deleted_ip} internal_products supprimés")
+        r = conn.execute(text("DELETE FROM internal_products"))
+        print(f"  ✓ {r.rowcount} internal_products supprimés")
 
         # 6. Suppression des produits Odoo
-        if odoo_product_ids_set:
-            deleted_p = Product.query.filter(
-                Product.id.in_(odoo_product_ids_set)
-            ).delete(synchronize_session=False)
-            print(f"  ✓ {deleted_p} products supprimés")
+        if odoo_product_ids:
+            r = conn.execute(
+                text("DELETE FROM products WHERE id = ANY(:ids)"),
+                {"ids": odoo_product_ids},
+            )
+            print(f"  ✓ {r.rowcount} products supprimés")
 
         # 7. Suppression de l'historique des syncs
-        deleted_jobs = OdooSyncJob.query.delete(synchronize_session=False)
-        print(f"  ✓ {deleted_jobs} odoo_sync_jobs supprimés")
+        r = conn.execute(text("DELETE FROM odoo_sync_jobs"))
+        print(f"  ✓ {r.rowcount} odoo_sync_jobs supprimés")
 
-        db.session.commit()
+        conn.commit()
 
-        print()
-        print("✓ Reset complet terminé.")
-        print()
-        print("Étapes suivantes :")
-        print("  1. Vérifier la configuration Odoo (URL, base, identifiants)")
-        print("  2. Lancer une synchronisation Odoo depuis l'interface")
-        print("  3. Relancer le matching LLM sur les articles fournisseurs")
+    print()
+    print("✓ Reset complet terminé.")
+    print()
+    print("Étapes suivantes :")
+    print("  1. Vérifier la configuration Odoo (URL, base, identifiants)")
+    print("  2. Lancer une synchronisation Odoo depuis l'interface")
+    print("  3. Relancer le matching LLM sur les articles fournisseurs")
 
 
 if __name__ == "__main__":
