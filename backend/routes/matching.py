@@ -447,10 +447,24 @@ def matching_stats():
     total_odoo_unmatched = total_odoo_products - total_odoo_matched
     coverage_pct = round(total_odoo_matched / total_odoo_products * 100, 1) if total_odoo_products > 0 else 0.0
 
+    # Produits uniques dans les candidats des pending/rejected matches
+    # (déjà soumis au LLM mais en attente de validation)
+    pending_product_ids: set[int] = set()
+    for pm in PendingMatch.query.filter(
+        PendingMatch.status.in_(["pending", "rejected"])
+    ).with_entities(PendingMatch.candidates).all():
+        for c in (pm.candidates or []):
+            pid = c.get("product_id")
+            if pid:
+                pending_product_ids.add(pid)
+    # Produits non matchés ET non dans les candidats pending/rejected
+    total_odoo_never_submitted = max(0, total_odoo_unmatched - len(pending_product_ids))
+
     return jsonify({
         "total_odoo_products": total_odoo_products,
         "total_odoo_matched": total_odoo_matched,
         "total_odoo_unmatched": total_odoo_unmatched,
+        "total_odoo_never_submitted": total_odoo_never_submitted,
         "coverage_pct": coverage_pct,
         "total_cached": total_cached,
         "total_pending": total_pending,
