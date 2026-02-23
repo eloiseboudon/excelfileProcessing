@@ -259,11 +259,19 @@ def call_llm_extraction(
 # ---------------------------------------------------------------------------
 
 def _normalize_storage(value: Optional[str]) -> Optional[str]:
-    """Normalize storage strings for comparison: '128 Go', '128GB' -> '128'."""
+    """Normalize storage strings for comparison.
+
+    Handles units: '512 Go', '512GB' -> '512'; '1 To', '1TB' -> '1024'.
+    Requires an explicit unit suffix so model version numbers are not mistaken
+    for storage values (e.g. 'iPhone 17' → no match).
+    """
     if not value:
         return None
-    digits = re.sub(r"[^\d]", "", value)
-    return digits if digits else None
+    m = re.search(r'\b(\d+)\s*(tb|to|gb|go)\b', value.lower())
+    if m:
+        num, unit = int(m.group(1)), m.group(2)
+        return str(num * 1024) if unit in ('tb', 'to') else str(num)
+    return None
 
 
 def _fuzzy_ratio(a: str, b: str) -> float:
@@ -325,6 +333,9 @@ def score_match(
     # --- Storage (25 pts) ---
     ext_storage = _normalize_storage(extracted.get("storage"))
     prod_storage = _normalize_storage(product.memory.memory if product.memory else None)
+    # Fallback: some products embed storage in the model name with no memory record
+    if prod_storage is None and product.model:
+        prod_storage = _normalize_storage(product.model)
     if ext_storage and prod_storage:
         if ext_storage == prod_storage:
             details["storage"] = 25

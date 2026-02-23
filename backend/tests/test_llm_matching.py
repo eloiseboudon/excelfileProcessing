@@ -377,6 +377,24 @@ class TestScoreMatch:
         assert score == 0
         assert details.get("disqualified") == "storage_mismatch"
 
+    def test_storage_mismatch_in_model_name_disqualifies(self, brand_apple):
+        """Storage embedded in model name (no memory record) must still disqualify."""
+        product_1tb = Product(
+            model="iPhone 17 Pro Max 1TB",
+            brand_id=brand_apple.id,
+        )
+        db.session.add(product_1tb)
+        db.session.commit()
+
+        extracted = {
+            "brand": "Apple",
+            "model_family": "iPhone 17 Pro Max",
+            "storage": "512 Go",
+        }
+        score, details = score_match(extracted, product_1tb, {})
+        assert score == 0
+        assert details.get("disqualified") == "storage_mismatch"
+
     def test_color_mismatch_disqualifies(self, brand_apple, memory_128):
         """Orange label must not match Bleu product."""
         color_bleu = Color(color="Bleu")
