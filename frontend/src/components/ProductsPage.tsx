@@ -1,9 +1,10 @@
 import { ArrowLeft, ChevronLeft, ChevronRight, Package, RefreshCw } from 'lucide-react';
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import * as XLSX from 'xlsx';
-import { calculateProducts, fetchProductPriceSummary } from '../api';
+import { calculateProducts, fetchProductPriceSummary, updateProduct } from '../api';
 import { getCurrentTimestamp, getCurrentWeekYear } from '../utils/date';
 import ProductReference from './ProductReference';
+import SupplierPriceModal from './SupplierPriceModal';
 import ProductTable from './ProductTable';
 import type { SortConfig } from './SortableColumnHeader';
 
@@ -73,7 +74,57 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
   const [normeOptions, setNormeOptions] = useState<string[]>([]);
   const [tab, setTab] = useState<'calculations' | 'reference'>('calculations');
   const [recalculating, setRecalculating] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<AggregatedProduct | null>(null);
   const notify = useNotification();
+
+  const getBaseBuyPrice = useCallback((product: AggregatedProduct) => {
+    if (typeof product.minBuyPrice === 'number' && !Number.isNaN(product.minBuyPrice)) {
+      return product.minBuyPrice;
+    }
+    const buyValues = Object.values(product.buyPrices || {}).filter(
+      (v): v is number => typeof v === 'number' && !Number.isNaN(v)
+    );
+    return buyValues.length ? Math.min(...buyValues) : 0;
+  }, []);
+
+  const handleProductMarginUpdate = useCallback(async (
+    productId: number,
+    margin: number,
+    marginPercent: number | null
+  ) => {
+    const product = data.find((p) => p.id === productId);
+    if (!product) return;
+    const baseBuyPrice = getBaseBuyPrice(product);
+    const tcpValue = Number.isFinite(product.tcp) ? product.tcp : 0;
+    const normalizedMargin = Number(margin.toFixed(2));
+    const baseCost = baseBuyPrice + tcpValue;
+    const derivedPercent = baseCost
+      ? Number(((normalizedMargin / baseCost) * 100).toFixed(4))
+      : marginPercent !== null ? Number(marginPercent.toFixed(4)) : null;
+    const recommendedPrice = Number((baseCost + normalizedMargin).toFixed(2));
+    try {
+      await updateProduct(productId, {
+        marge: normalizedMargin,
+        marge_percent: derivedPercent ?? undefined,
+        recommended_price: recommendedPrice,
+      });
+    } catch {
+      notify('Erreur lors de la mise à jour de la marge', 'error');
+      throw new Error('update failed');
+    }
+    setData((prev) =>
+      prev.map((item) =>
+        item.id === productId
+          ? { ...item, marge: normalizedMargin, margePercent: derivedPercent, averagePrice: recommendedPrice }
+          : item
+      )
+    );
+    setSelectedProduct((prev) =>
+      prev && prev.id === productId
+        ? { ...prev, marge: normalizedMargin, margePercent: derivedPercent, averagePrice: recommendedPrice }
+        : prev
+    );
+  }, [data, getBaseBuyPrice, notify]);
 
   const baseColumns: { key: string; label: string }[] = useMemo(() => {
     if (role === 'client') {
@@ -846,6 +897,7 @@ td.neg{color:#f87171;font-weight:500}
                 normeOptions={normeOptions}
                 sortConfig={sortConfig}
                 onSort={handleSort}
+                onRowClick={role !== 'client' ? setSelectedProduct : undefined}
               />
             </div>
             <div className="px-4 py-3 border-t border-[var(--color-border-subtle)]">
@@ -855,6 +907,19 @@ td.neg{color:#f87171;font-weight:500}
         </>
       )}
       {role !== 'client' && tab === 'reference' && <ProductReference />}
+      {role !== 'client' && selectedProduct && (
+        <SupplierPriceModal
+          prices={selectedProduct.salePrices}
+          stocks={selectedProduct.stockLevels}
+          calculations={selectedProduct.latestCalculations}
+          currentMargin={selectedProduct.marge}
+          currentMarginPercent={selectedProduct.margePercent}
+          baseCost={getBaseBuyPrice(selectedProduct) + (Number.isFinite(selectedProduct.tcp) ? selectedProduct.tcp : 0)}
+          recommendedPrice={selectedProduct.averagePrice}
+          onUpdateMargin={(margin, percent) => handleProductMarginUpdate(selectedProduct.id, margin, percent)}
+          onClose={() => setSelectedProduct(null)}
+        />
+      )}
     </div>
   );
 }
