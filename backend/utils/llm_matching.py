@@ -96,28 +96,37 @@ def build_context() -> Dict[str, Any]:
 
     device_types = [d.type for d in DeviceType.query.all()]
 
-    # Few-shot examples: pull validated high-confidence extractions for n-shot learning.
-    # Select a random diverse set (up to 10) to inject into the prompt as examples.
-    few_shot_entries = (
+    # Few-shot examples: pick the highest-confidence validated extractions with brand
+    # diversity (max 3 per brand) so the LLM sees a representative mix rather than
+    # being biased toward the most-represented brand in the cache.
+    few_shot_candidates = (
         LabelCache.query
         .filter(
             LabelCache.extracted_attributes.isnot(None),
             LabelCache.match_source.in_(["manual", "auto"]),
             LabelCache.match_score >= 90,
         )
-        .order_by(func.random())
-        .limit(10)
+        .order_by(LabelCache.match_score.desc(), LabelCache.last_used_at.desc())
+        .limit(50)
         .all()
     )
-    few_shot_examples = []
-    for e in few_shot_entries:
+    few_shot_examples: List[Dict[str, Any]] = []
+    brand_count: Dict[str, int] = {}
+    for e in few_shot_candidates:
         raw_label = (e.extracted_attributes or {}).get("raw_label") or e.normalized_label
         attrs = {
             k: v for k, v in (e.extracted_attributes or {}).items()
             if k not in ("raw_label", "_token_info", "confidence") and v is not None
         }
-        if attrs:
-            few_shot_examples.append({"label": raw_label, "attributes": attrs})
+        if not attrs:
+            continue
+        brand = (e.extracted_attributes or {}).get("brand", "").lower()
+        if brand_count.get(brand, 0) >= 3:
+            continue
+        brand_count[brand] = brand_count.get(brand, 0) + 1
+        few_shot_examples.append({"label": raw_label, "attributes": attrs})
+        if len(few_shot_examples) >= 10:
+            break
 
     return {
         "brands": brands,
@@ -938,6 +947,7 @@ def run_matching_job(
             top_cache.product_id = product.id
             top_cache.match_score = top_score
             top_cache.match_source = "auto"
+            top_cache.match_reasoning = top_details
             top_cache.last_used_at = datetime.now(timezone.utc)
             auto_matched += 1
 

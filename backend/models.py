@@ -511,6 +511,7 @@ class LabelCache(db.Model):
     match_score = db.Column(db.Integer, nullable=True)
     match_source = db.Column(db.String(20), nullable=False)
     extracted_attributes = db.Column(JSONB, nullable=True)
+    match_reasoning = db.Column(JSONB, nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     last_used_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 

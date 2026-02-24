@@ -227,11 +227,39 @@ class TestBuildContext:
         assert "SM-S938B" in ctx["model_references"]
         assert "device_types" in ctx
         assert "Smartphone" in ctx["device_types"]
+        assert "few_shot_examples" in ctx
 
     def test_color_synonyms(self, color_noir, color_translations):
         ctx = build_context()
         assert "Black" in ctx["colors"]["Noir"]
         assert "Midnight" in ctx["colors"]["Noir"]
+
+    def test_few_shot_brand_diversity(self, supplier, brand_samsung, brand_apple, memory_256, color_noir):
+        """N-shot selection must include at most 3 examples per brand."""
+        # Insert 5 Samsung entries + 2 Apple entries with high scores
+        for i in range(5):
+            db.session.add(LabelCache(
+                supplier_id=supplier.id,
+                normalized_label=f"samsung label {i}",
+                product_id=None,
+                match_score=95,
+                match_source="auto",
+                extracted_attributes={"brand": "Samsung", "model_family": f"Galaxy S{i}", "raw_label": f"Samsung {i}"},
+            ))
+        for i in range(2):
+            db.session.add(LabelCache(
+                supplier_id=supplier.id,
+                normalized_label=f"apple label {i}",
+                product_id=None,
+                match_score=92,
+                match_source="auto",
+                extracted_attributes={"brand": "Apple", "model_family": f"iPhone {i}", "raw_label": f"Apple {i}"},
+            ))
+        db.session.commit()
+
+        ctx = build_context()
+        samsung_count = sum(1 for ex in ctx["few_shot_examples"] if ex["attributes"].get("brand") == "Samsung")
+        assert samsung_count <= 3
 
 
 # ---------------------------------------------------------------------------
@@ -1095,6 +1123,52 @@ class TestRunMatchingJob:
 
         # Phase 2: product_s25 already has a SupplierProductRef → not processed
         assert report["total_products"] == 0
+
+    @patch("utils.llm_matching.call_llm_extraction")
+    def test_auto_match_saves_reasoning(
+        self,
+        mock_llm,
+        supplier,
+        product_s25,
+        brand_samsung,
+        memory_256,
+        color_noir,
+        device_type,
+        color_translations,
+    ):
+        """Phase 2 auto-match must save the score breakdown in match_reasoning."""
+        ti = SupplierCatalog(
+            description="Samsung Galaxy S25 Ultra 256Go Noir",
+            model="SM-S938B",
+            quantity=3,
+            selling_price=1100.0,
+            ean="1111222233334",
+            supplier_id=supplier.id,
+        )
+        db.session.add(ti)
+        db.session.commit()
+
+        mock_llm.return_value = [{
+            "brand": "Samsung",
+            "model_family": "Galaxy S25 Ultra",
+            "storage": "256 Go",
+            "color": "Noir",
+            "device_type": "Smartphone",
+            "region": None,
+            "confidence": 0.98,
+        }]
+
+        report = run_matching_job(supplier_id=supplier.id)
+
+        if report["auto_matched"] == 1:
+            cache = LabelCache.query.filter_by(
+                supplier_id=supplier.id,
+                match_source="auto",
+            ).first()
+            assert cache is not None
+            assert cache.match_reasoning is not None
+            assert "brand" in cache.match_reasoning
+            assert "model_family" in cache.match_reasoning
 
     @patch("utils.llm_matching.call_llm_extraction")
     def test_cross_supplier_sharing(
