@@ -438,10 +438,21 @@ def matching_stats():
         cache_hit_rate = round(total_cached / total_entries * 100, 1)
 
     total_odoo_products = Product.query.count()
-    # Products matched = Odoo products that have at least one supplier price calculation
-    # (set by recalculate_product_calculations via EAN, attributes, or LabelCache)
+    # Products matched = union of ETL-linked (ProductCalculation) and LLM-linked
+    # (SupplierProductRef). Consistent with the definition used in run_matching_job.
+    pc_ids = (
+        db.session.query(ProductCalculation.product_id)
+        .filter(ProductCalculation.product_id.isnot(None))
+        .distinct()
+    )
+    spr_ids = (
+        db.session.query(SupplierProductRef.product_id)
+        .filter(SupplierProductRef.product_id.isnot(None))
+        .distinct()
+    )
     total_odoo_matched = (
-        db.session.query(func.count(func.distinct(ProductCalculation.product_id)))
+        db.session.query(func.count())
+        .select_from(pc_ids.union(spr_ids).subquery())
         .scalar()
     ) or 0
     total_odoo_unmatched = total_odoo_products - total_odoo_matched
