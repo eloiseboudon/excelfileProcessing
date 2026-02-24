@@ -150,7 +150,7 @@ utilise la table de correspondance
 4. color : normalise en francais en utilisant les synonymes fournis. \
 Si la couleur n est dans aucun synonyme, garde le nom original
 5. device_type : Smartphone, Tablette, Accessoire, Audio, etc.
-6. region : null si standard EU. "US" si US Spec, "IN" si Indian Spec, \
+6. region : "EU" si standard EU. "US" si US Spec, "IN" si Indian Spec, \
 "DE" si (DE), etc.
 7. connectivity : "WiFi" si [W], "Cellular" si mention cellular/LTE, \
 "5G" si mentionne, null sinon
@@ -410,19 +410,16 @@ def score_match(
     else:
         details["color"] = 0
 
-    # --- Region (hard disqualifier if both sides have a region and they differ) ---
-    ext_region = (extracted.get("region") or "").strip() or None
-    prod_region = (product.region or "").strip() or None
-    if ext_region and prod_region:
-        if ext_region.upper() == prod_region.upper():
-            details["region"] = 5
-            score += 5
-        else:
-            details["region"] = 0
-            details["disqualified"] = "region_mismatch"
-            return 0, details
+    # --- Region (hard disqualifier; null or empty = EU) ---
+    ext_region = (extracted.get("region") or "EU").strip().upper()
+    prod_region = (product.region or "EU").strip().upper()
+    if ext_region == prod_region:
+        details["region"] = 5
+        score += 5
     else:
         details["region"] = 0
+        details["disqualified"] = "region_mismatch"
+        return 0, details
 
     # --- Label similarity bonus/malus (up to ±10 pts) ---
     raw_label = (extracted.get("raw_label") or "").strip()

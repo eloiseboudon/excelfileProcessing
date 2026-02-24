@@ -323,7 +323,7 @@ class TestCallLlmExtraction:
 
 class TestScoreMatch:
     def test_perfect_match(self, product_s25, color_translations):
-        """All fields match, no region info on either side → max 95 pts."""
+        """All fields match, no region info on either side (null = EU) → 100 pts."""
         extracted = {
             "brand": "Samsung",
             "model_family": "Galaxy S25 Ultra",
@@ -333,7 +333,7 @@ class TestScoreMatch:
         }
         mappings = {"color_translations": {"black": "Noir"}}
         score, details = score_match(extracted, product_s25, mappings)
-        assert score == 95
+        assert score == 100
 
     def test_perfect_match_with_region(self, brand_samsung, memory_256, color_noir, color_translations):
         """All fields match including region → 100 pts."""
@@ -466,8 +466,32 @@ class TestScoreMatch:
         assert score == 0
         assert details.get("disqualified") == "region_mismatch"
 
-    def test_region_none_does_not_disqualify(self, brand_apple, memory_128, color_noir):
-        """If product has no region, the extracted region must not disqualify."""
+    def test_region_null_treated_as_eu(self, brand_apple, memory_128, color_noir):
+        """Null region on both sides = EU match → +5 pts, no disqualification."""
+        product_null_region = Product(
+            model="iPhone 16",
+            brand_id=brand_apple.id,
+            memory_id=memory_128.id,
+            color_id=color_noir.id,
+            region=None,
+        )
+        db.session.add(product_null_region)
+        db.session.commit()
+
+        extracted = {
+            "brand": "Apple",
+            "model_family": "iPhone 16",
+            "storage": "128 Go",
+            "color": "Noir",
+            "region": None,
+        }
+        score, details = score_match(extracted, product_null_region, {})
+        assert score > 0
+        assert details.get("disqualified") != "region_mismatch"
+        assert details.get("region") == 5
+
+    def test_non_eu_label_disqualifies_null_region_product(self, brand_apple, memory_128, color_noir):
+        """Non-EU label (IN) must disqualify a product with null region (= EU)."""
         product_no_region = Product(
             model="iPhone 16",
             brand_id=brand_apple.id,
@@ -486,8 +510,8 @@ class TestScoreMatch:
             "region": "IN",
         }
         score, details = score_match(extracted, product_no_region, {})
-        assert score > 0
-        assert details.get("disqualified") != "region_mismatch"
+        assert score == 0
+        assert details.get("disqualified") == "region_mismatch"
 
     def test_device_type_mismatch_returns_zero(self, brand_apple, memory_128, color_noir, device_type):
         """A Watch should never match a Smartphone regardless of brand/color."""
