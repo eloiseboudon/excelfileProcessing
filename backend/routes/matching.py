@@ -457,8 +457,20 @@ def matching_stats():
             pid = c.get("product_id")
             if pid:
                 pending_product_ids.add(pid)
-    # Produits non matchés ET non dans les candidats pending/rejected
-    total_odoo_never_submitted = max(0, total_odoo_unmatched - len(pending_product_ids))
+
+    # Cache entries disponibles pour le matching Phase 2
+    cache_unmatched_count = LabelCache.query.filter(
+        LabelCache.match_source == "extracted",
+        LabelCache.product_id.is_(None),
+    ).count()
+
+    # "Jamais soumis" = produits qu'un run LLM pourrait traiter maintenant.
+    # Si pas de nouveaux labels à extraire (Phase 1) ET pas de cache dispo (Phase 2),
+    # le LLM ne peut rien faire de plus → 0.
+    if cache_unmatched_count == 0 and total_catalog_never_processed_labels == 0:
+        total_odoo_never_submitted = 0
+    else:
+        total_odoo_never_submitted = max(0, total_odoo_unmatched - len(pending_product_ids))
 
     return jsonify({
         "total_odoo_products": total_odoo_products,
