@@ -222,7 +222,14 @@ def validate_match():
         )
         db.session.add(ref)
 
-    # Update label cache
+    # Retrieve the score breakdown for the validated product from PendingMatch candidates
+    candidate_reasoning = None
+    for candidate in (pm.candidates or []):
+        if candidate.get("product_id") == product_id:
+            candidate_reasoning = candidate.get("details")
+            break
+
+    # Update label cache — store reasoning so future n-shot selection can use it
     normalized = normalize_label(pm.source_label)
     cache = LabelCache.query.filter_by(
         supplier_id=pm.supplier_id, normalized_label=normalized
@@ -230,6 +237,7 @@ def validate_match():
     if cache:
         cache.product_id = product_id
         cache.match_source = "manual"
+        cache.match_reasoning = candidate_reasoning
         cache.last_used_at = datetime.now(timezone.utc)
     else:
         cache = LabelCache(
@@ -238,6 +246,7 @@ def validate_match():
             product_id=product_id,
             match_score=100,
             match_source="manual",
+            match_reasoning=candidate_reasoning,
             extracted_attributes=pm.extracted_attributes,
         )
         db.session.add(cache)

@@ -1,4 +1,4 @@
-"""Normalization helpers for memory/storage and RAM values.
+"""Normalization helpers for memory/storage, RAM values, and supplier labels.
 
 Ensures consistent formatting across all data sources
 (API suppliers, Odoo sync, LLM matching).
@@ -41,6 +41,25 @@ def normalize_storage(value: Optional[str]) -> Optional[str]:
     if unit in ("tb", "to"):
         return f"{number} To"
     return f"{number} Go"
+
+
+def normalize_label(label: str) -> str:
+    """Normalize a supplier label for cache key usage.
+
+    Lowercase, strip special characters, normalize storage units so that
+    '256GB', '256 GB', '256 Go' and '256go' all map to the same key '256go'.
+    Example: 'Apple iPhone 15 128GB - Black' -> 'apple iphone 15 128go black'
+    """
+    text = label.lower().strip()
+    text = re.sub(r"[^\w\s]", " ", text)  # removes -, (, ), [, ], /
+    text = re.sub(r"_", " ", text)         # underscores to spaces
+    # Normalize storage units: 256GB/256 GB → 256go, 1TB/1 TB → 1to
+    text = re.sub(r"(\d+)\s*gb\b", r"\1go", text)
+    text = re.sub(r"(\d+)\s*tb\b", r"\1to", text)
+    # Remove space between digit and go/to unit: "256 go" → "256go"
+    text = re.sub(r"(\d+)\s+(go|to)\b", r"\1\2", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
 
 
 def normalize_ram(value: Optional[str]) -> Optional[str]:

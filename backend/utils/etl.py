@@ -15,11 +15,12 @@ from sqlalchemy.orm import joinedload
 
 logger = logging.getLogger(__name__)
 
-from utils.normalize import normalize_ram, normalize_storage
+from utils.normalize import normalize_label, normalize_ram, normalize_storage
 from models import (
     ApiEndpoint,
     ApiFetchJob,
     AuthType,
+    LabelCache,
     MappingVersion,
     ImportHistory,
     ParsedItem,
@@ -667,6 +668,126 @@ def _update_product_prices_from_records(
     }
 
 
+def _upsert_product_calculation(
+    product_id: int,
+    supplier_id: int,
+    price: float,
+    stock: Optional[int],
+) -> None:
+    """Insert or update a ProductCalculation row with computed margins."""
+    product = db.session.get(Product, product_id)
+    if not product:
+        return
+
+    tcp = float(product.memory.tcp_value) if product.memory else 0.0
+    (
+        margin45,
+        price_with_tcp,
+        price_with_margin,
+        max_price,
+        marge,
+        marge_percent,
+    ) = _compute_margin_prices(price, tcp)
+
+    calc = (
+        ProductCalculation.query.filter_by(
+            product_id=product_id, supplier_id=supplier_id
+        )
+        .order_by(ProductCalculation.date.desc())
+        .first()
+    )
+
+    timestamp = datetime.now(timezone.utc)
+
+    if calc:
+        calc.price = round(price, 2)
+        calc.tcp = round(tcp, 2)
+        calc.marge4_5 = margin45
+        calc.prixht_tcp_marge4_5 = price_with_tcp
+        calc.prixht_marge4_5 = price_with_margin
+        calc.prixht_max = max_price
+        calc.marge = marge
+        calc.marge_percent = marge_percent
+        calc.date = timestamp
+        calc.stock = stock
+        db.session.add(calc)
+    else:
+        calc = ProductCalculation(
+            product_id=product_id,
+            supplier_id=supplier_id,
+            price=round(price, 2),
+            tcp=round(tcp, 2),
+            marge4_5=margin45,
+            prixht_tcp_marge4_5=price_with_tcp,
+            prixht_marge4_5=price_with_margin,
+            prixht_max=max_price,
+            marge=marge,
+            marge_percent=marge_percent,
+            date=timestamp,
+            stock=stock,
+        )
+        db.session.add(calc)
+
+
+def _sync_prices_from_catalog(supplier_id: int) -> Dict[str, Any]:
+    """Update prices/stocks via LabelCache (label-based, EAN-agnostic).
+
+    For each SupplierCatalog entry: normalize_label(description) → LabelCache
+    → product_id → ProductCalculation.
+
+    If several catalog entries map to the same product_id (same label, different EANs):
+    best price (min) + total stock (sum).
+    """
+    cache_map: Dict[str, int] = {
+        lc.normalized_label: lc.product_id
+        for lc in LabelCache.query.filter(
+            LabelCache.supplier_id == supplier_id,
+            LabelCache.product_id.isnot(None),
+        ).all()
+    }
+
+    # Group by product_id → [(price, stock), ...]
+    price_groups: Dict[int, List[Tuple[float, int]]] = {}
+    unmatched_entries: List[Dict[str, Any]] = []
+    seen_unmatched: Set[str] = set()
+
+    for entry in SupplierCatalog.query.filter_by(supplier_id=supplier_id).all():
+        label = entry.description or entry.model or ""
+        normalized = normalize_label(label)
+        product_id = cache_map.get(normalized)
+        if product_id and entry.selling_price is not None:
+            price_groups.setdefault(product_id, []).append(
+                (entry.selling_price, entry.quantity or 0)
+            )
+        elif not product_id and normalized not in seen_unmatched:
+            seen_unmatched.add(normalized)
+            if len(unmatched_entries) < _MAX_REPORT_ITEMS:
+                unmatched_entries.append(
+                    {
+                        "description": label,
+                        "ean": entry.ean,
+                        "part_number": entry.part_number,
+                        "supplier_sku": entry.supplier_sku,
+                    }
+                )
+
+    updated_products: List[Dict[str, Any]] = []
+    for product_id, pairs in price_groups.items():
+        best_price = min(p for p, _ in pairs)
+        total_stock = sum(s for _, s in pairs)
+        _upsert_product_calculation(product_id, supplier_id, best_price, total_stock)
+        updated_products.append(
+            {"product_id": product_id, "price": round(best_price, 2), "stock": total_stock}
+        )
+
+    return {
+        "updated_products": updated_products[:_MAX_REPORT_ITEMS],
+        "database_missing_products": [],
+        "api_missing_products": unmatched_entries,
+        "synced": len(updated_products),
+    }
+
+
 def _validate_fetch_params(
     job_id: int,
     supplier_id: int,
@@ -790,7 +911,6 @@ def _persist_supplier_catalog(
     SupplierCatalog.query.filter_by(supplier_id=supplier_id).delete(synchronize_session=False)
 
     seen_keys: Set[Tuple[str, str, str]] = set()
-    seen_eans: Set[str] = set()
     temp_rows: List[Dict[str, Any]] = []
     duplicate_count = 0
     skipped_no_identity = 0
@@ -837,19 +957,11 @@ def _persist_supplier_catalog(
             skipped_no_description += 1
             continue
 
-        if ean_value:
-            normalized_ean = ean_value.lower()
-            if normalized_ean in seen_eans:
-                duplicate_count += 1
-                continue
-
         if is_duplicate:
             duplicate_count += 1
             continue
 
         seen_keys.add(key)
-        if ean_value:
-            seen_eans.add(ean_value.lower())
 
         cleaned_row = {
             "description": description_value,
@@ -950,7 +1062,7 @@ def run_fetch_job(
             skipped_no_description,
         ) = _persist_supplier_catalog(job, supplier_id, parsed_records)
 
-        report_data = _update_product_prices_from_records(supplier_id, parsed_records)
+        report_data = _sync_prices_from_catalog(supplier_id)
 
         job.report_updated_products = report_data.get("updated_products")
         job.report_database_missing_products = report_data.get(

@@ -1,18 +1,23 @@
-"""Tests for _persist_supplier_catalog (FK safety with pending_matches)."""
+"""Tests for _persist_supplier_catalog and _sync_prices_from_catalog."""
 
 from datetime import datetime, timezone
 
 from models import (
     ApiEndpoint,
     ApiFetchJob,
+    Brand,
+    LabelCache,
+    MemoryOption,
     MappingVersion,
     PendingMatch,
+    Product,
+    ProductCalculation,
     Supplier,
     SupplierAPI,
     SupplierCatalog,
     db,
 )
-from utils.etl import _persist_supplier_catalog
+from utils.etl import _persist_supplier_catalog, _sync_prices_from_catalog
 
 
 def _setup_supplier_with_job():
@@ -126,3 +131,143 @@ def test_persist_without_pending_matches():
     remaining = SupplierCatalog.query.filter_by(supplier_id=supplier.id).all()
     assert len(remaining) == 1
     assert remaining[0].ean == "3333333333333"
+
+
+# ---------------------------------------------------------------------------
+# Tests: seen_eans removed — two entries with different EANs for same label
+# ---------------------------------------------------------------------------
+
+
+def test_two_eans_same_product_both_kept():
+    """Two entries with different EANs and same label must both be persisted."""
+    supplier, job = _setup_supplier_with_job()
+
+    parsed_records = [
+        {"ean": "1111111111111", "description": "Samsung Galaxy S25 128Go Noir", "selling_price": 700},
+        {"ean": "2222222222222", "description": "Samsung Galaxy S25 128Go Noir", "selling_price": 680},
+    ]
+    _persist_supplier_catalog(job, supplier.id, parsed_records)
+    db.session.commit()
+
+    rows = SupplierCatalog.query.filter_by(supplier_id=supplier.id).all()
+    # Both entries must be stored — seen_eans no longer discards the second one
+    assert len(rows) == 2
+    eans = {r.ean for r in rows}
+    assert "1111111111111" in eans
+    assert "2222222222222" in eans
+
+
+# ---------------------------------------------------------------------------
+# Tests: _sync_prices_from_catalog — label-based price sync
+# ---------------------------------------------------------------------------
+
+
+def _make_product(supplier):
+    """Create a minimal Product with a MemoryOption for TCP calculation."""
+    brand = Brand(brand=f"Brand-{supplier.id}")
+    db.session.add(brand)
+    db.session.flush()
+
+    memory = MemoryOption(memory="128 Go", tcp_value=128)
+    db.session.add(memory)
+    db.session.flush()
+
+    product = Product(model="Test Phone 128Go", brand_id=brand.id, memory_id=memory.id)
+    db.session.add(product)
+    db.session.flush()
+    return product
+
+
+def test_price_sync_uses_label_not_ean():
+    """_sync_prices_from_catalog updates ProductCalculation via LabelCache even when EAN is absent."""
+    supplier, _ = _setup_supplier_with_job()
+    product = _make_product(supplier)
+
+    # Catalog entry without EAN
+    db.session.add(SupplierCatalog(
+        supplier_id=supplier.id,
+        description="Test Phone 128Go",
+        selling_price=500.0,
+        quantity=10,
+    ))
+
+    # LabelCache entry linking the label to the product
+    db.session.add(LabelCache(
+        supplier_id=supplier.id,
+        normalized_label="test phone 128go",
+        product_id=product.id,
+        match_score=95,
+        match_source="auto",
+    ))
+    db.session.commit()
+
+    result = _sync_prices_from_catalog(supplier.id)
+    db.session.commit()
+
+    assert result["synced"] == 1
+    calc = ProductCalculation.query.filter_by(
+        product_id=product.id, supplier_id=supplier.id
+    ).first()
+    assert calc is not None
+    assert calc.price == 500.0
+    assert calc.stock == 10
+
+
+def test_price_sync_best_price_when_multiple_entries():
+    """When two catalog entries map to the same product, best price (min) and total stock are used."""
+    supplier, _ = _setup_supplier_with_job()
+    product = _make_product(supplier)
+
+    normalized = "test phone 128go"
+    db.session.add(SupplierCatalog(
+        supplier_id=supplier.id,
+        description="Test Phone 128Go",
+        ean="1111111111111",
+        selling_price=1000.0,
+        quantity=5,
+    ))
+    db.session.add(SupplierCatalog(
+        supplier_id=supplier.id,
+        description="Test Phone 128Go",
+        ean="2222222222222",
+        selling_price=950.0,
+        quantity=3,
+    ))
+    db.session.add(LabelCache(
+        supplier_id=supplier.id,
+        normalized_label=normalized,
+        product_id=product.id,
+        match_score=95,
+        match_source="auto",
+    ))
+    db.session.commit()
+
+    result = _sync_prices_from_catalog(supplier.id)
+    db.session.commit()
+
+    assert result["synced"] == 1
+    calc = ProductCalculation.query.filter_by(
+        product_id=product.id, supplier_id=supplier.id
+    ).first()
+    assert calc is not None
+    assert calc.price == 950.0   # best (min) price
+    assert calc.stock == 8       # total stock
+
+
+def test_price_sync_unmatched_entries_reported():
+    """Catalog entries with no LabelCache match are reported as api_missing_products."""
+    supplier, _ = _setup_supplier_with_job()
+
+    db.session.add(SupplierCatalog(
+        supplier_id=supplier.id,
+        description="Unknown Product XYZ",
+        selling_price=200.0,
+        quantity=1,
+    ))
+    db.session.commit()
+
+    result = _sync_prices_from_catalog(supplier.id)
+
+    assert result["synced"] == 0
+    assert len(result["api_missing_products"]) == 1
+    assert result["api_missing_products"][0]["description"] == "Unknown Product XYZ"

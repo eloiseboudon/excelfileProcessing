@@ -205,10 +205,8 @@ class SupplierProductRef(db.Model):
     __table_args__ = (
         db.UniqueConstraint(
             "supplier_id",
-            "ean",
-            "part_number",
-            "supplier_sku",
-            name="uix_supplier_ref",
+            "normalized_label",
+            name="uix_supplier_ref_label",
         ),
     )
 
@@ -216,6 +214,7 @@ class SupplierProductRef(db.Model):
     supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey("products.id"), nullable=True)
 
+    normalized_label = db.Column(db.String(300), nullable=True)
     ean = db.Column(db.String(20), nullable=True)
     part_number = db.Column(db.String(120), nullable=True)
     supplier_sku = db.Column(db.String(120), nullable=True)
@@ -225,9 +224,6 @@ class SupplierProductRef(db.Model):
 
 class SupplierCatalog(db.Model):
     __tablename__ = "supplier_catalog"
-    __table_args__ = (
-        db.UniqueConstraint("ean", "supplier_id", name="uix_supplier_catalog_ean_supplier"),
-    )
 
     id = db.Column(db.Integer, primary_key=True)
     description = db.Column(db.String(200), nullable=True)
@@ -511,6 +507,7 @@ class LabelCache(db.Model):
     match_score = db.Column(db.Integer, nullable=True)
     match_source = db.Column(db.String(20), nullable=False)
     extracted_attributes = db.Column(JSONB, nullable=True)
+    match_reasoning = db.Column(JSONB, nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     last_used_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 

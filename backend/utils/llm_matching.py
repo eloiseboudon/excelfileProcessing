@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from flask import current_app
 from sqlalchemy import func
 
-from utils.normalize import normalize_storage
+from utils.normalize import normalize_label, normalize_storage
 from models import (
     Brand,
     Color,
@@ -48,19 +48,9 @@ def _get_env_int(key: str, default: int) -> int:
 
 
 # ---------------------------------------------------------------------------
-# Function 1: normalize_label
+# Function 1 (re-exported): normalize_label — defined in utils/normalize.py
 # ---------------------------------------------------------------------------
-
-def normalize_label(label: str) -> str:
-    """Normalize a supplier label for cache key usage.
-
-    Lowercase, strip special characters, reduce multiple spaces.
-    Example: 'Apple iPhone 15 128GB - Black' -> 'apple iphone 15 128gb black'
-    """
-    text = label.lower().strip()
-    text = re.sub(r"[^\w\s]", " ", text)
-    text = re.sub(r"\s+", " ", text).strip()
-    return text
+# normalize_label is imported from utils.normalize above and re-used here.
 
 
 # ---------------------------------------------------------------------------
@@ -89,12 +79,45 @@ def build_context() -> Dict[str, Any]:
 
     device_types = [d.type for d in DeviceType.query.all()]
 
+    # Few-shot examples: pick the highest-confidence validated extractions with brand
+    # diversity (max 3 per brand) so the LLM sees a representative mix rather than
+    # being biased toward the most-represented brand in the cache.
+    few_shot_candidates = (
+        LabelCache.query
+        .filter(
+            LabelCache.extracted_attributes.isnot(None),
+            LabelCache.match_source.in_(["manual", "auto"]),
+            LabelCache.match_score >= 90,
+        )
+        .order_by(LabelCache.match_score.desc(), LabelCache.last_used_at.desc())
+        .limit(50)
+        .all()
+    )
+    few_shot_examples: List[Dict[str, Any]] = []
+    brand_count: Dict[str, int] = {}
+    for e in few_shot_candidates:
+        raw_label = (e.extracted_attributes or {}).get("raw_label") or e.normalized_label
+        attrs = {
+            k: v for k, v in (e.extracted_attributes or {}).items()
+            if k not in ("raw_label", "_token_info", "confidence") and v is not None
+        }
+        if not attrs:
+            continue
+        brand = (e.extracted_attributes or {}).get("brand", "").lower()
+        if brand_count.get(brand, 0) >= 3:
+            continue
+        brand_count[brand] = brand_count.get(brand, 0) + 1
+        few_shot_examples.append({"label": raw_label, "attributes": attrs})
+        if len(few_shot_examples) >= 10:
+            break
+
     return {
         "brands": brands,
         "colors": color_synonyms,
         "storage_options": storage_options,
         "model_references": model_reference_map,
         "device_types": device_types,
+        "few_shot_examples": few_shot_examples,
     }
 
 
@@ -124,6 +147,17 @@ def build_extraction_prompt(context: Dict[str, Any]) -> str:
 
     types_str = ", ".join(context["device_types"])
 
+    # N-shot examples: inject validated extractions so the LLM learns from history
+    few_shot_examples = context.get("few_shot_examples", [])
+    if few_shot_examples:
+        example_lines = [
+            f"  '{ex['label']}' -> {json.dumps(ex['attributes'], ensure_ascii=False)}"
+            for ex in few_shot_examples
+        ]
+        examples_section = "\nEXEMPLES DE LIBELLES VALIDES :\n" + "\n".join(example_lines) + "\n"
+    else:
+        examples_section = ""
+
     return f"""Tu es un expert en identification de produits electroniques (smartphones, \
 tablettes, accessoires, audio). A partir de chaque libelle fournisseur, \
 extrais les attributs structures.
@@ -139,7 +173,7 @@ CORRESPONDANCES CODES CONSTRUCTEUR :
 {refs_str}
 
 TYPES D'APPAREILS : {types_str}
-
+{examples_section}
 REGLES D'EXTRACTION :
 1. brand : identifie la marque parmi les marques connues
 2. model_family : le nom commercial du modele SANS la marque, le stockage \
@@ -413,13 +447,12 @@ def score_match(
     else:
         details["color"] = 0
 
-    # --- Region (hard disqualifier; null or empty = EU) ---
+    # --- Region (gate; null or empty = EU) ---
+    # Mismatch kills the score entirely. Match adds nothing (pure filter, not additive).
+    # Region is intentionally absent from `details` when it passes — only present on reject.
     ext_region = (extracted.get("region") or "EU").strip().upper()
     prod_region = (product.region or "EU").strip().upper()
-    if ext_region == prod_region:
-        details["region"] = 5
-        score += 5
-    else:
+    if ext_region != prod_region:
         details["region"] = 0
         details["disqualified"] = "region_mismatch"
         return 0, details
@@ -637,12 +670,36 @@ def run_matching_job(
             key = (ti.supplier_id, normalized)
             label_to_catalogs.setdefault(key, []).append(ti)
 
+    # Preload all LabelCache entries that have extracted_attributes, for:
+    # 1. Cross-supplier sharing: reuse same normalized_label from another supplier
+    # 2. Fuzzy fallback: reuse a similar label from the same supplier (ratio > 0.92)
+    all_extracted_entries = LabelCache.query.filter(
+        LabelCache.extracted_attributes.isnot(None)
+    ).all()
+
+    # First valid entry (with extracted_attributes) for each normalized_label (any supplier)
+    cross_supplier_map: Dict[str, LabelCache] = {}
+    for entry in all_extracted_entries:
+        if entry.normalized_label not in cross_supplier_map:
+            cross_supplier_map[entry.normalized_label] = entry
+
+    # Per-supplier list of entries for fuzzy matching
+    supplier_fuzzy_map: Dict[int, List[LabelCache]] = {}
+    for entry in all_extracted_entries:
+        supplier_fuzzy_map.setdefault(entry.supplier_id, []).append(entry)
+
     # Determine which labels need LLM extraction.
     # Also re-extract entries where product_id=None AND extracted_attributes=None:
     # these were created by an older code path that didn't save LLM output, leaving
     # Phase 2 with no attributes to score against (score=0 → all products not_found).
     labels_to_extract: List[Tuple[int, str, str]] = []  # (supplier_id, normalized, original)
+    cross_supplier_hits = 0
+    fuzzy_hits = 0
+
     for (sid, normalized), catalogs in label_to_catalogs.items():
+        original_label = catalogs[0].description or catalogs[0].model or ""
+
+        # Step 1: Exact cache match for this supplier
         cached = LabelCache.query.filter_by(
             supplier_id=sid, normalized_label=normalized
         ).first()
@@ -650,9 +707,31 @@ def run_matching_job(
             not cached
             or (cached.product_id is None and not cached.extracted_attributes)
         )
-        if needs_extraction:
-            original_label = catalogs[0].description or catalogs[0].model or ""
-            labels_to_extract.append((sid, normalized, original_label))
+        if not needs_extraction:
+            continue
+
+        # Step 2: Cross-supplier sharing — same normalized_label, different supplier
+        cross_entry = cross_supplier_map.get(normalized)
+        if cross_entry and cross_entry.supplier_id != sid:
+            attrs = dict(cross_entry.extracted_attributes)
+            attrs["raw_label"] = original_label
+            _save_extraction_cache(sid, normalized, attrs)
+            cross_supplier_hits += 1
+            continue
+
+        # Step 3: Fuzzy fallback — similar label from same supplier (ratio > 0.92)
+        fuzzy_entry = _find_fuzzy_cache_entry(
+            normalized, supplier_fuzzy_map.get(sid, [])
+        )
+        if fuzzy_entry:
+            attrs = dict(fuzzy_entry.extracted_attributes)
+            attrs["raw_label"] = original_label
+            _save_extraction_cache(sid, normalized, attrs)
+            fuzzy_hits += 1
+            continue
+
+        # Step 4: Needs LLM extraction
+        labels_to_extract.append((sid, normalized, original_label))
 
     from_cache = len(label_to_catalogs) - len(labels_to_extract)
     llm_calls = 0
@@ -660,8 +739,21 @@ def run_matching_job(
     error_message: Optional[str] = None
     total_input_tokens = 0
     total_output_tokens = 0
+    attr_share_hits = 0
 
     context = build_context()
+
+    # Build attr → product_id index from already-matched LabelCache entries.
+    # After LLM extraction, if the new label's attributes match an existing validated
+    # entry (any supplier), we assign product_id directly and skip Phase 2 scoring.
+    attr_product_index: Dict[str, int] = {}
+    for entry in LabelCache.query.filter(
+        LabelCache.product_id.isnot(None),
+        LabelCache.extracted_attributes.isnot(None),
+    ).all():
+        key = _make_attr_key(entry.extracted_attributes)
+        if key:
+            attr_product_index[key] = entry.product_id
 
     # Batch LLM extraction for Phase 1
     for batch_start in range(0, len(labels_to_extract), batch_size):
@@ -686,7 +778,20 @@ def run_matching_job(
             total_input_tokens += token_info.get("input_tokens", 0) // max(len(batch_labels), 1)
             total_output_tokens += token_info.get("output_tokens", 0) // max(len(batch_labels), 1)
             extraction["raw_label"] = original_label
-            _save_extraction_cache(sid, normalized, extraction)
+
+            # Attribute-based cross-supplier sharing: if the same (brand, model, storage,
+            # color, region) tuple is already matched in another supplier's cache, assign
+            # product_id directly without going through Phase 2 scoring.
+            attr_key = _make_attr_key(extraction)
+            if attr_key and attr_key in attr_product_index:
+                matched_product_id = attr_product_index[attr_key]
+                _save_attr_share_cache(sid, normalized, matched_product_id, extraction)
+                catalog_entries = label_to_catalogs.get((sid, normalized), [])
+                for ti in catalog_entries:
+                    _create_supplier_ref(ti.supplier_id, ti, matched_product_id)
+                attr_share_hits += 1
+            else:
+                _save_extraction_cache(sid, normalized, extraction)
 
     db.session.flush()
 
@@ -694,9 +799,9 @@ def run_matching_job(
     # Phase 2: Match Odoo Products against extracted cache entries
     # -----------------------------------------------------------------------
     # Exclude products already matched — either via ETL (ProductCalculation exists)
-    # or via previous LLM auto-match (SupplierProductRef exists, ETL not yet re-run).
-    # ProductCalculation is the stat definition of "matched"; SPR covers the window
-    # where LLM matched a product but the ETL price sync hasn't run yet.
+    # or via previous LLM auto-match (LabelCache has a product_id, ETL not yet re-run).
+    # ProductCalculation is the canonical definition of "matched"; LabelCache covers
+    # the window where the LLM matched a product but the ETL price sync hasn't run yet.
     matched_product_ids: set[int] = {
         row[0]
         for row in db.session.query(ProductCalculation.product_id)
@@ -705,8 +810,8 @@ def run_matching_job(
         .all()
     } | {
         row[0]
-        for row in db.session.query(SupplierProductRef.product_id)
-        .filter(SupplierProductRef.product_id.isnot(None))
+        for row in db.session.query(LabelCache.product_id)
+        .filter(LabelCache.product_id.isnot(None))
         .distinct()
         .all()
     }
@@ -824,6 +929,7 @@ def run_matching_job(
             top_cache.product_id = product.id
             top_cache.match_score = top_score
             top_cache.match_source = "auto"
+            top_cache.match_reasoning = top_details
             top_cache.last_used_at = datetime.now(timezone.utc)
             auto_matched += 1
 
@@ -872,6 +978,9 @@ def run_matching_job(
     return {
         "total_products": len(products_to_process),
         "from_cache": from_cache,
+        "cross_supplier_hits": cross_supplier_hits,
+        "fuzzy_hits": fuzzy_hits,
+        "attr_share_hits": attr_share_hits,
         "llm_calls": llm_calls,
         "auto_matched": auto_matched,
         "pending_review": pending_review,
@@ -888,6 +997,78 @@ def run_matching_job(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _make_attr_key(attrs: Dict[str, Any]) -> Optional[str]:
+    """Build a canonical key from extracted attributes for cross-supplier deduplication.
+
+    Normalizes brand, model_family, storage, color, and region into a stable key so
+    that two different supplier labels that the LLM resolves to the same product can
+    share a product_id without going through Phase 2 scoring.
+
+    Returns None when key fields are too sparse to be reliable (missing brand or model).
+    """
+    brand = normalize_label(attrs.get("brand") or "")
+    model = normalize_label(attrs.get("model_family") or "")
+    if not brand or not model:
+        return None
+    storage = _normalize_storage(attrs.get("storage")) or ""
+    color = (attrs.get("color") or "").lower().strip()
+    region = (attrs.get("region") or "EU").upper()
+    return f"{brand}|{model}|{storage}|{color}|{region}"
+
+
+def _find_fuzzy_cache_entry(
+    normalized: str,
+    candidates: List["LabelCache"],
+    threshold: float = 0.92,
+) -> Optional["LabelCache"]:
+    """Find the most similar LabelCache entry using fuzzy string matching.
+
+    Returns the best matching entry if its similarity ratio exceeds the threshold,
+    None otherwise. Used as a fallback when exact cache lookup fails.
+    """
+    best_ratio = 0.0
+    best_entry = None
+    for entry in candidates:
+        ratio = SequenceMatcher(None, normalized, entry.normalized_label).ratio()
+        if ratio > best_ratio:
+            best_ratio = ratio
+            best_entry = entry
+    return best_entry if best_ratio >= threshold else None
+
+
+def _save_attr_share_cache(
+    supplier_id: int,
+    normalized_label: str,
+    product_id: int,
+    extracted: Dict[str, Any],
+) -> None:
+    """Save a cache entry that was directly matched via attribute-based cross-supplier sharing.
+
+    The extracted attributes matched an already-validated entry from another supplier,
+    so product_id is assigned immediately without Phase 2 scoring.
+    """
+    existing = LabelCache.query.filter_by(
+        supplier_id=supplier_id, normalized_label=normalized_label
+    ).first()
+    now = datetime.now(timezone.utc)
+    if existing:
+        existing.product_id = product_id
+        existing.match_source = "attr_share"
+        existing.extracted_attributes = extracted
+        existing.last_used_at = now
+    else:
+        cache = LabelCache(
+            supplier_id=supplier_id,
+            normalized_label=normalized_label,
+            product_id=product_id,
+            match_score=None,
+            match_source="attr_share",
+            extracted_attributes=extracted,
+            last_used_at=now,
+        )
+        db.session.add(cache)
+
 
 def _save_extraction_cache(
     supplier_id: int,
@@ -916,20 +1097,23 @@ def _save_extraction_cache(
 def _create_supplier_ref(
     supplier_id: int, ti: SupplierCatalog, product_id: int
 ) -> None:
-    """Create a SupplierProductRef if it doesn't already exist."""
+    """Create or update a SupplierProductRef keyed by normalized_label."""
+    label = ti.description or ti.model or ""
+    normalized = normalize_label(label)
     existing = SupplierProductRef.query.filter_by(
         supplier_id=supplier_id,
-        ean=ti.ean,
-        part_number=ti.part_number,
-        supplier_sku=ti.supplier_sku,
+        normalized_label=normalized,
     ).first()
     if existing:
         existing.product_id = product_id
+        existing.ean = ti.ean
+        existing.supplier_sku = ti.supplier_sku
         existing.last_seen_at = datetime.now(timezone.utc)
     else:
         ref = SupplierProductRef(
             supplier_id=supplier_id,
             product_id=product_id,
+            normalized_label=normalized,
             ean=ti.ean,
             part_number=ti.part_number,
             supplier_sku=ti.supplier_sku,
