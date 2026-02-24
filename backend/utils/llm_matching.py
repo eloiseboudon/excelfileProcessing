@@ -361,6 +361,9 @@ def score_match(
     # Remove brand from product model for comparison
     if prod_brand and prod_model.startswith(prod_brand):
         prod_model = prod_model[len(prod_brand):].strip()
+    # Strip storage/memory patterns from product model name (e.g. "iPhone 15 256GB" → "iPhone 15")
+    # so that storage embedded in model names doesn't penalize the fuzzy ratio
+    prod_model = re.sub(r'\b\d+\s*(?:go|gb|to|tb)\b', '', prod_model, flags=re.IGNORECASE).strip()
 
     if ext_model and prod_model:
         # Hard disqualifier: same model name structure but different version number
