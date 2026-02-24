@@ -28,6 +28,7 @@ from models import (
     ModelReference,
     PendingMatch,
     Product,
+    ProductCalculation,
     Supplier,
     SupplierProductRef,
     SupplierCatalog,
@@ -149,7 +150,7 @@ utilise la table de correspondance
 4. color : normalise en francais en utilisant les synonymes fournis. \
 Si la couleur n est dans aucun synonyme, garde le nom original
 5. device_type : Smartphone, Tablette, Accessoire, Audio, etc.
-6. region : null si standard EU. "US" si US Spec, "IN" si Indian Spec, \
+6. region : "EU" si standard EU. "US" si US Spec, "IN" si Indian Spec, \
 "DE" si (DE), etc.
 7. connectivity : "WiFi" si [W], "Cellular" si mention cellular/LTE, \
 "5G" si mentionne, null sinon
@@ -409,19 +410,16 @@ def score_match(
     else:
         details["color"] = 0
 
-    # --- Region (hard disqualifier if both sides have a region and they differ) ---
-    ext_region = (extracted.get("region") or "").strip() or None
-    prod_region = (product.region or "").strip() or None
-    if ext_region and prod_region:
-        if ext_region.upper() == prod_region.upper():
-            details["region"] = 5
-            score += 5
-        else:
-            details["region"] = 0
-            details["disqualified"] = "region_mismatch"
-            return 0, details
+    # --- Region (hard disqualifier; null or empty = EU) ---
+    ext_region = (extracted.get("region") or "EU").strip().upper()
+    prod_region = (product.region or "EU").strip().upper()
+    if ext_region == prod_region:
+        details["region"] = 5
+        score += 5
     else:
         details["region"] = 0
+        details["disqualified"] = "region_mismatch"
+        return 0, details
 
     # --- Label similarity bonus/malus (up to ±10 pts) ---
     raw_label = (extracted.get("raw_label") or "").strip()
@@ -636,13 +634,20 @@ def run_matching_job(
             key = (ti.supplier_id, normalized)
             label_to_catalogs.setdefault(key, []).append(ti)
 
-    # Determine which labels need LLM extraction
+    # Determine which labels need LLM extraction.
+    # Also re-extract entries where product_id=None AND extracted_attributes=None:
+    # these were created by an older code path that didn't save LLM output, leaving
+    # Phase 2 with no attributes to score against (score=0 → all products not_found).
     labels_to_extract: List[Tuple[int, str, str]] = []  # (supplier_id, normalized, original)
     for (sid, normalized), catalogs in label_to_catalogs.items():
         cached = LabelCache.query.filter_by(
             supplier_id=sid, normalized_label=normalized
         ).first()
-        if not cached:
+        needs_extraction = (
+            not cached
+            or (cached.product_id is None and not cached.extracted_attributes)
+        )
+        if needs_extraction:
             original_label = catalogs[0].description or catalogs[0].model or ""
             labels_to_extract.append((sid, normalized, original_label))
 
@@ -685,7 +690,17 @@ def run_matching_job(
     # -----------------------------------------------------------------------
     # Phase 2: Match Odoo Products against extracted cache entries
     # -----------------------------------------------------------------------
+    # Exclude products already matched — either via ETL (ProductCalculation exists)
+    # or via previous LLM auto-match (SupplierProductRef exists, ETL not yet re-run).
+    # ProductCalculation is the stat definition of "matched"; SPR covers the window
+    # where LLM matched a product but the ETL price sync hasn't run yet.
     matched_product_ids: set[int] = {
+        row[0]
+        for row in db.session.query(ProductCalculation.product_id)
+        .filter(ProductCalculation.product_id.isnot(None))
+        .distinct()
+        .all()
+    } | {
         row[0]
         for row in db.session.query(SupplierProductRef.product_id)
         .filter(SupplierProductRef.product_id.isnot(None))
