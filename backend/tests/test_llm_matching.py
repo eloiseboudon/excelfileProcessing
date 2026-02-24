@@ -564,7 +564,7 @@ class TestScoreMatch:
         score, details = score_match(extracted, product_null_region, {})
         assert score > 0
         assert details.get("disqualified") != "region_mismatch"
-        assert details.get("region") == 0  # region is a gate, no bonus
+        assert "region" not in details  # region passes silently — absent from details
 
     def test_non_eu_label_disqualifies_null_region_product(self, brand_apple, memory_128, color_noir):
         """Non-EU label (IN) must disqualify a product with null region (= EU)."""
