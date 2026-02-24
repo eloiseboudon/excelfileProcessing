@@ -748,8 +748,21 @@ def run_matching_job(
     error_message: Optional[str] = None
     total_input_tokens = 0
     total_output_tokens = 0
+    attr_share_hits = 0
 
     context = build_context()
+
+    # Build attr → product_id index from already-matched LabelCache entries.
+    # After LLM extraction, if the new label's attributes match an existing validated
+    # entry (any supplier), we assign product_id directly and skip Phase 2 scoring.
+    attr_product_index: Dict[str, int] = {}
+    for entry in LabelCache.query.filter(
+        LabelCache.product_id.isnot(None),
+        LabelCache.extracted_attributes.isnot(None),
+    ).all():
+        key = _make_attr_key(entry.extracted_attributes)
+        if key:
+            attr_product_index[key] = entry.product_id
 
     # Batch LLM extraction for Phase 1
     for batch_start in range(0, len(labels_to_extract), batch_size):
@@ -774,7 +787,20 @@ def run_matching_job(
             total_input_tokens += token_info.get("input_tokens", 0) // max(len(batch_labels), 1)
             total_output_tokens += token_info.get("output_tokens", 0) // max(len(batch_labels), 1)
             extraction["raw_label"] = original_label
-            _save_extraction_cache(sid, normalized, extraction)
+
+            # Attribute-based cross-supplier sharing: if the same (brand, model, storage,
+            # color, region) tuple is already matched in another supplier's cache, assign
+            # product_id directly without going through Phase 2 scoring.
+            attr_key = _make_attr_key(extraction)
+            if attr_key and attr_key in attr_product_index:
+                matched_product_id = attr_product_index[attr_key]
+                _save_attr_share_cache(sid, normalized, matched_product_id, extraction)
+                catalog_entries = label_to_catalogs.get((sid, normalized), [])
+                for ti in catalog_entries:
+                    _create_supplier_ref(ti.supplier_id, ti, matched_product_id)
+                attr_share_hits += 1
+            else:
+                _save_extraction_cache(sid, normalized, extraction)
 
     db.session.flush()
 
@@ -962,6 +988,7 @@ def run_matching_job(
         "from_cache": from_cache,
         "cross_supplier_hits": cross_supplier_hits,
         "fuzzy_hits": fuzzy_hits,
+        "attr_share_hits": attr_share_hits,
         "llm_calls": llm_calls,
         "auto_matched": auto_matched,
         "pending_review": pending_review,
@@ -978,6 +1005,25 @@ def run_matching_job(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _make_attr_key(attrs: Dict[str, Any]) -> Optional[str]:
+    """Build a canonical key from extracted attributes for cross-supplier deduplication.
+
+    Normalizes brand, model_family, storage, color, and region into a stable key so
+    that two different supplier labels that the LLM resolves to the same product can
+    share a product_id without going through Phase 2 scoring.
+
+    Returns None when key fields are too sparse to be reliable (missing brand or model).
+    """
+    brand = normalize_label(attrs.get("brand") or "")
+    model = normalize_label(attrs.get("model_family") or "")
+    if not brand or not model:
+        return None
+    storage = _normalize_storage(attrs.get("storage")) or ""
+    color = (attrs.get("color") or "").lower().strip()
+    region = (attrs.get("region") or "EU").upper()
+    return f"{brand}|{model}|{storage}|{color}|{region}"
+
 
 def _find_fuzzy_cache_entry(
     normalized: str,
@@ -997,6 +1043,39 @@ def _find_fuzzy_cache_entry(
             best_ratio = ratio
             best_entry = entry
     return best_entry if best_ratio >= threshold else None
+
+
+def _save_attr_share_cache(
+    supplier_id: int,
+    normalized_label: str,
+    product_id: int,
+    extracted: Dict[str, Any],
+) -> None:
+    """Save a cache entry that was directly matched via attribute-based cross-supplier sharing.
+
+    The extracted attributes matched an already-validated entry from another supplier,
+    so product_id is assigned immediately without Phase 2 scoring.
+    """
+    existing = LabelCache.query.filter_by(
+        supplier_id=supplier_id, normalized_label=normalized_label
+    ).first()
+    now = datetime.now(timezone.utc)
+    if existing:
+        existing.product_id = product_id
+        existing.match_source = "attr_share"
+        existing.extracted_attributes = extracted
+        existing.last_used_at = now
+    else:
+        cache = LabelCache(
+            supplier_id=supplier_id,
+            normalized_label=normalized_label,
+            product_id=product_id,
+            match_score=None,
+            match_source="attr_share",
+            extracted_attributes=extracted,
+            last_used_at=now,
+        )
+        db.session.add(cache)
 
 
 def _save_extraction_cache(

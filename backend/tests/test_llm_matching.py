@@ -23,6 +23,7 @@ from models import (
 from utils.llm_matching import (
     _find_fuzzy_cache_entry,
     _fuzzy_ratio,
+    _make_attr_key,
     _normalize_storage,
     build_context,
     build_extraction_prompt,
@@ -803,6 +804,46 @@ class TestCreateProductFromExtraction:
 
 
 # ---------------------------------------------------------------------------
+# Tests: _make_attr_key
+# ---------------------------------------------------------------------------
+
+
+class TestMakeAttrKey:
+    def test_canonical_key_is_stable(self):
+        attrs = {"brand": "Samsung", "model_family": "Galaxy S25 Ultra", "storage": "256 Go", "color": "Noir", "region": "EU"}
+        assert _make_attr_key(attrs) == _make_attr_key(attrs)
+
+    def test_different_storage_units_produce_same_key(self):
+        """256GB and 256 Go must produce identical keys."""
+        a = {"brand": "Samsung", "model_family": "Galaxy S25 Ultra", "storage": "256GB", "color": "Noir", "region": "EU"}
+        b = {"brand": "Samsung", "model_family": "Galaxy S25 Ultra", "storage": "256 Go", "color": "Noir", "region": "EU"}
+        assert _make_attr_key(a) == _make_attr_key(b)
+
+    def test_brand_case_insensitive(self):
+        a = {"brand": "Samsung", "model_family": "Galaxy S25 Ultra", "storage": None, "color": None, "region": None}
+        b = {"brand": "samsung", "model_family": "Galaxy S25 Ultra", "storage": None, "color": None, "region": None}
+        assert _make_attr_key(a) == _make_attr_key(b)
+
+    def test_null_region_treated_as_eu(self):
+        a = {"brand": "Apple", "model_family": "iPhone 16", "storage": None, "color": None, "region": None}
+        b = {"brand": "Apple", "model_family": "iPhone 16", "storage": None, "color": None, "region": "EU"}
+        assert _make_attr_key(a) == _make_attr_key(b)
+
+    def test_different_colors_produce_different_keys(self):
+        a = {"brand": "Apple", "model_family": "iPhone 16", "storage": "128 Go", "color": "Noir", "region": "EU"}
+        b = {"brand": "Apple", "model_family": "iPhone 16", "storage": "128 Go", "color": "Blanc", "region": "EU"}
+        assert _make_attr_key(a) != _make_attr_key(b)
+
+    def test_returns_none_when_brand_missing(self):
+        attrs = {"brand": "", "model_family": "Galaxy S25 Ultra", "storage": "256 Go"}
+        assert _make_attr_key(attrs) is None
+
+    def test_returns_none_when_model_missing(self):
+        attrs = {"brand": "Samsung", "model_family": "", "storage": "256 Go"}
+        assert _make_attr_key(attrs) is None
+
+
+# ---------------------------------------------------------------------------
 # Tests: _find_fuzzy_cache_entry
 # ---------------------------------------------------------------------------
 
@@ -1174,3 +1215,86 @@ class TestRunMatchingJob:
         ).first()
         assert new_cache is not None
         assert new_cache.extracted_attributes.get("brand") == "Samsung"
+
+    @patch("utils.llm_matching.call_llm_extraction")
+    def test_attr_based_cross_supplier_sharing(
+        self,
+        mock_llm,
+        supplier,
+        product_s25,
+        brand_samsung,
+        memory_256,
+        color_noir,
+        device_type,
+        color_translations,
+    ):
+        """After LLM extracts attributes for PlusPos's label, if those attributes
+        match an already-validated entry from Yukatel (product_id set), PlusPos
+        gets product_id assigned directly without Phase 2 scoring."""
+        # Yukatel already has a matched cache entry for Galaxy S25 Ultra 256Go Noir
+        yukatel_attrs = {
+            "brand": "Samsung",
+            "model_family": "Galaxy S25 Ultra",
+            "storage": "256 Go",
+            "color": "Noir",
+            "device_type": "Smartphone",
+            "region": None,
+            "raw_label": "SM-S938B 256 BLK",
+        }
+        cache_yukatel = LabelCache(
+            supplier_id=supplier.id,
+            normalized_label="sm s938b 256go blk",
+            product_id=product_s25.id,
+            match_score=95,
+            match_source="auto",
+            extracted_attributes=yukatel_attrs,
+        )
+        db.session.add(cache_yukatel)
+
+        # PlusPos (second supplier) has a completely different label for the same product
+        supplier_pluspos = Supplier(name="PlusPos")
+        db.session.add(supplier_pluspos)
+        db.session.commit()
+
+        ti = SupplierCatalog(
+            description="Samsung Galaxy S25 Ultra 256Go Noir",
+            quantity=2,
+            selling_price=1050.0,
+            ean="5551234567890",
+            supplier_id=supplier_pluspos.id,
+        )
+        db.session.add(ti)
+        db.session.commit()
+
+        # LLM extracts the same logical attributes from PlusPos's different label
+        mock_llm.return_value = [{
+            "brand": "Samsung",
+            "model_family": "Galaxy S25 Ultra",
+            "storage": "256 Go",
+            "color": "Noir",
+            "device_type": "Smartphone",
+            "region": None,
+            "confidence": 0.97,
+        }]
+
+        report = run_matching_job(supplier_id=supplier_pluspos.id)
+
+        # LLM was called once (PlusPos's label needed extraction)
+        assert mock_llm.call_count == 1
+        # But Phase 2 was bypassed via attr-based sharing
+        assert report["attr_share_hits"] == 1
+
+        # PlusPos's LabelCache entry must have product_id assigned directly
+        new_cache = LabelCache.query.filter_by(
+            supplier_id=supplier_pluspos.id,
+        ).first()
+        assert new_cache is not None
+        assert new_cache.product_id == product_s25.id
+        assert new_cache.match_source == "attr_share"
+
+        # SupplierProductRef must have been created for PlusPos
+        ref = SupplierProductRef.query.filter_by(
+            supplier_id=supplier_pluspos.id,
+            product_id=product_s25.id,
+        ).first()
+        assert ref is not None
