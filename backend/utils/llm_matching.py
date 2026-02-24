@@ -447,16 +447,15 @@ def score_match(
     else:
         details["color"] = 0
 
-    # --- Region (hard disqualifier; null or empty = EU) ---
+    # --- Region (multiplier gate; null or empty = EU) ---
+    # Region is not additive: a match doesn't earn points, a mismatch kills the score.
     ext_region = (extracted.get("region") or "EU").strip().upper()
     prod_region = (product.region or "EU").strip().upper()
-    if ext_region == prod_region:
-        details["region"] = 5
-        score += 5
-    else:
+    if ext_region != prod_region:
         details["region"] = 0
         details["disqualified"] = "region_mismatch"
         return 0, details
+    details["region"] = 0  # region matched — passes through, no bonus
 
     # --- Label similarity bonus/malus (up to ±10 pts) ---
     raw_label = (extracted.get("raw_label") or "").strip()
