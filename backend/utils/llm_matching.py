@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from flask import current_app
 from sqlalchemy import func
 
-from utils.normalize import normalize_storage
+from utils.normalize import normalize_label, normalize_storage
 from models import (
     Brand,
     Color,
@@ -48,26 +48,9 @@ def _get_env_int(key: str, default: int) -> int:
 
 
 # ---------------------------------------------------------------------------
-# Function 1: normalize_label
+# Function 1 (re-exported): normalize_label — defined in utils/normalize.py
 # ---------------------------------------------------------------------------
-
-def normalize_label(label: str) -> str:
-    """Normalize a supplier label for cache key usage.
-
-    Lowercase, strip special characters, normalize storage units so that
-    '256GB', '256 GB', '256 Go' and '256go' all map to the same key '256go'.
-    Example: 'Apple iPhone 15 128GB - Black' -> 'apple iphone 15 128go black'
-    """
-    text = label.lower().strip()
-    text = re.sub(r"[^\w\s]", " ", text)  # removes -, (, ), [, ], /
-    text = re.sub(r"_", " ", text)         # underscores to spaces
-    # Normalize storage units: 256GB/256 GB → 256go, 1TB/1 TB → 1to
-    text = re.sub(r"(\d+)\s*gb\b", r"\1go", text)
-    text = re.sub(r"(\d+)\s*tb\b", r"\1to", text)
-    # Remove space between digit and go/to unit: "256 go" → "256go"
-    text = re.sub(r"(\d+)\s+(go|to)\b", r"\1\2", text)
-    text = re.sub(r"\s+", " ", text).strip()
-    return text
+# normalize_label is imported from utils.normalize above and re-used here.
 
 
 # ---------------------------------------------------------------------------
@@ -817,9 +800,9 @@ def run_matching_job(
     # Phase 2: Match Odoo Products against extracted cache entries
     # -----------------------------------------------------------------------
     # Exclude products already matched — either via ETL (ProductCalculation exists)
-    # or via previous LLM auto-match (SupplierProductRef exists, ETL not yet re-run).
-    # ProductCalculation is the stat definition of "matched"; SPR covers the window
-    # where LLM matched a product but the ETL price sync hasn't run yet.
+    # or via previous LLM auto-match (LabelCache has a product_id, ETL not yet re-run).
+    # ProductCalculation is the canonical definition of "matched"; LabelCache covers
+    # the window where the LLM matched a product but the ETL price sync hasn't run yet.
     matched_product_ids: set[int] = {
         row[0]
         for row in db.session.query(ProductCalculation.product_id)
@@ -828,8 +811,8 @@ def run_matching_job(
         .all()
     } | {
         row[0]
-        for row in db.session.query(SupplierProductRef.product_id)
-        .filter(SupplierProductRef.product_id.isnot(None))
+        for row in db.session.query(LabelCache.product_id)
+        .filter(LabelCache.product_id.isnot(None))
         .distinct()
         .all()
     }
@@ -1115,20 +1098,23 @@ def _save_extraction_cache(
 def _create_supplier_ref(
     supplier_id: int, ti: SupplierCatalog, product_id: int
 ) -> None:
-    """Create a SupplierProductRef if it doesn't already exist."""
+    """Create or update a SupplierProductRef keyed by normalized_label."""
+    label = ti.description or ti.model or ""
+    normalized = normalize_label(label)
     existing = SupplierProductRef.query.filter_by(
         supplier_id=supplier_id,
-        ean=ti.ean,
-        part_number=ti.part_number,
-        supplier_sku=ti.supplier_sku,
+        normalized_label=normalized,
     ).first()
     if existing:
         existing.product_id = product_id
+        existing.ean = ti.ean
+        existing.supplier_sku = ti.supplier_sku
         existing.last_seen_at = datetime.now(timezone.utc)
     else:
         ref = SupplierProductRef(
             supplier_id=supplier_id,
             product_id=product_id,
+            normalized_label=normalized,
             ean=ti.ean,
             part_number=ti.part_number,
             supplier_sku=ti.supplier_sku,

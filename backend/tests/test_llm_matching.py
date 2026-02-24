@@ -1094,7 +1094,7 @@ class TestRunMatchingJob:
 
     @patch("utils.llm_matching.call_llm_extraction")
     def test_no_unmatched(self, mock_llm, supplier, product_s25):
-        # Create a catalog entry with an existing SupplierProductRef
+        # Create a catalog entry with an existing LabelCache match (product_id set)
         ti = SupplierCatalog(
             description="Already matched",
             quantity=1,
@@ -1105,23 +1105,23 @@ class TestRunMatchingJob:
         db.session.add(ti)
         db.session.flush()
 
-        ref = SupplierProductRef(
+        # LabelCache entry that marks the product as already matched
+        lc = LabelCache(
             supplier_id=supplier.id,
+            normalized_label="already matched",
             product_id=product_s25.id,
-            ean="1111111111111",
+            match_score=95,
+            match_source="auto",
+            extracted_attributes={"brand": "Unknown", "model_family": "Already matched"},
         )
-        db.session.add(ref)
+        db.session.add(lc)
         db.session.commit()
 
-        # Phase 1 extracts catalog labels regardless of matching status
-        mock_llm.return_value = [
-            {"brand": "Unknown", "model_family": "Already matched", "storage": None,
-             "color": None, "device_type": None, "region": None, "confidence": 0.5}
-        ]
-
+        # Phase 1: label already in LabelCache with product_id set → LLM not called
         report = run_matching_job(supplier_id=supplier.id)
 
-        # Phase 2: product_s25 already has a SupplierProductRef → not processed
+        mock_llm.assert_not_called()
+        # Phase 2: product_s25 already has a LabelCache entry with product_id → not processed
         assert report["total_products"] == 0
 
     @patch("utils.llm_matching.call_llm_extraction")
