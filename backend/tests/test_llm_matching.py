@@ -21,6 +21,7 @@ from models import (
     db,
 )
 from utils.llm_matching import (
+    _find_fuzzy_cache_entry,
     _fuzzy_ratio,
     _normalize_storage,
     build_context,
@@ -171,13 +172,15 @@ def product_iphone(brand_apple, memory_128, color_blanc):
 
 class TestNormalizeLabel:
     def test_basic(self):
-        assert normalize_label("Apple iPhone 15 128GB - Black") == "apple iphone 15 128gb black"
+        # GB is normalized to go
+        assert normalize_label("Apple iPhone 15 128GB - Black") == "apple iphone 15 128go black"
 
     def test_multiple_spaces(self):
         assert normalize_label("  Samsung   Galaxy  S25  ") == "samsung galaxy s25"
 
     def test_special_chars(self):
-        assert normalize_label("SM-S938B/DS (256GB)") == "sm s938b ds 256gb"
+        # GB is normalized to go
+        assert normalize_label("SM-S938B/DS (256GB)") == "sm s938b ds 256go"
 
     def test_empty(self):
         assert normalize_label("") == ""
@@ -185,6 +188,22 @@ class TestNormalizeLabel:
     def test_unicode(self):
         result = normalize_label("Écran OLED")
         assert result == "écran oled"
+
+    def test_storage_gb_variants_all_map_to_same_key(self):
+        """256GB, 256 GB, 256 Go all produce the same normalized key."""
+        assert normalize_label("Samsung 256GB") == normalize_label("Samsung 256 GB")
+        assert normalize_label("Samsung 256GB") == normalize_label("Samsung 256 Go")
+        assert normalize_label("Samsung 256GB") == normalize_label("Samsung 256go")
+        assert normalize_label("Samsung 256GB") == "samsung 256go"
+
+    def test_storage_tb_variants_all_map_to_same_key(self):
+        """1TB, 1 TB, 1 To all produce the same normalized key."""
+        assert normalize_label("NAS 1TB") == normalize_label("NAS 1 TB")
+        assert normalize_label("NAS 1TB") == normalize_label("NAS 1 To")
+        assert normalize_label("NAS 1TB") == "nas 1to"
+
+    def test_underscore_becomes_space(self):
+        assert normalize_label("SM_S938B_256GB") == "sm s938b 256go"
 
 
 # ---------------------------------------------------------------------------
@@ -231,6 +250,33 @@ class TestBuildExtractionPrompt:
         prompt = build_extraction_prompt(ctx)
         assert "REGLES D'EXTRACTION" in prompt
         assert "JSON array" in prompt
+
+    def test_no_examples_section_when_empty(self):
+        ctx = {"brands": [], "colors": {}, "storage_options": [], "model_references": {}, "device_types": [], "few_shot_examples": []}
+        prompt = build_extraction_prompt(ctx)
+        assert "EXEMPLES DE LIBELLES VALIDES" not in prompt
+
+    def test_examples_injected_when_available(self):
+        ctx = {
+            "brands": [],
+            "colors": {},
+            "storage_options": [],
+            "model_references": {},
+            "device_types": [],
+            "few_shot_examples": [
+                {"label": "SM-S938B 256 BLK", "attributes": {"brand": "Samsung", "model_family": "Galaxy S25 Ultra", "storage": "256 Go"}},
+            ],
+        }
+        prompt = build_extraction_prompt(ctx)
+        assert "EXEMPLES DE LIBELLES VALIDES" in prompt
+        assert "SM-S938B 256 BLK" in prompt
+        assert "Galaxy S25 Ultra" in prompt
+
+    def test_missing_few_shot_key_is_tolerated(self):
+        """build_extraction_prompt must work when few_shot_examples key is absent."""
+        ctx = {"brands": [], "colors": {}, "storage_options": [], "model_references": {}, "device_types": []}
+        prompt = build_extraction_prompt(ctx)
+        assert "REGLES D'EXTRACTION" in prompt
 
 
 # ---------------------------------------------------------------------------
@@ -757,6 +803,76 @@ class TestCreateProductFromExtraction:
 
 
 # ---------------------------------------------------------------------------
+# Tests: _find_fuzzy_cache_entry
+# ---------------------------------------------------------------------------
+
+
+class TestFindFuzzyCacheEntry:
+    def test_finds_similar_entry_above_threshold(self, supplier):
+        entry = LabelCache(
+            supplier_id=supplier.id,
+            normalized_label="samsung galaxy s25 ultra 256go noir",
+            match_source="auto",
+            match_score=95,
+            extracted_attributes={"brand": "Samsung", "model_family": "Galaxy S25 Ultra"},
+        )
+        db.session.add(entry)
+        db.session.commit()
+
+        # Very similar label (only "noire" vs "noir", ratio > 0.92)
+        result = _find_fuzzy_cache_entry(
+            "samsung galaxy s25 ultra 256go noire", [entry]
+        )
+        assert result is not None
+        assert result.id == entry.id
+
+    def test_returns_none_when_below_threshold(self, supplier):
+        entry = LabelCache(
+            supplier_id=supplier.id,
+            normalized_label="samsung galaxy s25 ultra 256go noir",
+            match_source="auto",
+            match_score=95,
+            extracted_attributes={"brand": "Samsung"},
+        )
+        db.session.add(entry)
+        db.session.commit()
+
+        # Very different label
+        result = _find_fuzzy_cache_entry(
+            "apple iphone 16 pro 128go blanc", [entry]
+        )
+        assert result is None
+
+    def test_returns_none_on_empty_candidates(self):
+        result = _find_fuzzy_cache_entry("samsung galaxy s25 ultra 256go noir", [])
+        assert result is None
+
+    def test_returns_best_match_among_multiple(self, supplier):
+        entry_close = LabelCache(
+            supplier_id=supplier.id,
+            normalized_label="samsung galaxy s25 ultra 256go noir",
+            match_source="auto",
+            match_score=95,
+            extracted_attributes={"brand": "Samsung"},
+        )
+        entry_far = LabelCache(
+            supplier_id=supplier.id,
+            normalized_label="apple iphone 16 pro 512go blanc",
+            match_source="auto",
+            match_score=90,
+            extracted_attributes={"brand": "Apple"},
+        )
+        db.session.add_all([entry_close, entry_far])
+        db.session.commit()
+
+        result = _find_fuzzy_cache_entry(
+            "samsung galaxy s25 ultra 256go noire", [entry_close, entry_far]
+        )
+        assert result is not None
+        assert result.id == entry_close.id
+
+
+# ---------------------------------------------------------------------------
 # Tests: run_matching_job
 # ---------------------------------------------------------------------------
 
@@ -938,3 +1054,123 @@ class TestRunMatchingJob:
 
         # Phase 2: product_s25 already has a SupplierProductRef → not processed
         assert report["total_products"] == 0
+
+    @patch("utils.llm_matching.call_llm_extraction")
+    def test_cross_supplier_sharing(
+        self,
+        mock_llm,
+        supplier,
+        product_s25,
+        brand_samsung,
+        memory_256,
+        color_noir,
+    ):
+        """Phase 1 must reuse extracted_attributes from another supplier
+        when the same normalized_label is already cached, skipping the LLM call."""
+        # Supplier B (different supplier with same label already cached)
+        supplier_b = Supplier(name="PlusPos")
+        db.session.add(supplier_b)
+        db.session.commit()
+
+        # Pre-populate cache for supplier_b with the same normalized label
+        shared_attrs = {
+            "brand": "Samsung",
+            "model_family": "Galaxy S25 Ultra",
+            "storage": "256 Go",
+            "color": "Noir",
+            "device_type": "Smartphone",
+            "region": None,
+            "raw_label": "Samsung Galaxy S25 Ultra 256Go Noir",
+        }
+        cache_b = LabelCache(
+            supplier_id=supplier_b.id,
+            normalized_label="samsung galaxy s25 ultra 256go noir",
+            match_source="auto",
+            match_score=95,
+            extracted_attributes=shared_attrs,
+        )
+        db.session.add(cache_b)
+
+        # Supplier A (our test supplier) has the same label but no cache entry
+        ti = SupplierCatalog(
+            description="Samsung Galaxy S25 Ultra 256Go Noir",
+            quantity=1,
+            selling_price=1100.0,
+            ean="1234567890123",
+            supplier_id=supplier.id,
+        )
+        db.session.add(ti)
+        db.session.commit()
+
+        report = run_matching_job(supplier_id=supplier.id)
+
+        # LLM must NOT be called — attrs shared from supplier_b
+        mock_llm.assert_not_called()
+        assert report["cross_supplier_hits"] == 1
+        assert report["from_cache"] == 1
+
+        # A new LabelCache entry must have been created for supplier A
+        new_cache = LabelCache.query.filter_by(
+            supplier_id=supplier.id,
+            normalized_label="samsung galaxy s25 ultra 256go noir",
+        ).first()
+        assert new_cache is not None
+        assert new_cache.extracted_attributes is not None
+        assert new_cache.extracted_attributes.get("brand") == "Samsung"
+
+    @patch("utils.llm_matching.call_llm_extraction")
+    def test_fuzzy_fallback(
+        self,
+        mock_llm,
+        supplier,
+        product_s25,
+        brand_samsung,
+        memory_256,
+        color_noir,
+    ):
+        """Phase 1 must reuse a similar cache entry (fuzzy ratio > 0.92) for the
+        same supplier, avoiding a redundant LLM call."""
+        original_attrs = {
+            "brand": "Samsung",
+            "model_family": "Galaxy S25 Ultra",
+            "storage": "256 Go",
+            "color": "Noir",
+            "device_type": "Smartphone",
+            "region": None,
+            "raw_label": "Samsung Galaxy S25 Ultra 256Go Noir",
+        }
+        # Existing cache entry for the SAME supplier with a very similar label
+        existing_cache = LabelCache(
+            supplier_id=supplier.id,
+            normalized_label="samsung galaxy s25 ultra 256go noir",
+            match_source="auto",
+            match_score=95,
+            extracted_attributes=original_attrs,
+        )
+        db.session.add(existing_cache)
+
+        # New catalog entry with a slightly different label (e.g. "noire" vs "noir")
+        ti = SupplierCatalog(
+            description="Samsung Galaxy S25 Ultra 256Go Noire",
+            quantity=1,
+            selling_price=1100.0,
+            ean="9876543210987",
+            supplier_id=supplier.id,
+        )
+        db.session.add(ti)
+        db.session.commit()
+
+        report = run_matching_job(supplier_id=supplier.id)
+
+        # LLM must NOT be called — attrs reused from the fuzzy-matched entry
+        mock_llm.assert_not_called()
+        assert report["fuzzy_hits"] == 1
+
+        # A new LabelCache entry must exist for the new normalized label
+        new_label = normalize_label("Samsung Galaxy S25 Ultra 256Go Noire")
+        new_cache = LabelCache.query.filter_by(
+            supplier_id=supplier.id,
+            normalized_label=new_label,
+        ).first()
+        assert new_cache is not None
+        assert new_cache.extracted_attributes.get("brand") == "Samsung"

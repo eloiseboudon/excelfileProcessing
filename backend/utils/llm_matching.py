@@ -54,11 +54,18 @@ def _get_env_int(key: str, default: int) -> int:
 def normalize_label(label: str) -> str:
     """Normalize a supplier label for cache key usage.
 
-    Lowercase, strip special characters, reduce multiple spaces.
-    Example: 'Apple iPhone 15 128GB - Black' -> 'apple iphone 15 128gb black'
+    Lowercase, strip special characters, normalize storage units so that
+    '256GB', '256 GB', '256 Go' and '256go' all map to the same key '256go'.
+    Example: 'Apple iPhone 15 128GB - Black' -> 'apple iphone 15 128go black'
     """
     text = label.lower().strip()
-    text = re.sub(r"[^\w\s]", " ", text)
+    text = re.sub(r"[^\w\s]", " ", text)  # removes -, (, ), [, ], /
+    text = re.sub(r"_", " ", text)         # underscores to spaces
+    # Normalize storage units: 256GB/256 GB → 256go, 1TB/1 TB → 1to
+    text = re.sub(r"(\d+)\s*gb\b", r"\1go", text)
+    text = re.sub(r"(\d+)\s*tb\b", r"\1to", text)
+    # Remove space between digit and go/to unit: "256 go" → "256go"
+    text = re.sub(r"(\d+)\s+(go|to)\b", r"\1\2", text)
     text = re.sub(r"\s+", " ", text).strip()
     return text
 
@@ -89,12 +96,36 @@ def build_context() -> Dict[str, Any]:
 
     device_types = [d.type for d in DeviceType.query.all()]
 
+    # Few-shot examples: pull validated high-confidence extractions for n-shot learning.
+    # Select a random diverse set (up to 10) to inject into the prompt as examples.
+    few_shot_entries = (
+        LabelCache.query
+        .filter(
+            LabelCache.extracted_attributes.isnot(None),
+            LabelCache.match_source.in_(["manual", "auto"]),
+            LabelCache.match_score >= 90,
+        )
+        .order_by(func.random())
+        .limit(10)
+        .all()
+    )
+    few_shot_examples = []
+    for e in few_shot_entries:
+        raw_label = (e.extracted_attributes or {}).get("raw_label") or e.normalized_label
+        attrs = {
+            k: v for k, v in (e.extracted_attributes or {}).items()
+            if k not in ("raw_label", "_token_info", "confidence") and v is not None
+        }
+        if attrs:
+            few_shot_examples.append({"label": raw_label, "attributes": attrs})
+
     return {
         "brands": brands,
         "colors": color_synonyms,
         "storage_options": storage_options,
         "model_references": model_reference_map,
         "device_types": device_types,
+        "few_shot_examples": few_shot_examples,
     }
 
 
@@ -124,6 +155,17 @@ def build_extraction_prompt(context: Dict[str, Any]) -> str:
 
     types_str = ", ".join(context["device_types"])
 
+    # N-shot examples: inject validated extractions so the LLM learns from history
+    few_shot_examples = context.get("few_shot_examples", [])
+    if few_shot_examples:
+        example_lines = [
+            f"  '{ex['label']}' -> {json.dumps(ex['attributes'], ensure_ascii=False)}"
+            for ex in few_shot_examples
+        ]
+        examples_section = "\nEXEMPLES DE LIBELLES VALIDES :\n" + "\n".join(example_lines) + "\n"
+    else:
+        examples_section = ""
+
     return f"""Tu es un expert en identification de produits electroniques (smartphones, \
 tablettes, accessoires, audio). A partir de chaque libelle fournisseur, \
 extrais les attributs structures.
@@ -139,7 +181,7 @@ CORRESPONDANCES CODES CONSTRUCTEUR :
 {refs_str}
 
 TYPES D'APPAREILS : {types_str}
-
+{examples_section}
 REGLES D'EXTRACTION :
 1. brand : identifie la marque parmi les marques connues
 2. model_family : le nom commercial du modele SANS la marque, le stockage \
@@ -637,12 +679,36 @@ def run_matching_job(
             key = (ti.supplier_id, normalized)
             label_to_catalogs.setdefault(key, []).append(ti)
 
+    # Preload all LabelCache entries that have extracted_attributes, for:
+    # 1. Cross-supplier sharing: reuse same normalized_label from another supplier
+    # 2. Fuzzy fallback: reuse a similar label from the same supplier (ratio > 0.92)
+    all_extracted_entries = LabelCache.query.filter(
+        LabelCache.extracted_attributes.isnot(None)
+    ).all()
+
+    # First valid entry (with extracted_attributes) for each normalized_label (any supplier)
+    cross_supplier_map: Dict[str, LabelCache] = {}
+    for entry in all_extracted_entries:
+        if entry.normalized_label not in cross_supplier_map:
+            cross_supplier_map[entry.normalized_label] = entry
+
+    # Per-supplier list of entries for fuzzy matching
+    supplier_fuzzy_map: Dict[int, List[LabelCache]] = {}
+    for entry in all_extracted_entries:
+        supplier_fuzzy_map.setdefault(entry.supplier_id, []).append(entry)
+
     # Determine which labels need LLM extraction.
     # Also re-extract entries where product_id=None AND extracted_attributes=None:
     # these were created by an older code path that didn't save LLM output, leaving
     # Phase 2 with no attributes to score against (score=0 → all products not_found).
     labels_to_extract: List[Tuple[int, str, str]] = []  # (supplier_id, normalized, original)
+    cross_supplier_hits = 0
+    fuzzy_hits = 0
+
     for (sid, normalized), catalogs in label_to_catalogs.items():
+        original_label = catalogs[0].description or catalogs[0].model or ""
+
+        # Step 1: Exact cache match for this supplier
         cached = LabelCache.query.filter_by(
             supplier_id=sid, normalized_label=normalized
         ).first()
@@ -650,9 +716,31 @@ def run_matching_job(
             not cached
             or (cached.product_id is None and not cached.extracted_attributes)
         )
-        if needs_extraction:
-            original_label = catalogs[0].description or catalogs[0].model or ""
-            labels_to_extract.append((sid, normalized, original_label))
+        if not needs_extraction:
+            continue
+
+        # Step 2: Cross-supplier sharing — same normalized_label, different supplier
+        cross_entry = cross_supplier_map.get(normalized)
+        if cross_entry and cross_entry.supplier_id != sid:
+            attrs = dict(cross_entry.extracted_attributes)
+            attrs["raw_label"] = original_label
+            _save_extraction_cache(sid, normalized, attrs)
+            cross_supplier_hits += 1
+            continue
+
+        # Step 3: Fuzzy fallback — similar label from same supplier (ratio > 0.92)
+        fuzzy_entry = _find_fuzzy_cache_entry(
+            normalized, supplier_fuzzy_map.get(sid, [])
+        )
+        if fuzzy_entry:
+            attrs = dict(fuzzy_entry.extracted_attributes)
+            attrs["raw_label"] = original_label
+            _save_extraction_cache(sid, normalized, attrs)
+            fuzzy_hits += 1
+            continue
+
+        # Step 4: Needs LLM extraction
+        labels_to_extract.append((sid, normalized, original_label))
 
     from_cache = len(label_to_catalogs) - len(labels_to_extract)
     llm_calls = 0
@@ -872,6 +960,8 @@ def run_matching_job(
     return {
         "total_products": len(products_to_process),
         "from_cache": from_cache,
+        "cross_supplier_hits": cross_supplier_hits,
+        "fuzzy_hits": fuzzy_hits,
         "llm_calls": llm_calls,
         "auto_matched": auto_matched,
         "pending_review": pending_review,
@@ -888,6 +978,26 @@ def run_matching_job(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _find_fuzzy_cache_entry(
+    normalized: str,
+    candidates: List["LabelCache"],
+    threshold: float = 0.92,
+) -> Optional["LabelCache"]:
+    """Find the most similar LabelCache entry using fuzzy string matching.
+
+    Returns the best matching entry if its similarity ratio exceeds the threshold,
+    None otherwise. Used as a fallback when exact cache lookup fails.
+    """
+    best_ratio = 0.0
+    best_entry = None
+    for entry in candidates:
+        ratio = SequenceMatcher(None, normalized, entry.normalized_label).ratio()
+        if ratio > best_ratio:
+            best_ratio = ratio
+            best_entry = entry
+    return best_entry if best_ratio >= threshold else None
+
 
 def _save_extraction_cache(
     supplier_id: int,
