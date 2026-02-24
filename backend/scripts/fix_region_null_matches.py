@@ -10,35 +10,55 @@ mismatch under the new "null = EU" rule:
 Deletes associated SupplierProductRef entries so the next matching run
 can re-evaluate these products with the correct scoring.
 
-Usage (on VPS, in project root):
-    docker exec -it ajtpro-backend python backend/scripts/fix_region_null_matches.py
+Usage:
+    cd ~/ajtpro/backend && python3 scripts/fix_region_null_matches.py
+    cd ~/ajtpro/backend && python3 scripts/fix_region_null_matches.py --dry-run
 
-Or locally:
-    cd backend && python scripts/fix_region_null_matches.py
+Dépendance unique : psycopg2-binary
 """
+from __future__ import annotations
 
+import argparse
 import os
 import sys
+from pathlib import Path
 
-# Allow running from project root or backend/
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-os.environ.setdefault("FLASK_ENV", "production")
 
-import psycopg2
+# Load .env from project root (two levels above scripts/)
+def _load_dotenv(path: Path) -> None:
+    if not path.exists():
+        return
+    with open(path) as f:
+        for raw in f:
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, val = line.partition("=")
+            os.environ.setdefault(key.strip(), val.strip().strip('"').strip("'"))
 
+
+_load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+try:
+    import psycopg2
+except ImportError:
+    print("ERROR: psycopg2 non disponible. Installe avec : pip3 install psycopg2-binary", file=sys.stderr)
+    sys.exit(1)
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
     raise SystemExit("ERROR: DATABASE_URL environment variable is not set.")
 
 
-def main():
+def main(dry_run: bool = False) -> None:
     conn = psycopg2.connect(DATABASE_URL)
     conn.autocommit = False
     cur = conn.cursor()
 
     print("=== Region NULL fix ===")
-    print("Rule: null region = EU. Finding auto-matched entries where regions mismatch.\n")
+    if dry_run:
+        print("Mode DRY-RUN — aucune modification ne sera appliquée.\n")
+    print("Règle : région null = EU. Recherche des auto-matchs incorrects.\n")
 
     # Find LabelCache entries where auto-match would now be a region mismatch
     cur.execute("""
@@ -60,11 +80,11 @@ def main():
     bad_matches = cur.fetchall()
 
     if not bad_matches:
-        print("No bad auto-matches found. Nothing to fix.")
+        print("Aucun auto-match incorrect trouvé. Rien à corriger.")
         conn.close()
         return
 
-    print(f"Found {len(bad_matches)} bad auto-matched LabelCache entries:\n")
+    print(f"Trouvé {len(bad_matches)} entrées LabelCache avec région incorrecte :\n")
     cache_ids = []
     product_ids = []
     for row in bad_matches:
@@ -84,15 +104,19 @@ def main():
             WHERE product_id = ANY(%s)
         """, (product_ids,))
         refs = cur.fetchall()
-        print(f"Associated SupplierProductRef entries to delete: {len(refs)}")
+        print(f"SupplierProductRef associés à supprimer : {len(refs)}")
         for r in refs:
             print(f"  ref_id={r[0]} | supplier_id={r[1]} | product_id={r[2]}")
         print()
 
-    # Dry run check
-    answer = input("Apply fix? (yes/no): ").strip().lower()
+    if dry_run:
+        print("DRY-RUN terminé. Aucune modification appliquée.")
+        conn.close()
+        return
+
+    answer = input("Appliquer le fix ? (yes/no) : ").strip().lower()
     if answer != "yes":
-        print("Aborted. No changes made.")
+        print("Annulé. Aucune modification.")
         conn.close()
         return
 
@@ -103,9 +127,9 @@ def main():
             WHERE product_id = ANY(%s)
         """, (product_ids,))
         deleted_refs = cur.rowcount
-        print(f"Deleted {deleted_refs} SupplierProductRef entries.")
+        print(f"Supprimé {deleted_refs} entrées SupplierProductRef.")
 
-    # Reset LabelCache entries (unlink product, reset to extraction state)
+    # Reset LabelCache entries
     cur.execute("""
         UPDATE label_cache
         SET product_id = NULL,
@@ -114,12 +138,15 @@ def main():
         WHERE id = ANY(%s)
     """, (cache_ids,))
     reset_cache = cur.rowcount
-    print(f"Reset {reset_cache} LabelCache entries (product_id → NULL, match_source → 'extracted').")
+    print(f"Réinitialisé {reset_cache} entrées LabelCache (product_id → NULL, match_source → 'extracted').")
 
     conn.commit()
-    print("\nDone. Run a new matching job to re-evaluate these products with the correct region scoring.")
+    print("\nTerminé. Lance un nouveau rapprochement pour re-évaluer ces produits avec le bon scoring région.")
     conn.close()
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dry-run", action="store_true", help="Simulation sans modification")
+    args = parser.parse_args()
+    main(dry_run=args.dry_run)
