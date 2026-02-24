@@ -28,6 +28,7 @@ from models import (
     ModelReference,
     PendingMatch,
     Product,
+    ProductCalculation,
     Supplier,
     SupplierProductRef,
     SupplierCatalog,
@@ -636,13 +637,20 @@ def run_matching_job(
             key = (ti.supplier_id, normalized)
             label_to_catalogs.setdefault(key, []).append(ti)
 
-    # Determine which labels need LLM extraction
+    # Determine which labels need LLM extraction.
+    # Also re-extract entries where product_id=None AND extracted_attributes=None:
+    # these were created by an older code path that didn't save LLM output, leaving
+    # Phase 2 with no attributes to score against (score=0 → all products not_found).
     labels_to_extract: List[Tuple[int, str, str]] = []  # (supplier_id, normalized, original)
     for (sid, normalized), catalogs in label_to_catalogs.items():
         cached = LabelCache.query.filter_by(
             supplier_id=sid, normalized_label=normalized
         ).first()
-        if not cached:
+        needs_extraction = (
+            not cached
+            or (cached.product_id is None and not cached.extracted_attributes)
+        )
+        if needs_extraction:
             original_label = catalogs[0].description or catalogs[0].model or ""
             labels_to_extract.append((sid, normalized, original_label))
 
@@ -685,7 +693,17 @@ def run_matching_job(
     # -----------------------------------------------------------------------
     # Phase 2: Match Odoo Products against extracted cache entries
     # -----------------------------------------------------------------------
+    # Exclude products already matched — either via ETL (ProductCalculation exists)
+    # or via previous LLM auto-match (SupplierProductRef exists, ETL not yet re-run).
+    # ProductCalculation is the stat definition of "matched"; SPR covers the window
+    # where LLM matched a product but the ETL price sync hasn't run yet.
     matched_product_ids: set[int] = {
+        row[0]
+        for row in db.session.query(ProductCalculation.product_id)
+        .filter(ProductCalculation.product_id.isnot(None))
+        .distinct()
+        .all()
+    } | {
         row[0]
         for row in db.session.query(SupplierProductRef.product_id)
         .filter(SupplierProductRef.product_id.isnot(None))
