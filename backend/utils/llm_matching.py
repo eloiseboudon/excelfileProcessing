@@ -184,8 +184,8 @@ utilise la table de correspondance
 4. color : normalise en francais en utilisant les synonymes fournis. \
 Si la couleur n est dans aucun synonyme, garde le nom original
 5. device_type : Smartphone, Tablette, Accessoire, Audio, etc.
-6. region : "EU" si standard EU. "US" si US Spec, "IN" si Indian Spec, \
-"DE" si (DE), etc.
+6. region : toujours renseigner, jamais null. "EU" par defaut (produit \
+standard Europe). "US" si US Spec, "IN" si Indian Spec, "DE" si (DE), etc.
 7. connectivity : "WiFi" si [W], "Cellular" si mention cellular/LTE, \
 "5G" si mentionne, null sinon
 8. grade : A, B, C si mentionne, null sinon
@@ -389,7 +389,7 @@ def score_match(
         details["storage"] = 25
         score += 25
 
-    # --- Model family (40 pts) ---
+    # --- Model family (45 pts) ---
     ext_model = (extracted.get("model_family") or "").strip().lower()
     prod_model = (product.model or "").strip().lower()
     # Remove brand from product model for comparison
@@ -411,14 +411,14 @@ def score_match(
 
         ratio = _fuzzy_ratio(ext_model, prod_model)
         if ratio >= 0.95:
-            details["model_family"] = 40
-            score += 40
+            details["model_family"] = 45
+            score += 45
         elif ratio >= 0.8:
-            pts = int(20 + (ratio - 0.8) * 100)
-            details["model_family"] = min(pts, 35)
+            pts = int(25 + (ratio - 0.8) * 100)
+            details["model_family"] = min(pts, 40)
             score += details["model_family"]
         elif ratio >= 0.6:
-            details["model_family"] = int(ratio * 20)
+            details["model_family"] = int(ratio * 25)
             score += details["model_family"]
         else:
             details["model_family"] = 0
@@ -447,9 +447,9 @@ def score_match(
     else:
         details["color"] = 0
 
-    # --- Region (gate; null or empty = EU) ---
-    # Mismatch kills the score entirely. Match adds nothing (pure filter, not additive).
-    # Region is intentionally absent from `details` when it passes — only present on reject.
+    # --- Region (multiplier ×0 or ×1; null = EU) ---
+    # Region is not additive — it gates the entire score.
+    # Mismatch → score = 0. Match → score passes through unchanged.
     ext_region = (extracted.get("region") or "EU").strip().upper()
     prod_region = (product.region or "EU").strip().upper()
     if ext_region != prod_region:
@@ -615,7 +615,7 @@ def create_product_from_extraction(
         memory_id=_find_or_create_memory(extracted.get("storage", "")),
         color_id=_find_color_id(extracted.get("color", "")),
         type_id=_find_device_type_id(extracted.get("device_type", "")),
-        region=extracted.get("region"),
+        region=extracted.get("region") or "EU",
     )
     db.session.add(product)
     db.session.flush()
@@ -779,6 +779,7 @@ def run_matching_job(
             total_input_tokens += token_info.get("input_tokens", 0) // max(len(batch_labels), 1)
             total_output_tokens += token_info.get("output_tokens", 0) // max(len(batch_labels), 1)
             extraction["raw_label"] = original_label
+            extraction["region"] = (extraction.get("region") or "EU").strip().upper()
 
             # Attribute-based cross-supplier sharing: if the same (brand, model, storage,
             # color, region) tuple is already matched in another supplier's cache, assign

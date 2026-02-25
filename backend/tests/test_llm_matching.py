@@ -398,8 +398,7 @@ class TestCallLlmExtraction:
 
 class TestScoreMatch:
     def test_perfect_match(self, product_s25, color_translations):
-        """All fields match, no region info on either side (null = EU) → 95 pts.
-        Region is a gate (×0 or ×1), not additive."""
+        """All fields match, no region info on either side (null = EU) → 100 pts."""
         extracted = {
             "brand": "Samsung",
             "model_family": "Galaxy S25 Ultra",
@@ -409,10 +408,11 @@ class TestScoreMatch:
         }
         mappings = {"color_translations": {"black": "Noir"}}
         score, details = score_match(extracted, product_s25, mappings)
-        assert score == 95
+        assert score == 100
+        assert "region" not in details  # region is a gate (×0/×1), not additive
 
     def test_perfect_match_with_region(self, brand_samsung, memory_256, color_noir, color_translations):
-        """All fields match including region → 95 pts (region is a gate, not additive)."""
+        """All fields match including explicit EU region → 100 pts."""
         p = Product(
             model="Galaxy S25 Ultra",
             brand_id=brand_samsung.id,
@@ -432,7 +432,8 @@ class TestScoreMatch:
         }
         mappings = {"color_translations": {"black": "Noir"}}
         score, details = score_match(extracted, p, mappings)
-        assert score == 95
+        assert score == 100
+        assert "region" not in details  # region is a gate (×0/×1), not additive
 
     def test_brand_mismatch_returns_zero(self, product_s25):
         extracted = {"brand": "Apple", "model_family": "Galaxy S25 Ultra", "storage": "256 Go"}
@@ -543,7 +544,7 @@ class TestScoreMatch:
         assert details.get("disqualified") == "region_mismatch"
 
     def test_region_null_treated_as_eu(self, brand_apple, memory_128, color_noir):
-        """Null region on both sides = EU match → passes through, no disqualification, no bonus."""
+        """Null region on both sides = EU match → no disqualification, score passes through."""
         product_null_region = Product(
             model="iPhone 16",
             brand_id=brand_apple.id,
@@ -564,7 +565,7 @@ class TestScoreMatch:
         score, details = score_match(extracted, product_null_region, {})
         assert score > 0
         assert details.get("disqualified") != "region_mismatch"
-        assert "region" not in details  # region passes silently — absent from details
+        assert "region" not in details  # region is a gate, not additive — absent from details on pass
 
     def test_non_eu_label_disqualifies_null_region_product(self, brand_apple, memory_128, color_noir):
         """Non-EU label (IN) must disqualify a product with null region (= EU)."""
@@ -723,7 +724,7 @@ class TestScoreMatch:
         }
         mappings = {"color_translations": {}}
         score, details = score_match(extracted, product_s25, mappings)
-        assert 0 < details["model_family"] < 40
+        assert 0 < details["model_family"] < 45
 
 
 class TestNormalizeStorage:
