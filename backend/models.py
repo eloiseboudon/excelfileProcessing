@@ -528,6 +528,45 @@ class ActivityLog(db.Model):
     user = db.relationship("User", lazy="select")
 
 
+class NightlyConfig(db.Model):
+    __tablename__ = "nightly_config"
+
+    id = db.Column(db.Integer, primary_key=True)
+    enabled = db.Column(db.Boolean, default=False, nullable=False)
+    run_hour = db.Column(db.Integer, default=2, nullable=False)
+    run_minute = db.Column(db.Integer, default=0, nullable=False)
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+
+class NightlyJob(db.Model):
+    __tablename__ = "nightly_jobs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    started_at = db.Column(
+        db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+    finished_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    status = db.Column(db.String(20), default="running", nullable=False)
+    odoo_synced = db.Column(db.Integer, nullable=True)
+    suppliers_synced = db.Column(db.Integer, nullable=True)
+    matching_submitted = db.Column(db.Integer, nullable=True)
+    email_sent = db.Column(db.Boolean, default=False, nullable=False)
+    error_message = db.Column(db.Text, nullable=True)
+
+
+class NightlyEmailRecipient(db.Model):
+    __tablename__ = "nightly_email_recipients"
+
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(200), unique=True, nullable=False)
+    name = db.Column(db.String(100), nullable=True)
+    active = db.Column(db.Boolean, default=True, nullable=False)
+
+
 class PendingMatch(db.Model):
     __tablename__ = "pending_matches"
 

@@ -53,6 +53,13 @@ def create_app():
         scheduler = OdooScheduler(app)
         scheduler.start()
 
+    # Start nightly pipeline scheduler if opted-in
+    if os.getenv("ENABLE_NIGHTLY_SCHEDULER", "false").lower() == "true":
+        from utils.nightly_scheduler import NightlyScheduler
+
+        nightly_scheduler = NightlyScheduler(app)
+        nightly_scheduler.start()
+
     return app
 
 

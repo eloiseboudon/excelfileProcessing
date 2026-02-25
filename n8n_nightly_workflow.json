@@ -1,0 +1,55 @@
+{
+  "name": "AJT Pro — Rapport Nightly",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ajtpro-nightly-report",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "c1a2b3d4-e5f6-7890-abcd-111111111111",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "ajtpro-nightly-report"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.body.recipients.join(', ') }}",
+        "subject": "={{ $json.body.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.body.html_body }}",
+        "options": {}
+      },
+      "id": "d2b3c4e5-f6a7-8901-bcde-222222222222",
+      "name": "Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [480, 300],
+      "credentials": {}
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "instanceId": "ajtpro-nightly"
+  },
+  "tags": []
+}

@@ -1,12 +1,13 @@
 import { Settings } from 'lucide-react';
 import { useState } from 'react';
 import LogsPanel from './LogsPanel';
+import NightlyPipelinePanel from './NightlyPipelinePanel';
 import ReferenceAdmin from './ReferenceAdmin';
 import SupplierApiAdmin from './SupplierApiAdmin';
 import TranslationAdmin from './TranslationAdmin';
 import UserAdmin from './UserAdmin';
 
-type AdminTab = 'references' | 'translations' | 'apis' | 'users' | 'logs';
+type AdminTab = 'references' | 'translations' | 'apis' | 'users' | 'logs' | 'automation';
 
 const TABS: { key: AdminTab; label: string }[] = [
   { key: 'references', label: 'Tables référence' },
@@ -14,6 +15,7 @@ const TABS: { key: AdminTab; label: string }[] = [
   { key: 'apis', label: 'API fournisseurs' },
   { key: 'users', label: 'Utilisateurs' },
   { key: 'logs', label: 'Logs' },
+  { key: 'automation', label: 'Automatisation' },
 ];
 
 function AdminPage() {
@@ -61,6 +63,7 @@ function AdminPage() {
         <UserAdmin isVisible onClose={() => setTab('users')} />
       )}
       {tab === 'logs' && <LogsPanel />}
+      {tab === 'automation' && <NightlyPipelinePanel />}
     </div>
   );
 }
