@@ -24,6 +24,7 @@ from models import (
     ColorTranslation,
     DeviceType,
     LabelCache,
+    MatchingRun,
     MemoryOption,
     ModelReference,
     PendingMatch,
@@ -650,6 +651,30 @@ def run_matching_job(
 
     start_time = time.time()
 
+    matching_run = MatchingRun(status="running", supplier_id=supplier_id)
+    db.session.add(matching_run)
+    db.session.commit()
+    run_id = matching_run.id
+
+    # Initialize all counters with defaults (used in finally block)
+    from_cache = 0
+    llm_calls = 0
+    errors = 0
+    error_message: Optional[str] = None
+    auto_matched = 0
+    pending_review = 0
+    auto_rejected = 0
+    not_found = 0
+    total_input_tokens = 0
+    total_output_tokens = 0
+    cross_supplier_hits = 0
+    fuzzy_hits = 0
+    attr_share_hits = 0
+    products_to_process: list = []
+    remaining = 0
+    cost_estimate = 0.0
+    duration = 0.0
+
     threshold_auto = _get_env_int("MATCH_THRESHOLD_AUTO", 90)
     threshold_review = _get_env_int("MATCH_THRESHOLD_REVIEW", 50)
     batch_size = _get_env_int("LLM_BATCH_SIZE", 25)
@@ -735,12 +760,6 @@ def run_matching_job(
         labels_to_extract.append((sid, normalized, original_label))
 
     from_cache = len(label_to_catalogs) - len(labels_to_extract)
-    llm_calls = 0
-    errors = 0
-    error_message: Optional[str] = None
-    total_input_tokens = 0
-    total_output_tokens = 0
-    attr_share_hits = 0
 
     context = build_context()
 
@@ -861,10 +880,6 @@ def run_matching_job(
         brand_to_entries.setdefault(brand, []).append(entry)
 
     mappings = _build_mappings()
-    auto_matched = 0
-    pending_review = 0
-    auto_rejected = 0
-    not_found = 0
 
     for product in products_to_process:
         prod_brand = (product.brand.brand if product.brand else "").strip().lower()
@@ -983,7 +998,28 @@ def run_matching_job(
 
     duration = round(time.time() - start_time, 2)
 
+    # Update MatchingRun with final results
+    try:
+        mr = db.session.get(MatchingRun, run_id)
+        if mr:
+            mr.status = "error" if error_message else "completed"
+            mr.total_products = len(products_to_process)
+            mr.from_cache = from_cache
+            mr.llm_calls = llm_calls
+            mr.auto_matched = auto_matched
+            mr.pending_review = pending_review
+            mr.auto_rejected = auto_rejected
+            mr.not_found = not_found
+            mr.errors = errors
+            mr.cost_estimate = cost_estimate
+            mr.duration_seconds = duration
+            mr.error_message = error_message
+            db.session.commit()
+    except Exception:
+        current_app.logger.exception("Failed to update MatchingRun #%d", run_id)
+
     return {
+        "run_id": run_id,
         "total_products": len(products_to_process),
         "from_cache": from_cache,
         "cross_supplier_hits": cross_supplier_hits,

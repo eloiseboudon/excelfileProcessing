@@ -14,7 +14,7 @@ from models import LabelCache, NightlyEmailRecipient, NightlyJob, PendingMatch, 
 
 
 class TestRunNightlyPipeline:
-    @patch("utils.nightly_pipeline._run_matching_step", return_value=5)
+    @patch("utils.nightly_pipeline._run_matching_step", return_value={"total_products": 5, "run_id": None})
     @patch("utils.nightly_pipeline._run_suppliers_step", return_value=2)
     @patch("utils.nightly_pipeline._run_odoo_step", return_value=10)
     @patch("utils.nightly_pipeline.send_nightly_email", return_value=True)
@@ -55,7 +55,7 @@ class TestRunNightlyPipeline:
         assert job.status == "failed"
         assert job.error_message is not None
 
-    @patch("utils.nightly_pipeline._run_matching_step", return_value=0)
+    @patch("utils.nightly_pipeline._run_matching_step", return_value={"total_products": 0, "run_id": None})
     @patch("utils.nightly_pipeline._run_suppliers_step", return_value=0)
     @patch("utils.nightly_pipeline._run_odoo_step", return_value=0)
     @patch("utils.nightly_pipeline.send_nightly_email", return_value=False)

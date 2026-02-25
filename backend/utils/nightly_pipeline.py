@@ -45,7 +45,17 @@ def run_nightly_pipeline() -> Dict[str, Any]:
         suppliers_synced = _run_suppliers_step()
 
         # Step 3 — LLM matching
-        matching_submitted = _run_matching_step()
+        matching_result = _run_matching_step()
+        matching_submitted = matching_result.get("total_products", 0)
+
+        # Link MatchingRun to this NightlyJob
+        run_id = matching_result.get("run_id")
+        if run_id:
+            from models import MatchingRun
+            matching_run = db.session.get(MatchingRun, run_id)
+            if matching_run:
+                matching_run.nightly_job_id = job_id
+                db.session.commit()
 
     except Exception as exc:
         logger.exception("Nightly pipeline failed at job #%d", job_id)
@@ -163,7 +173,7 @@ def _run_suppliers_step() -> int:
     return count
 
 
-def _run_matching_step() -> int:
+def _run_matching_step() -> Dict[str, Any]:
     """Nightly matching: full re-evaluation of all products against the updated catalog.
 
     Strategy:
@@ -201,10 +211,9 @@ def _run_matching_step() -> int:
 
     # Step C — run matching on ALL products, reusing cached LLM extractions
     result = llm_matching.run_matching_job(supplier_id=None, limit=None, skip_already_matched=True)
-    submitted = result.get("total_products", 0)
     logger.info(
         "Nightly matching: %d products processed (llm_calls=%d, auto=%d, pending=%d)",
-        submitted,
+        result.get("total_products", 0),
         result.get("llm_calls", 0),
         result.get("auto_matched", 0),
         result.get("pending_review", 0),
@@ -215,7 +224,7 @@ def _run_matching_step() -> int:
         auto_validated = _apply_validation_history(validation_history)
         logger.info("Nightly matching: %d matches auto-validated from history", auto_validated)
 
-    return submitted
+    return result
 
 
 def _apply_validation_history(validation_history: Dict[tuple, int]) -> int:
@@ -338,6 +347,8 @@ def _build_subject(job: Any) -> str:
 
 
 def _build_html_report(job: Any) -> str:
+    from models import MatchingRun
+
     frontend_base = os.environ.get("FRONTEND_URL", "http://localhost:5173")
     validation_url = f"{frontend_base}/matching"
 
@@ -372,6 +383,35 @@ def _build_html_report(job: Any) -> str:
         for label, value in rows
     )
 
+    # Matching detail section
+    mr = MatchingRun.query.filter_by(nightly_job_id=job.id).first()
+    matching_section = ""
+    if mr and mr.total_products is not None:
+        matching_rows = [
+            ("Produits traités", str(mr.total_products)),
+            ("Depuis le cache", f"{mr.from_cache or 0} (0 appel LLM)"),
+            ("Appels LLM (batches)", str(mr.llm_calls or 0)),
+            ("Auto-matchés (≥90 pts)", str(mr.auto_matched or 0)),
+            ("À valider (50-89 pts)", str(mr.pending_review or 0)),
+            ("Rejetés auto", str(mr.auto_rejected or 0)),
+            ("Non trouvés", str(mr.not_found or 0)),
+            ("Coût estimé", f"~{mr.cost_estimate or 0:.4f} €"),
+            ("Durée matching", f"{mr.duration_seconds or 0:.1f}s"),
+        ]
+        matching_rows_html = "".join(
+            f"""
+            <tr>
+              <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:13px;">{label}</td>
+              <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;font-weight:600;font-size:13px;">{value}</td>
+            </tr>"""
+            for label, value in matching_rows
+        )
+        matching_section = f"""
+      <h2 style="font-size:15px;color:#374151;margin:24px 0 8px;">Détail matching LLM</h2>
+      <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;">
+        {matching_rows_html}
+      </table>"""
+
     return f"""<!DOCTYPE html>
 <html lang="fr">
 <head><meta charset="utf-8"><title>Rapport nightly AJT Pro</title></head>
@@ -389,6 +429,7 @@ def _build_html_report(job: Any) -> str:
       <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;">
         {rows_html}
       </table>
+      {matching_section}
       <div style="margin-top:24px;text-align:center;">
         <a href="{validation_url}"
            style="background:#B8860B;color:#fff;padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:600;font-size:14px;">

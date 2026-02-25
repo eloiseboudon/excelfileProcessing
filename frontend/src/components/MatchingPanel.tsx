@@ -353,47 +353,67 @@ function MatchingPanel() {
           </div>
         )}
 
-        {/* Résumé dernier run */}
-        {!running && lastRunSummary && (
-          <div className={`mt-4 p-3 rounded-md border text-sm ${
-            lastRunSummary.status === 'error'
-              ? 'bg-[var(--color-bg-elevated)] border-red-500/30'
-              : 'bg-[var(--color-bg-elevated)] border-[var(--color-border-subtle)]'
-          }`}>
-            {lastRunSummary.status === 'error' ? (
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-                <div>
-                  <p className="font-medium text-red-400">Erreur lors du rapprochement</p>
-                  <p className="text-red-400/80 mt-0.5">{lastRunSummary.error_message}</p>
+        {/* Résumé dernier run — priorité au lastRunSummary de session, sinon stats.last_run depuis DB */}
+        {!running && (() => {
+          const displayRun = lastRunSummary ?? stats?.last_run;
+          if (!displayRun) return null;
+          const ranAtLabel = displayRun.ran_at
+            ? new Date(displayRun.ran_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
+            : null;
+          return (
+            <div className={`mt-4 p-3 rounded-md border text-sm ${
+              displayRun.status === 'error'
+                ? 'bg-[var(--color-bg-elevated)] border-red-500/30'
+                : 'bg-[var(--color-bg-elevated)] border-[var(--color-border-subtle)]'
+            }`}>
+              {ranAtLabel && (
+                <p className="text-xs text-[var(--color-text-muted)] mb-3">
+                  Dernier run — {ranAtLabel}
+                </p>
+              )}
+              {displayRun.status === 'error' ? (
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-medium text-red-400">Erreur lors du rapprochement</p>
+                    <p className="text-red-400/80 mt-0.5">{displayRun.error_message}</p>
+                  </div>
                 </div>
-              </div>
-            ) : !lastRunSummary.total_products ? (
-              <p className="text-[var(--color-text-muted)]">
-                Aucun nouveau produit a traiter — tous les produits sont deja en attente de validation ou apparies.
-              </p>
-            ) : (
-              <div className="flex flex-wrap gap-4 text-[var(--color-text-secondary)]">
-                <span>{lastRunSummary.total_products} produits traites</span>
-                {(lastRunSummary.auto_matched ?? 0) > 0 && (
-                  <span className="text-green-400">{lastRunSummary.auto_matched} auto-matches</span>
-                )}
-                {(lastRunSummary.pending_review ?? 0) > 0 && (
-                  <span className="text-[#B8860B]">{lastRunSummary.pending_review} a valider</span>
-                )}
-                {(lastRunSummary.auto_rejected ?? 0) > 0 && (
-                  <span>{lastRunSummary.auto_rejected} rejetes auto</span>
-                )}
-                {(lastRunSummary.not_found ?? 0) > 0 && (
-                  <span className="text-[var(--color-text-muted)]">{lastRunSummary.not_found} sans correspondance</span>
-                )}
-                {(lastRunSummary.errors ?? 0) > 0 && (
-                  <span className="text-red-400">{lastRunSummary.errors} erreurs LLM</span>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+              ) : !displayRun.total_products ? (
+                <p className="text-[var(--color-text-muted)]">
+                  Aucun nouveau produit a traiter — tous les produits sont deja en attente de validation ou apparies.
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-x-8 gap-y-1.5 text-sm">
+                  <span className="text-[var(--color-text-muted)]">Produits traites</span>
+                  <span className="font-medium">{displayRun.total_products}</span>
+                  <span className="text-[var(--color-text-muted)]">Depuis le cache</span>
+                  <span>{displayRun.from_cache ?? '—'}</span>
+                  <span className="text-[var(--color-text-muted)]">Appels LLM (batches)</span>
+                  <span>{displayRun.llm_calls ?? '—'}</span>
+                  <span className="text-[var(--color-text-muted)]">Auto-matches (≥90 pts)</span>
+                  <span className="text-green-400">{displayRun.auto_matched ?? 0}</span>
+                  <span className="text-[var(--color-text-muted)]">A valider (50-89 pts)</span>
+                  <span className="text-[#B8860B]">{displayRun.pending_review ?? 0}</span>
+                  <span className="text-[var(--color-text-muted)]">Rejetes auto</span>
+                  <span>{displayRun.auto_rejected ?? 0}</span>
+                  <span className="text-[var(--color-text-muted)]">Non trouves</span>
+                  <span className="text-[var(--color-text-muted)]">{displayRun.not_found ?? 0}</span>
+                  <span className="text-[var(--color-text-muted)]">Cout estime</span>
+                  <span>~{(displayRun.cost_estimate ?? 0).toFixed(4)} €</span>
+                  <span className="text-[var(--color-text-muted)]">Duree</span>
+                  <span>{displayRun.duration_seconds ? `${Math.round(displayRun.duration_seconds)}s` : '—'}</span>
+                  {(displayRun.errors ?? 0) > 0 && (
+                    <>
+                      <span className="text-[var(--color-text-muted)]">Erreurs LLM</span>
+                      <span className="text-red-400">{displayRun.errors}</span>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Produits Odoo sans correspondance fournisseur */}
