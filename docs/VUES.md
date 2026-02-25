@@ -438,6 +438,20 @@ Le matching est **product-centric** : on itère sur les produits Odoo non encore
 
 **Score max = 100 pts** (15 + 15 + 25 + 45). La formule est `score = région × (marque + couleur + stockage + modèle)`. La région n'est pas additive — elle multiplie le score total. `null` = `"EU"` partout : il n'existe pas de région null, c'est Europe par défaut. Hard disqualify (score → 0) si les deux régions diffèrent. Le LLM renvoie toujours "EU" explicitement.
 
+**Exemple de score partiel (~70 pts → en attente de validation) :**
+
+Produit Odoo : `iPhone 16 Pro Max 256 Go Noir` / Libellé fournisseur : `"Apple iPhone 16 Pro 256GB"`
+
+| Critère | Calcul | Score |
+|---------|--------|-------|
+| Marque | `Apple` = `Apple` | +15 |
+| Couleur | absent du libellé, `Noir` côté produit → un seul côté → 0 pts, pas de disqualification | +0 |
+| Stockage | `256GB` = `256 Go` | +25 |
+| Famille modèle | `"iphone 16 pro"` vs `"iphone 16 pro max"` → ratio ~0.85 → fuzzy ~30 pts | +30 |
+| Région | `null`=EU des deux côtés → ×1 | ×1 |
+| Similarité libellé | `"apple iphone 16 pro 256gb"` vs `"iphone 16 pro max"` → ratio ~0.65 → bonus | +0 |
+| **Total** | | **~70 pts → `pending` (validation manuelle)** |
+
 **Règle disqualification stockage** : hard disqualify uniquement si les deux côtés ont un stockage identifiable (champ `memory` officiel OU stockage lisible dans le nom du modèle). Si un seul côté a le stockage → 0 pts, pas de disqualification.
 
 ### Auto-rejet
