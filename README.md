@@ -65,6 +65,8 @@ ODOO_ENCRYPTION_KEY=<cle-fernet-generee>
 ENABLE_ODOO_SCHEDULER=false
 ANTHROPIC_API_KEY=sk-ant-xxxxx
 LLM_MODEL=claude-haiku-4-5-20251001
+NIGHTLY_WEBHOOK_URL=https://your-n8n-instance/webhook/nightly-report
+ENABLE_NIGHTLY_SCHEDULER=false
 ```
 
 **Points importants :**
@@ -151,6 +153,7 @@ ajtpro/
 │   │   ├── logs.py           # Logs d'activite et logs applicatifs
 │   │   ├── main.py           # Route sante (/)
 │   │   ├── matching.py       # Rapprochement LLM (run, pending, validate, reject, stats, cache)
+│   │   ├── nightly.py        # Pipeline nightly (config, trigger, jobs, destinataires)
 │   │   ├── odoo.py           # Synchronisation Odoo (config, test, sync, jobs)
 │   │   ├── products.py       # CRUD produits, calculs et refresh catalogue fournisseurs
 │   │   ├── references.py     # Tables de reference (marques, couleurs, etc.)
@@ -168,6 +171,8 @@ ajtpro/
 │   │   ├── etl.py             # Pipeline ETL synchronisation fournisseurs
 │   │   ├── llm_matching.py    # Module matching LLM (extraction, scoring, orchestration)
 │   │   ├── logging_config.py  # Configuration logging centralise (fichier JSON + console)
+│   │   ├── nightly_pipeline.py # Orchestrateur pipeline nightly + envoi webhook n8n
+│   │   ├── nightly_scheduler.py # Planificateur pipeline nightly (threading.Timer)
 │   │   ├── odoo_scheduler.py  # Planificateur synchro auto Odoo
 │   │   ├── normalize.py       # Normalisation valeurs memoire/RAM (ex: "512GB" → "512 Go")
 │   │   ├── odoo_sync.py       # Client XML-RPC et moteur synchro Odoo
@@ -178,7 +183,8 @@ ajtpro/
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── AdminPage.tsx              # Administration generale
+│   │   │   ├── AdminPage.tsx              # Administration generale (dont onglet Automatisation)
+│   │   │   ├── NightlyPipelinePanel.tsx   # Pipeline nightly (config, trigger, historique, destinataires)
 │   │   │   ├── DataImportPage.tsx         # Synchronisation fournisseurs (onglets Synchro/Rapports/Odoo/Rapprochement)
 │   │   │   ├── MatchingPanel.tsx          # Rapprochement LLM (declenchement, validation, stats)
 │   │   │   ├── FormattingPage.tsx         # Mise en forme
@@ -321,6 +327,21 @@ Pre-requis : creer un compte Anthropic, generer une cle API et ajouter `ANTHROPI
   - **user** : acces lecture (Produits, Recherche, Statistiques) — pas d'admin ni synchro
   - **client** : vue tarif simplifiee (Prix de vente, Modele, Description) + export XLSX 3 colonnes
 
+### Pipeline nightly
+
+Automatisation complete du cycle de synchronisation et de matching, declenchable manuellement ou planifiable chaque nuit via l'onglet **Automatisation** dans Administration (role admin) :
+
+- **Orchestration** : sync Odoo → sync API fournisseurs → re-evaluation matching LLM → rapport email
+- **Re-matching intelligent** : chaque nuit, tous les produits sont re-scores contre le catalogue mis a jour. Les extractions LLM passees sont preservees dans le `LabelCache` (bibliotheque historique) pour eviter les appels API redondants. Les matches identiques a la veille sont auto-valides ; les matches changes passent en attente de validation
+- **Declenchement manuel** : bouton "Lancer maintenant" avec suivi du job en temps reel
+- **Planificateur** : `threading.Timer` verifiant chaque minute si l'heure configuree est atteinte (UTC). Active via `ENABLE_NIGHTLY_SCHEDULER=true`
+- **Rapport email** : webhook n8n (POST JSON) → workflow Gmail. Contient le statut, les compteurs (produits Odoo, fournisseurs, labels), la duree et un lien vers la page de validation
+- **Gestion des destinataires** : CRUD des adresses email depuis l'interface admin
+- **Historique** : 20 derniers jobs avec statut, date, duree et compteurs
+- **Resilience** : cleanup automatique des jobs orphelins (status "running") au demarrage du serveur
+
+Variables d'environnement : `NIGHTLY_WEBHOOK_URL` (URL webhook n8n), `ENABLE_NIGHTLY_SCHEDULER` (false par defaut), `FRONTEND_URL` (utilise pour le lien de validation dans l'email).
+
 ### CI/CD
 
 Le projet dispose d'un pipeline GitHub Actions complet :
@@ -439,7 +460,7 @@ Le gabarit OpenAPI se trouve dans `backend/swagger_template.yml`.
 
 ### Tests backend
 
-Le framework `pytest` est configure dans le backend (SQLite in-memory, pas besoin de PostgreSQL) — 245 tests dans 14 fichiers :
+Le framework `pytest` est configure dans le backend (SQLite in-memory, pas besoin de PostgreSQL) — 279 tests dans 16 fichiers :
 
 ```bash
 cd backend
@@ -449,7 +470,7 @@ python -m pytest tests/ -v
 
 ### Tests frontend
 
-Le framework `vitest` avec Testing Library est configure dans le frontend — 161 tests dans 17 fichiers :
+Le framework `vitest` avec Testing Library est configure dans le frontend — 175 tests dans 18 fichiers :
 
 ```bash
 cd frontend

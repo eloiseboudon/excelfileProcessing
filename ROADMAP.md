@@ -346,6 +346,30 @@ Fichiers concernes : `backend/utils/etl.py`, `backend/tests/test_etl_persist.py`
 
 ---
 
+## Pipeline nightly automatise (implementee)
+
+Automatisation complete du cycle nocturne : sync Odoo + fournisseurs + re-matching LLM + rapport email.
+
+- **Orchestrateur** (`utils/nightly_pipeline.py`) : enchaine les 4 etapes et cree un `NightlyJob` en DB pour tracer chaque execution
+- **Re-matching intelligent** : chaque nuit, tous les produits sont re-evalues contre le catalogue mis a jour
+  - Le `LabelCache` accumule les extractions LLM (bibliotheque historique) — labels deja vus = 0 appel API
+  - Matches identiques a la veille → auto-valides (`PendingMatch.status = "validated"`)
+  - Matches changes ou nouveaux → `pending` pour validation le matin
+  - `skip_already_matched=True` dans `run_matching_job` pour court-circuiter les exclusions
+- **Planificateur** (`utils/nightly_scheduler.py`) : `threading.Timer` verifiant chaque minute si l'heure UTC configuree est atteinte. Variable `_last_run_date` pour eviter de relancer plusieurs fois la meme nuit
+- **Rapport email** : webhook n8n (stdlib `urllib`, zero dependance externe). Payload JSON avec statut, compteurs, duree, lien de validation et corps HTML. Workflow n8n importable dans `n8n_nightly_workflow.json`
+- **8 endpoints REST** (`routes/nightly.py`, prefix `/nightly`) : GET/PUT config, POST trigger, GET jobs, GET jobs/<id>, GET/POST/DELETE recipients
+- **3 nouveaux modeles** : `NightlyConfig`, `NightlyJob`, `NightlyEmailRecipient`
+- **Resilience** : cleanup automatique au demarrage (`_cleanup_orphaned_jobs`) des jobs laisses en "running" par un crash ou hot-reload
+- **UI admin** : onglet "Automatisation" dans AdminPage — toggle enable, selecteur heure, bouton trigger, tableau historique, CRUD destinataires
+- **34 tests** : `tests/test_routes_nightly.py` (22 tests) + `tests/test_nightly_pipeline.py` (12 tests)
+
+Variables d'environnement : `NIGHTLY_WEBHOOK_URL`, `ENABLE_NIGHTLY_SCHEDULER` (false par defaut), `FRONTEND_URL` (lien validation email).
+
+Fichiers concernes : `backend/utils/nightly_pipeline.py`, `backend/utils/nightly_scheduler.py`, `backend/routes/nightly.py`, `backend/utils/llm_matching.py`, `backend/app.py`, `backend/models.py`, `frontend/src/components/NightlyPipelinePanel.tsx`, `frontend/src/components/AdminPage.tsx`, `n8n_nightly_workflow.json`
+
+---
+
 ## Optimisation CI — annulation des runs obsoletes (implementee)
 
 Ajout d'un groupe de concurrence (`concurrency`) dans le pipeline CI GitHub Actions.
