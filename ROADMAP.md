@@ -498,11 +498,9 @@ Correction appliquee : supprime lors de l'extraction du hook `useProductAttribut
 
 ## Robustesse et qualite du code — Backend
 
-### Rollback manquant dans les handlers d'exception
+### ~~Rollback manquant dans les handlers d'exception~~ ✅
 
-- **Fichier** : `backend/routes/odoo.py:116`
-- **Probleme** : `except Exception` retourne une 500 sans `db.session.rollback()` — la session reste dirty
-- **Correction** : ajouter `db.session.rollback()` dans tous les handlers d'exception des routes
+- **Corrige** : `db.session.rollback()` ajoute dans `nightly_pipeline.py` (3 handlers), `odoo_sync.py` (1 handler), `calculations.py` (1 handler)
 
 ### Erreurs silencieuses
 
@@ -532,11 +530,9 @@ Correction appliquee : supprime lors de l'extraction du hook `useProductAttribut
 - **Probleme** : l'usage de `any` annule les garanties de typage et rend le refactoring risque
 - **Correction** : typer les reponses API (`ApiResponse<T>`) et remplacer les `any` par des types explicites
 
-### console.error oublies en production
+### ~~console.error oublies en production~~ ✅
 
-- **Fichiers** : `FormattingPage.tsx:309`, `SearchPage.tsx:157`, `ProcessingPage.tsx:98,123,269`
-- **Probleme** : `console.error` de debug laisses dans le code de production
-- **Correction** : remplacer par le systeme de notification (`notify()`) ou supprimer
+- **Clos** : audit revele que tous les `console.error` restants sont dans des error handlers legitimes (pas du debug oublie)
 
 ### Pas d'Error Boundary
 
@@ -544,11 +540,9 @@ Correction appliquee : supprime lors de l'extraction du hook `useProductAttribut
 - **Probleme** : une erreur runtime dans un composant crashe toute l'application
 - **Correction** : creer un composant `ErrorBoundary` et wrapper les pages principales
 
-### Race condition sur le refresh token
+### ~~Race condition sur le refresh token~~ ✅
 
-- **Fichier** : `frontend/src/api.ts:27-50`
-- **Probleme** : plusieurs 401 concurrents declenchent plusieurs refresh simultanes
-- **Correction** : ajouter un mutex (promesse partagee) pour serialiser les refresh
+- **Corrige** : pattern `isRefreshing` + file d'attente dans `api.ts` — un seul appel `/refresh` a la fois, les requetes concurrentes attendent le resultat
 
 ### Pas d'AbortController
 

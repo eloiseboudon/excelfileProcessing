@@ -17,22 +17,52 @@ function authHeaders(headers: Record<string, string> = {}) {
   return headers;
 }
 
+let isRefreshing = false;
+let refreshSubscribers: Array<(token: string | null) => void> = [];
+
+function onRefreshed(callback: (token: string | null) => void) {
+  refreshSubscribers.push(callback);
+}
+
+function notifySubscribers(token: string | null) {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+}
+
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const opts: RequestInit = { ...options, credentials: 'include' };
   opts.headers = authHeaders(options.headers as Record<string, string>);
   let res = await fetch(url, opts);
+
   if (res.status === 401) {
+    if (isRefreshing) {
+      const token = await new Promise<string | null>((resolve) => {
+        onRefreshed(resolve);
+      });
+      if (token) {
+        opts.headers = authHeaders(options.headers as Record<string, string>);
+        return fetch(url, opts);
+      }
+      return res;
+    }
+
+    isRefreshing = true;
     const refreshRes = await fetch(`${API_BASE}/refresh`, {
       method: 'POST',
       credentials: 'include',
     });
+
     if (refreshRes.ok) {
       const data = await refreshRes.json();
       setAuthToken(data.token);
+      isRefreshing = false;
+      notifySubscribers(data.token);
       opts.headers = authHeaders(options.headers as Record<string, string>);
       res = await fetch(url, opts);
     } else {
       setAuthToken(null);
+      isRefreshing = false;
+      notifySubscribers(null);
       window.dispatchEvent(new Event('auth:logout'));
     }
   }
