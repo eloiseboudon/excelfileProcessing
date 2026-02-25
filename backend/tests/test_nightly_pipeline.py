@@ -1,10 +1,11 @@
 """Tests for utils/nightly_pipeline.py — pipeline orchestrator and email."""
 
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from models import NightlyConfig, NightlyEmailRecipient, NightlyJob, db
+from models import LabelCache, NightlyEmailRecipient, NightlyJob, PendingMatch, db
 
 
 # ---------------------------------------------------------------------------
@@ -66,6 +67,158 @@ class TestRunNightlyPipeline:
 
         assert summary["email_sent"] is False
         mock_email.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# _apply_validation_history
+# ---------------------------------------------------------------------------
+
+
+class TestApplyValidationHistory:
+    def _make_supplier(self):
+        from models import Supplier
+        s = Supplier(name="TestSupplier")
+        db.session.add(s)
+        db.session.flush()
+        return s
+
+    def _make_product(self):
+        from models import Product
+        p = Product(description="iPhone 16 128GB")
+        db.session.add(p)
+        db.session.flush()
+        return p
+
+    def test_auto_validates_matching_top_candidate(self):
+        from utils.nightly_pipeline import _apply_validation_history
+
+        s = self._make_supplier()
+        p = self._make_product()
+        db.session.commit()
+
+        # Tonight's pending match: top candidate == yesterday's validated product
+        pm = PendingMatch(
+            supplier_id=s.id,
+            source_label="iphone 16 128gb",
+            extracted_attributes={},
+            candidates=[{"product_id": p.id, "score": 75}],
+            status="pending",
+        )
+        db.session.add(pm)
+        db.session.commit()
+
+        history = {("iphone 16 128gb", s.id): p.id}
+        count = _apply_validation_history(history)
+
+        assert count == 1
+        db.session.refresh(pm)
+        assert pm.status == "validated"
+        assert pm.resolved_product_id == p.id
+
+    def test_leaves_pending_when_match_changed(self):
+        from models import Product
+        from utils.nightly_pipeline import _apply_validation_history
+
+        s = self._make_supplier()
+        p1 = self._make_product()
+        p2 = Product(description="iPhone 16 256GB")
+        db.session.add(p2)
+        db.session.commit()
+
+        # Tonight's top candidate changed (p2 instead of p1)
+        pm = PendingMatch(
+            supplier_id=s.id,
+            source_label="iphone 16 128gb",
+            extracted_attributes={},
+            candidates=[{"product_id": p2.id, "score": 72}],
+            status="pending",
+        )
+        db.session.add(pm)
+        db.session.commit()
+
+        history = {("iphone 16 128gb", s.id): p1.id}
+        count = _apply_validation_history(history)
+
+        assert count == 0
+        db.session.refresh(pm)
+        assert pm.status == "pending"  # stays pending for morning review
+
+    def test_restores_label_cache_product_id(self):
+        from utils.nightly_pipeline import _apply_validation_history
+
+        s = self._make_supplier()
+        p = self._make_product()
+        db.session.commit()
+
+        lc = LabelCache(
+            supplier_id=s.id,
+            normalized_label="iphone 16 128gb",
+            match_source="extracted",
+            extracted_attributes={"brand": "apple"},
+            product_id=None,
+        )
+        db.session.add(lc)
+
+        pm = PendingMatch(
+            supplier_id=s.id,
+            source_label="iphone 16 128gb",
+            extracted_attributes={},
+            candidates=[{"product_id": p.id, "score": 80}],
+            status="pending",
+        )
+        db.session.add(pm)
+        db.session.commit()
+
+        history = {("iphone 16 128gb", s.id): p.id}
+        _apply_validation_history(history)
+
+        db.session.refresh(lc)
+        assert lc.product_id == p.id
+
+
+# ---------------------------------------------------------------------------
+# _run_matching_step (nightly mode)
+# ---------------------------------------------------------------------------
+
+
+class TestRunMatchingStepNightly:
+    @patch("utils.llm_matching.run_matching_job")
+    def test_calls_skip_already_matched(self, mock_run):
+        from utils.nightly_pipeline import _run_matching_step
+
+        mock_run.return_value = {"total_products": 10, "llm_calls": 2, "auto_matched": 3, "pending_review": 7}
+
+        _run_matching_step()
+
+        mock_run.assert_called_once_with(
+            supplier_id=None, limit=None, skip_already_matched=True
+        )
+
+    @patch("utils.llm_matching.run_matching_job")
+    def test_resets_label_cache_product_ids(self, mock_run):
+        from models import Supplier
+        from utils.nightly_pipeline import _run_matching_step
+
+        mock_run.return_value = {"total_products": 0, "llm_calls": 0, "auto_matched": 0, "pending_review": 0}
+
+        s = Supplier(name="S2")
+        db.session.add(s)
+        db.session.commit()
+
+        lc = LabelCache(
+            supplier_id=s.id,
+            normalized_label="lbl",
+            match_source="auto",
+            product_id=42,
+        )
+        db.session.add(lc)
+        db.session.commit()
+
+        _run_matching_step()
+
+        # LabelCache product_id should have been cleared before matching
+        db.session.refresh(lc)
+        assert lc.product_id is None
 
 
 # ---------------------------------------------------------------------------

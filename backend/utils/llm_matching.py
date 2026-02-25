@@ -629,6 +629,7 @@ def create_product_from_extraction(
 def run_matching_job(
     supplier_id: Optional[int] = None,
     limit: Optional[int] = None,
+    skip_already_matched: bool = False,
 ) -> Dict[str, Any]:
     """Orchestrate the LLM matching process (product-centric direction).
 
@@ -798,32 +799,38 @@ def run_matching_job(
     # -----------------------------------------------------------------------
     # Phase 2: Match Odoo Products against extracted cache entries
     # -----------------------------------------------------------------------
-    # Exclude products already matched — either via ETL (ProductCalculation exists)
-    # or via previous LLM auto-match (LabelCache has a product_id, ETL not yet re-run).
-    # ProductCalculation is the canonical definition of "matched"; LabelCache covers
-    # the window where the LLM matched a product but the ETL price sync hasn't run yet.
-    matched_product_ids: set[int] = {
-        row[0]
-        for row in db.session.query(ProductCalculation.product_id)
-        .filter(ProductCalculation.product_id.isnot(None))
-        .distinct()
-        .all()
-    } | {
-        row[0]
-        for row in db.session.query(LabelCache.product_id)
-        .filter(LabelCache.product_id.isnot(None))
-        .distinct()
-        .all()
-    }
+    if skip_already_matched:
+        # Nightly mode: re-evaluate every product against tonight's updated catalog.
+        # Caller is responsible for resetting LabelCache.product_id and PendingMatch
+        # before calling this function.
+        matched_product_ids: set[int] = set()
+        pending_product_ids: set[int] = set()
+    else:
+        # Normal mode: exclude products already matched — either via ETL
+        # (ProductCalculation exists) or via previous LLM auto-match
+        # (LabelCache has a product_id, ETL not yet re-run).
+        matched_product_ids = {
+            row[0]
+            for row in db.session.query(ProductCalculation.product_id)
+            .filter(ProductCalculation.product_id.isnot(None))
+            .distinct()
+            .all()
+        } | {
+            row[0]
+            for row in db.session.query(LabelCache.product_id)
+            .filter(LabelCache.product_id.isnot(None))
+            .distinct()
+            .all()
+        }
 
-    # Exclude products already queued in a pending or auto-rejected match
-    pending_product_ids: set[int] = set()
-    for pm in PendingMatch.query.filter(
-        PendingMatch.status.in_(["pending", "rejected"])
-    ).all():
-        for c in pm.candidates or []:
-            if c.get("product_id"):
-                pending_product_ids.add(c["product_id"])
+        # Exclude products already queued in a pending or auto-rejected match
+        pending_product_ids = set()
+        for pm in PendingMatch.query.filter(
+            PendingMatch.status.in_(["pending", "rejected"])
+        ).all():
+            for c in pm.candidates or []:
+                if c.get("product_id"):
+                    pending_product_ids.add(c["product_id"])
 
     all_products_list = Product.query.all()
     products_to_process = [

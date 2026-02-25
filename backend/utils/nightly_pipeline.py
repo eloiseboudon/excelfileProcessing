@@ -164,13 +164,98 @@ def _run_suppliers_step() -> int:
 
 
 def _run_matching_step() -> int:
-    """Run LLM matching Phase 1 and return number of labels submitted."""
-    from utils.llm_matching import run_matching_job
+    """Nightly matching: full re-evaluation of all products against the updated catalog.
 
-    result = run_matching_job(supplier_id=None, limit=None)
-    submitted = result.get("total_labels", 0)
-    logger.info("Matching step: %d labels submitted", submitted)
+    Strategy:
+    1. Capture yesterday's validation history (auto-matched + manually validated).
+    2. Reset: delete all PendingMatch, clear LabelCache.product_id links.
+       The LabelCache *extractions* (extracted_attributes) are preserved — this is the
+       accumulated knowledge base that prevents redundant LLM calls.
+    3. Run matching on ALL products (skip_already_matched=True).
+    4. Auto-validate results that reproduce a known good match from yesterday.
+    """
+    from models import LabelCache, PendingMatch, db
+    from utils import llm_matching
+
+    # Step A — capture yesterday's validation history
+    # Sources: LabelCache auto-matches (lower priority) + PendingMatch validated (higher)
+    validation_history: Dict[tuple, int] = {}
+
+    for entry in LabelCache.query.filter(LabelCache.product_id.isnot(None)).all():
+        validation_history[(entry.normalized_label, entry.supplier_id)] = entry.product_id
+
+    for pm in PendingMatch.query.filter(
+        PendingMatch.status.in_(["validated", "created"]),
+        PendingMatch.resolved_product_id.isnot(None),
+    ).all():
+        # PendingMatch.source_label overrides cache entry (manual decision wins)
+        validation_history[(pm.source_label, pm.supplier_id)] = pm.resolved_product_id
+
+    logger.info("Nightly matching: %d historical validations captured", len(validation_history))
+
+    # Step B — full reset (catalog changed → re-score everything)
+    deleted = PendingMatch.query.delete()
+    LabelCache.query.update({"product_id": None}, synchronize_session=False)
+    db.session.commit()
+    logger.info("Nightly matching: reset complete (%d PendingMatch deleted)", deleted)
+
+    # Step C — run matching on ALL products, reusing cached LLM extractions
+    result = llm_matching.run_matching_job(supplier_id=None, limit=None, skip_already_matched=True)
+    submitted = result.get("total_products", 0)
+    logger.info(
+        "Nightly matching: %d products processed (llm_calls=%d, auto=%d, pending=%d)",
+        submitted,
+        result.get("llm_calls", 0),
+        result.get("auto_matched", 0),
+        result.get("pending_review", 0),
+    )
+
+    # Step D — auto-validate matches consistent with yesterday's history
+    if validation_history:
+        auto_validated = _apply_validation_history(validation_history)
+        logger.info("Nightly matching: %d matches auto-validated from history", auto_validated)
+
     return submitted
+
+
+def _apply_validation_history(validation_history: Dict[tuple, int]) -> int:
+    """Auto-validate new PendingMatch entries that reproduce a known good match.
+
+    A match is considered "known good" when tonight's top candidate points to
+    the same Odoo product that was validated (manually or via auto-match) last night.
+    """
+    from datetime import datetime, timezone
+
+    from models import LabelCache, PendingMatch, db
+
+    count = 0
+    for pm in PendingMatch.query.filter_by(status="pending").all():
+        validated_product_id = validation_history.get((pm.source_label, pm.supplier_id))
+        if not validated_product_id:
+            continue
+
+        candidates = pm.candidates or []
+        if not candidates:
+            continue
+
+        top_product_id = candidates[0].get("product_id")
+        if top_product_id != validated_product_id:
+            # Match changed → leave as pending for morning review
+            continue
+
+        pm.status = "validated"
+        pm.resolved_product_id = validated_product_id
+        pm.resolved_at = datetime.now(timezone.utc)
+
+        # Restore LabelCache product link so the ETL can sync prices on next run
+        LabelCache.query.filter_by(
+            normalized_label=pm.source_label,
+            supplier_id=pm.supplier_id,
+        ).update({"product_id": validated_product_id}, synchronize_session=False)
+        count += 1
+
+    db.session.commit()
+    return count
 
 
 def _get_active_supplier_apis() -> List[Any]:
