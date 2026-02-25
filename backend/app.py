@@ -1,5 +1,6 @@
 import logging
 import os
+from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 from flasgger import Swagger
@@ -8,6 +9,26 @@ from flask_cors import CORS
 from models import db
 from routes import register_routes
 from utils.logging_config import configure_logging
+
+
+def _cleanup_orphaned_jobs():
+    """Reset any NightlyJob stuck in 'running' status at startup (e.g. after a server crash or hot-reload)."""
+    try:
+        from models import NightlyJob
+        count = NightlyJob.query.filter_by(status="running").update(
+            {
+                "status": "failed",
+                "finished_at": datetime.now(timezone.utc),
+                "error_message": "Interrupted by server restart",
+            }
+        )
+        if count:
+            db.session.commit()
+            logging.getLogger(__name__).warning(
+                "Cleaned up %d orphaned nightly job(s) stuck in 'running' status.", count
+            )
+    except Exception:
+        db.session.rollback()
 
 
 def create_app():
@@ -43,6 +64,7 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+        _cleanup_orphaned_jobs()
 
     register_routes(app)
 
