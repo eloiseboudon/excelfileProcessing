@@ -16,6 +16,10 @@ products (table référentielle Odoo)
 supplier_catalog ← ETL (api_fetch_jobs → parsed_items → supplier_catalog)
     ↑
 supplier_apis / api_endpoints / mapping_versions / field_maps
+
+Pipeline nightly (nightly_scheduler → nightly_pipeline)
+    ↓  chaque nuit : sync Odoo + sync fournisseurs + re-matching LLM + email
+nightly_jobs (historique) / nightly_config (heure) / nightly_email_recipients
 ```
 
 **Règle fondamentale** : `products` est la **source de vérité**. C'est le référentiel Odoo. Toutes les données de prix et marges (`product_calculations`) en dérivent. Le catalogue fournisseur (`supplier_catalog`) est un cache temporaire.
@@ -29,9 +33,12 @@ supplier_apis / api_endpoints / mapping_versions / field_maps
 | `products` | Sync Odoo (XML-RPC) | Référentiel maître |
 | `supplier_catalog` | ETL fournisseur (API) | Cache catalogue fournisseur |
 | `product_calculations` | `recalculate_product_calculations()` | Prix + marges calculés |
-| `label_cache` | LLM matching | Cache résultats Claude Haiku |
+| `label_cache` | LLM matching | Bibliothèque historique : extractions + scores + reasoning |
 | `pending_matches` | LLM matching | File de validation manuelle |
 | `supplier_product_refs` | Validation manuelle d'un match | Lien SKU fournisseur → produit Odoo |
+| `nightly_config` | Admin UI | Heure + activation du scheduler nightly |
+| `nightly_jobs` | Pipeline nightly | Historique des exécutions nocturnes |
+| `nightly_email_recipients` | Admin UI | Destinataires du rapport email nightly |
 
 ---
 
@@ -59,7 +66,7 @@ Tableau croisé des produits Odoo avec leurs prix d'achat et calculs de marges p
 | Marge € | `product_calculations.marge` | Marge absolue (€) |
 | Marge % | `product_calculations.marge_percent` | Marge relative |
 | Prix HT max | `product_calculations.prixht_max` | Prix de vente HT maximum calculé |
-| PA_{Fournisseur} | `product_calculations.price` | Colonne dynamique par fournisseur actif |
+| PA_{Fournisseur} | `product_calculations.price` | Colonne dynamique par fournisseur actif. Si un fournisseur a plusieurs refs pour le même produit, des colonnes supplémentaires "Fournisseur (2)", "Fournisseur (3)" sont générées |
 
 ### Endpoint API
 
@@ -86,6 +93,7 @@ Colonnes réduites : Prix de vente, Modèle, Description. Pas de recalcul, pas d
 - **TCP = 0 pour les produits sans mémoire** : si `products.memory_id` est NULL, `tcp_value` = 0. Normal pour les accessoires/câbles.
 - **Produits absents** : un produit Odoo n'apparaît ici QUE s'il a au moins un `product_calculation`. Si un produit est dans Odoo mais pas dans le tableau, c'est que le calcul ne l'a pas trouvé dans le catalogue fournisseur (ni par EAN, ni par attributs, ni par LabelCache).
 - **Marge éditée manuellement** : la colonne `marge` de `products` est la valeur stockée. Le recalcul (`recalculate_product_calculations`) repart de `price` (PA fournisseur) et recalcule la marge par formule — il écrase donc les valeurs éditées manuellement. L'édition dans le modal met à jour `products.marge` mais PAS `product_calculations.marge` directement.
+- **Plusieurs refs par fournisseur** : si un fournisseur a plusieurs entrées `supplier_catalog` correspondant au même produit Odoo, des clés uniques sont générées ("Fournisseur (2)", "Fournisseur (3)") pour que toutes les colonnes soient visibles dans le modal `SupplierPriceModal`.
 
 ---
 
@@ -391,15 +399,17 @@ Interface de matching intelligent des produits Odoo contre le catalogue fourniss
 
 | Métrique | Source | Calcul |
 |----------|--------|--------|
-| Produits Odoo matchés | `product_calculations` | `COUNT(DISTINCT product_id)` |
+| Produits Odoo matchés | `product_calculations` ∪ `supplier_product_refs` | `COUNT(DISTINCT product_id)` sur les deux tables |
 | Total produits Odoo | `products` | `COUNT(*)` |
 | Couverture % | Calculé | matchés / total × 100 |
 | En attente | `pending_matches` | `COUNT WHERE status='pending'` |
 | Validés | `pending_matches` | `COUNT WHERE status='validated'` |
 | Rejetés | `pending_matches` | `COUNT WHERE status='rejected'` |
 | Créés | `pending_matches` | `COUNT WHERE status='created'` |
+| Jamais soumis | `products` | Produits sans candidats LLM (ni cache ni pending) |
+| Dernier run | `_last_run_result` (in-memory) | Résultat du dernier job : status, compteurs clés |
 
-**Attention** : "Produits Odoo matchés" = produits ayant au moins un `product_calculation`, **pas** uniquement les matchs LLM validés. C'est la vraie couverture (ETL + LLM).
+**Attention** : "Produits Odoo matchés" inclut les matches via `product_calculations` (ETL/calcul) **ET** via `supplier_product_refs` (validation LLM manuelle). Les produits LLM-validés sont ainsi comptés immédiatement, avant que le prochain sync ETL ne crée leur `product_calculation`.
 
 #### Liste des matchs
 
@@ -423,8 +433,10 @@ Le matching est **product-centric** : on itère sur les produits Odoo non encore
 | Couleur | 15 | Oui (les deux côtés non-null) |
 | Stockage | 25 | Oui (les deux côtés ont une valeur identifiable) |
 | Famille modèle | 40 | Non (fuzzy matching) |
-| Région | 5 | Non |
+| Région | multiplicateur ×0 ou ×1 | Oui (les deux côtés non-null) |
 | Similarité libellé | variable | Non |
+
+**Score max = 95 pts** (15 + 15 + 25 + 40). La région n'ajoute aucun point — elle agit comme un **gate multiplier** : si les deux côtés ont une région non-null ET différente → ×0 (score mis à zéro, hard disqualify). Sinon → ×1 (score inchangé). La région ne doit donc pas être incluse dans le détail des scores affiché quand elle passe, pour éviter un effet de bord visuel.
 
 **Règle disqualification stockage** : hard disqualify uniquement si les deux côtés ont un stockage identifiable (champ `memory` officiel OU stockage lisible dans le nom du modèle). Si un seul côté a le stockage → 0 pts, pas de disqualification.
 
@@ -437,15 +449,30 @@ Si **tous** les candidats d'un produit déclenchent un hard disqualifier → `Pe
 | Action | Statut source | Effet |
 |--------|--------------|-------|
 | Valider | `pending` ou `rejected` | Crée `SupplierProductRef`, met à jour `LabelCache`, `status='validated'` |
-| Créer produit | `pending` | Crée un nouveau produit dans `products`, `status='created'` |
 | Ignorer | `pending` | `status='rejected'` |
+
+### Phase 1 — LabelCache : bibliothèque historique
+
+Le **LabelCache** est le cœur de l'efficacité du matching. Il accumule deux choses distinctes :
+
+| Champ | Rôle | Comportement nightly |
+|-------|------|---------------------|
+| `extracted_attributes` | Résultat de l'extraction LLM (marque, modèle, stockage…) | **Jamais effacé** — c'est la connaissance accumulée |
+| `product_id` | Produit Odoo associé (match validé) | Effacé au reset nightly, restauré après validation |
+| `match_reasoning` | JSONB : détail du score par critère | Stocké à chaque décision de scoring |
+
+**Optimisations Phase 1 :**
+- **Cache hit** : un libellé déjà vu avec `extracted_attributes` non-null ne consomme pas de crédit LLM. Seule l'extraction initiale est facturée.
+- **Cross-supplier sharing** (`match_source='attr_share'`): si les attributs extraits d'un nouveau libellé correspondent exactement à une entrée `label_cache` validée d'un autre fournisseur → `product_id` assigné directement, Phase 2 (scoring LLM) contournée.
+- **N-shot learning** : jusqu'à 10 extractions validées à haute confiance sont injectées dans le prompt LLM (max 3 par marque) pour améliorer la qualité des nouvelles extractions.
+
+**Coût estimé** : < 0.30€ pour 3 000 produits sur run initial (Claude Haiku 4.5). Les runs nightly suivants coûtent quasi-rien si les libellés fournisseurs n'ont pas changé.
 
 ### Points de cohérence
 
 - Valider un match **ne déclenche pas automatiquement le recalcul des prix**. Il faut relancer "Recalculer" dans TCP/Marges pour que le produit apparaisse dans les calculs.
 - Un produit déjà présent dans `product_calculations` (via ETL) n'apparaît pas dans la queue de matching LLM (il a déjà un `SupplierProductRef`... **sauf** si le matching ETL l'a trouvé via attributs sans créer de `SupplierProductRef`). Il peut donc être soumis au LLM en double — ce n'est pas bloquant mais c'est redondant.
-- Le **LabelCache** évite les double appels LLM pour le même libellé normalisé par fournisseur. Un libellé mis en cache ne consomme plus de crédits Anthropic lors des runs suivants.
-- Coût estimé : < 0.30€ pour 3000 produits (Claude Haiku 4.5).
+- En mode **nightly** (`skip_already_matched=True`), tous les produits sont re-scorés sans exception, y compris ceux déjà dans `product_calculations`. Voir Vue 14.
 
 ---
 
@@ -511,6 +538,75 @@ Endpoint : `GET /supplier_api/reports`
 
 ---
 
+## 14. Admin > Automatisation (Pipeline nightly)
+
+**Accès** : Admin > onglet Automatisation | Rôles : `admin` uniquement
+
+### Ce qui est affiché
+
+Interface complète de gestion du pipeline nightly automatisé (`NightlyPipelinePanel`).
+
+#### Section Configuration
+
+| Champ | Source | Description |
+|-------|--------|-------------|
+| Activer le scheduler | `nightly_config.enabled` | Toggle on/off du planificateur automatique |
+| Heure d'exécution | `nightly_config.run_hour` | Heure UTC (0-23) à laquelle le pipeline se déclenche chaque nuit |
+
+Endpoint : `GET/PUT /nightly/config`
+
+#### Section Lancement manuel
+
+Bouton "Lancer maintenant" → déclenche le pipeline en arrière-plan et affiche le statut du job en cours.
+
+Endpoint : `POST /nightly/trigger`
+
+#### Section Historique
+
+Les 20 derniers `NightlyJob` avec :
+
+| Colonne | Source |
+|---------|--------|
+| Date | `nightly_jobs.started_at` |
+| Durée | `finished_at - started_at` |
+| Statut | `nightly_jobs.status` (running / completed / failed) |
+| Produits Odoo synchés | `nightly_jobs.odoo_synced` |
+| Fournisseurs synchés | `nightly_jobs.suppliers_synced` |
+| Labels soumis au matching | `nightly_jobs.matching_submitted` |
+| Email envoyé | `nightly_jobs.email_sent` |
+| Erreur | `nightly_jobs.error_message` (si failed) |
+
+Endpoint : `GET /nightly/jobs` + `GET /nightly/jobs/<id>`
+
+#### Section Destinataires email
+
+Liste des `NightlyEmailRecipient` actifs/inactifs avec ajout (email + nom) et suppression par ligne.
+
+Endpoint : `GET/POST /nightly/recipients` + `DELETE /nightly/recipients/<id>`
+
+### Ce que fait le pipeline nightly
+
+1. **Sync Odoo** : même appel que le bouton manuel (XML-RPC → mise à jour `products`)
+2. **Sync fournisseurs** : relance le dernier `ApiFetchJob` pour chaque `SupplierAPI` actif → met à jour `supplier_catalog`
+3. **Re-matching intelligent** (logique nightly complète) :
+   - Capture l'historique de validation (LabelCache.product_id + PendingMatch validated/created)
+   - Supprime **tous** les `PendingMatch`, remet `LabelCache.product_id = NULL` (garde `extracted_attributes`)
+   - Lance `run_matching_job(skip_already_matched=True)` → re-score tous les produits
+   - Auto-valide les matches dont le top candidat correspond à l'historique de la veille
+   - Laisse en `pending` les matches changés (pour validation le matin)
+4. **Rapport email** : POST webhook n8n → workflow Gmail avec HTML récapitulatif + lien vers `/matching`
+
+### Points de cohérence
+
+- **`ENABLE_NIGHTLY_SCHEDULER=true`** requis pour que le scheduler se lance au démarrage du backend. Sans cette variable, le pipeline ne s'exécute jamais automatiquement (lancement manuel toujours possible).
+- **`NIGHTLY_WEBHOOK_URL`** : URL du webhook n8n pour l'envoi de l'email. Si absent, l'email est simplement ignoré (pas d'erreur bloquante).
+- **Heure UTC** : configurer l'heure en UTC. Par exemple, pour 3h du matin en France (UTC+1 hiver), configurer `run_hour=2`.
+- **Résilience** : au démarrage du serveur, `_cleanup_orphaned_jobs()` remet à `failed` tous les jobs bloqués en `running` (crashs, hot-reload Werkzeug).
+- **Fréquence** : la variable `_last_run_date` empêche le pipeline de se déclencher plusieurs fois la même nuit UTC, même si le serveur redémarre.
+- **Flux nightly vs manuel** : en mode nightly, `skip_already_matched=True` contourne l'exclusion `product_calculations`/`LabelCache`. En mode manuel (UI Rapprochement), l'exclusion normale s'applique (évite de re-soumettre les produits déjà matchés).
+
+---
+
 ## Matrice de cohérence des données
 
 ### Flux de données principal
@@ -523,18 +619,26 @@ Sync fournisseur → supplier_catalog
 product_calculations ← TCP/Marges
     ↓
 LLM Matching → pending_matches → (validation) → supplier_product_refs + label_cache
+
+Pipeline nightly (automatique ou manuel) :
+    → Sync Odoo + Sync fournisseur + LLM Matching (re-score total)
+    → Auto-validation des matches stables → email rapport n8n
 ```
 
 ### Quand les données sont-elles mises à jour ?
 
 | Table | Mise à jour lors de |
 |-------|-------------------|
-| `products` | Sync Odoo |
-| `supplier_catalog` | Sync fournisseur (ETL) |
+| `products` | Sync Odoo (manuel ou nightly) |
+| `supplier_catalog` | Sync fournisseur ETL (manuel ou nightly) |
 | `product_calculations` | Sync fournisseur (auto) OU clic "Recalculer" OU validation match LLM |
-| `label_cache` | Run matching LLM OU validation manuelle |
-| `pending_matches` | Run matching LLM / validation / rejet |
+| `label_cache.extracted_attributes` | Run LLM matching (extraction) — jamais effacé |
+| `label_cache.product_id` | Validation manuelle OU auto-validation nightly |
+| `pending_matches` | Run matching LLM / validation / rejet / reset nightly |
 | `supplier_product_refs` | Validation manuelle d'un match LLM |
+| `nightly_jobs` | Déclenchement pipeline nightly (auto ou manuel) |
+| `nightly_config` | UI Admin > Automatisation |
+| `nightly_email_recipients` | UI Admin > Automatisation |
 
 ### Points de vigilance
 
@@ -551,3 +655,7 @@ LLM Matching → pending_matches → (validation) → supplier_product_refs + la
 5. **Produits sans type** : si `device_type_id` est NULL, le produit n'est pas filtrable par type. Utiliser "Assigner les types" dans le matching pour classifier automatiquement.
 
 6. **Doublon de processing LLM** : un produit déjà dans `product_calculations` (via ETL EAN/attributs) peut être soumis au LLM car il n'a pas forcément de `SupplierProductRef`. Ce n'est pas bloquant mais consomme des crédits inutilement.
+
+7. **Pipeline nightly — reset total** : chaque nuit, tous les `PendingMatch` sont supprimés et `LabelCache.product_id` est remis à NULL avant de relancer le matching. Les `extracted_attributes` sont préservés (bibliothèque historique). Les matches identiques à la veille sont auto-validés ; les matches changés passent en `pending` pour validation le matin.
+
+8. **Validation history — priorité** : en mode nightly, l'historique de validation est construit depuis `LabelCache.product_id` (auto-matches) ET `PendingMatch.status IN ('validated', 'created')` (décisions manuelles). En cas de conflit, la décision manuelle écrase le cache auto.
