@@ -453,10 +453,16 @@ def _product_price_summary_inner():
                 "latest_date": None,
             }
         supplier = calc.supplier.name if calc.supplier else ""
-        data[pid]["supplier_prices"][supplier] = _safe_float(calc.prixht_max)
-        data[pid]["buy_price"][supplier] = _safe_float(calc.price)
-        data[pid]["stock_levels"][supplier] = calc.stock
-        data[pid]["latest_calculations"][supplier] = {
+        # Generate unique key if this supplier already has a ref for this product
+        supplier_key = supplier
+        idx = 2
+        while supplier_key in data[pid]["supplier_prices"]:
+            supplier_key = f"{supplier} ({idx})"
+            idx += 1
+        data[pid]["supplier_prices"][supplier_key] = _safe_float(calc.prixht_max)
+        data[pid]["buy_price"][supplier_key] = _safe_float(calc.price)
+        data[pid]["stock_levels"][supplier_key] = calc.stock
+        data[pid]["latest_calculations"][supplier_key] = {
             "price": _safe_float(calc.price),
             "tcp": _safe_float(calc.tcp),
             "marge4_5": _safe_float(calc.marge4_5),
