@@ -68,6 +68,8 @@ services:
 
 volumes:
   postgres_data:
+    name: ajtpro_pgdata
+    external: true
 
 
 networks:
