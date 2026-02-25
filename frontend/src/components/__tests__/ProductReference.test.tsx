@@ -58,7 +58,6 @@ vi.mock('../../api', () => ({
   fetchRAMOptions: vi.fn().mockResolvedValue([]),
   fetchNormeOptions: vi.fn().mockResolvedValue([]),
   setAuthToken: vi.fn(),
-  setRefreshToken: vi.fn(),
 }));
 
 function renderProductReference() {

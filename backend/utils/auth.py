@@ -7,7 +7,12 @@ from flask import request, jsonify
 from functools import wraps
 from models import User, db
 
-SECRET_KEY = os.getenv("JWT_SECRET", "secret-key")
+SECRET_KEY = os.getenv("JWT_SECRET", "")
+if not SECRET_KEY or len(SECRET_KEY) < 32:
+    raise RuntimeError(
+        "JWT_SECRET must be set and contain at least 32 characters. "
+        'Generate one with: python -c "import secrets; print(secrets.token_hex(32))"'
+    )
 TOKEN_EXPIRATION = int(os.getenv("JWT_EXPIRE", "3600"))
 REFRESH_TOKEN_EXPIRATION = int(os.getenv("JWT_REFRESH_EXPIRE", "604800"))
 

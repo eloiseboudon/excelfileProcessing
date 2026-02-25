@@ -40,14 +40,15 @@ def create_app():
     swagger_template = os.path.join(os.path.dirname(__file__), "swagger_template.yml")
     Swagger(app, template_file=swagger_template)
 
-    frontend_origin = os.getenv("FRONTEND_URL", "*")
-    origins = (
-        [o.strip() for o in frontend_origin.split(",")] if frontend_origin else "*"
-    )
+    frontend_origin = os.getenv("FRONTEND_URL")
+    if not frontend_origin:
+        raise RuntimeError("FRONTEND_URL environment variable is not set")
+    origins = [o.strip() for o in frontend_origin.split(",")]
     CORS(
         app,
         resources={r"/*": {"origins": origins}},
         expose_headers=["Content-Disposition"],
+        supports_credentials=True,
     )
 
     database_url = os.getenv("DATABASE_URL")

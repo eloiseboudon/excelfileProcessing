@@ -4,7 +4,7 @@ import { login } from '../api';
 import { useNotification } from './NotificationProvider';
 
 interface Props {
-  onLogin: (role: string, token: string, refresh: string) => void;
+  onLogin: (role: string, token: string) => void;
 }
 
 export default function LoginPage({ onLogin }: Props) {
@@ -19,7 +19,7 @@ export default function LoginPage({ onLogin }: Props) {
     setLoading(true);
     try {
       const data = await login(email, password);
-      onLogin(data.role, data.token, data.refresh_token);
+      onLogin(data.role, data.token);
     } catch (err: any) {
       notify(err.message || 'Erreur de connexion', 'error');
     } finally {

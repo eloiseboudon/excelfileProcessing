@@ -30,9 +30,9 @@ services:
     container_name: postgres
     restart: always
     environment:
-      POSTGRES_DB: ajt_db
-      POSTGRES_USER: ajt_user
-      POSTGRES_PASSWORD: ajt_password
+      POSTGRES_DB: ${POSTGRES_DB:-ajt_db}
+      POSTGRES_USER: ${POSTGRES_USER:-ajt_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ajt_password}
     volumes:
       - ajtpro_postgres_data:/var/lib/postgresql/data
     ports:
