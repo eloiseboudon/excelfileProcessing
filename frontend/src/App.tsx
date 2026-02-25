@@ -1,18 +1,18 @@
-import { BarChart3, ChevronDown, LibraryBig, LogOut, RefreshCw, Search, Settings } from 'lucide-react';
+import { BarChart3, ChevronDown, GitMerge, LibraryBig, LogOut, RefreshCw, Search, Settings } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { fetchApitest, setAuthToken, setRefreshToken } from './api';
+import { setAuthToken, setRefreshToken } from './api';
 import AdminPage from './components/AdminPage';
-import DataImportPage from './components/DataImportPage';
 import LoginPage from './components/LoginPage';
+import MatchingPanel from './components/MatchingPanel';
 import ProductsPage from './components/ProductsPage';
 import SearchPage from './components/SearchPage';
 import StatisticsPage from './components/StatisticsPage';
+import SyncPage from './components/SyncPage';
 
 function App() {
   const storedRole = localStorage.getItem('role');
   const defaultPage = storedRole ? 'products' : 'search';
-  const [currentPage, setCurrentPage] = useState<'search' | 'products' | 'dataImport' | 'statistics' | 'admin' | 'sync'>(defaultPage);
-  const [apiTestMessage, setApiTestMessage] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState<'search' | 'products' | 'statistics' | 'matching' | 'sync' | 'admin'>(defaultPage);
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [role, setRole] = useState<string>(storedRole || '');
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
@@ -49,16 +49,6 @@ function App() {
     return () => window.removeEventListener('auth:logout', onLogout);
   }, []);
 
-  const handleApiTest = async () => {
-    setApiTestMessage(null);
-    try {
-      await fetchApitest();
-      setApiTestMessage('Connexion réussie !');
-    } catch {
-      setApiTestMessage("Impossible de se connecter à l'API. Vérifiez la configuration du serveur.");
-    }
-  };
-
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -81,6 +71,33 @@ function App() {
   const isProductsActive = currentPage === 'products';
   const isSettingsActive = currentPage === 'admin' || currentPage === 'sync';
 
+  // Client : header simplifié
+  if (role === 'client') {
+    return (
+      <div className="min-h-screen text-[var(--color-text-primary)] flex flex-col">
+        <header className="sticky top-0 z-40 bg-[var(--color-bg-nav)] backdrop-blur-lg border-b border-[#B8860B]/15">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-14">
+              <span className="text-lg font-bold tracking-tight text-[#B8860B] select-none">AJT Pro</span>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-elevated)] transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Déconnexion</span>
+              </button>
+            </div>
+          </div>
+        </header>
+        <main className="flex-1">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+            <ProductsPage role={role} />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen text-[var(--color-text-primary)] flex flex-col">
       {/* Navigation Header */}
@@ -93,54 +110,65 @@ function App() {
               <span className="text-lg font-bold tracking-tight text-[#B8860B] select-none">AJT Pro</span>
 
               <nav className="hidden sm:flex items-center gap-1">
-                {role !== 'client' && (
-                  <button
-                    onClick={() => {
-                      setCurrentPage('products');
-                      setShowSettingsMenu(false);
-                    }}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                      isProductsActive
-                        ? 'bg-[#B8860B]/15 text-[#B8860B]'
-                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-elevated)]'
-                    }`}
-                  >
-                    <LibraryBig className="w-4 h-4" />
-                    <span>Produits</span>
-                  </button>
-                )}
+                <button
+                  onClick={() => {
+                    setCurrentPage('products');
+                    setShowSettingsMenu(false);
+                  }}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    isProductsActive
+                      ? 'bg-[#B8860B]/15 text-[#B8860B]'
+                      : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-elevated)]'
+                  }`}
+                >
+                  <LibraryBig className="w-4 h-4" />
+                  <span>Produits</span>
+                </button>
 
-                {role !== 'client' && (
-                  <button
-                    onClick={() => {
-                      setCurrentPage('search');
-                      setShowSettingsMenu(false);
-                    }}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                      currentPage === 'search'
-                        ? 'bg-[#B8860B]/15 text-[#B8860B]'
-                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-elevated)]'
-                    }`}
-                  >
-                    <Search className="w-4 h-4" />
-                    <span>Moteur de recherche</span>
-                  </button>
-                )}
+                <button
+                  onClick={() => {
+                    setCurrentPage('search');
+                    setShowSettingsMenu(false);
+                  }}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    currentPage === 'search'
+                      ? 'bg-[#B8860B]/15 text-[#B8860B]'
+                      : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-elevated)]'
+                  }`}
+                >
+                  <Search className="w-4 h-4" />
+                  <span>Recherche</span>
+                </button>
 
-                {role !== 'client' && (
+                <button
+                  onClick={() => {
+                    setCurrentPage('statistics');
+                    setShowSettingsMenu(false);
+                  }}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    currentPage === 'statistics'
+                      ? 'bg-[#B8860B]/15 text-[#B8860B]'
+                      : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-elevated)]'
+                  }`}
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  <span>Statistiques</span>
+                </button>
+
+                {role === 'admin' && (
                   <button
                     onClick={() => {
-                      setCurrentPage('statistics');
+                      setCurrentPage('matching');
                       setShowSettingsMenu(false);
                     }}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                      currentPage === 'statistics'
+                      currentPage === 'matching'
                         ? 'bg-[#B8860B]/15 text-[#B8860B]'
                         : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-elevated)]'
                     }`}
                   >
-                    <BarChart3 className="w-4 h-4" />
-                    <span>Statistiques</span>
+                    <GitMerge className="w-4 h-4" />
+                    <span>Rapprochement</span>
                   </button>
                 )}
               </nav>
@@ -150,105 +178,123 @@ function App() {
             <div className="flex items-center gap-2">
               {/* Mobile nav buttons */}
               <div className="flex sm:hidden items-center gap-1">
-                {role !== 'client' && (
+                <button
+                  onClick={() => {
+                    setCurrentPage('products');
+                    setShowSettingsMenu(false);
+                  }}
+                  className={`p-2 rounded-md transition-colors ${
+                    isProductsActive ? 'text-[#B8860B] bg-[#B8860B]/15' : 'text-[var(--color-text-muted)]'
+                  }`}
+                  aria-label="Produits"
+                >
+                  <LibraryBig className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => {
+                    setCurrentPage('search');
+                    setShowSettingsMenu(false);
+                  }}
+                  className={`p-2 rounded-md transition-colors ${
+                    currentPage === 'search' ? 'text-[#B8860B] bg-[#B8860B]/15' : 'text-[var(--color-text-muted)]'
+                  }`}
+                  aria-label="Recherche"
+                >
+                  <Search className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => {
+                    setCurrentPage('statistics');
+                    setShowSettingsMenu(false);
+                  }}
+                  className={`p-2 rounded-md transition-colors ${
+                    currentPage === 'statistics' ? 'text-[#B8860B] bg-[#B8860B]/15' : 'text-[var(--color-text-muted)]'
+                  }`}
+                  aria-label="Statistiques"
+                >
+                  <BarChart3 className="w-5 h-5" />
+                </button>
+                {role === 'admin' && (
                   <button
                     onClick={() => {
-                      setCurrentPage('products');
+                      setCurrentPage('matching');
                       setShowSettingsMenu(false);
                     }}
                     className={`p-2 rounded-md transition-colors ${
-                      isProductsActive ? 'text-[#B8860B] bg-[#B8860B]/15' : 'text-[var(--color-text-muted)]'
+                      currentPage === 'matching' ? 'text-[#B8860B] bg-[#B8860B]/15' : 'text-[var(--color-text-muted)]'
                     }`}
-                    aria-label="Produits"
+                    aria-label="Rapprochement"
                   >
-                    <LibraryBig className="w-5 h-5" />
-                  </button>
-                )}
-                {role !== 'client' && (
-                  <button
-                    onClick={() => {
-                      setCurrentPage('search');
-                      setShowSettingsMenu(false);
-                    }}
-                    className={`p-2 rounded-md transition-colors ${
-                      currentPage === 'search' ? 'text-[#B8860B] bg-[#B8860B]/15' : 'text-[var(--color-text-muted)]'
-                    }`}
-                    aria-label="Moteur de recherche"
-                  >
-                    <Search className="w-5 h-5" />
-                  </button>
-                )}
-                {role !== 'client' && (
-                  <button
-                    onClick={() => {
-                      setCurrentPage('statistics');
-                      setShowSettingsMenu(false);
-                    }}
-                    className={`p-2 rounded-md transition-colors ${
-                      currentPage === 'statistics' ? 'text-[#B8860B] bg-[#B8860B]/15' : 'text-[var(--color-text-muted)]'
-                    }`}
-                    aria-label="Statistiques"
-                  >
-                    <BarChart3 className="w-5 h-5" />
+                    <GitMerge className="w-5 h-5" />
                   </button>
                 )}
               </div>
 
-              {/* Settings dropdown — admin only for admin/sync entries */}
-              <div className="relative" ref={settingsMenuRef}>
+              {/* Admin : dropdown Paramètres */}
+              {role === 'admin' && (
+                <div className="relative" ref={settingsMenuRef}>
+                  <button
+                    onClick={() => setShowSettingsMenu((prev) => !prev)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      isSettingsActive
+                        ? 'bg-[#B8860B]/15 text-[#B8860B]'
+                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-elevated)]'
+                    }`}
+                  >
+                    <Settings className="w-4 h-4" />
+                    <span className="hidden sm:inline">Paramètres</span>
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showSettingsMenu ? 'rotate-180' : ''}`} />
+                  </button>
+                  {showSettingsMenu && (
+                    <div className="absolute right-0 mt-2 w-48 rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] shadow-xl z-50 py-1">
+                      <button
+                        onClick={() => {
+                          setCurrentPage('sync');
+                          setShowSettingsMenu(false);
+                        }}
+                        className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition-colors hover:bg-[var(--color-bg-elevated)] ${
+                          currentPage === 'sync' ? 'text-[#B8860B]' : 'text-[var(--color-text-primary)]'
+                        }`}
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        <span>Synchronisation</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setCurrentPage('admin');
+                          setShowSettingsMenu(false);
+                        }}
+                        className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition-colors hover:bg-[var(--color-bg-elevated)] ${
+                          currentPage === 'admin' ? 'text-[#B8860B]' : 'text-[var(--color-text-primary)]'
+                        }`}
+                      >
+                        <Settings className="w-4 h-4" />
+                        <span>Administration</span>
+                      </button>
+                      <div className="my-1 border-t border-[var(--color-border-subtle)]" />
+                      <button
+                        onClick={handleLogout}
+                        className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm text-red-400 transition-colors hover:bg-[var(--color-bg-elevated)]"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Déconnexion</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* User : bouton logout icône uniquement */}
+              {role === 'user' && (
                 <button
-                  onClick={() => setShowSettingsMenu((prev) => !prev)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                    isSettingsActive
-                      ? 'bg-[#B8860B]/15 text-[#B8860B]'
-                      : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-elevated)]'
-                  }`}
+                  onClick={handleLogout}
+                  className="p-2 rounded-md text-[var(--color-text-muted)] hover:text-red-400 hover:bg-[var(--color-bg-elevated)] transition-colors"
+                  aria-label="Déconnexion"
+                  title="Déconnexion"
                 >
-                  <Settings className="w-4 h-4" />
-                  <span className="hidden sm:inline">Paramètres</span>
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showSettingsMenu ? 'rotate-180' : ''}`} />
+                  <LogOut className="w-5 h-5" />
                 </button>
-                {showSettingsMenu && (
-                  <div className="absolute right-0 mt-2 w-48 rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] shadow-xl z-50 py-1">
-                    {role !== 'client' && role !== 'user' && (
-                      <>
-                        <button
-                          onClick={() => {
-                            setCurrentPage('admin');
-                            setShowSettingsMenu(false);
-                          }}
-                          className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition-colors hover:bg-[var(--color-bg-elevated)] ${
-                            currentPage === 'admin' ? 'text-[#B8860B]' : 'text-[var(--color-text-primary)]'
-                          }`}
-                        >
-                          <Settings className="w-4 h-4" />
-                          <span>Admin</span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            setCurrentPage('sync');
-                            setShowSettingsMenu(false);
-                          }}
-                          className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition-colors hover:bg-[var(--color-bg-elevated)] ${
-                            currentPage === 'sync' ? 'text-[#B8860B]' : 'text-[var(--color-text-primary)]'
-                          }`}
-                        >
-                          <RefreshCw className="w-4 h-4" />
-                          <span>Synchro</span>
-                        </button>
-                        <div className="my-1 border-t border-[var(--color-border-subtle)]" />
-                      </>
-                    )}
-                    <button
-                      onClick={handleLogout}
-                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm text-red-400 transition-colors hover:bg-[var(--color-bg-elevated)]"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      <span>Déconnexion</span>
-                    </button>
-                  </div>
-                )}
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -257,25 +303,12 @@ function App() {
       {/* Page Content */}
       <main className="flex-1">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-          {currentPage === 'search' && role !== 'client' && <SearchPage />}
+          {currentPage === 'search' && <SearchPage />}
           {currentPage === 'products' && <ProductsPage role={role} />}
-          {role !== 'client' && role !== 'user' && currentPage === 'dataImport' && <DataImportPage />}
-          {role !== 'client' && currentPage === 'statistics' && <StatisticsPage />}
-          {role !== 'client' && role !== 'user' && currentPage === 'admin' && <AdminPage />}
-          {role !== 'client' && role !== 'user' && currentPage === 'sync' && <DataImportPage />}
-          {currentPage !== 'admin' && currentPage !== 'sync' && (
-            <div className="text-center mt-8 mb-6">
-              <button
-                onClick={handleApiTest}
-                className="btn btn-primary"
-              >
-                Tester la connexion API
-              </button>
-              {apiTestMessage && (
-                <p className="mt-2 text-sm text-[var(--color-text-muted)]">{apiTestMessage}</p>
-              )}
-            </div>
-          )}
+          {currentPage === 'statistics' && <StatisticsPage />}
+          {role === 'admin' && currentPage === 'matching' && <MatchingPanel />}
+          {role === 'admin' && currentPage === 'sync' && <SyncPage />}
+          {role === 'admin' && currentPage === 'admin' && <AdminPage />}
         </div>
       </main>
     </div>

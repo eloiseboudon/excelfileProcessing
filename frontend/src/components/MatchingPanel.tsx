@@ -3,16 +3,14 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
-  Link,
+  GitMerge,
   Loader2,
   Play,
   Search,
-  Tag,
   X,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import {
-  assignDeviceTypes,
   fetchPendingMatches,
   fetchMatchingStats,
   fetchSuppliers,
@@ -41,8 +39,6 @@ function MatchingPanel() {
 
   // Run state
   const [running, setRunning] = useState(false);
-  const [matchLimit, setMatchLimit] = useState<number | undefined>(50);
-  const [assigningTypes, setAssigningTypes] = useState(false);
   const [lastRunSummary, setLastRunSummary] = useState<MatchingStatsData['last_run']>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const runStartTimeRef = useRef<number>(0);
@@ -127,12 +123,11 @@ function MatchingPanel() {
     setRunning(true);
     setError(null);
     try {
-      await runMatching(selectedSupplier, matchLimit);
+      await runMatching(undefined, undefined);
       notify('Rapprochement lance en arriere-plan — les stats se mettent a jour automatiquement', 'success');
       runStartTimeRef.current = Date.now();
       setLastRunSummary(null);
 
-      // Poll stats + list every 5s; stop when last_run.status is completed/error for this run
       let elapsed = 0;
       const MAX_DURATION = 10 * 60 * 1000;
       const POLL_INTERVAL = 5000;
@@ -176,23 +171,6 @@ function MatchingPanel() {
       setError(msg);
       notify(msg, 'error');
       setRunning(false);
-    }
-  }
-
-  async function handleAssignTypes() {
-    setAssigningTypes(true);
-    try {
-      const result = await assignDeviceTypes(false);
-      notify(
-        `Types assignes : ${result.classified} produits classes, ${result.unclassified} non identifies`,
-        'success'
-      );
-      loadStats();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erreur';
-      notify(msg, 'error');
-    } finally {
-      setAssigningTypes(false);
     }
   }
 
@@ -254,167 +232,79 @@ function MatchingPanel() {
 
   return (
     <div className="space-y-6">
-      {/* Section 1 — Declenchement */}
-      <div className="card">
-        <div className="flex items-center gap-3 mb-4">
-          <Link className="w-5 h-5 text-[#B8860B]" />
-          <h2 className="text-lg font-semibold text-[var(--color-text-heading)]">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold text-[var(--color-text-heading)] flex items-center gap-3">
+            <GitMerge className="w-8 h-8 text-[#B8860B]" />
             Rapprochement LLM
-          </h2>
+          </h1>
+          <p className="text-[var(--color-text-muted)] mt-1">
+            Mise en correspondance automatique des produits fournisseurs au référentiel.
+          </p>
         </div>
-        <p className="text-sm text-[var(--color-text-muted)] mb-4">
-          Associez automatiquement les produits fournisseurs au referentiel en
-          utilisant l'extraction par IA.
-        </p>
-
-        <div className="flex items-center gap-3 flex-wrap">
-          <select
-            value={selectedSupplier ?? ''}
-            onChange={(e) => {
-              const val = e.target.value;
-              setSelectedSupplier(val ? Number(val) : undefined);
-              setPendingPage(1);
-            }}
-            className="rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] px-3 py-2 text-sm"
-          >
-            <option value="">Tous les fournisseurs</option>
-            {suppliers.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-          <select
-            value={matchLimit ?? ''}
-            onChange={(e) => {
-              const val = e.target.value;
-              setMatchLimit(val ? Number(val) : undefined);
-            }}
-            className="rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] px-3 py-2 text-sm"
-          >
-            <option value="50">50 produits</option>
-            <option value="100">100 produits</option>
-            <option value="200">200 produits</option>
-            <option value="">Tous</option>
-          </select>
-          <button
-            type="button"
-            onClick={handleRun}
-            className={`btn flex items-center gap-2 ${running ? 'btn-secondary' : 'btn-primary'}`}
-          >
-            {running ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Arreter le suivi
-              </>
-            ) : (
-              <>
-                <Play className="w-4 h-4" />
-                Lancer le rapprochement
-              </>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={handleAssignTypes}
-            disabled={assigningTypes}
-            className="btn btn-secondary flex items-center gap-2"
-            title="Assigner automatiquement les types aux produits sans type (règles métier)"
-          >
-            {assigningTypes ? (
+        <button
+          type="button"
+          onClick={handleRun}
+          disabled={running}
+          className="btn btn-secondary flex items-center gap-2 shrink-0 mt-1"
+        >
+          {running ? (
+            <>
               <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Tag className="w-4 h-4" />
-            )}
-            Assigner les types
-          </button>
-        </div>
-
-        {/* Erreur inline */}
-        {error && !running && (
-          <div className="mt-4 flex items-start gap-2 p-3 rounded-md bg-[var(--color-bg-elevated)] border border-red-500/30">
-            <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5 shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-red-400">
-                Echec du rapprochement
-              </p>
-              <p className="text-sm text-red-400/80 mt-1">{error}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Bandeau "en cours" */}
-        {running && (
-          <div className="mt-4 flex items-center gap-2 p-3 rounded-md bg-[var(--color-bg-elevated)] border border-[var(--color-border-subtle)]">
-            <Loader2 className="w-4 h-4 animate-spin text-[#B8860B] shrink-0" />
-            <p className="text-sm text-[var(--color-text-primary)]">
-              Rapprochement en cours — les statistiques se mettent a jour toutes les 5s.
-            </p>
-          </div>
-        )}
-
-        {/* Résumé dernier run — priorité au lastRunSummary de session, sinon stats.last_run depuis DB */}
-        {!running && (() => {
-          const displayRun = lastRunSummary ?? stats?.last_run;
-          if (!displayRun) return null;
-          const ranAtLabel = displayRun.ran_at
-            ? new Date(displayRun.ran_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
-            : null;
-          return (
-            <div className={`mt-4 p-3 rounded-md border text-sm ${
-              displayRun.status === 'error'
-                ? 'bg-[var(--color-bg-elevated)] border-red-500/30'
-                : 'bg-[var(--color-bg-elevated)] border-[var(--color-border-subtle)]'
-            }`}>
-              {ranAtLabel && (
-                <p className="text-xs text-[var(--color-text-muted)] mb-3">
-                  Dernier run — {ranAtLabel}
-                </p>
-              )}
-              {displayRun.status === 'error' ? (
-                <div className="flex items-start gap-2">
-                  <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="font-medium text-red-400">Erreur lors du rapprochement</p>
-                    <p className="text-red-400/80 mt-0.5">{displayRun.error_message}</p>
-                  </div>
-                </div>
-              ) : !displayRun.total_products ? (
-                <p className="text-[var(--color-text-muted)]">
-                  Aucun nouveau produit a traiter — tous les produits sont deja en attente de validation ou apparies.
-                </p>
-              ) : (
-                <div className="grid grid-cols-2 gap-x-8 gap-y-1.5 text-sm">
-                  <span className="text-[var(--color-text-muted)]">Produits traites</span>
-                  <span className="font-medium">{displayRun.total_products}</span>
-                  <span className="text-[var(--color-text-muted)]">Depuis le cache</span>
-                  <span>{displayRun.from_cache ?? '—'}</span>
-                  <span className="text-[var(--color-text-muted)]">Appels LLM (batches)</span>
-                  <span>{displayRun.llm_calls ?? '—'}</span>
-                  <span className="text-[var(--color-text-muted)]">Auto-matches (≥90 pts)</span>
-                  <span className="text-green-400">{displayRun.auto_matched ?? 0}</span>
-                  <span className="text-[var(--color-text-muted)]">A valider (50-89 pts)</span>
-                  <span className="text-[#B8860B]">{displayRun.pending_review ?? 0}</span>
-                  <span className="text-[var(--color-text-muted)]">Rejetes auto</span>
-                  <span>{displayRun.auto_rejected ?? 0}</span>
-                  <span className="text-[var(--color-text-muted)]">Non trouves</span>
-                  <span className="text-[var(--color-text-muted)]">{displayRun.not_found ?? 0}</span>
-                  <span className="text-[var(--color-text-muted)]">Cout estime</span>
-                  <span>~{(displayRun.cost_estimate ?? 0).toFixed(4)} €</span>
-                  <span className="text-[var(--color-text-muted)]">Duree</span>
-                  <span>{displayRun.duration_seconds ? `${Math.round(displayRun.duration_seconds)}s` : '—'}</span>
-                  {(displayRun.errors ?? 0) > 0 && (
-                    <>
-                      <span className="text-[var(--color-text-muted)]">Erreurs LLM</span>
-                      <span className="text-red-400">{displayRun.errors}</span>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })()}
+              En cours…
+            </>
+          ) : (
+            <>
+              <Play className="w-4 h-4" />
+              Lancer maintenant
+            </>
+          )}
+        </button>
       </div>
+
+      {/* KPI cards */}
+      {stats && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="card p-4 text-center">
+            <div className="text-2xl font-bold text-[#B8860B]">{stats.coverage_pct}%</div>
+            <div className="text-xs text-[var(--color-text-muted)] mt-1">Couverture</div>
+          </div>
+          <div className="card p-4 text-center">
+            <div className="text-2xl font-bold text-emerald-400">{stats.total_auto_matched}</div>
+            <div className="text-xs text-[var(--color-text-muted)] mt-1">Auto-matchés</div>
+          </div>
+          <div className="card p-4 text-center">
+            <div className="text-2xl font-bold text-amber-400">{stats.total_pending}</div>
+            <div className="text-xs text-[var(--color-text-muted)] mt-1">À valider</div>
+          </div>
+          <div className="card p-4 text-center">
+            <div className="text-2xl font-bold text-[var(--color-text-heading)]">{stats.total_validated}</div>
+            <div className="text-xs text-[var(--color-text-muted)] mt-1">Validés</div>
+          </div>
+        </div>
+      )}
+
+      {/* Bandeau "en cours" */}
+      {running && (
+        <div className="flex items-center gap-2 p-3 rounded-md bg-[var(--color-bg-elevated)] border border-[var(--color-border-subtle)]">
+          <Loader2 className="w-4 h-4 animate-spin text-[#B8860B] shrink-0" />
+          <p className="text-sm text-[var(--color-text-primary)]">
+            Rapprochement en cours — les statistiques se mettent a jour toutes les 5s.
+          </p>
+        </div>
+      )}
+
+      {/* Erreur inline */}
+      {error && !running && (
+        <div className="flex items-start gap-2 p-3 rounded-md bg-[var(--color-bg-elevated)] border border-red-500/30">
+          <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-red-400">Echec du rapprochement</p>
+            <p className="text-sm text-red-400/80 mt-1">{error}</p>
+          </div>
+        </div>
+      )}
 
       {/* Produits Odoo sans correspondance fournisseur */}
       {stats && stats.total_odoo_unmatched > 0 && (
@@ -453,109 +343,7 @@ function MatchingPanel() {
         </div>
       )}
 
-      {/* Suivi de progression */}
-      {stats && (
-        <div className="card space-y-4">
-          <h3 className="text-sm font-semibold text-[var(--color-text-heading)]">
-            Couverture LLM
-          </h3>
-
-          {/* Produits Odoo matchés vs total */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-[var(--color-bg-elevated)] rounded-md p-4 text-center">
-              <div className="text-3xl font-bold text-[#B8860B]">
-                {stats.total_odoo_matched}
-              </div>
-              <div className="text-xs text-[var(--color-text-muted)] mt-1">produits Odoo matches</div>
-            </div>
-            <div className="bg-[var(--color-bg-elevated)] rounded-md p-4 text-center">
-              <div className="text-3xl font-bold text-[var(--color-text-heading)]">
-                {stats.total_odoo_products}
-              </div>
-              <div className="text-xs text-[var(--color-text-muted)] mt-1">produits Odoo en base</div>
-            </div>
-          </div>
-
-          {/* Barre de couverture */}
-          <div className="space-y-1">
-            <div className="flex justify-between text-xs text-[var(--color-text-muted)]">
-              <span>Couverture catalogue</span>
-              <span className="font-medium text-[var(--color-text-primary)]">{stats.coverage_pct}%</span>
-            </div>
-            <div className="w-full h-2 bg-[var(--color-bg-elevated)] rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{
-                  width: `${stats.coverage_pct}%`,
-                  background: 'linear-gradient(to right, #B8860B, #DAA520)',
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Répartition des matchs */}
-          <div className="pt-2 border-t border-[var(--color-border-subtle)] space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-[var(--color-text-heading)]">Repartition des matchs</span>
-              <span className="text-xs text-[var(--color-text-muted)]">
-                {stats.total_processed} traite{stats.total_processed > 1 ? 's' : ''} sur {stats.total_all} ({stats.progress_pct}%)
-              </span>
-            </div>
-
-            {/* Barre de progression */}
-            <div className="w-full h-2 bg-[var(--color-bg-elevated)] rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{
-                  width: `${stats.progress_pct}%`,
-                  background: 'linear-gradient(to right, #B8860B, #DAA520)',
-                }}
-              />
-            </div>
-
-            {/* Compteurs par statut avec % */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <StatusCard
-                label="En attente"
-                value={stats.total_pending}
-                color="text-amber-400"
-                dot="bg-amber-400"
-                pct={stats.total_all > 0 ? Math.round(stats.total_pending / stats.total_all * 100) : 0}
-              />
-              <StatusCard
-                label="Valides"
-                value={stats.total_validated}
-                color="text-emerald-400"
-                dot="bg-emerald-400"
-                pct={stats.total_all > 0 ? Math.round(stats.total_validated / stats.total_all * 100) : 0}
-              />
-              <StatusCard
-                label="Rejetes"
-                value={stats.total_rejected}
-                color="text-[var(--color-text-muted)]"
-                dot="bg-[var(--color-border-default)]"
-                pct={stats.total_all > 0 ? Math.round(stats.total_rejected / stats.total_all * 100) : 0}
-              />
-              <StatusCard
-                label="Crees"
-                value={stats.total_created}
-                color="text-sky-400"
-                dot="bg-sky-400"
-                pct={stats.total_all > 0 ? Math.round(stats.total_created / stats.total_all * 100) : 0}
-              />
-            </div>
-          </div>
-
-          {/* Cache */}
-          <div className="flex items-center gap-4 pt-1 border-t border-[var(--color-border-subtle)] text-xs text-[var(--color-text-muted)]">
-            <span>Cache : <strong className="text-[var(--color-text-primary)]">{stats.total_cached}</strong> entrees</span>
-            <span>Taux de cache : <strong className="text-[var(--color-text-primary)]">{stats.cache_hit_rate}%</strong></span>
-            <span>Auto-matches : <strong className="text-[var(--color-text-primary)]">{stats.total_auto_matched}</strong></span>
-          </div>
-        </div>
-      )}
-
-      {/* Section 2 — Liste des matchs */}
+      {/* Section Validation — PRIMARY */}
       <div className="card overflow-hidden">
         <div className="p-4 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3 flex-wrap">
@@ -629,44 +417,78 @@ function MatchingPanel() {
           </div>
         )}
 
-        {/* Pagination bas */}
         {paginationControls && (
           <div className="p-4 border-t border-[var(--color-border-subtle)] flex justify-end">
             {paginationControls}
           </div>
         )}
       </div>
+
+      {/* Résumé dernier run */}
+      {!running && (() => {
+        const displayRun = lastRunSummary ?? stats?.last_run;
+        if (!displayRun) return null;
+        const ranAtLabel = displayRun.ran_at
+          ? new Date(displayRun.ran_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
+          : null;
+        return (
+          <div className={`p-3 rounded-md border text-sm ${
+            displayRun.status === 'error'
+              ? 'bg-[var(--color-bg-elevated)] border-red-500/30'
+              : 'bg-[var(--color-bg-elevated)] border-[var(--color-border-subtle)]'
+          }`}>
+            {ranAtLabel && (
+              <p className="text-xs text-[var(--color-text-muted)] mb-3">
+                Dernier run — {ranAtLabel}
+              </p>
+            )}
+            {displayRun.status === 'error' ? (
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-medium text-red-400">Erreur lors du rapprochement</p>
+                  <p className="text-red-400/80 mt-0.5">{displayRun.error_message}</p>
+                </div>
+              </div>
+            ) : !displayRun.total_products ? (
+              <p className="text-[var(--color-text-muted)]">
+                Aucun nouveau produit a traiter — tous les produits sont deja en attente de validation ou apparies.
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 gap-x-8 gap-y-1.5 text-sm">
+                <span className="text-[var(--color-text-muted)]">Produits traites</span>
+                <span className="font-medium">{displayRun.total_products}</span>
+                <span className="text-[var(--color-text-muted)]">Depuis le cache</span>
+                <span>{displayRun.from_cache ?? '—'}</span>
+                <span className="text-[var(--color-text-muted)]">Appels LLM (batches)</span>
+                <span>{displayRun.llm_calls ?? '—'}</span>
+                <span className="text-[var(--color-text-muted)]">Auto-matches (≥90 pts)</span>
+                <span className="text-green-400">{displayRun.auto_matched ?? 0}</span>
+                <span className="text-[var(--color-text-muted)]">A valider (50-89 pts)</span>
+                <span className="text-[#B8860B]">{displayRun.pending_review ?? 0}</span>
+                <span className="text-[var(--color-text-muted)]">Rejetes auto</span>
+                <span>{displayRun.auto_rejected ?? 0}</span>
+                <span className="text-[var(--color-text-muted)]">Non trouves</span>
+                <span className="text-[var(--color-text-muted)]">{displayRun.not_found ?? 0}</span>
+                <span className="text-[var(--color-text-muted)]">Cout estime</span>
+                <span>~{(displayRun.cost_estimate ?? 0).toFixed(4)} €</span>
+                <span className="text-[var(--color-text-muted)]">Duree</span>
+                <span>{displayRun.duration_seconds ? `${Math.round(displayRun.duration_seconds)}s` : '—'}</span>
+                {(displayRun.errors ?? 0) > 0 && (
+                  <>
+                    <span className="text-[var(--color-text-muted)]">Erreurs LLM</span>
+                    <span className="text-red-400">{displayRun.errors}</span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
 
-
-function StatusCard({
-  label,
-  value,
-  color,
-  dot,
-  pct,
-}: {
-  label: string;
-  value: number;
-  color: string;
-  dot: string;
-  pct?: number;
-}) {
-  return (
-    <div className="bg-[var(--color-bg-elevated)] rounded-md p-3 flex items-center gap-3">
-      <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${dot}`} />
-      <div>
-        <div className={`text-lg font-bold ${color}`}>{value}</div>
-        <div className="text-xs text-[var(--color-text-muted)]">{label}</div>
-        {pct !== undefined && (
-          <div className="text-xs font-medium text-[var(--color-text-secondary)]">{pct}%</div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 const SCORE_LABELS: Record<string, string> = {
   brand: 'Marque',
