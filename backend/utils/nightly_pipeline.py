@@ -5,12 +5,11 @@ Chains: Odoo sync → supplier API fetches → LLM matching → email report.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
-import smtplib
+import urllib.request
 from datetime import datetime, timezone
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
@@ -193,47 +192,58 @@ def _get_active_supplier_apis() -> List[Any]:
 
 
 def send_nightly_email(job: Any) -> bool:
-    """Send the nightly recap email to all active recipients.
+    """Trigger the n8n webhook so the existing workflow sends the recap email.
 
-    Returns True if at least one email was sent successfully.
+    Returns True if the webhook responded with HTTP 2xx.
     """
     from models import NightlyEmailRecipient
 
+    webhook_url = os.environ.get("NIGHTLY_WEBHOOK_URL", "").strip()
+    if not webhook_url:
+        logger.warning("NIGHTLY_WEBHOOK_URL not set, skipping email notification")
+        return False
+
     recipients = NightlyEmailRecipient.query.filter_by(active=True).all()
     if not recipients:
+        logger.info("No active recipients, skipping webhook call")
         return False
 
-    smtp_host = os.environ.get("SMTP_HOST", "")
-    smtp_port = int(os.environ.get("SMTP_PORT", "465"))
-    smtp_user = os.environ.get("SMTP_USER", "")
-    smtp_password = os.environ.get("SMTP_PASSWORD", "")
-    smtp_from = os.environ.get("SMTP_FROM", smtp_user)
-    smtp_from_name = os.environ.get("SMTP_FROM_NAME", "AJT Pro")
+    frontend_base = os.environ.get("FRONTEND_BASE_URL", "http://localhost:5173")
+    duration = ""
+    if job.started_at and job.finished_at:
+        secs = int((job.finished_at - job.started_at).total_seconds())
+        m, s = divmod(secs, 60)
+        duration = f"{m}m {s}s" if m else f"{s}s"
 
-    if not smtp_host or not smtp_user:
-        logger.warning("SMTP not configured, skipping email")
-        return False
+    payload = {
+        "status": job.status,
+        "date": job.started_at.strftime("%d/%m/%Y %H:%M UTC") if job.started_at else None,
+        "odoo_synced": job.odoo_synced or 0,
+        "suppliers_synced": job.suppliers_synced or 0,
+        "matching_submitted": job.matching_submitted or 0,
+        "duration": duration,
+        "error_message": job.error_message,
+        "validation_url": f"{frontend_base}/matching",
+        "subject": _build_subject(job),
+        "html_body": _build_html_report(job),
+        "recipients": [r.email for r in recipients],
+    }
 
-    html_body = _build_html_report(job)
-    subject = _build_subject(job)
-
-    success = False
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        webhook_url,
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
     try:
-        with smtplib.SMTP_SSL(smtp_host, smtp_port) as server:
-            server.login(smtp_user, smtp_password)
-            for recipient in recipients:
-                msg = MIMEMultipart("alternative")
-                msg["Subject"] = subject
-                msg["From"] = f"{smtp_from_name} <{smtp_from}>"
-                msg["To"] = recipient.email
-                msg.attach(MIMEText(html_body, "html", "utf-8"))
-                server.sendmail(smtp_from, recipient.email, msg.as_string())
-                logger.info("Nightly email sent to %s", recipient.email)
-        success = True
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            success = 200 <= resp.status < 300
+            logger.info("n8n webhook called: HTTP %d", resp.status)
+            return success
     except Exception:
-        logger.exception("SMTP error while sending nightly email")
-
-    return success
+        logger.exception("Failed to call n8n webhook")
+        return False
 
 
 def _build_subject(job: Any) -> str:

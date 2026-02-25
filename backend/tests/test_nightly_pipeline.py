@@ -84,47 +84,11 @@ class TestSendNightlyEmail:
         result = send_nightly_email(job)
         assert result is False
 
-    @patch.dict(
-        "os.environ",
-        {
-            "SMTP_HOST": "smtp.example.com",
-            "SMTP_PORT": "465",
-            "SMTP_USER": "user@example.com",
-            "SMTP_PASSWORD": "pass",
-            "SMTP_FROM": "noreply@example.com",
-            "FRONTEND_BASE_URL": "http://localhost:5173",
-        },
-    )
-    @patch("utils.nightly_pipeline.smtplib.SMTP_SSL")
-    def test_sends_email_to_active_recipients(self, mock_smtp_cls):
-        from utils.nightly_pipeline import send_nightly_email
-
-        r1 = NightlyEmailRecipient(email="alice@example.com", active=True)
-        r2 = NightlyEmailRecipient(email="inactive@example.com", active=False)
-        db.session.add_all([r1, r2])
-        db.session.commit()
-
-        mock_server = MagicMock()
-        mock_smtp_cls.return_value.__enter__.return_value = mock_server
-
-        job = NightlyJob(status="completed", odoo_synced=3, suppliers_synced=1)
-        db.session.add(job)
-        db.session.commit()
-
-        result = send_nightly_email(job)
-
-        assert result is True
-        # sendmail called only for active recipient
-        assert mock_server.sendmail.call_count == 1
-        call_args = mock_server.sendmail.call_args[0]
-        assert "alice@example.com" in call_args
-
-    def test_returns_false_when_smtp_not_configured(self):
+    def test_returns_false_when_webhook_not_configured(self):
         import os
         from utils.nightly_pipeline import send_nightly_email
 
-        # No SMTP_HOST set → skip
-        os.environ.pop("SMTP_HOST", None)
+        os.environ.pop("NIGHTLY_WEBHOOK_URL", None)
 
         r = NightlyEmailRecipient(email="bob@example.com", active=True)
         db.session.add(r)
@@ -136,6 +100,46 @@ class TestSendNightlyEmail:
 
         result = send_nightly_email(job)
         assert result is False
+
+    @patch.dict(
+        "os.environ",
+        {
+            "NIGHTLY_WEBHOOK_URL": "http://n8n.local/webhook/nightly",
+            "FRONTEND_BASE_URL": "http://localhost:5173",
+        },
+    )
+    @patch("utils.nightly_pipeline.urllib.request.urlopen")
+    def test_calls_webhook_with_recipients(self, mock_urlopen):
+        from utils.nightly_pipeline import send_nightly_email
+
+        mock_resp = MagicMock()
+        mock_resp.status = 200
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_resp
+
+        r1 = NightlyEmailRecipient(email="alice@example.com", active=True)
+        r2 = NightlyEmailRecipient(email="inactive@example.com", active=False)
+        db.session.add_all([r1, r2])
+        db.session.commit()
+
+        job = NightlyJob(status="completed", odoo_synced=3, suppliers_synced=1)
+        db.session.add(job)
+        db.session.commit()
+
+        result = send_nightly_email(job)
+
+        assert result is True
+        mock_urlopen.assert_called_once()
+
+        # Verify payload contains only active recipient
+        import json as _json
+        req = mock_urlopen.call_args[0][0]
+        payload = _json.loads(req.data)
+        assert payload["recipients"] == ["alice@example.com"]
+        assert payload["status"] == "completed"
+        assert "validation_url" in payload
+        assert "html_body" in payload
 
 
 # ---------------------------------------------------------------------------
