@@ -422,35 +422,25 @@ Fichiers concernes : `.github/workflows/ci.yml`
 
 ## Performance backend
 
-### N+1 queries dans `matching_stats` (existant)
+### ~~N+1 queries dans `matching_stats`~~ ✅
 
-`matching_stats()` dans `backend/routes/matching.py` effectue **4 requetes COUNT separees par fournisseur**. Avec N fournisseurs = 1 + 4N requetes SQL.
+Corrige : requetes agregees `GROUP BY supplier_id` avec `func.count()` + `case()` — 2 requetes au lieu de 1+4N.
 
-Correction : remplacer par des requetes agregees `GROUP BY supplier_id` via `func.count()`.
+### ~~Export sans pagination~~ ✅
 
-### Export sans pagination
+Corrige : `LIMIT 10 000` sur `export_calculates`.
 
-- **Fichier** : `backend/routes/products.py:620`
-- **Probleme** : `export_calculates` charge TOUS les `ProductCalculation` en memoire sans LIMIT
-- **Correction** : ajouter un LIMIT de securite (ex: 10 000) ou paginer
+### ~~Timeout XML-RPC manquant~~ ✅
 
-### Timeout XML-RPC manquant
+Corrige : transport custom avec timeout 60s sur les `ServerProxy` (HTTP et HTTPS).
 
-- **Fichier** : `backend/utils/odoo_sync.py:66-67`
-- **Probleme** : les appels XML-RPC vers Odoo n'ont aucun timeout — requete potentiellement infinie si le serveur est injoignable
-- **Correction** : ajouter un `transport` avec timeout (60s) au `ServerProxy`
+### ~~Lecture du fichier de log en entier~~ ✅
 
-### Lecture du fichier de log en entier
+Corrige : `_tail_lines()` lit par chunks depuis la fin du fichier + `_count_lines()` pour le comptage.
 
-- **Fichier** : `backend/routes/logs.py:69`
-- **Probleme** : `log_path.read_text()` charge le fichier entier en memoire avant de slicer les N dernieres lignes
-- **Correction** : lire depuis la fin du fichier (tail) ou streamer
+### ~~Limites non bornees sur certaines routes~~ ✅
 
-### Limites non bornees sur certaines routes
-
-- **Fichier** : `backend/routes/products.py:295,606,620`
-- **Probleme** : `per_page` et `limit` convertis en int sans borne superieure
-- **Correction** : appliquer `min(limit, MAX_LIMIT)` systematiquement
+Corrige : `min(limit, 100)` sur le dernier endpoint non borne (`odoo.py` sync jobs).
 
 ---
 
