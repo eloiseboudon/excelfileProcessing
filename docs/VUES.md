@@ -565,7 +565,7 @@ Interface complète de gestion du pipeline nightly automatisé (`NightlyPipeline
 | Champ | Source | Description |
 |-------|--------|-------------|
 | Activer le scheduler | `nightly_config.enabled` | Toggle on/off du planificateur automatique |
-| Heure d'exécution | `nightly_config.run_hour` | Heure UTC (0-23) à laquelle le pipeline se déclenche chaque nuit |
+| Heure d'exécution | `nightly_config.run_hour` | Heure affichée en heure de Paris (Europe/Paris), stockée en UTC en base. La conversion UTC↔Paris est faite côté frontend (`utcToParisHour` / `parisHourToUtc` dans `NightlyPipelinePanel.tsx`) |
 
 Endpoint : `GET/PUT /nightly/config`
 
@@ -614,7 +614,7 @@ Endpoint : `GET/POST /nightly/recipients` + `DELETE /nightly/recipients/<id>`
 
 - **`ENABLE_NIGHTLY_SCHEDULER=true`** requis pour que le scheduler se lance au démarrage du backend. Sans cette variable, le pipeline ne s'exécute jamais automatiquement (lancement manuel toujours possible).
 - **`NIGHTLY_WEBHOOK_URL`** : URL du webhook n8n pour l'envoi de l'email. Si absent, l'email est simplement ignoré (pas d'erreur bloquante).
-- **Heure UTC** : configurer l'heure en UTC. Par exemple, pour 3h du matin en France (UTC+1 hiver), configurer `run_hour=2`.
+- **Heure Paris** : l'interface affiche et accepte l'heure en fuseau Europe/Paris. La conversion vers UTC est automatique (le backend et le scheduler fonctionnent en UTC). Ex : configurer "03:00" dans l'interface → stocké `run_hour=2` en hiver (UTC+1) ou `run_hour=1` en été (UTC+2).
 - **Résilience** : au démarrage du serveur, `_cleanup_orphaned_jobs()` remet à `failed` tous les jobs bloqués en `running` (crashs, hot-reload Werkzeug).
 - **Fréquence** : la variable `_last_run_date` empêche le pipeline de se déclencher plusieurs fois la même nuit UTC, même si le serveur redémarre.
 - **Flux nightly vs manuel** : en mode nightly, `skip_already_matched=True` contourne l'exclusion `product_calculations`/`LabelCache`. En mode manuel (UI Rapprochement), l'exclusion normale s'applique (évite de re-soumettre les produits déjà matchés).
