@@ -217,6 +217,8 @@ ajtpro/
 │   │   │   ├── TranslationAdmin.tsx       # Admin traductions/couleurs
 │   │   │   ├── UserAdmin.tsx              # Admin utilisateurs
 │   │   │   └── WeekToolbar.tsx            # Barre d'outils hebdomadaire
+│   │   ├── hooks/
+│   │   │   └── useProductAttributeOptions.ts  # Hook partage : chargement des options produit (marques, couleurs, etc.)
 │   │   ├── utils/
 │   │   │   ├── date.ts          # Fonctions de date
 │   │   │   ├── html.ts          # Generation HTML
@@ -334,7 +336,7 @@ Automatisation complete du cycle de synchronisation et de matching, declenchable
 - **Orchestration** : sync Odoo → sync API fournisseurs → re-evaluation matching LLM → rapport email
 - **Re-matching intelligent** : chaque nuit, tous les produits sont re-scores contre le catalogue mis a jour. Les extractions LLM passees sont preservees dans le `LabelCache` (bibliotheque historique) pour eviter les appels API redondants. Les matches identiques a la veille sont auto-valides ; les matches changes passent en attente de validation
 - **Declenchement manuel** : bouton "Lancer maintenant" avec suivi du job en temps reel
-- **Planificateur** : `threading.Timer` verifiant chaque minute si l'heure configuree est atteinte (UTC). Active via `ENABLE_NIGHTLY_SCHEDULER=true`
+- **Planificateur** : `threading.Timer` verifiant chaque minute si l'heure configuree est atteinte (UTC). L'interface affiche l'heure en fuseau Europe/Paris avec conversion automatique. Active via `ENABLE_NIGHTLY_SCHEDULER=true`
 - **Rapport email** : webhook n8n (POST JSON) → workflow Gmail. Contient le statut, les compteurs (produits Odoo, fournisseurs, labels), la duree et un lien vers la page de validation
 - **Gestion des destinataires** : CRUD des adresses email depuis l'interface admin
 - **Historique** : 20 derniers jobs avec statut, date, duree et compteurs
@@ -460,7 +462,7 @@ Le gabarit OpenAPI se trouve dans `backend/swagger_template.yml`.
 
 ### Tests backend
 
-Le framework `pytest` est configure dans le backend (SQLite in-memory, pas besoin de PostgreSQL) — 279 tests dans 16 fichiers :
+Le framework `pytest` est configure dans le backend (SQLite in-memory, pas besoin de PostgreSQL) — 314 tests dans 16 fichiers :
 
 ```bash
 cd backend
@@ -470,7 +472,7 @@ python -m pytest tests/ -v
 
 ### Tests frontend
 
-Le framework `vitest` avec Testing Library est configure dans le frontend — 175 tests dans 18 fichiers :
+Le framework `vitest` avec Testing Library est configure dans le frontend — 186 tests dans 18 fichiers :
 
 ```bash
 cd frontend

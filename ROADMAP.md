@@ -482,11 +482,11 @@ Correction : remplacer par des requetes agregees `GROUP BY supplier_id` via `fun
 - **Probleme** : handlers recrees a chaque render, provoquant des re-renders en cascade des enfants
 - **Correction** : wrapper les handlers dans `useCallback`, les calculs derivatifs dans `useMemo`
 
-### Extraction d'options inefficace
+### ~~Extraction d'options inefficace~~ (implementee)
 
-- **Fichier** : `ProductsPage.tsx:197-239`
-- **Probleme** : a chaque changement de `data`, 6 iterations completes pour extraire les options uniques (brand, color, etc.)
-- **Correction** : remplacer par un `useMemo` unique qui calcule toutes les options en une passe
+~~`ProductsPage.tsx:197-239` : 6 iterations pour extraire les options uniques.~~
+
+Correction appliquee : supprime lors de l'extraction du hook `useProductAttributeOptions`.
 
 ### Cache pip manquant dans la CI
 
@@ -639,24 +639,19 @@ Correction : remplacer par des requetes agregees `GROUP BY supplier_id` via `fun
 
 ---
 
-## Refactorisation backend — DRY violations (existant)
+## ~~Refactorisation backend — DRY violations~~ (implementee)
 
-### Serialisation produit dupliquee (priorite haute)
+### ~~Serialisation produit dupliquee~~ (priorite haute)
 
-Le bloc de serialisation des attributs produit (`brand`, `memory`, `color`, `type`, `ram`, `norme`) avec gestion du null est copie-colle **4 fois** dans `backend/routes/products.py` :
+~~Le bloc de serialisation des attributs produit (`brand`, `memory`, `color`, `type`, `ram`, `norme`) avec gestion du null etait copie-colle **5 fois** dans `backend/routes/products.py`.~~
 
-- lignes ~360 (`list_product_calculations`)
-- lignes ~563 (`list_products`)
-- lignes ~627 (`export_calculates`)
-- lignes ~434 (`internal_products`)
+Correction appliquee : fonction `_serialize_product_attrs(product)` extraite, utilisee dans les 5 call sites (`list_product_calculations`, `internal_products`, `product_price_summary`, `list_products`, `export_calculates`).
 
-Correction : extraire une fonction `_serialize_product(p: Product) -> dict`.
+### ~~Selection du mapping fournisseur dupliquee~~ (priorite haute)
 
-### Selection du mapping fournisseur dupliquee (priorite haute)
+~~La logique de selection du meilleur mapping actif (sinon le plus recent) etait recopiee **2 fois** dans `backend/routes/products.py`.~~
 
-La logique de selection du meilleur mapping actif (sinon le plus recent) existe dans `backend/routes/imports.py` sous `_select_mapping()`, mais est recopiee **2 fois** dans `backend/routes/products.py` (fonctions `_ensure_daily_supplier_cache` et `refresh_supplier_catalog`).
-
-Correction : importer et appeler `_select_mapping` depuis `imports.py` dans `products.py`.
+Correction appliquee : fonction `_select_best_mapping(supplier_api_id)` extraite, utilisee dans `_ensure_daily_supplier_cache` et `refresh_supplier_catalog`.
 
 ### Nettoyage numerique dans `etl.py` (priorite basse)
 
@@ -664,25 +659,23 @@ Correction : importer et appeler `_select_mapping` depuis `imports.py` dans `pro
 
 ---
 
-## Refactorisation frontend — DRY violations (existant)
+## ~~Refactorisation frontend — DRY violations~~ (implementee)
 
-### Hook `useProductAttributeOptions` manquant (priorite haute)
+### ~~Hook `useProductAttributeOptions` manquant~~ (priorite haute)
 
-Le bloc `Promise.all([fetchBrands(), fetchColors(), fetchMemoryOptions(), fetchDeviceTypes(), fetchRAMOptions(), fetchNormeOptions()])` suivi des setState correspondants est copie **3 fois** :
+~~Le bloc `Promise.all([fetchBrands(), ...])` suivi des setState correspondants etait copie **3 fois** dans `ProductsPage.tsx`, `ProductAdmin.tsx` et `ProductReference.tsx`.~~
 
-- `frontend/src/components/ProductsPage.tsx`
-- `frontend/src/components/ProductAdmin.tsx`
-- `frontend/src/components/ProductReference.tsx`
-
-Correction : extraire un hook `useProductAttributeOptions()` retournant `{ brands, colors, memories, types, rams, normes }`.
+Correction appliquee : hook `useProductAttributeOptions()` cree dans `frontend/src/hooks/useProductAttributeOptions.ts`. Retourne les objets bruts (`brands`, `colors`, etc.) et les noms (`brandNames`, `colorNames`, etc.). Le bloc `mergeUsedOptions` (42 lignes) dans `ProductsPage` a ete supprime — le hook charge les options de reference directement.
 
 ### Calcul de marge duplique dans `ProductsPage.tsx` (priorite basse)
 
 La logique `tcp + baseBuyPrice + normalizedMargin` et derivation du `margePercent` est dupliquee dans `applyBulkMargin` et `handleProductMarginUpdate`. A extraire en fonction utilitaire.
 
-### Merging d'options duplique dans `ProductsPage.tsx` (priorite basse)
+### ~~Merging d'options duplique dans `ProductsPage.tsx`~~ (implementee)
 
-Le pattern `Array.from(new Set([...prev, ...usedXxx]))` est repete 6 fois de suite (pour brand, color, memory, type, ram, norme) dans le meme `useEffect`. A extraire en fonction commune `mergeOptions(data, key, setter)`.
+~~Le pattern `Array.from(new Set([...prev, ...usedXxx]))` etait repete 6 fois dans `ProductsPage.tsx`.~~
+
+Correction appliquee : le bloc `mergeUsedOptions` entier a ete supprime lors de l'extraction du hook `useProductAttributeOptions` — le hook charge les options de reference, les donnees produit n'ont plus besoin d'enrichir les filtres.
 
 ---
 
