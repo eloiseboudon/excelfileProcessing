@@ -91,15 +91,13 @@ describe('MatchingPanel', () => {
     });
   });
 
-  it('renders the limit selector', async () => {
+  it('run button is enabled and shows correct label before launch', async () => {
     renderPanel();
     await waitFor(() => {
       expect(screen.getByText('Lancer maintenant')).toBeInTheDocument();
     });
-    expect(screen.getByText('50 produits')).toBeInTheDocument();
-    expect(screen.getByText('100 produits')).toBeInTheDocument();
-    expect(screen.getByText('200 produits')).toBeInTheDocument();
-    expect(screen.getByText('Tous')).toBeInTheDocument();
+    const btn = screen.getByRole('button', { name: /Lancer maintenant/ });
+    expect(btn).not.toBeDisabled();
   });
 
   it('runs matching and shows in-progress banner', async () => {
@@ -113,18 +111,15 @@ describe('MatchingPanel', () => {
     fireEvent.click(screen.getByText('Lancer maintenant'));
 
     await waitFor(() => {
-      expect(mockRunMatching).toHaveBeenCalledWith(undefined, 50);
+      expect(mockRunMatching).toHaveBeenCalledWith(undefined, undefined);
     });
 
     await waitFor(() => {
-      expect(screen.getByText('Arreter le suivi')).toBeInTheDocument();
-      expect(
-        screen.getByText(/Rapprochement en cours/)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Rapprochement en cours/)).toBeInTheDocument();
     });
   });
 
-  it('stops polling when stop button is clicked', async () => {
+  it('run button becomes disabled during matching', async () => {
     mockRunMatching.mockResolvedValue(undefined);
 
     renderPanel();
@@ -135,14 +130,10 @@ describe('MatchingPanel', () => {
     fireEvent.click(screen.getByText('Lancer maintenant'));
 
     await waitFor(() => {
-      expect(screen.getByText('Arreter le suivi')).toBeInTheDocument();
+      expect(screen.getByText('En cours…')).toBeInTheDocument();
     });
-
-    fireEvent.click(screen.getByText('Arreter le suivi'));
-
-    await waitFor(() => {
-      expect(screen.getByText('Lancer maintenant')).toBeInTheDocument();
-    });
+    const btn = screen.getByRole('button', { name: /En cours/ });
+    expect(btn).toBeDisabled();
   });
 
   it('renders pending matches with candidates', async () => {
