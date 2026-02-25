@@ -1,7 +1,7 @@
 import { BarChart3, ChevronDown, GitMerge, LibraryBig, LogOut, RefreshCw, Search, Settings } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { setAuthToken, setRefreshToken } from './api';
+import { logout as apiLogout, setAuthToken } from './api';
 import AdminPage from './components/AdminPage';
 import LoginPage from './components/LoginPage';
 import MatchingPanel from './components/MatchingPanel';
@@ -25,12 +25,11 @@ function App() {
     }
   }, [token]);
 
-  const handleLogin = (userRole: string, newToken: string, newRefresh: string) => {
+  const handleLogin = (userRole: string, newToken: string) => {
     setRole(userRole);
     setToken(newToken);
     localStorage.setItem('role', userRole);
     setAuthToken(newToken);
-    setRefreshToken(newRefresh);
     navigate('/products');
   };
 
@@ -38,9 +37,9 @@ function App() {
     setRole('');
     setToken(null);
     setAuthToken(null);
-    setRefreshToken(null);
     localStorage.removeItem('role');
     setShowSettingsMenu(false);
+    apiLogout();
   };
 
   useEffect(() => {

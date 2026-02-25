@@ -664,9 +664,9 @@ def export_calculates():
     )
 
 
-@bp.route("/refresh", methods=["POST"])
+@bp.route("/reset_calculations", methods=["POST"])
 @token_required("admin")
-def refresh():
+def reset_calculations():
     """Delete all product calculations.
 
     ---

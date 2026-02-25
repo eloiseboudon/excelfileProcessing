@@ -3,18 +3,11 @@ import { getCurrentTimestamp } from './utils/date';
 export const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
 export let authToken: string | null = localStorage.getItem('token');
-export let refreshToken: string | null = localStorage.getItem('refresh_token');
 
 export function setAuthToken(token: string | null) {
   authToken = token;
   if (token) localStorage.setItem('token', token);
   else localStorage.removeItem('token');
-}
-
-export function setRefreshToken(token: string | null) {
-  refreshToken = token;
-  if (token) localStorage.setItem('refresh_token', token);
-  else localStorage.removeItem('refresh_token');
 }
 
 function authHeaders(headers: Record<string, string> = {}) {
@@ -25,24 +18,21 @@ function authHeaders(headers: Record<string, string> = {}) {
 }
 
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  const opts: RequestInit = { ...options };
+  const opts: RequestInit = { ...options, credentials: 'include' };
   opts.headers = authHeaders(options.headers as Record<string, string>);
   let res = await fetch(url, opts);
-  if (res.status === 401 && refreshToken) {
+  if (res.status === 401) {
     const refreshRes = await fetch(`${API_BASE}/refresh`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: refreshToken })
+      credentials: 'include',
     });
     if (refreshRes.ok) {
       const data = await refreshRes.json();
       setAuthToken(data.token);
-      setRefreshToken(data.refresh_token);
       opts.headers = authHeaders(options.headers as Record<string, string>);
       res = await fetch(url, opts);
     } else {
       setAuthToken(null);
-      setRefreshToken(null);
       window.dispatchEvent(new Event('auth:logout'));
     }
   }
@@ -52,13 +42,18 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
 export async function login(email: string, password: string) {
   const res = await fetch(`${API_BASE}/login`, {
     method: 'POST',
-    headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ email, password })
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+    credentials: 'include',
   });
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
   return res.json();
+}
+
+export async function logout() {
+  await fetch(`${API_BASE}/logout`, { method: 'POST', credentials: 'include' }).catch(() => {});
 }
 
 
@@ -416,7 +411,7 @@ export async function exportCalculations() {
 }
 
 export async function refreshProduction() {
-  const res = await fetchWithAuth(`${API_BASE}/refresh`, {
+  const res = await fetchWithAuth(`${API_BASE}/reset_calculations`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   });

@@ -1,19 +1,41 @@
-from flask import Blueprint, request, jsonify
+import os
+
 import jwt
+from flask import Blueprint, make_response, request, jsonify
 from models import User, db
 from utils.activity import log_activity
 from utils.auth import (
     generate_access_token,
     generate_refresh_token,
     decode_refresh_token,
+    REFRESH_TOKEN_EXPIRATION,
 )
 
 bp = Blueprint("auth", __name__)
 
+COOKIE_SECURE = os.getenv("FLASK_ENV", "production") != "development"
+COOKIE_SAMESITE = "Lax"
+COOKIE_DOMAIN = os.getenv("COOKIE_DOMAIN") or None
+
+
+def _set_refresh_cookie(response, token):
+    response.set_cookie(
+        "refresh_token",
+        token,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite=COOKIE_SAMESITE,
+        domain=COOKIE_DOMAIN,
+        max_age=REFRESH_TOKEN_EXPIRATION,
+        path="/",
+    )
+
 
 @bp.route("/login", methods=["POST"])
 def login():
-    """Authenticate a user and return access tokens.
+    """Authenticate a user and return an access token.
+
+    The refresh token is set as an HTTPOnly cookie.
 
     ---
     tags:
@@ -36,7 +58,7 @@ def login():
               type: string
     responses:
       200:
-        description: Tokens generated for the authenticated user
+        description: Access token generated for the authenticated user
       400:
         description: Missing credentials in the request body
       401:
@@ -56,44 +78,32 @@ def login():
 
     access_token = generate_access_token(user)
     refresh_token = generate_refresh_token(user)
-    return jsonify({"token": access_token, "refresh_token": refresh_token, "role": user.role})
+
+    response = make_response(jsonify({"token": access_token, "role": user.role}))
+    _set_refresh_cookie(response, refresh_token)
+    return response
 
 
 @bp.route("/refresh", methods=["POST"])
 def refresh():
-    """Exchange a refresh token for a new access token.
+    """Exchange a refresh token (from HTTPOnly cookie) for a new access token.
 
     ---
     tags:
       - Auth
-    consumes:
-      - application/json
-    parameters:
-      - in: body
-        name: payload
-        schema:
-          type: object
-          required:
-            - refresh_token
-          properties:
-            refresh_token:
-              type: string
     responses:
       200:
-        description: New access token generated from the provided refresh token
-      400:
-        description: Missing refresh token in the request body
+        description: New access token generated from the refresh cookie
       401:
-        description: Expired or invalid refresh token
+        description: Missing, expired or invalid refresh token
     """
-    data = request.get_json(silent=True) or {}
-    token = data.get("refresh_token")
+    token = request.cookies.get("refresh_token")
     if not token:
-        return jsonify({"error": "Refresh token requis"}), 400
+        return jsonify({"error": "Refresh token manquant"}), 401
     try:
         payload = decode_refresh_token(token)
     except jwt.ExpiredSignatureError:
-        return jsonify({"error": "Token expir\u00e9"}), 401
+        return jsonify({"error": "Token expiré"}), 401
     except jwt.InvalidTokenError:
         return jsonify({"error": "Token invalide"}), 401
 
@@ -102,5 +112,24 @@ def refresh():
         return jsonify({"error": "Utilisateur introuvable"}), 401
 
     access_token = generate_access_token(user)
-    refresh_token = generate_refresh_token(user)
-    return jsonify({"token": access_token, "refresh_token": refresh_token, "role": user.role})
+    new_refresh_token = generate_refresh_token(user)
+
+    response = make_response(jsonify({"token": access_token, "role": user.role}))
+    _set_refresh_cookie(response, new_refresh_token)
+    return response
+
+
+@bp.route("/logout", methods=["POST"])
+def logout():
+    """Clear the refresh token cookie.
+
+    ---
+    tags:
+      - Auth
+    responses:
+      200:
+        description: Cookie cleared
+    """
+    response = make_response(jsonify({"status": "ok"}))
+    response.delete_cookie("refresh_token", path="/", domain=COOKIE_DOMAIN)
+    return response
