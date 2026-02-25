@@ -208,7 +208,7 @@ def send_nightly_email(job: Any) -> bool:
         logger.info("No active recipients, skipping webhook call")
         return False
 
-    frontend_base = os.environ.get("FRONTEND_BASE_URL", "http://localhost:5173")
+    frontend_base = os.environ.get("FRONTEND_URL", "http://localhost:5173")
     duration = ""
     if job.started_at and job.finished_at:
         secs = int((job.finished_at - job.started_at).total_seconds())
@@ -253,7 +253,7 @@ def _build_subject(job: Any) -> str:
 
 
 def _build_html_report(job: Any) -> str:
-    frontend_base = os.environ.get("FRONTEND_BASE_URL", "http://localhost:5173")
+    frontend_base = os.environ.get("FRONTEND_URL", "http://localhost:5173")
     validation_url = f"{frontend_base}/matching"
 
     date_str = job.started_at.strftime("%d/%m/%Y %H:%M UTC") if job.started_at else "N/A"

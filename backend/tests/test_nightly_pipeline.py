@@ -105,7 +105,7 @@ class TestSendNightlyEmail:
         "os.environ",
         {
             "NIGHTLY_WEBHOOK_URL": "http://n8n.local/webhook/nightly",
-            "FRONTEND_BASE_URL": "http://localhost:5173",
+            "FRONTEND_URL": "http://localhost:5173",
         },
     )
     @patch("utils.nightly_pipeline.urllib.request.urlopen")
@@ -148,7 +148,7 @@ class TestSendNightlyEmail:
 
 
 class TestBuildHtmlReport:
-    @patch.dict("os.environ", {"FRONTEND_BASE_URL": "http://myapp.local"})
+    @patch.dict("os.environ", {"FRONTEND_URL": "http://myapp.local"})
     def test_contains_link_and_stats(self):
         from utils.nightly_pipeline import _build_html_report
 
