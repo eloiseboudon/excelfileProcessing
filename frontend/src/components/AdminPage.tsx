@@ -1,13 +1,12 @@
 import { Settings } from 'lucide-react';
 import { useState } from 'react';
 import LogsPanel from './LogsPanel';
-import NightlyPipelinePanel from './NightlyPipelinePanel';
 import ReferenceAdmin from './ReferenceAdmin';
 import SupplierApiAdmin from './SupplierApiAdmin';
 import TranslationAdmin from './TranslationAdmin';
 import UserAdmin from './UserAdmin';
 
-type AdminTab = 'references' | 'translations' | 'apis' | 'users' | 'logs' | 'automation';
+type AdminTab = 'references' | 'translations' | 'apis' | 'users' | 'logs';
 
 const TABS: { key: AdminTab; label: string }[] = [
   { key: 'references', label: 'Tables référence' },
@@ -15,7 +14,6 @@ const TABS: { key: AdminTab; label: string }[] = [
   { key: 'apis', label: 'API fournisseurs' },
   { key: 'users', label: 'Utilisateurs' },
   { key: 'logs', label: 'Logs' },
-  { key: 'automation', label: 'Automatisation' },
 ];
 
 function AdminPage() {
@@ -29,7 +27,7 @@ function AdminPage() {
           Administration
         </h1>
         <p className="text-[var(--color-text-muted)] mt-1">
-          Gérez les tables de référence, la cohérence des données, les API fournisseurs et les utilisateurs.
+          Gérez les tables de référence, la cohérence des données, les API fournisseurs, les utilisateurs et les logs.
         </p>
       </div>
       <div className="border-b border-[var(--color-border-subtle)] mb-6">
@@ -63,7 +61,6 @@ function AdminPage() {
         <UserAdmin isVisible onClose={() => setTab('users')} />
       )}
       {tab === 'logs' && <LogsPanel />}
-      {tab === 'automation' && <NightlyPipelinePanel />}
     </div>
   );
 }

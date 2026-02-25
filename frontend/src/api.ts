@@ -843,11 +843,15 @@ export interface MatchingStatsData {
     status: 'running' | 'completed' | 'error';
     ran_at: string;
     total_products?: number;
+    from_cache?: number;
+    llm_calls?: number;
     auto_matched?: number;
     pending_review?: number;
     auto_rejected?: number;
     not_found?: number;
     errors?: number;
+    cost_estimate?: number;
+    duration_seconds?: number;
     error_message?: string | null;
   } | null;
 }

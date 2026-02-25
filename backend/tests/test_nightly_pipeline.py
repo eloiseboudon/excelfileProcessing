@@ -14,11 +14,12 @@ from models import LabelCache, NightlyEmailRecipient, NightlyJob, PendingMatch, 
 
 
 class TestRunNightlyPipeline:
-    @patch("utils.nightly_pipeline._run_matching_step", return_value=5)
+    @patch("utils.nightly_pipeline._run_matching_step", return_value={"total_products": 5, "run_id": None})
     @patch("utils.nightly_pipeline._run_suppliers_step", return_value=2)
+    @patch("utils.nightly_pipeline._run_assign_types_step", return_value={"classified": 3, "unclassified": 1, "total": 4})
     @patch("utils.nightly_pipeline._run_odoo_step", return_value=10)
     @patch("utils.nightly_pipeline.send_nightly_email", return_value=True)
-    def test_happy_path(self, mock_email, mock_odoo, mock_suppliers, mock_matching):
+    def test_happy_path(self, mock_email, mock_odoo, mock_assign, mock_suppliers, mock_matching):
         from utils.nightly_pipeline import run_nightly_pipeline
 
         # Add a recipient so email is attempted
@@ -34,6 +35,8 @@ class TestRunNightlyPipeline:
         assert summary["matching_submitted"] == 5
         assert summary["email_sent"] is True
 
+        mock_assign.assert_called_once()
+
         job = NightlyJob.query.order_by(NightlyJob.id.desc()).first()
         assert job is not None
         assert job.status == "completed"
@@ -41,9 +44,10 @@ class TestRunNightlyPipeline:
 
     @patch("utils.nightly_pipeline._run_matching_step", side_effect=RuntimeError("LLM down"))
     @patch("utils.nightly_pipeline._run_suppliers_step", return_value=0)
+    @patch("utils.nightly_pipeline._run_assign_types_step", return_value={"classified": 0, "unclassified": 0, "total": 0})
     @patch("utils.nightly_pipeline._run_odoo_step", return_value=0)
     @patch("utils.nightly_pipeline.send_nightly_email", return_value=False)
-    def test_pipeline_failure(self, mock_email, mock_odoo, mock_suppliers, mock_matching):
+    def test_pipeline_failure(self, mock_email, mock_odoo, mock_assign, mock_suppliers, mock_matching):
         from utils.nightly_pipeline import run_nightly_pipeline
 
         summary = run_nightly_pipeline()
@@ -55,11 +59,12 @@ class TestRunNightlyPipeline:
         assert job.status == "failed"
         assert job.error_message is not None
 
-    @patch("utils.nightly_pipeline._run_matching_step", return_value=0)
+    @patch("utils.nightly_pipeline._run_matching_step", return_value={"total_products": 0, "run_id": None})
     @patch("utils.nightly_pipeline._run_suppliers_step", return_value=0)
+    @patch("utils.nightly_pipeline._run_assign_types_step", return_value={"classified": 0, "unclassified": 0, "total": 0})
     @patch("utils.nightly_pipeline._run_odoo_step", return_value=0)
     @patch("utils.nightly_pipeline.send_nightly_email", return_value=False)
-    def test_no_email_when_no_recipients(self, mock_email, mock_odoo, mock_suppliers, mock_matching):
+    def test_no_email_when_no_recipients(self, mock_email, mock_odoo, mock_assign, mock_suppliers, mock_matching):
         from utils.nightly_pipeline import run_nightly_pipeline
 
         # No recipients in DB
@@ -67,6 +72,97 @@ class TestRunNightlyPipeline:
 
         assert summary["email_sent"] is False
         mock_email.assert_not_called()
+
+    @patch("utils.nightly_pipeline._run_matching_step", return_value={"total_products": 3, "run_id": None})
+    @patch("utils.nightly_pipeline._run_suppliers_step", return_value=1)
+    @patch("utils.nightly_pipeline._run_assign_types_step", side_effect=RuntimeError("classifier error"))
+    @patch("utils.nightly_pipeline._run_odoo_step", return_value=5)
+    @patch("utils.nightly_pipeline.send_nightly_email", return_value=False)
+    def test_assign_types_failure_is_non_fatal(self, mock_email, mock_odoo, mock_assign, mock_suppliers, mock_matching):
+        """A failing assign-types step must not abort the pipeline."""
+        from utils.nightly_pipeline import run_nightly_pipeline
+
+        summary = run_nightly_pipeline()
+
+        assert summary["status"] == "completed"
+        assert summary["matching_submitted"] == 3
+
+
+# ---------------------------------------------------------------------------
+# _run_assign_types_step
+# ---------------------------------------------------------------------------
+
+
+class TestRunAssignTypesStep:
+    def _make_device_type(self, name: str):
+        from models import DeviceType
+        dt = DeviceType(type=name)
+        db.session.add(dt)
+        db.session.flush()
+        return dt
+
+    def _make_product(self, model: str, type_id=None):
+        from models import Product
+        p = Product(description=model, model=model, type_id=type_id)
+        db.session.add(p)
+        db.session.flush()
+        return p
+
+    def test_assigns_type_to_product_with_null_type(self):
+        from utils.nightly_pipeline import _run_assign_types_step
+
+        dt_phone = self._make_device_type("Smartphone")
+        self._make_device_type("a définir")
+        p = self._make_product("iPhone 15 128GB DS")
+        db.session.commit()
+
+        result = _run_assign_types_step()
+
+        assert result["classified"] >= 1
+        db.session.refresh(p)
+        assert p.type_id == dt_phone.id
+
+    def test_reassigns_product_with_skip_type(self):
+        from models import DeviceType
+        from utils.nightly_pipeline import _run_assign_types_step
+
+        dt_skip = self._make_device_type("a définir")
+        dt_audio = self._make_device_type("Audio")
+        p = self._make_product("AirPods Pro 2", type_id=dt_skip.id)
+        db.session.commit()
+
+        result = _run_assign_types_step()
+
+        assert result["total"] >= 1
+        db.session.refresh(p)
+        assert p.type_id == dt_audio.id
+
+    def test_returns_zero_when_nothing_to_classify(self):
+        from models import DeviceType, Product
+        from utils.nightly_pipeline import _run_assign_types_step
+
+        dt = self._make_device_type("Smartphone")
+        p = self._make_product("Galaxy S24", type_id=dt.id)
+        db.session.commit()
+
+        result = _run_assign_types_step()
+
+        assert result["total"] == 0
+        assert result["classified"] == 0
+        assert result["unclassified"] == 0
+
+    def test_unclassified_gets_fallback_type(self):
+        from utils.nightly_pipeline import _run_assign_types_step
+
+        dt_fallback = self._make_device_type("a définir")
+        p = self._make_product("Produit Inconnu XYZ123")
+        db.session.commit()
+
+        result = _run_assign_types_step()
+
+        assert result["unclassified"] >= 1
+        db.session.refresh(p)
+        assert p.type_id == dt_fallback.id
 
 
 # ---------------------------------------------------------------------------

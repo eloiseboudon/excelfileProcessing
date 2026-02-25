@@ -558,6 +558,28 @@ class NightlyJob(db.Model):
     error_message = db.Column(db.Text, nullable=True)
 
 
+class MatchingRun(db.Model):
+    __tablename__ = "matching_runs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    ran_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    status = db.Column(db.String(20), default="running", nullable=False)
+    supplier_id = db.Column(db.Integer, nullable=True)
+    nightly_job_id = db.Column(db.Integer, db.ForeignKey("nightly_jobs.id"), nullable=True)
+
+    total_products = db.Column(db.Integer, nullable=True)
+    from_cache = db.Column(db.Integer, nullable=True)
+    llm_calls = db.Column(db.Integer, nullable=True)
+    auto_matched = db.Column(db.Integer, nullable=True)
+    pending_review = db.Column(db.Integer, nullable=True)
+    auto_rejected = db.Column(db.Integer, nullable=True)
+    not_found = db.Column(db.Integer, nullable=True)
+    errors = db.Column(db.Integer, nullable=True)
+    cost_estimate = db.Column(db.Float, nullable=True)
+    duration_seconds = db.Column(db.Float, nullable=True)
+    error_message = db.Column(db.Text, nullable=True)
+
+
 class NightlyEmailRecipient(db.Model):
     __tablename__ = "nightly_email_recipients"
 

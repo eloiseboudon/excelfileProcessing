@@ -10,6 +10,7 @@ from sqlalchemy import cast, exists, func, String
 from models import (
     DeviceType,
     LabelCache,
+    MatchingRun,
     PendingMatch,
     Product,
     ProductCalculation,
@@ -31,25 +32,12 @@ logger = logging.getLogger(__name__)
 
 bp = Blueprint("matching", __name__)
 
-# Dernier résultat de run (partagé dans le process courant — mono-worker dev / Gunicorn)
-_last_run_result: dict = {}
-
 
 def _run_matching_background(app, supplier_id, limit) -> None:
     """Run matching job in a background thread with its own app context."""
-    global _last_run_result
-    _last_run_result = {
-        "status": "running",
-        "ran_at": datetime.now(timezone.utc).isoformat(),
-    }
     with app.app_context():
         try:
             result = run_matching_job(supplier_id=supplier_id, limit=limit)
-            _last_run_result = {
-                **result,
-                "status": "completed",
-                "ran_at": datetime.now(timezone.utc).isoformat(),
-            }
             logger.info(
                 "Matching termine: %d produits, %d auto, %d review, %d rejetes, %d non trouves, %d erreurs",
                 result.get("total_products", 0),
@@ -59,12 +47,7 @@ def _run_matching_background(app, supplier_id, limit) -> None:
                 result.get("not_found", 0),
                 result.get("errors", 0),
             )
-        except Exception as exc:
-            _last_run_result = {
-                "status": "error",
-                "error_message": str(exc),
-                "ran_at": datetime.now(timezone.utc).isoformat(),
-            }
+        except Exception:
             logger.exception("Erreur background rapprochement LLM")
 
 
@@ -492,6 +475,25 @@ def matching_stats():
     else:
         total_odoo_never_submitted = max(0, total_odoo_unmatched - len(pending_product_ids))
 
+    last_run_row = MatchingRun.query.order_by(MatchingRun.id.desc()).first()
+    last_run_data = None
+    if last_run_row:
+        last_run_data = {
+            "status": last_run_row.status,
+            "ran_at": last_run_row.ran_at.isoformat() if last_run_row.ran_at else None,
+            "total_products": last_run_row.total_products,
+            "from_cache": last_run_row.from_cache,
+            "llm_calls": last_run_row.llm_calls,
+            "auto_matched": last_run_row.auto_matched,
+            "pending_review": last_run_row.pending_review,
+            "auto_rejected": last_run_row.auto_rejected,
+            "not_found": last_run_row.not_found,
+            "errors": last_run_row.errors,
+            "cost_estimate": last_run_row.cost_estimate,
+            "duration_seconds": last_run_row.duration_seconds,
+            "error_message": last_run_row.error_message,
+        }
+
     return jsonify({
         "total_odoo_products": total_odoo_products,
         "total_odoo_matched": total_odoo_matched,
@@ -514,7 +516,7 @@ def matching_stats():
         "total_catalog_never_processed_labels": total_catalog_never_processed_labels,
         "total_catalog_pending_review": total_catalog_pending_review,
         "by_supplier": by_supplier,
-        "last_run": _last_run_result or None,
+        "last_run": last_run_data,
     }), 200
 
 
