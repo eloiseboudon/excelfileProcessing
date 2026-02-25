@@ -385,7 +385,7 @@ function MatchingPanel() {
                 type="text"
                 value={modelInput}
                 onChange={(e) => handleModelInputChange(e.target.value)}
-                placeholder="Filtrer par modele..."
+                placeholder="Filtrer par modèle..."
                 className="rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] pl-7 pr-2 py-1 text-xs w-44"
                 data-testid="model-filter"
               />

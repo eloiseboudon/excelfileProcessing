@@ -26,6 +26,16 @@ const TABLES = [
   { key: 'format_imports', label: 'Format import' },
 ];
 
+const FIELD_LABELS: Record<string, string> = {
+  name: 'Nom',
+  model: 'Modèle',
+  memory: 'Mémoire',
+  tcp_value: 'Valeur TCP',
+  supplier_id: 'Fournisseur',
+  keyword: 'Mot-clé',
+  pattern: 'Motif',
+};
+
 function ReferenceAdmin({ isVisible, onClose }: ReferenceAdminProps) {
   const [table, setTable] = useState<string | null>(null);
   const [data, setData] = useState<any[]>([]);
@@ -143,8 +153,8 @@ function ReferenceAdmin({ isVisible, onClose }: ReferenceAdminProps) {
               <div className="flex items-center space-x-2 font-semibold px-4 py-3 border-b border-[var(--color-border-subtle)]">
                 <span className="w-10 text-[var(--color-text-muted)]">ID</span>
                 {fields.map((f) => (
-                  <span key={f} className="flex-1 capitalize text-sm">
-                    {f}
+                  <span key={f} className="flex-1 text-sm">
+                    {FIELD_LABELS[f] ?? f}
                   </span>
                 ))}
                 <span className="w-20" />
