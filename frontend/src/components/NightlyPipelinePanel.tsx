@@ -1,5 +1,5 @@
-import { Clock, Mail, Play, RefreshCw, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { CheckCircle, Clock, Loader2, Mail, Play, RefreshCw, Trash2, XCircle } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import {
   NightlyConfig,
   NightlyJob,
@@ -58,8 +58,10 @@ export default function NightlyPipelinePanel() {
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [savingConfig, setSavingConfig] = useState(false);
   const [triggering, setTriggering] = useState(false);
-  const [triggerMsg, setTriggerMsg] = useState<string | null>(null);
+  const [pipelineRunning, setPipelineRunning] = useState(false);
+  const [pipelineResult, setPipelineResult] = useState<'success' | 'error' | null>(null);
   const [configError, setConfigError] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [newEmail, setNewEmail] = useState('');
   const [newName, setNewName] = useState('');
   const [addingRecipient, setAddingRecipient] = useState(false);
@@ -84,6 +86,7 @@ export default function NightlyPipelinePanel() {
 
   useEffect(() => {
     load();
+    return () => stopPolling();
   }, []);
 
   async function handleSaveConfig() {
@@ -104,17 +107,37 @@ export default function NightlyPipelinePanel() {
     }
   }
 
+  function stopPolling() {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }
+
   async function handleTrigger() {
     setTriggering(true);
-    setTriggerMsg(null);
+    setPipelineResult(null);
     try {
       await triggerNightly();
-      setTriggerMsg('Pipeline lancé en arrière-plan.');
-      setTimeout(() => {
-        fetchNightlyJobs().then(setJobs).catch(() => null);
-      }, 2000);
+      setPipelineRunning(true);
+
+      pollRef.current = setInterval(async () => {
+        try {
+          const j = await fetchNightlyJobs();
+          setJobs(j);
+          const latest = j[0];
+          if (latest && latest.status !== 'running') {
+            stopPolling();
+            setPipelineRunning(false);
+            setPipelineResult(latest.status === 'completed' ? 'success' : 'error');
+          }
+        } catch {
+          // silently ignore poll errors
+        }
+      }, 5000);
     } catch (e: unknown) {
-      setTriggerMsg(e instanceof Error ? e.message : 'Erreur lors du déclenchement');
+      setPipelineResult('error');
+      setConfigError(e instanceof Error ? e.message : 'Erreur lors du déclenchement');
     } finally {
       setTriggering(false);
     }
@@ -228,22 +251,42 @@ export default function NightlyPipelinePanel() {
           <Play className="w-5 h-5 text-[#B8860B]" />
           Lancement manuel
         </h2>
-        <div className="flex items-center gap-4">
+        <div className="space-y-3">
           <button
             type="button"
             onClick={handleTrigger}
-            disabled={triggering}
+            disabled={triggering || pipelineRunning}
             className="btn btn-primary flex items-center gap-2"
           >
             {triggering ? (
-              <RefreshCw className="w-4 h-4 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <Play className="w-4 h-4" />
             )}
             {triggering ? 'Lancement…' : 'Lancer maintenant'}
           </button>
-          {triggerMsg && (
-            <span className="text-sm text-[var(--color-text-muted)]">{triggerMsg}</span>
+
+          {pipelineRunning && (
+            <div className="flex items-center gap-2 p-3 rounded-md bg-[var(--color-bg-elevated)] border border-[var(--color-border-subtle)]">
+              <Loader2 className="w-4 h-4 animate-spin text-[#B8860B] shrink-0" />
+              <p className="text-sm text-[var(--color-text-primary)]">
+                Pipeline en cours — Odoo sync, fournisseurs, matching… Les résultats apparaîtront dans l'historique.
+              </p>
+            </div>
+          )}
+
+          {pipelineResult === 'success' && (
+            <div className="flex items-center gap-2 p-3 rounded-md bg-[var(--color-bg-elevated)] border border-green-500/30">
+              <CheckCircle className="w-4 h-4 text-green-400 shrink-0" />
+              <p className="text-sm text-green-400">Pipeline terminé avec succès.</p>
+            </div>
+          )}
+
+          {pipelineResult === 'error' && (
+            <div className="flex items-center gap-2 p-3 rounded-md bg-[var(--color-bg-elevated)] border border-red-500/30">
+              <XCircle className="w-4 h-4 text-red-400 shrink-0" />
+              <p className="text-sm text-red-400">Le pipeline a échoué — vérifiez l'historique.</p>
+            </div>
           )}
         </div>
       </div>
