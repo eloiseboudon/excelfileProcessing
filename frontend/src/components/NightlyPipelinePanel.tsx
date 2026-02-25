@@ -51,6 +51,33 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+/** Convert a UTC hour (0-23) to Europe/Paris local hour. */
+function utcToParisHour(utcHour: number): number {
+  const d = new Date();
+  d.setUTCHours(utcHour, 0, 0, 0);
+  const parts = new Intl.DateTimeFormat('fr-FR', {
+    hour: 'numeric',
+    hour12: false,
+    timeZone: 'Europe/Paris',
+  }).formatToParts(d);
+  const hourPart = parts.find((p) => p.type === 'hour');
+  return hourPart ? parseInt(hourPart.value, 10) : utcHour;
+}
+
+/** Convert a Europe/Paris local hour (0-23) to UTC hour. */
+function parisHourToUtc(parisHour: number): number {
+  const today = new Date();
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Europe/Paris',
+    timeZoneName: 'shortOffset',
+  });
+  const parts = formatter.formatToParts(today);
+  const tzPart = parts.find((p) => p.type === 'timeZoneName');
+  const offsetMatch = tzPart?.value.match(/GMT([+-]\d+)/);
+  const offsetHours = offsetMatch ? parseInt(offsetMatch[1], 10) : 0;
+  return (parisHour - offsetHours + 24) % 24;
+}
+
 export default function NightlyPipelinePanel() {
   const [config, setConfig] = useState<NightlyConfig | null>(null);
   const [jobs, setJobs] = useState<NightlyJob[]>([]);
@@ -216,11 +243,11 @@ export default function NightlyPipelinePanel() {
           </label>
 
           <div className="flex items-center gap-2">
-            <span className="text-sm text-[var(--color-text-muted)]">Heure (UTC) :</span>
+            <span className="text-sm text-[var(--color-text-muted)]">Heure (Paris) :</span>
             <select
-              value={config?.run_hour ?? 2}
+              value={utcToParisHour(config?.run_hour ?? 2)}
               onChange={(e) =>
-                config && setConfig({ ...config, run_hour: parseInt(e.target.value, 10) })
+                config && setConfig({ ...config, run_hour: parisHourToUtc(parseInt(e.target.value, 10)) })
               }
               className="rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] px-2 py-1 text-sm"
             >
