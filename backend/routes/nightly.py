@@ -10,7 +10,7 @@ from flask import Blueprint, jsonify, request
 from models import NightlyConfig, NightlyEmailRecipient, NightlyJob, db
 from utils.auth import token_required
 
-nightly_bp = Blueprint("nightly", __name__, url_prefix="/api/nightly")
+nightly_bp = Blueprint("nightly", __name__, url_prefix="/nightly")
 
 
 # ---------------------------------------------------------------------------
