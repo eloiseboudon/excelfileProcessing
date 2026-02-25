@@ -49,19 +49,7 @@ def _ensure_daily_supplier_cache() -> None:
         if not supplier:
             continue
 
-        mapping_query = MappingVersion.query.filter_by(supplier_api_id=api.id)
-        mapping = (
-            mapping_query.filter(MappingVersion.is_active.is_(True))
-            .order_by(MappingVersion.version.desc(), MappingVersion.id.desc())
-            .first()
-        )
-        if not mapping:
-            mapping = (
-                mapping_query.order_by(
-                    MappingVersion.version.desc(), MappingVersion.id.desc()
-                )
-                .first()
-            )
+        mapping = _select_best_mapping(api.id)
         if not mapping:
             continue
 
@@ -113,6 +101,36 @@ def _ensure_daily_supplier_cache() -> None:
             )
 
 logger = logging.getLogger(__name__)
+
+
+def _select_best_mapping(supplier_api_id: int):
+    """Return the best MappingVersion for a supplier API (active first, then latest)."""
+    mapping_query = MappingVersion.query.filter_by(supplier_api_id=supplier_api_id)
+    mapping = (
+        mapping_query.filter(MappingVersion.is_active.is_(True))
+        .order_by(MappingVersion.version.desc(), MappingVersion.id.desc())
+        .first()
+    )
+    if not mapping:
+        mapping = (
+            mapping_query.order_by(
+                MappingVersion.version.desc(), MappingVersion.id.desc()
+            )
+            .first()
+        )
+    return mapping
+
+
+def _serialize_product_attrs(product) -> dict:
+    """Return the 6 standard attribute fields for a product."""
+    return {
+        "brand": product.brand.brand if product.brand else None,
+        "memory": product.memory.memory if product.memory else None,
+        "color": product.color.color if product.color else None,
+        "type": product.type.type if product.type else None,
+        "ram": product.RAM.ram if product.RAM else None,
+        "norme": product.norme.norme if product.norme else None,
+    }
 
 
 def _safe_float(value: object, default: float = 0.0) -> float:
@@ -227,19 +245,7 @@ def refresh_supplier_catalog():
         if not supplier:
             continue
 
-        mapping_query = MappingVersion.query.filter_by(supplier_api_id=api.id)
-        mapping = (
-            mapping_query.filter(MappingVersion.is_active.is_(True))
-            .order_by(MappingVersion.version.desc(), MappingVersion.id.desc())
-            .first()
-        )
-        if not mapping:
-            mapping = (
-                mapping_query.order_by(
-                    MappingVersion.version.desc(), MappingVersion.id.desc()
-                )
-                .first()
-            )
+        mapping = _select_best_mapping(api.id)
         if not mapping:
             continue
 
@@ -310,15 +316,8 @@ def list_product_calculations():
             "product_id": c.product_id,
             "model": c.product.model if c.product else None,
             "description": c.product.description if c.product else None,
-            "brand": c.product.brand.brand if c.product and c.product.brand else None,
+            **(_serialize_product_attrs(c.product) if c.product else {k: None for k in ("brand", "memory", "color", "type", "ram", "norme")}),
             "price": c.price,
-            "memory": (
-                c.product.memory.memory if c.product and c.product.memory else None
-            ),
-            "color": c.product.color.color if c.product and c.product.color else None,
-            "type": c.product.type.type if c.product and c.product.type else None,
-            "ram": c.product.RAM.ram if c.product and c.product.RAM else None,
-            "norme": c.product.norme.norme if c.product and c.product.norme else None,
             "tcp": c.tcp,
             "marge4_5": c.marge4_5,
             "marge": c.marge,
@@ -364,12 +363,7 @@ def internal_products():
                 "part_number": product.part_number,
                 "model": product.model,
                 "description": product.description,
-                "brand": product.brand.brand if product.brand else None,
-                "memory": product.memory.memory if product.memory else None,
-                "color": product.color.color if product.color else None,
-                "type": product.type.type if product.type else None,
-                "ram": product.RAM.ram if product.RAM else None,
-                "norme": product.norme.norme if product.norme else None,
+                **_serialize_product_attrs(product),
                 "recommended_price": product.recommended_price,
             }
 
@@ -434,12 +428,7 @@ def _product_price_summary_inner():
                 "id": pid,
                 "model": p.model,
                 "description": p.description,
-                "brand": p.brand.brand if p.brand else None,
-                "memory": p.memory.memory if p.memory else None,
-                "color": p.color.color if p.color else None,
-                "type": p.type.type if p.type else None,
-                "ram": p.RAM.ram if p.RAM else None,
-                "norme": p.norme.norme if p.norme else None,
+                **_serialize_product_attrs(p),
                 "supplier_prices": {},
                 "recommended_price": _safe_float(p.recommended_price, default=None),
                 "buy_price": {},
@@ -567,17 +556,12 @@ def list_products():
             "id": p.id,
             "description": p.description,
             "model": p.model,
-            "brand": p.brand.brand if p.brand else None,
+            **_serialize_product_attrs(p),
             "brand_id": p.brand_id,
-            "memory": p.memory.memory if p.memory else None,
             "memory_id": p.memory_id,
-            "color": p.color.color if p.color else None,
             "color_id": p.color_id,
-            "type": p.type.type if p.type else None,
             "type_id": p.type_id,
-            "ram": p.RAM.ram if p.RAM else None,
             "ram_id": p.RAM_id,
-            "norme": p.norme.norme if p.norme else None,
             "norme_id": p.norme_id,
             "ean": p.ean,
             "recommended_price": p.recommended_price,
@@ -627,18 +611,14 @@ def export_calculates():
     rows = []
     for c in calcs:
         p = c.product
+        attrs = _serialize_product_attrs(p) if p else {k: None for k in ("brand", "memory", "color", "type", "ram", "norme")}
         rows.append(
             {
                 "id": p.id if p else None,
                 "name": p.model if p else None,
                 "description": p.description if p else None,
-                "brand": p.brand.brand if p.brand else None,
+                **attrs,
                 "price": c.price if c else None,
-                "memory": p.memory.memory if p.memory else None,
-                "color": p.color.color if p.color else None,
-                "type": p.type.type if p.type else None,
-                "ram": p.RAM.ram if p.RAM else None,
-                "norme": p.norme.norme if p.norme else None,
                 "supplier": c.supplier.name if c.supplier else None,
                 "TCP": c.tcp,
                 "Marge de 4,5%": c.marge4_5,
