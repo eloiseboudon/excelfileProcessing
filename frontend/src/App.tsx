@@ -1,5 +1,6 @@
 import { BarChart3, ChevronDown, GitMerge, LibraryBig, LogOut, RefreshCw, Search, Settings } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { setAuthToken, setRefreshToken } from './api';
 import AdminPage from './components/AdminPage';
 import LoginPage from './components/LoginPage';
@@ -11,12 +12,12 @@ import SyncPage from './components/SyncPage';
 
 function App() {
   const storedRole = localStorage.getItem('role');
-  const defaultPage = storedRole ? 'products' : 'search';
-  const [currentPage, setCurrentPage] = useState<'search' | 'products' | 'statistics' | 'matching' | 'sync' | 'admin'>(defaultPage);
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [role, setRole] = useState<string>(storedRole || '');
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const settingsMenuRef = useRef<HTMLDivElement | null>(null);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     if (token) {
@@ -30,7 +31,7 @@ function App() {
     localStorage.setItem('role', userRole);
     setAuthToken(newToken);
     setRefreshToken(newRefresh);
-    setCurrentPage('products');
+    navigate('/products');
   };
 
   const handleLogout = () => {
@@ -39,7 +40,6 @@ function App() {
     setAuthToken(null);
     setRefreshToken(null);
     localStorage.removeItem('role');
-    setCurrentPage('search');
     setShowSettingsMenu(false);
   };
 
@@ -68,8 +68,8 @@ function App() {
     return <LoginPage onLogin={handleLogin} />;
   }
 
-  const isProductsActive = currentPage === 'products';
-  const isSettingsActive = currentPage === 'admin' || currentPage === 'sync';
+  const isProductsActive = location.pathname === '/products';
+  const isSettingsActive = location.pathname === '/admin' || location.pathname === '/sync';
 
   // Client : header simplifié
   if (role === 'client') {
@@ -112,7 +112,7 @@ function App() {
               <nav className="hidden sm:flex items-center gap-1">
                 <button
                   onClick={() => {
-                    setCurrentPage('products');
+                    navigate('/products');
                     setShowSettingsMenu(false);
                   }}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
@@ -127,11 +127,11 @@ function App() {
 
                 <button
                   onClick={() => {
-                    setCurrentPage('search');
+                    navigate('/search');
                     setShowSettingsMenu(false);
                   }}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                    currentPage === 'search'
+                    location.pathname === '/search'
                       ? 'bg-[#B8860B]/15 text-[#B8860B]'
                       : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-elevated)]'
                   }`}
@@ -142,11 +142,11 @@ function App() {
 
                 <button
                   onClick={() => {
-                    setCurrentPage('statistics');
+                    navigate('/statistics');
                     setShowSettingsMenu(false);
                   }}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                    currentPage === 'statistics'
+                    location.pathname === '/statistics'
                       ? 'bg-[#B8860B]/15 text-[#B8860B]'
                       : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-elevated)]'
                   }`}
@@ -158,11 +158,11 @@ function App() {
                 {role === 'admin' && (
                   <button
                     onClick={() => {
-                      setCurrentPage('matching');
+                      navigate('/matching');
                       setShowSettingsMenu(false);
                     }}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                      currentPage === 'matching'
+                      location.pathname === '/matching'
                         ? 'bg-[#B8860B]/15 text-[#B8860B]'
                         : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-elevated)]'
                     }`}
@@ -180,7 +180,7 @@ function App() {
               <div className="flex sm:hidden items-center gap-1">
                 <button
                   onClick={() => {
-                    setCurrentPage('products');
+                    navigate('/products');
                     setShowSettingsMenu(false);
                   }}
                   className={`p-2 rounded-md transition-colors ${
@@ -192,11 +192,11 @@ function App() {
                 </button>
                 <button
                   onClick={() => {
-                    setCurrentPage('search');
+                    navigate('/search');
                     setShowSettingsMenu(false);
                   }}
                   className={`p-2 rounded-md transition-colors ${
-                    currentPage === 'search' ? 'text-[#B8860B] bg-[#B8860B]/15' : 'text-[var(--color-text-muted)]'
+                    location.pathname === '/search' ? 'text-[#B8860B] bg-[#B8860B]/15' : 'text-[var(--color-text-muted)]'
                   }`}
                   aria-label="Recherche"
                 >
@@ -204,11 +204,11 @@ function App() {
                 </button>
                 <button
                   onClick={() => {
-                    setCurrentPage('statistics');
+                    navigate('/statistics');
                     setShowSettingsMenu(false);
                   }}
                   className={`p-2 rounded-md transition-colors ${
-                    currentPage === 'statistics' ? 'text-[#B8860B] bg-[#B8860B]/15' : 'text-[var(--color-text-muted)]'
+                    location.pathname === '/statistics' ? 'text-[#B8860B] bg-[#B8860B]/15' : 'text-[var(--color-text-muted)]'
                   }`}
                   aria-label="Statistiques"
                 >
@@ -217,11 +217,11 @@ function App() {
                 {role === 'admin' && (
                   <button
                     onClick={() => {
-                      setCurrentPage('matching');
+                      navigate('/matching');
                       setShowSettingsMenu(false);
                     }}
                     className={`p-2 rounded-md transition-colors ${
-                      currentPage === 'matching' ? 'text-[#B8860B] bg-[#B8860B]/15' : 'text-[var(--color-text-muted)]'
+                      location.pathname === '/matching' ? 'text-[#B8860B] bg-[#B8860B]/15' : 'text-[var(--color-text-muted)]'
                     }`}
                     aria-label="Rapprochement"
                   >
@@ -249,11 +249,11 @@ function App() {
                     <div className="absolute right-0 mt-2 w-48 rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] shadow-xl z-50 py-1">
                       <button
                         onClick={() => {
-                          setCurrentPage('sync');
+                          navigate('/sync');
                           setShowSettingsMenu(false);
                         }}
                         className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition-colors hover:bg-[var(--color-bg-elevated)] ${
-                          currentPage === 'sync' ? 'text-[#B8860B]' : 'text-[var(--color-text-primary)]'
+                          location.pathname === '/sync' ? 'text-[#B8860B]' : 'text-[var(--color-text-primary)]'
                         }`}
                       >
                         <RefreshCw className="w-4 h-4" />
@@ -261,11 +261,11 @@ function App() {
                       </button>
                       <button
                         onClick={() => {
-                          setCurrentPage('admin');
+                          navigate('/admin');
                           setShowSettingsMenu(false);
                         }}
                         className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition-colors hover:bg-[var(--color-bg-elevated)] ${
-                          currentPage === 'admin' ? 'text-[#B8860B]' : 'text-[var(--color-text-primary)]'
+                          location.pathname === '/admin' ? 'text-[#B8860B]' : 'text-[var(--color-text-primary)]'
                         }`}
                       >
                         <Settings className="w-4 h-4" />
@@ -303,12 +303,21 @@ function App() {
       {/* Page Content */}
       <main className="flex-1">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-          {currentPage === 'search' && <SearchPage />}
-          {currentPage === 'products' && <ProductsPage role={role} />}
-          {currentPage === 'statistics' && <StatisticsPage />}
-          {role === 'admin' && currentPage === 'matching' && <MatchingPanel />}
-          {role === 'admin' && currentPage === 'sync' && <SyncPage />}
-          {role === 'admin' && currentPage === 'admin' && <AdminPage />}
+          <Routes>
+            <Route path="/" element={<Navigate to="/products" replace />} />
+            <Route path="/products" element={<ProductsPage role={role} />} />
+            <Route path="/search"
+              element={role !== 'client' ? <SearchPage /> : <Navigate to="/products" replace />} />
+            <Route path="/statistics"
+              element={role !== 'client' ? <StatisticsPage /> : <Navigate to="/products" replace />} />
+            <Route path="/matching"
+              element={role === 'admin' ? <MatchingPanel /> : <Navigate to="/products" replace />} />
+            <Route path="/sync"
+              element={role === 'admin' ? <SyncPage /> : <Navigate to="/products" replace />} />
+            <Route path="/admin"
+              element={role === 'admin' ? <AdminPage /> : <Navigate to="/products" replace />} />
+            <Route path="*" element={<Navigate to="/products" replace />} />
+          </Routes>
         </div>
       </main>
     </div>
