@@ -133,14 +133,14 @@ describe('NightlyPipelinePanel', () => {
     });
   });
 
-  it('shows success message after trigger', async () => {
+  it('shows in-progress banner after trigger', async () => {
     mockTrigger.mockResolvedValue({ status: 'triggered' });
     renderPanel();
     await waitFor(() => screen.getByText('Lancer maintenant'));
 
     fireEvent.click(screen.getByText('Lancer maintenant'));
     await waitFor(() => {
-      expect(screen.getByText('Pipeline lancé en arrière-plan.')).toBeInTheDocument();
+      expect(screen.getByText(/Pipeline en cours/)).toBeInTheDocument();
     });
   });
 
