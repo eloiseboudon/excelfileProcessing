@@ -41,6 +41,13 @@ def run_nightly_pipeline() -> Dict[str, Any]:
         # Step 1 — Odoo sync
         odoo_synced = _run_odoo_step()
 
+        # Step 1.5 — Assign device types (non-fatal: type assignment enriches matching but
+        # should not abort the pipeline if it fails)
+        try:
+            _run_assign_types_step()
+        except Exception:
+            logger.exception("Assign types step failed, continuing pipeline")
+
         # Step 2 — Supplier API fetches
         suppliers_synced = _run_suppliers_step()
 
@@ -121,6 +128,60 @@ def _run_odoo_step() -> int:
     synced = (sync_job.created_count or 0) + (sync_job.updated_count or 0)
     logger.info("Odoo sync step: %d products synced", synced)
     return synced
+
+
+def _run_assign_types_step() -> Dict[str, int]:
+    """Assign device types to products with a missing or non-informative type.
+
+    Runs after the Odoo sync so newly imported products receive their type
+    before the supplier fetches and LLM matching steps.
+    Returns a summary dict with classified/unclassified counts.
+    """
+    from sqlalchemy import func
+
+    from models import DeviceType, Product, db
+    from utils.type_classifier import classify_device_type
+
+    _SKIP = {"all", "a définir", "a definir"}
+
+    products_no_type = Product.query.filter(Product.type_id.is_(None)).all()
+    products_skip_type = (
+        Product.query
+        .join(DeviceType, Product.type_id == DeviceType.id)
+        .filter(func.lower(DeviceType.type).in_(list(_SKIP)))
+        .all()
+    )
+    products = products_no_type + products_skip_type
+
+    if not products:
+        logger.info("Assign types step: no products to classify")
+        return {"classified": 0, "unclassified": 0, "total": 0}
+
+    type_cache: Dict[str, int] = {dt.type.lower(): dt.id for dt in DeviceType.query.all()}
+    fallback_id = type_cache.get("a définir") or type_cache.get("a definir")
+
+    classified = 0
+    unclassified = 0
+
+    for product in products:
+        brand = product.brand.brand if product.brand else None
+        new_type_name = classify_device_type(product.model, brand)
+        if new_type_name:
+            type_id = type_cache.get(new_type_name.lower())
+            if type_id:
+                product.type_id = type_id
+            classified += 1
+        else:
+            if fallback_id:
+                product.type_id = fallback_id
+            unclassified += 1
+
+    db.session.commit()
+    logger.info(
+        "Assign types step: %d classified, %d unclassified (total: %d)",
+        classified, unclassified, len(products),
+    )
+    return {"classified": classified, "unclassified": unclassified, "total": len(products)}
 
 
 def _run_suppliers_step() -> int:
