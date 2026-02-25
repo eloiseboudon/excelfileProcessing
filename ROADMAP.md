@@ -209,7 +209,7 @@ Infrastructure de tests unitaires et d'integration pour le backend et le fronten
 - **Tests unitaires** : `utils/pricing.py` (seuils, TCP, marges, edge cases), `utils/auth.py` (JWT generation, decodage, expiration, decorator)
 - **Tests d'integration** : routes `POST /login`, CRUD `/users`, CRUD `/products`, operations en masse (`bulk_update`, `bulk_delete`), routes Odoo (config, test connexion, sync, jobs, auto-sync)
 - **Tests LLM matching** : modeles (13 tests), extraction et scoring (33 tests), routes API (24 tests), integration calculs/LabelCache (5 tests)
-- **176 tests** dans 12 fichiers
+- **319 tests** dans 16 fichiers
 - **Zero warning applicatif** : `datetime.utcnow()` remplace par `datetime.now(timezone.utc)`, `Query.get()` remplace par `db.session.get()`, secret JWT >= 32 octets
 
 ### Frontend (Vitest + Testing Library)
@@ -384,53 +384,39 @@ Fichiers concernes : `.github/workflows/ci.yml`
 
 # Dette technique et ameliorations identifiees
 
-## Securite (priorite critique)
+## ~~Securite (priorite critique)~~ (corrigee)
 
-### JWT_SECRET avec fallback faible
+### ~~JWT_SECRET avec fallback faible~~ ✅
 
-- **Fichier** : `backend/utils/auth.py:10`
-- **Probleme** : le fallback par defaut est `"secret-key"` si `JWT_SECRET` n'est pas defini — un attaquant peut forger des tokens
-- **Correction** : lever une exception au demarrage si la variable est absente ou < 32 caracteres
+- **Corrige** : `RuntimeError` levee au demarrage si `JWT_SECRET` est absent ou < 32 caracteres (`backend/utils/auth.py`)
 
-### Refresh token stocke dans localStorage
+### ~~Refresh token stocke dans localStorage~~ ✅
 
-- **Fichier** : `frontend/src/api.ts:6-18`
-- **Probleme** : le refresh token est dans `localStorage`, accessible par n'importe quel script JS (XSS)
-- **Correction** : migrer vers un cookie HTTPOnly secure avec `SameSite=Strict`
+- **Corrige** : le refresh token est desormais un cookie HTTPOnly secure avec `SameSite=Lax` (`backend/routes/auth.py`)
 
-### PostgreSQL expose en production
+### ~~PostgreSQL expose en production~~ ✅
 
-- **Fichier** : `docker-compose.prod.yml:75`
-- **Probleme** : `ports: "5432:5432"` expose la base sur le reseau du VPS
-- **Correction** : supprimer la directive `ports` ou la restreindre a `"127.0.0.1:5432:5432"`
+- **Corrige** : port PostgreSQL lie a `127.0.0.1` dans `docker-compose.yml`. Pas de port expose dans `docker-compose.prod.yml`
 
-### Credentials base hardcodes dans docker-compose
+### ~~Credentials base hardcodes dans docker-compose~~ ✅
 
-- **Fichier** : `docker-compose.yml:35`, `docker-compose.prod.yml:70`
-- **Probleme** : `POSTGRES_PASSWORD=ajt_password` en dur dans des fichiers versiones
-- **Correction** : utiliser `${POSTGRES_PASSWORD:-ajt_password}` et definir la variable dans `.env` (non versionne)
+- **Corrige** : les fallback defaults ont ete remplaces par `${VAR:?message}` dans `docker-compose.yml` — le demarrage echoue avec un message explicite si une variable manque
 
-### CORS wildcard par defaut
+### ~~CORS wildcard par defaut~~ ✅
 
-- **Fichier** : `backend/app.py:22-30`
-- **Probleme** : si `FRONTEND_URL` n'est pas defini, CORS autorise `*` (toutes origines)
-- **Correction** : exiger `FRONTEND_URL` au demarrage ou utiliser un defaut restrictif
+- **Corrige** : `FRONTEND_URL` est obligatoire au demarrage, CORS refuse `*` (`backend/app.py`)
 
 ---
 
-## Securite (priorite haute)
+## ~~Securite (priorite haute)~~ (corrigee)
 
-### Nginx CORS trop permissif
+### ~~Nginx CORS trop permissif~~ ✅
 
-- **Fichier** : `frontend/nginx.conf:56`
-- **Probleme** : `Access-Control-Allow-Origin: *` sur le serveur frontend alors que le backend a une config restrictive
-- **Correction** : aligner sur le domaine de prod `https://ajtpro.tulip-saas.fr`
+- **Corrige** : `Access-Control-Allow-Origin` dans `nginx.conf` est hardcode a `https://ajtpro.tulip-saas.fr`
 
-### Pas de protection CSRF
+### ~~Pas de protection CSRF~~ ✅
 
-- **Fichier** : `frontend/src/api.ts`
-- **Probleme** : aucun token CSRF sur les requetes POST/PUT/DELETE
-- **Correction** : ajouter une validation origin/referer cote backend ou implementer un double-submit cookie
+- **Corrige** : validation du header `Origin` sur les endpoints POST sensibles (`/login`, `/refresh`, `/logout`) dans `backend/routes/auth.py`. Les cookies sont `SameSite=Lax` + `HttpOnly` + `Secure` (defense-in-depth)
 
 ---
 
@@ -580,11 +566,9 @@ Correction appliquee : supprime lors de l'extraction du hook `useProductAttribut
 
 ## Infrastructure et deploiement
 
-### Backend Docker tourne en root
+### ~~Backend Docker tourne en root~~ ✅
 
-- **Fichier** : `backend/Dockerfile`
-- **Probleme** : Gunicorn tourne en tant que root dans le conteneur
-- **Correction** : creer un utilisateur non-root (`RUN useradd -m appuser && USER appuser`)
+- **Corrige** : utilisateur `appuser` cree dans `backend/Dockerfile`, le conteneur tourne en non-root
 
 ### Pas de .dockerignore backend
 
