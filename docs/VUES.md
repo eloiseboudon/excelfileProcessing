@@ -433,10 +433,10 @@ Le matching est **product-centric** : on itère sur les produits Odoo non encore
 | Couleur | 15 | Oui (les deux côtés non-null) |
 | Stockage | 25 | Oui (les deux côtés ont une valeur identifiable) |
 | Famille modèle | 40 | Non (fuzzy matching) |
-| Région | multiplicateur ×0 ou ×1 | Oui (les deux côtés non-null) |
+| Région | 5 | Oui (les deux côtés, null = EU) |
 | Similarité libellé | variable | Non |
 
-**Score max = 95 pts** (15 + 15 + 25 + 40). La région n'ajoute aucun point — elle agit comme un **gate multiplier** : si les deux côtés ont une région non-null ET différente → ×0 (score mis à zéro, hard disqualify). Sinon → ×1 (score inchangé). La région ne doit donc pas être incluse dans le détail des scores affiché quand elle passe, pour éviter un effet de bord visuel.
+**Score max = 100 pts** (15 + 15 + 25 + 40 + 5). La région vaut +5 quand elle match, et hard disqualifie quand elle diffère. `null` = `"EU"` partout : il n'existe pas de région null — c'est Europe par défaut. Le LLM renvoie toujours "EU" explicitement.
 
 **Règle disqualification stockage** : hard disqualify uniquement si les deux côtés ont un stockage identifiable (champ `memory` officiel OU stockage lisible dans le nom du modèle). Si un seul côté a le stockage → 0 pts, pas de disqualification.
 

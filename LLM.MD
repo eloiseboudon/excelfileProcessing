@@ -44,10 +44,12 @@ MATCH_THRESHOLD_REVIEW=50
 | Couleur | 15 | Oui — les deux côtés non-null |
 | Stockage | 25 | Oui — les deux côtés ont une valeur identifiable |
 | Famille modèle | 40 | Non (fuzzy matching Levenshtein) |
-| Région | ×0 ou ×1 | Oui — les deux côtés non-null |
+| Région | 5 | Oui — les deux côtés (null = EU) |
 | Similarité libellé | variable | Non |
 
-**Région = gate multiplier** : si les deux côtés ont une région non-null ET différente → score ×0 (hard disqualify). Sinon → score ×1 (inchangé). La région n'ajoute aucun point additif.
+**Score max = 100 pts** (15 + 15 + 25 + 40 + 5).
+
+**Région** : `null` = `"EU"` partout (scoring, LabelCache, création produit). Le LLM renvoie toujours "EU" explicitement, jamais null. Hard disqualify si les deux côtés ont des régions différentes (ex : EU vs US). +5 pts si identiques.
 
 ### Règle both-sides-non-null pour le stockage
 

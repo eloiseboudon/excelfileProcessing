@@ -184,8 +184,8 @@ utilise la table de correspondance
 4. color : normalise en francais en utilisant les synonymes fournis. \
 Si la couleur n est dans aucun synonyme, garde le nom original
 5. device_type : Smartphone, Tablette, Accessoire, Audio, etc.
-6. region : "EU" si standard EU. "US" si US Spec, "IN" si Indian Spec, \
-"DE" si (DE), etc.
+6. region : toujours renseigner, jamais null. "EU" par defaut (produit \
+standard Europe). "US" si US Spec, "IN" si Indian Spec, "DE" si (DE), etc.
 7. connectivity : "WiFi" si [W], "Cellular" si mention cellular/LTE, \
 "5G" si mentionne, null sinon
 8. grade : A, B, C si mentionne, null sinon
@@ -447,15 +447,15 @@ def score_match(
     else:
         details["color"] = 0
 
-    # --- Region (gate; null or empty = EU) ---
-    # Mismatch kills the score entirely. Match adds nothing (pure filter, not additive).
-    # Region is intentionally absent from `details` when it passes — only present on reject.
+    # --- Region (+5 when match, hard disqualify when mismatch; null = EU) ---
     ext_region = (extracted.get("region") or "EU").strip().upper()
     prod_region = (product.region or "EU").strip().upper()
     if ext_region != prod_region:
         details["region"] = 0
         details["disqualified"] = "region_mismatch"
         return 0, details
+    details["region"] = 5
+    score += 5
 
     # --- Label similarity bonus/malus (up to ±10 pts) ---
     raw_label = (extracted.get("raw_label") or "").strip()
@@ -615,7 +615,7 @@ def create_product_from_extraction(
         memory_id=_find_or_create_memory(extracted.get("storage", "")),
         color_id=_find_color_id(extracted.get("color", "")),
         type_id=_find_device_type_id(extracted.get("device_type", "")),
-        region=extracted.get("region"),
+        region=extracted.get("region") or "EU",
     )
     db.session.add(product)
     db.session.flush()
@@ -779,6 +779,7 @@ def run_matching_job(
             total_input_tokens += token_info.get("input_tokens", 0) // max(len(batch_labels), 1)
             total_output_tokens += token_info.get("output_tokens", 0) // max(len(batch_labels), 1)
             extraction["raw_label"] = original_label
+            extraction["region"] = (extraction.get("region") or "EU").strip().upper()
 
             # Attribute-based cross-supplier sharing: if the same (brand, model, storage,
             # color, region) tuple is already matched in another supplier's cache, assign
