@@ -171,7 +171,7 @@ def list_jobs():
       200:
         description: List of sync jobs
     """
-    limit = request.args.get("limit", 20, type=int)
+    limit = min(request.args.get("limit", 20, type=int), 100)
     jobs = (
         OdooSyncJob.query.order_by(OdooSyncJob.started_at.desc()).limit(limit).all()
     )
