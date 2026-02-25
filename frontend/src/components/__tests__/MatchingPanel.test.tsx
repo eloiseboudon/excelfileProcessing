@@ -64,7 +64,7 @@ describe('MatchingPanel', () => {
     await waitFor(() => {
       expect(screen.getByText('Rapprochement LLM')).toBeInTheDocument();
     });
-    expect(screen.getByText('Lancer le rapprochement')).toBeInTheDocument();
+    expect(screen.getByText('Lancer maintenant')).toBeInTheDocument();
   });
 
   it('loads suppliers on mount', async () => {
@@ -94,7 +94,7 @@ describe('MatchingPanel', () => {
   it('renders the limit selector', async () => {
     renderPanel();
     await waitFor(() => {
-      expect(screen.getByText('Lancer le rapprochement')).toBeInTheDocument();
+      expect(screen.getByText('Lancer maintenant')).toBeInTheDocument();
     });
     expect(screen.getByText('50 produits')).toBeInTheDocument();
     expect(screen.getByText('100 produits')).toBeInTheDocument();
@@ -107,10 +107,10 @@ describe('MatchingPanel', () => {
 
     renderPanel();
     await waitFor(() => {
-      expect(screen.getByText('Lancer le rapprochement')).toBeInTheDocument();
+      expect(screen.getByText('Lancer maintenant')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText('Lancer le rapprochement'));
+    fireEvent.click(screen.getByText('Lancer maintenant'));
 
     await waitFor(() => {
       expect(mockRunMatching).toHaveBeenCalledWith(undefined, 50);
@@ -129,10 +129,10 @@ describe('MatchingPanel', () => {
 
     renderPanel();
     await waitFor(() => {
-      expect(screen.getByText('Lancer le rapprochement')).toBeInTheDocument();
+      expect(screen.getByText('Lancer maintenant')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText('Lancer le rapprochement'));
+    fireEvent.click(screen.getByText('Lancer maintenant'));
 
     await waitFor(() => {
       expect(screen.getByText('Arreter le suivi')).toBeInTheDocument();
@@ -141,7 +141,7 @@ describe('MatchingPanel', () => {
     fireEvent.click(screen.getByText('Arreter le suivi'));
 
     await waitFor(() => {
-      expect(screen.getByText('Lancer le rapprochement')).toBeInTheDocument();
+      expect(screen.getByText('Lancer maintenant')).toBeInTheDocument();
     });
   });
 
