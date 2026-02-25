@@ -409,7 +409,7 @@ class TestScoreMatch:
         mappings = {"color_translations": {"black": "Noir"}}
         score, details = score_match(extracted, product_s25, mappings)
         assert score == 100
-        assert details.get("region") == 5
+        assert "region" not in details  # region is a gate (×0/×1), not additive
 
     def test_perfect_match_with_region(self, brand_samsung, memory_256, color_noir, color_translations):
         """All fields match including explicit EU region → 100 pts."""
@@ -433,7 +433,7 @@ class TestScoreMatch:
         mappings = {"color_translations": {"black": "Noir"}}
         score, details = score_match(extracted, p, mappings)
         assert score == 100
-        assert details.get("region") == 5
+        assert "region" not in details  # region is a gate (×0/×1), not additive
 
     def test_brand_mismatch_returns_zero(self, product_s25):
         extracted = {"brand": "Apple", "model_family": "Galaxy S25 Ultra", "storage": "256 Go"}
@@ -544,7 +544,7 @@ class TestScoreMatch:
         assert details.get("disqualified") == "region_mismatch"
 
     def test_region_null_treated_as_eu(self, brand_apple, memory_128, color_noir):
-        """Null region on both sides = EU match → no disqualification, +5 pts bonus."""
+        """Null region on both sides = EU match → no disqualification, score passes through."""
         product_null_region = Product(
             model="iPhone 16",
             brand_id=brand_apple.id,
@@ -565,7 +565,7 @@ class TestScoreMatch:
         score, details = score_match(extracted, product_null_region, {})
         assert score > 0
         assert details.get("disqualified") != "region_mismatch"
-        assert details.get("region") == 5  # null = EU on both sides → match = +5
+        assert "region" not in details  # region is a gate, not additive — absent from details on pass
 
     def test_non_eu_label_disqualifies_null_region_product(self, brand_apple, memory_128, color_noir):
         """Non-EU label (IN) must disqualify a product with null region (= EU)."""
@@ -724,7 +724,7 @@ class TestScoreMatch:
         }
         mappings = {"color_translations": {}}
         score, details = score_match(extracted, product_s25, mappings)
-        assert 0 < details["model_family"] < 40
+        assert 0 < details["model_family"] < 45
 
 
 class TestNormalizeStorage:

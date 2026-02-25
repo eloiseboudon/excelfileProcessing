@@ -389,7 +389,7 @@ def score_match(
         details["storage"] = 25
         score += 25
 
-    # --- Model family (40 pts) ---
+    # --- Model family (45 pts) ---
     ext_model = (extracted.get("model_family") or "").strip().lower()
     prod_model = (product.model or "").strip().lower()
     # Remove brand from product model for comparison
@@ -411,14 +411,14 @@ def score_match(
 
         ratio = _fuzzy_ratio(ext_model, prod_model)
         if ratio >= 0.95:
-            details["model_family"] = 40
-            score += 40
+            details["model_family"] = 45
+            score += 45
         elif ratio >= 0.8:
-            pts = int(20 + (ratio - 0.8) * 100)
-            details["model_family"] = min(pts, 35)
+            pts = int(25 + (ratio - 0.8) * 100)
+            details["model_family"] = min(pts, 40)
             score += details["model_family"]
         elif ratio >= 0.6:
-            details["model_family"] = int(ratio * 20)
+            details["model_family"] = int(ratio * 25)
             score += details["model_family"]
         else:
             details["model_family"] = 0
@@ -447,15 +447,15 @@ def score_match(
     else:
         details["color"] = 0
 
-    # --- Region (+5 when match, hard disqualify when mismatch; null = EU) ---
+    # --- Region (multiplier ×0 or ×1; null = EU) ---
+    # Region is not additive — it gates the entire score.
+    # Mismatch → score = 0. Match → score passes through unchanged.
     ext_region = (extracted.get("region") or "EU").strip().upper()
     prod_region = (product.region or "EU").strip().upper()
     if ext_region != prod_region:
         details["region"] = 0
         details["disqualified"] = "region_mismatch"
         return 0, details
-    details["region"] = 5
-    score += 5
 
     # --- Label similarity bonus/malus (up to ±10 pts) ---
     raw_label = (extracted.get("raw_label") or "").strip()

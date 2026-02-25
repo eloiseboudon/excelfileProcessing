@@ -43,13 +43,12 @@ MATCH_THRESHOLD_REVIEW=50
 | Marque | 15 | Oui — les deux côtés non-null |
 | Couleur | 15 | Oui — les deux côtés non-null |
 | Stockage | 25 | Oui — les deux côtés ont une valeur identifiable |
-| Famille modèle | 40 | Non (fuzzy matching Levenshtein) |
-| Région | 5 | Oui — les deux côtés (null = EU) |
-| Similarité libellé | variable | Non |
+| Famille modèle | 45 | Non (fuzzy matching Levenshtein) |
+| Similarité libellé | variable (bonus) | Non |
 
-**Score max = 100 pts** (15 + 15 + 25 + 40 + 5).
+**Score max = 100 pts** (15 + 15 + 25 + 45).
 
-**Région** : `null` = `"EU"` partout (scoring, LabelCache, création produit). Le LLM renvoie toujours "EU" explicitement, jamais null. Hard disqualify si les deux côtés ont des régions différentes (ex : EU vs US). +5 pts si identiques.
+**Région = multiplicateur ×0 ou ×1** : `score = région × (marque + couleur + stockage + modèle)`. La région n'est pas additive — elle gate le score entier. `null` = `"EU"` partout. Hard disqualify (score → 0) si les deux régions diffèrent. Le LLM renvoie toujours "EU" explicitement, jamais null.
 
 ### Règle both-sides-non-null pour le stockage
 
