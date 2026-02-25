@@ -427,14 +427,14 @@ Le matching est **product-centric** : on itère sur les produits Odoo non encore
 
 ### Algorithme de scoring (score sur 100 pts)
 
-| Critère | Pts max | Hard disqualify si mismatch |
-|---------|---------|----------------------------|
-| Marque | 15 | Oui (les deux côtés non-null) |
-| Couleur | 15 | Oui (les deux côtés non-null) |
-| Stockage | 25 | Oui (les deux côtés ont une valeur identifiable) |
-| Famille modèle | 45 | Non (fuzzy matching) |
-| Région | multiplicateur ×0 ou ×1 | Oui (les deux côtés, null = EU) |
-| Similarité libellé | variable (bonus) | Non |
+| Critère | Pts max | Hard disqualify si mismatch | Exemple (match ✓) | Exemple (échec ✗) |
+|---------|---------|----------------------------|-------------------|-------------------|
+| Marque | 15 | Oui (les deux côtés non-null) | `Apple` = `Apple` → 15 pts | `Apple` ≠ `Samsung` → 0, disqualifié |
+| Couleur | 15 | Oui (les deux côtés non-null) | `Black` → `Noir` = `Noir` → 15 pts | `Black` → `Noir` ≠ `Bleu` → 0, disqualifié |
+| Stockage | 25 | Oui (les deux côtés ont une valeur identifiable) | `128GB` = `128 Go` → 25 pts | `128GB` ≠ `256 Go` → 0, disqualifié |
+| Famille modèle | 45 | Non (fuzzy matching) | `"iphone 16"` ≈ `"iphone 16"` (ratio 1.0) → 45 pts | `"iphone 16"` vs `"iphone 15"` → 0, disqualifié (version) |
+| Région | multiplicateur ×0 ou ×1 | Oui (les deux côtés, null = EU) | `null`=EU = `null`=EU → ×1 (score inchangé) | `EU` ≠ `US` → ×0, score = 0 |
+| Similarité libellé | variable (bonus) | Non | `"apple iphone 16 128gb black"` ≈ `"iphone 16"` → +5 pts | ratio < 0.25 → −10 pts |
 
 **Score max = 100 pts** (15 + 15 + 25 + 45). La formule est `score = région × (marque + couleur + stockage + modèle)`. La région n'est pas additive — elle multiplie le score total. `null` = `"EU"` partout : il n'existe pas de région null, c'est Europe par défaut. Hard disqualify (score → 0) si les deux régions diffèrent. Le LLM renvoie toujours "EU" explicitement.
 
