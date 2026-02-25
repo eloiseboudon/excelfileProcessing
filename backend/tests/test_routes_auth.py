@@ -99,3 +99,49 @@ def test_logout_clears_cookie(client, admin_user):
     # After logout, refresh should fail
     rv = client.post("/refresh")
     assert rv.status_code == 401
+
+
+# --- Origin validation (defense-in-depth CSRF) ---
+
+
+def test_login_rejects_bad_origin(client, admin_user):
+    rv = client.post(
+        "/login",
+        data=json.dumps({"email": "admin@test.com", "password": "password123"}),
+        content_type="application/json",
+        headers={"Origin": "https://evil.com"},
+    )
+    assert rv.status_code == 403
+    assert rv.get_json()["error"] == "Origin not allowed"
+
+
+def test_login_allows_correct_origin(client, admin_user):
+    rv = client.post(
+        "/login",
+        data=json.dumps({"email": "admin@test.com", "password": "password123"}),
+        content_type="application/json",
+        headers={"Origin": "http://localhost:5173"},
+    )
+    assert rv.status_code == 200
+
+
+def test_login_allows_no_origin(client, admin_user):
+    """Requests without Origin header (curl, same-origin) should pass."""
+    rv = client.post(
+        "/login",
+        data=json.dumps({"email": "admin@test.com", "password": "password123"}),
+        content_type="application/json",
+    )
+    assert rv.status_code == 200
+
+
+def test_refresh_rejects_bad_origin(client, admin_user):
+    _login(client)
+    rv = client.post("/refresh", headers={"Origin": "https://evil.com"})
+    assert rv.status_code == 403
+
+
+def test_logout_rejects_bad_origin(client, admin_user):
+    _login(client)
+    rv = client.post("/logout", headers={"Origin": "https://evil.com"})
+    assert rv.status_code == 403
