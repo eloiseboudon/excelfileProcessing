@@ -1001,3 +1001,76 @@ export async function fetchAppLogs(lines = 200) {
   }
   return res.json() as Promise<AppLogsResponse>;
 }
+
+// ---------------------------------------------------------------------------
+// Nightly Pipeline
+// ---------------------------------------------------------------------------
+
+export interface NightlyConfig {
+  id: number;
+  enabled: boolean;
+  run_hour: number;
+  run_minute: number;
+  updated_at: string | null;
+}
+
+export interface NightlyJob {
+  id: number;
+  started_at: string | null;
+  finished_at: string | null;
+  status: string;
+  odoo_synced: number | null;
+  suppliers_synced: number | null;
+  matching_submitted: number | null;
+  email_sent: boolean;
+  error_message: string | null;
+}
+
+export interface NightlyRecipient {
+  id: number;
+  email: string;
+  name: string | null;
+  active: boolean;
+}
+
+export async function fetchNightlyConfig() {
+  const res = await fetchWithAuth(`${API_BASE}/nightly/config`);
+  if (!res.ok) throw new Error(await extractErrorMessage(res));
+  return res.json() as Promise<NightlyConfig>;
+}
+
+export async function updateNightlyConfig(data: Partial<Pick<NightlyConfig, 'enabled' | 'run_hour' | 'run_minute'>>) {
+  return crudRequest('PUT', `${API_BASE}/nightly/config`, data) as Promise<NightlyConfig>;
+}
+
+export async function triggerNightly() {
+  const res = await fetchWithAuth(`${API_BASE}/nightly/trigger`, { method: 'POST' });
+  if (!res.ok) throw new Error(await extractErrorMessage(res));
+  return res.json() as Promise<{ status: string }>;
+}
+
+export async function fetchNightlyJobs() {
+  const res = await fetchWithAuth(`${API_BASE}/nightly/jobs`);
+  if (!res.ok) throw new Error(await extractErrorMessage(res));
+  return res.json() as Promise<NightlyJob[]>;
+}
+
+export async function fetchNightlyJob(jobId: number) {
+  const res = await fetchWithAuth(`${API_BASE}/nightly/jobs/${jobId}`);
+  if (!res.ok) throw new Error(await extractErrorMessage(res));
+  return res.json() as Promise<NightlyJob>;
+}
+
+export async function fetchNightlyRecipients() {
+  const res = await fetchWithAuth(`${API_BASE}/nightly/recipients`);
+  if (!res.ok) throw new Error(await extractErrorMessage(res));
+  return res.json() as Promise<NightlyRecipient[]>;
+}
+
+export async function addNightlyRecipient(data: { email: string; name?: string }) {
+  return crudRequest('POST', `${API_BASE}/nightly/recipients`, data) as Promise<NightlyRecipient>;
+}
+
+export async function deleteNightlyRecipient(id: number) {
+  return crudRequest('DELETE', `${API_BASE}/nightly/recipients/${id}`);
+}
