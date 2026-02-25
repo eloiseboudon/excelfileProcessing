@@ -71,8 +71,9 @@ ENABLE_NIGHTLY_SCHEDULER=false
 
 **Points importants :**
 
-- `FRONTEND_URL` doit correspondre exactement a l'origine du frontend (schema + domaine) pour que la politique CORS fonctionne.
-- `JWT_SECRET` doit etre remplace par une valeur aleatoire et securisee en production (minimum 32 caracteres pour SHA-256).
+- **Variables PostgreSQL obligatoires** : `POSTGRES_DB`, `POSTGRES_USER` et `POSTGRES_PASSWORD` doivent etre definies dans le fichier `.env`. Docker Compose refusera de demarrer si l'une d'elles est absente.
+- `FRONTEND_URL` doit correspondre exactement a l'origine du frontend (schema + domaine) pour que la politique CORS et la validation Origin fonctionnent.
+- `JWT_SECRET` doit etre remplace par une valeur aleatoire et securisee en production (minimum 32 caracteres pour SHA-256). Le backend refuse de demarrer si la valeur est absente ou trop courte.
 - `ODOO_ENCRYPTION_KEY` est la cle Fernet utilisee pour chiffrer le mot de passe Odoo en base. Generez-la avec : `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
 - Le fichier `.env` est ignore par Git afin de proteger les informations sensibles.
 
@@ -462,7 +463,7 @@ Le gabarit OpenAPI se trouve dans `backend/swagger_template.yml`.
 
 ### Tests backend
 
-Le framework `pytest` est configure dans le backend (SQLite in-memory, pas besoin de PostgreSQL) — 314 tests dans 16 fichiers :
+Le framework `pytest` est configure dans le backend (SQLite in-memory, pas besoin de PostgreSQL) — 319 tests dans 16 fichiers :
 
 ```bash
 cd backend

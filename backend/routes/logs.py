@@ -56,17 +56,53 @@ def list_activity_logs():
     })
 
 
+def _tail_lines(path: Path, n: int) -> list:
+    """Read the last *n* lines of a file without loading it entirely."""
+    with open(path, "rb") as f:
+        f.seek(0, 2)
+        size = f.tell()
+        if size == 0:
+            return []
+        chunk_size = 8192
+        lines: list[bytes] = []
+        position = size
+        remainder = b""
+        while position > 0 and len(lines) <= n:
+            read_size = min(chunk_size, position)
+            position -= read_size
+            f.seek(position)
+            chunk = f.read(read_size) + remainder
+            remainder = b""
+            parts = chunk.split(b"\n")
+            if position > 0:
+                remainder = parts[0]
+                parts = parts[1:]
+            lines = parts + lines
+        # Filter empty entries (e.g. trailing newline) before slicing
+        lines = [l for l in lines if l]
+        return [l.decode("utf-8", errors="replace") for l in lines[-n:]]
+
+
+def _count_lines(path: Path) -> int:
+    """Count newlines in a file using buffered binary reads."""
+    count = 0
+    with open(path, "rb") as f:
+        while chunk := f.read(65536):
+            count += chunk.count(b"\n")
+    return count
+
+
 @bp.route("/logs/app", methods=["GET"])
 @token_required("admin")
 def read_app_logs():
     """Return the last N lines of the application log file."""
-    lines_count = min(request.args.get("lines", 200, type=int), 1000)
+    DEFAULT_LOG_LINES = 200
+    MAX_LOG_LINES = 1000
+    lines_count = min(request.args.get("lines", DEFAULT_LOG_LINES, type=int), MAX_LOG_LINES)
 
     log_path = Path(current_app.root_path) / "logs" / "app.log"
     if not log_path.exists():
         return jsonify({"lines": [], "total_lines": 0})
 
-    all_lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
-    tail = all_lines[-lines_count:]
-
-    return jsonify({"lines": tail, "total_lines": len(all_lines)})
+    tail = _tail_lines(log_path, lines_count)
+    return jsonify({"lines": tail, "total_lines": _count_lines(log_path)})

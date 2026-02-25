@@ -52,6 +52,38 @@ MAX_REPORT_ITEMS = 10_000
 
 
 # ---------------------------------------------------------------------------
+# XML-RPC transports with timeout
+# ---------------------------------------------------------------------------
+XMLRPC_TIMEOUT = 60
+
+
+class _TimeoutTransport(xmlrpc.client.Transport):
+    """XML-RPC HTTP transport with configurable timeout."""
+
+    def __init__(self, timeout=XMLRPC_TIMEOUT, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.timeout = timeout
+
+    def make_connection(self, host):
+        conn = super().make_connection(host)
+        conn.timeout = self.timeout
+        return conn
+
+
+class _TimeoutSafeTransport(xmlrpc.client.SafeTransport):
+    """XML-RPC HTTPS transport with configurable timeout."""
+
+    def __init__(self, timeout=XMLRPC_TIMEOUT, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.timeout = timeout
+
+    def make_connection(self, host):
+        conn = super().make_connection(host)
+        conn.timeout = self.timeout
+        return conn
+
+
+# ---------------------------------------------------------------------------
 # OdooClient — thin wrapper around xmlrpc.client
 # ---------------------------------------------------------------------------
 class OdooClient:
@@ -63,8 +95,16 @@ class OdooClient:
         self.login = login
         self.password = password
         self._uid: Optional[int] = None
-        self._common = xmlrpc.client.ServerProxy(f"{self.url}/xmlrpc/2/common")
-        self._object = xmlrpc.client.ServerProxy(f"{self.url}/xmlrpc/2/object")
+        use_ssl = self.url.startswith("https")
+        transport = (
+            _TimeoutSafeTransport() if use_ssl else _TimeoutTransport()
+        )
+        self._common = xmlrpc.client.ServerProxy(
+            f"{self.url}/xmlrpc/2/common", transport=transport
+        )
+        self._object = xmlrpc.client.ServerProxy(
+            f"{self.url}/xmlrpc/2/object", transport=transport
+        )
 
     def authenticate(self) -> int:
         uid = self._common.authenticate(
@@ -464,6 +504,7 @@ def _delete_orphaned_products(
             if len(reports["deleted"]) < MAX_REPORT_ITEMS:
                 reports["deleted"].append(report_item)
         except Exception as e:
+            db.session.rollback()
             counters["error"] += 1
             if len(reports["errors"]) < MAX_REPORT_ITEMS:
                 reports["errors"].append(

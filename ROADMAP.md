@@ -209,7 +209,7 @@ Infrastructure de tests unitaires et d'integration pour le backend et le fronten
 - **Tests unitaires** : `utils/pricing.py` (seuils, TCP, marges, edge cases), `utils/auth.py` (JWT generation, decodage, expiration, decorator)
 - **Tests d'integration** : routes `POST /login`, CRUD `/users`, CRUD `/products`, operations en masse (`bulk_update`, `bulk_delete`), routes Odoo (config, test connexion, sync, jobs, auto-sync)
 - **Tests LLM matching** : modeles (13 tests), extraction et scoring (33 tests), routes API (24 tests), integration calculs/LabelCache (5 tests)
-- **176 tests** dans 12 fichiers
+- **319 tests** dans 16 fichiers
 - **Zero warning applicatif** : `datetime.utcnow()` remplace par `datetime.now(timezone.utc)`, `Query.get()` remplace par `db.session.get()`, secret JWT >= 32 octets
 
 ### Frontend (Vitest + Testing Library)
@@ -384,87 +384,63 @@ Fichiers concernes : `.github/workflows/ci.yml`
 
 # Dette technique et ameliorations identifiees
 
-## Securite (priorite critique)
+## ~~Securite (priorite critique)~~ (corrigee)
 
-### JWT_SECRET avec fallback faible
+### ~~JWT_SECRET avec fallback faible~~ ✅
 
-- **Fichier** : `backend/utils/auth.py:10`
-- **Probleme** : le fallback par defaut est `"secret-key"` si `JWT_SECRET` n'est pas defini — un attaquant peut forger des tokens
-- **Correction** : lever une exception au demarrage si la variable est absente ou < 32 caracteres
+- **Corrige** : `RuntimeError` levee au demarrage si `JWT_SECRET` est absent ou < 32 caracteres (`backend/utils/auth.py`)
 
-### Refresh token stocke dans localStorage
+### ~~Refresh token stocke dans localStorage~~ ✅
 
-- **Fichier** : `frontend/src/api.ts:6-18`
-- **Probleme** : le refresh token est dans `localStorage`, accessible par n'importe quel script JS (XSS)
-- **Correction** : migrer vers un cookie HTTPOnly secure avec `SameSite=Strict`
+- **Corrige** : le refresh token est desormais un cookie HTTPOnly secure avec `SameSite=Lax` (`backend/routes/auth.py`)
 
-### PostgreSQL expose en production
+### ~~PostgreSQL expose en production~~ ✅
 
-- **Fichier** : `docker-compose.prod.yml:75`
-- **Probleme** : `ports: "5432:5432"` expose la base sur le reseau du VPS
-- **Correction** : supprimer la directive `ports` ou la restreindre a `"127.0.0.1:5432:5432"`
+- **Corrige** : port PostgreSQL lie a `127.0.0.1` dans `docker-compose.yml`. Pas de port expose dans `docker-compose.prod.yml`
 
-### Credentials base hardcodes dans docker-compose
+### ~~Credentials base hardcodes dans docker-compose~~ ✅
 
-- **Fichier** : `docker-compose.yml:35`, `docker-compose.prod.yml:70`
-- **Probleme** : `POSTGRES_PASSWORD=ajt_password` en dur dans des fichiers versiones
-- **Correction** : utiliser `${POSTGRES_PASSWORD:-ajt_password}` et definir la variable dans `.env` (non versionne)
+- **Corrige** : les fallback defaults ont ete remplaces par `${VAR:?message}` dans `docker-compose.yml` — le demarrage echoue avec un message explicite si une variable manque
 
-### CORS wildcard par defaut
+### ~~CORS wildcard par defaut~~ ✅
 
-- **Fichier** : `backend/app.py:22-30`
-- **Probleme** : si `FRONTEND_URL` n'est pas defini, CORS autorise `*` (toutes origines)
-- **Correction** : exiger `FRONTEND_URL` au demarrage ou utiliser un defaut restrictif
+- **Corrige** : `FRONTEND_URL` est obligatoire au demarrage, CORS refuse `*` (`backend/app.py`)
 
 ---
 
-## Securite (priorite haute)
+## ~~Securite (priorite haute)~~ (corrigee)
 
-### Nginx CORS trop permissif
+### ~~Nginx CORS trop permissif~~ ✅
 
-- **Fichier** : `frontend/nginx.conf:56`
-- **Probleme** : `Access-Control-Allow-Origin: *` sur le serveur frontend alors que le backend a une config restrictive
-- **Correction** : aligner sur le domaine de prod `https://ajtpro.tulip-saas.fr`
+- **Corrige** : `Access-Control-Allow-Origin` dans `nginx.conf` est hardcode a `https://ajtpro.tulip-saas.fr`
 
-### Pas de protection CSRF
+### ~~Pas de protection CSRF~~ ✅
 
-- **Fichier** : `frontend/src/api.ts`
-- **Probleme** : aucun token CSRF sur les requetes POST/PUT/DELETE
-- **Correction** : ajouter une validation origin/referer cote backend ou implementer un double-submit cookie
+- **Corrige** : validation du header `Origin` sur les endpoints POST sensibles (`/login`, `/refresh`, `/logout`) dans `backend/routes/auth.py`. Les cookies sont `SameSite=Lax` + `HttpOnly` + `Secure` (defense-in-depth)
 
 ---
 
 ## Performance backend
 
-### N+1 queries dans `matching_stats` (existant)
+### ~~N+1 queries dans `matching_stats`~~ ✅
 
-`matching_stats()` dans `backend/routes/matching.py` effectue **4 requetes COUNT separees par fournisseur**. Avec N fournisseurs = 1 + 4N requetes SQL.
+Corrige : requetes agregees `GROUP BY supplier_id` avec `func.count()` + `case()` — 2 requetes au lieu de 1+4N.
 
-Correction : remplacer par des requetes agregees `GROUP BY supplier_id` via `func.count()`.
+### ~~Export sans pagination~~ ✅
 
-### Export sans pagination
+Corrige : `LIMIT 10 000` sur `export_calculates`.
 
-- **Fichier** : `backend/routes/products.py:620`
-- **Probleme** : `export_calculates` charge TOUS les `ProductCalculation` en memoire sans LIMIT
-- **Correction** : ajouter un LIMIT de securite (ex: 10 000) ou paginer
+### ~~Timeout XML-RPC manquant~~ ✅
 
-### Timeout XML-RPC manquant
+Corrige : transport custom avec timeout 60s sur les `ServerProxy` (HTTP et HTTPS).
 
-- **Fichier** : `backend/utils/odoo_sync.py:66-67`
-- **Probleme** : les appels XML-RPC vers Odoo n'ont aucun timeout — requete potentiellement infinie si le serveur est injoignable
-- **Correction** : ajouter un `transport` avec timeout (60s) au `ServerProxy`
+### ~~Lecture du fichier de log en entier~~ ✅
 
-### Lecture du fichier de log en entier
+Corrige : `_tail_lines()` lit par chunks depuis la fin du fichier + `_count_lines()` pour le comptage.
 
-- **Fichier** : `backend/routes/logs.py:69`
-- **Probleme** : `log_path.read_text()` charge le fichier entier en memoire avant de slicer les N dernieres lignes
-- **Correction** : lire depuis la fin du fichier (tail) ou streamer
+### ~~Limites non bornees sur certaines routes~~ ✅
 
-### Limites non bornees sur certaines routes
-
-- **Fichier** : `backend/routes/products.py:295,606,620`
-- **Probleme** : `per_page` et `limit` convertis en int sans borne superieure
-- **Correction** : appliquer `min(limit, MAX_LIMIT)` systematiquement
+Corrige : `min(limit, 100)` sur le dernier endpoint non borne (`odoo.py` sync jobs).
 
 ---
 
@@ -488,21 +464,17 @@ Correction : remplacer par des requetes agregees `GROUP BY supplier_id` via `fun
 
 Correction appliquee : supprime lors de l'extraction du hook `useProductAttributeOptions`.
 
-### Cache pip manquant dans la CI
+### ~~Cache pip manquant dans la CI~~ ✅
 
-- **Fichier** : `.github/workflows/ci.yml:60-66`
-- **Probleme** : chaque run CI retelecharge tous les packages pip (~2-3 min)
-- **Correction** : ajouter `actions/cache@v4` sur `~/.cache/pip` avec cle `requirements.txt`
+Corrige : `actions/cache@v4` sur `~/.cache/pip` avec cle basee sur `requirements.txt`.
 
 ---
 
 ## Robustesse et qualite du code — Backend
 
-### Rollback manquant dans les handlers d'exception
+### ~~Rollback manquant dans les handlers d'exception~~ ✅
 
-- **Fichier** : `backend/routes/odoo.py:116`
-- **Probleme** : `except Exception` retourne une 500 sans `db.session.rollback()` — la session reste dirty
-- **Correction** : ajouter `db.session.rollback()` dans tous les handlers d'exception des routes
+- **Corrige** : `db.session.rollback()` ajoute dans `nightly_pipeline.py` (3 handlers), `odoo_sync.py` (1 handler), `calculations.py` (1 handler)
 
 ### Erreurs silencieuses
 
@@ -510,17 +482,13 @@ Correction appliquee : supprime lors de l'extraction du hook `useProductAttribut
 - **Probleme** : `.catch(() => ({}))` sur le parsing JSON masque les erreurs reseau
 - **Correction** : logger l'erreur et retourner un objet d'erreur explicite
 
-### Masquage de mot de passe fragile
+### ~~Masquage de mot de passe fragile~~ ✅
 
-- **Fichier** : `backend/routes/odoo.py:75`
-- **Probleme** : la comparaison `password != "********"` peut echouer si le vrai mot de passe est cette chaine
-- **Correction** : utiliser un champ flag `password_changed: bool` ou un sentinelle non ambigu
+Corrige : sentinelle `__UNCHANGED__` non ambigu remplace `"********"` dans `backend/routes/odoo.py`.
 
-### Magic numbers eparpilles
+### ~~Magic numbers eparpilles~~ ✅
 
-- **Fichiers** : `backend/routes/imports.py`, `stats.py`, `logs.py`
-- **Probleme** : limites (100, 200, 20, 1000) en dur dans le code
-- **Correction** : extraire en constantes de module (`MAX_LIMIT`, `DEFAULT_PAGE_SIZE`, etc.)
+Corrige : constantes extraites (`DEFAULT_LOG_LINES`, `MAX_LOG_LINES`, `DEFAULT_FETCH_JOBS_LIMIT`, `MAX_FETCH_JOBS_LIMIT`).
 
 ---
 
@@ -532,11 +500,9 @@ Correction appliquee : supprime lors de l'extraction du hook `useProductAttribut
 - **Probleme** : l'usage de `any` annule les garanties de typage et rend le refactoring risque
 - **Correction** : typer les reponses API (`ApiResponse<T>`) et remplacer les `any` par des types explicites
 
-### console.error oublies en production
+### ~~console.error oublies en production~~ ✅
 
-- **Fichiers** : `FormattingPage.tsx:309`, `SearchPage.tsx:157`, `ProcessingPage.tsx:98,123,269`
-- **Probleme** : `console.error` de debug laisses dans le code de production
-- **Correction** : remplacer par le systeme de notification (`notify()`) ou supprimer
+- **Clos** : audit revele que tous les `console.error` restants sont dans des error handlers legitimes (pas du debug oublie)
 
 ### Pas d'Error Boundary
 
@@ -544,11 +510,9 @@ Correction appliquee : supprime lors de l'extraction du hook `useProductAttribut
 - **Probleme** : une erreur runtime dans un composant crashe toute l'application
 - **Correction** : creer un composant `ErrorBoundary` et wrapper les pages principales
 
-### Race condition sur le refresh token
+### ~~Race condition sur le refresh token~~ ✅
 
-- **Fichier** : `frontend/src/api.ts:27-50`
-- **Probleme** : plusieurs 401 concurrents declenchent plusieurs refresh simultanes
-- **Correction** : ajouter un mutex (promesse partagee) pour serialiser les refresh
+- **Corrige** : pattern `isRefreshing` + file d'attente dans `api.ts` — un seul appel `/refresh` a la fois, les requetes concurrentes attendent le resultat
 
 ### Pas d'AbortController
 
@@ -577,26 +541,21 @@ Correction appliquee : supprime lors de l'extraction du hook `useProductAttribut
 - **Probleme** : seulement 9 `aria-label` sur 34+ composants. Pas de `role` sur les dropdowns custom, pas de `aria-live` sur les mises a jour asynchrones, pas de navigation clavier dans les modales
 - **Correction** : audit ARIA complet, ajout de `onKeyDown` pour Escape/Tab dans les modales et dropdowns
 
-### Modale ImportPreviewModal non fermable au clic exterieur
+### ~~Modale ImportPreviewModal non fermable au clic exterieur~~ ✅
 
-- **Fichier** : `frontend/src/components/ImportPreviewModal.tsx`
-- **Correction** : ajouter un `onClick` sur l'overlay pour fermer
+Corrige : `onClick` sur l'overlay + `stopPropagation` sur le contenu.
 
 ---
 
 ## Infrastructure et deploiement
 
-### Backend Docker tourne en root
+### ~~Backend Docker tourne en root~~ ✅
 
-- **Fichier** : `backend/Dockerfile`
-- **Probleme** : Gunicorn tourne en tant que root dans le conteneur
-- **Correction** : creer un utilisateur non-root (`RUN useradd -m appuser && USER appuser`)
+- **Corrige** : utilisateur `appuser` cree dans `backend/Dockerfile`, le conteneur tourne en non-root
 
-### Pas de .dockerignore backend
+### ~~Pas de .dockerignore backend~~ ✅
 
-- **Fichier** : `backend/`
-- **Probleme** : le build Docker inclut `__pycache__`, `tests/`, `.pytest_cache`, `.env`
-- **Correction** : creer `backend/.dockerignore` pour exclure les fichiers non necessaires au runtime
+Corrige : `backend/.dockerignore` cree (exclut `__pycache__`, `tests/`, `.env`, `logs/`, `.git`).
 
 ### Pas de rollback en cas d'echec deploy
 
@@ -621,15 +580,13 @@ Correction appliquee : supprime lors de l'extraction du hook `useProductAttribut
 - **Probleme** : Gunicorn 4 workers × connexions non poolees peut epuiser `max_connections` PostgreSQL
 - **Correction** : configurer `pool_size=10, max_overflow=20, pool_pre_ping=True` dans `create_engine()`
 
-### Endpoint /health superficiel
+### ~~Endpoint /health superficiel~~ ✅
 
-- **Probleme** : le health check Docker teste juste la connectivite HTTP, pas l'etat reel (DB, etc.)
-- **Correction** : ajouter un `GET /health` qui execute `SELECT 1` et retourne l'etat DB + timestamp
+Corrige : `GET /health` execute `SELECT 1` et retourne l'etat DB + timestamp. Health check Docker pointe vers `/health`.
 
-### Pas de centralisation des logs Docker
+### ~~Pas de centralisation des logs Docker~~ ✅
 
-- **Probleme** : logs perdus au restart des conteneurs, pas de rotation configuree
-- **Correction** : ajouter `logging: { driver: "json-file", options: { max-size: "10m", max-file: "3" } }` dans docker-compose.prod.yml
+Corrige : `logging: json-file` avec `max-size: 10m` et `max-file: 3` sur les 3 services dans `docker-compose.prod.yml`.
 
 ### Timeout Nginx potentiellement insuffisant
 

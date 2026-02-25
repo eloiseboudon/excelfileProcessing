@@ -18,6 +18,19 @@ COOKIE_SAMESITE = "Lax"
 COOKIE_DOMAIN = os.getenv("COOKIE_DOMAIN") or None
 
 
+def _check_origin():
+    """Reject cross-origin POST requests (defense-in-depth CSRF protection)."""
+    origin = request.headers.get("Origin")
+    if not origin:
+        # Requests without Origin (same-origin navigations, curl) are allowed
+        return None
+    allowed = os.getenv("FRONTEND_URL", "").split(",")
+    allowed = [o.strip().rstrip("/") for o in allowed if o.strip()]
+    if origin.rstrip("/") not in allowed:
+        return jsonify({"error": "Origin not allowed"}), 403
+    return None
+
+
 def _set_refresh_cookie(response, token):
     response.set_cookie(
         "refresh_token",
@@ -64,6 +77,10 @@ def login():
       401:
         description: Invalid email or password
     """
+    origin_error = _check_origin()
+    if origin_error:
+        return origin_error
+
     data = request.get_json(silent=True) or {}
     email = data.get("email")
     password = data.get("password")
@@ -97,6 +114,10 @@ def refresh():
       401:
         description: Missing, expired or invalid refresh token
     """
+    origin_error = _check_origin()
+    if origin_error:
+        return origin_error
+
     token = request.cookies.get("refresh_token")
     if not token:
         return jsonify({"error": "Refresh token manquant"}), 401
@@ -130,6 +151,10 @@ def logout():
       200:
         description: Cookie cleared
     """
+    origin_error = _check_origin()
+    if origin_error:
+        return origin_error
+
     response = make_response(jsonify({"status": "ok"}))
     response.delete_cookie("refresh_token", path="/", domain=COOKIE_DOMAIN)
     return response

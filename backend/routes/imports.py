@@ -770,11 +770,13 @@ def list_supplier_api_reports():
     """
 
     try:
-        limit = int(request.args.get("limit", 20))
+        DEFAULT_FETCH_JOBS_LIMIT = 20
+        MAX_FETCH_JOBS_LIMIT = 100
+        limit = int(request.args.get("limit", DEFAULT_FETCH_JOBS_LIMIT))
     except (TypeError, ValueError):
-        limit = 20
+        limit = DEFAULT_FETCH_JOBS_LIMIT
 
-    limit = max(1, min(limit, 100))
+    limit = max(1, min(limit, MAX_FETCH_JOBS_LIMIT))
 
     jobs = (
         ApiFetchJob.query.options(

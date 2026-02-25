@@ -5,7 +5,7 @@ import threading
 from datetime import datetime, timezone
 
 from flask import Blueprint, current_app, jsonify, request
-from sqlalchemy import cast, exists, func, String
+from sqlalchemy import case, cast, exists, func, String
 
 from models import (
     DeviceType,
@@ -406,22 +406,44 @@ def matching_stats():
         if row[0] and normalize_label(row[0])
     })
 
-    # By supplier
-    by_supplier = []
+    # By supplier — aggregated queries instead of N+1 loop
+    cache_stats = (
+        db.session.query(
+            LabelCache.supplier_id,
+            func.count(LabelCache.id).label("cached"),
+            func.count(case((LabelCache.match_source == "auto", 1))).label("matched"),
+            func.count(case((LabelCache.match_source == "manual", 1))).label("manual"),
+        )
+        .group_by(LabelCache.supplier_id)
+        .all()
+    )
+    cache_map = {r.supplier_id: r for r in cache_stats}
+
+    pending_stats = (
+        db.session.query(
+            PendingMatch.supplier_id,
+            func.count(PendingMatch.id).label("pending"),
+        )
+        .filter(PendingMatch.status == "pending")
+        .group_by(PendingMatch.supplier_id)
+        .all()
+    )
+    pending_map = {r.supplier_id: r.pending for r in pending_stats}
+
     suppliers = Supplier.query.all()
+    by_supplier = []
     for s in suppliers:
-        cached = LabelCache.query.filter_by(supplier_id=s.id).count()
-        pending = PendingMatch.query.filter_by(supplier_id=s.id, status="pending").count()
-        matched = LabelCache.query.filter_by(supplier_id=s.id, match_source="auto").count()
-        manual = LabelCache.query.filter_by(supplier_id=s.id, match_source="manual").count()
+        cs = cache_map.get(s.id)
+        cached = cs.cached if cs else 0
+        pending = pending_map.get(s.id, 0)
         if cached or pending:
             by_supplier.append({
                 "supplier_id": s.id,
                 "name": s.name,
                 "cached": cached,
                 "pending": pending,
-                "matched": matched,
-                "manual": manual,
+                "matched": cs.matched if cs else 0,
+                "manual": cs.manual if cs else 0,
             })
 
     cache_hit_rate = 0.0

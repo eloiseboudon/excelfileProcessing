@@ -607,7 +607,8 @@ def export_calculates():
       200:
         description: XLSX file containing product calculations
     """
-    calcs = ProductCalculation.query.join(Product).all()
+    MAX_EXPORT_ROWS = 10_000
+    calcs = ProductCalculation.query.join(Product).limit(MAX_EXPORT_ROWS).all()
     rows = []
     for c in calcs:
         p = c.product

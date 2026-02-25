@@ -100,7 +100,7 @@ describe('OdooSyncPanel', () => {
       url: 'https://odoo.test.com',
       database: 'mydb',
       login: 'user',
-      password: '********',
+      password: '__UNCHANGED__',
       auto_sync_enabled: false,
       auto_sync_interval_minutes: 1440,
     });
