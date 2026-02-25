@@ -464,6 +464,7 @@ def _delete_orphaned_products(
             if len(reports["deleted"]) < MAX_REPORT_ITEMS:
                 reports["deleted"].append(report_item)
         except Exception as e:
+            db.session.rollback()
             counters["error"] += 1
             if len(reports["errors"]) < MAX_REPORT_ITEMS:
                 reports["errors"].append(

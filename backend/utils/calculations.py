@@ -182,6 +182,7 @@ def recalculate_product_calculations():
             )
             db.session.add(calc)
         except Exception:
+            db.session.rollback()
             logger.exception(
                 "Erreur lors du calcul pour temp_id=%s", temp.id,
             )

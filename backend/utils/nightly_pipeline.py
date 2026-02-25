@@ -46,6 +46,7 @@ def run_nightly_pipeline() -> Dict[str, Any]:
         try:
             _run_assign_types_step()
         except Exception:
+            db.session.rollback()
             logger.exception("Assign types step failed, continuing pipeline")
 
         # Step 2 — Supplier API fetches
@@ -65,6 +66,7 @@ def run_nightly_pipeline() -> Dict[str, Any]:
                 db.session.commit()
 
     except Exception as exc:
+        db.session.rollback()
         logger.exception("Nightly pipeline failed at job #%d", job_id)
         error_message = str(exc)
 
@@ -87,6 +89,7 @@ def run_nightly_pipeline() -> Dict[str, Any]:
             job.email_sent = email_sent
             db.session.commit()
     except Exception:
+        db.session.rollback()
         logger.exception("Failed to send nightly email for job #%d", job_id)
 
     summary = {
