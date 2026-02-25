@@ -8,6 +8,8 @@ from flask import Blueprint, jsonify, request
 from models import OdooConfig, OdooSyncJob, db
 from utils.activity import log_activity
 from utils.auth import token_required
+
+_PASSWORD_SENTINEL = "__UNCHANGED__"
 from utils.odoo_sync import OdooClient, run_odoo_sync
 
 bp = Blueprint("odoo", __name__)
@@ -34,7 +36,7 @@ def get_config():
             "url": config.url,
             "database": config.database,
             "login": config.login,
-            "password": "********" if config.password else "",
+            "password": _PASSWORD_SENTINEL if config.password else "",
             "auto_sync_enabled": config.auto_sync_enabled,
             "auto_sync_interval_minutes": config.auto_sync_interval_minutes,
             "last_auto_sync_at": (
@@ -72,7 +74,7 @@ def update_config():
         config.url = url
         config.database = database
         config.login = login
-        if password and password != "********":
+        if password and password != _PASSWORD_SENTINEL:
             config.password = password
         config.updated_at = datetime.now(timezone.utc)
     else:

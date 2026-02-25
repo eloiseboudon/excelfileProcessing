@@ -464,11 +464,9 @@ Corrige : `min(limit, 100)` sur le dernier endpoint non borne (`odoo.py` sync jo
 
 Correction appliquee : supprime lors de l'extraction du hook `useProductAttributeOptions`.
 
-### Cache pip manquant dans la CI
+### ~~Cache pip manquant dans la CI~~ ✅
 
-- **Fichier** : `.github/workflows/ci.yml:60-66`
-- **Probleme** : chaque run CI retelecharge tous les packages pip (~2-3 min)
-- **Correction** : ajouter `actions/cache@v4` sur `~/.cache/pip` avec cle `requirements.txt`
+Corrige : `actions/cache@v4` sur `~/.cache/pip` avec cle basee sur `requirements.txt`.
 
 ---
 
@@ -484,17 +482,13 @@ Correction appliquee : supprime lors de l'extraction du hook `useProductAttribut
 - **Probleme** : `.catch(() => ({}))` sur le parsing JSON masque les erreurs reseau
 - **Correction** : logger l'erreur et retourner un objet d'erreur explicite
 
-### Masquage de mot de passe fragile
+### ~~Masquage de mot de passe fragile~~ ✅
 
-- **Fichier** : `backend/routes/odoo.py:75`
-- **Probleme** : la comparaison `password != "********"` peut echouer si le vrai mot de passe est cette chaine
-- **Correction** : utiliser un champ flag `password_changed: bool` ou un sentinelle non ambigu
+Corrige : sentinelle `__UNCHANGED__` non ambigu remplace `"********"` dans `backend/routes/odoo.py`.
 
-### Magic numbers eparpilles
+### ~~Magic numbers eparpilles~~ ✅
 
-- **Fichiers** : `backend/routes/imports.py`, `stats.py`, `logs.py`
-- **Probleme** : limites (100, 200, 20, 1000) en dur dans le code
-- **Correction** : extraire en constantes de module (`MAX_LIMIT`, `DEFAULT_PAGE_SIZE`, etc.)
+Corrige : constantes extraites (`DEFAULT_LOG_LINES`, `MAX_LOG_LINES`, `DEFAULT_FETCH_JOBS_LIMIT`, `MAX_FETCH_JOBS_LIMIT`).
 
 ---
 
@@ -547,10 +541,9 @@ Correction appliquee : supprime lors de l'extraction du hook `useProductAttribut
 - **Probleme** : seulement 9 `aria-label` sur 34+ composants. Pas de `role` sur les dropdowns custom, pas de `aria-live` sur les mises a jour asynchrones, pas de navigation clavier dans les modales
 - **Correction** : audit ARIA complet, ajout de `onKeyDown` pour Escape/Tab dans les modales et dropdowns
 
-### Modale ImportPreviewModal non fermable au clic exterieur
+### ~~Modale ImportPreviewModal non fermable au clic exterieur~~ ✅
 
-- **Fichier** : `frontend/src/components/ImportPreviewModal.tsx`
-- **Correction** : ajouter un `onClick` sur l'overlay pour fermer
+Corrige : `onClick` sur l'overlay + `stopPropagation` sur le contenu.
 
 ---
 
@@ -560,11 +553,9 @@ Correction appliquee : supprime lors de l'extraction du hook `useProductAttribut
 
 - **Corrige** : utilisateur `appuser` cree dans `backend/Dockerfile`, le conteneur tourne en non-root
 
-### Pas de .dockerignore backend
+### ~~Pas de .dockerignore backend~~ ✅
 
-- **Fichier** : `backend/`
-- **Probleme** : le build Docker inclut `__pycache__`, `tests/`, `.pytest_cache`, `.env`
-- **Correction** : creer `backend/.dockerignore` pour exclure les fichiers non necessaires au runtime
+Corrige : `backend/.dockerignore` cree (exclut `__pycache__`, `tests/`, `.env`, `logs/`, `.git`).
 
 ### Pas de rollback en cas d'echec deploy
 
@@ -589,15 +580,13 @@ Correction appliquee : supprime lors de l'extraction du hook `useProductAttribut
 - **Probleme** : Gunicorn 4 workers × connexions non poolees peut epuiser `max_connections` PostgreSQL
 - **Correction** : configurer `pool_size=10, max_overflow=20, pool_pre_ping=True` dans `create_engine()`
 
-### Endpoint /health superficiel
+### ~~Endpoint /health superficiel~~ ✅
 
-- **Probleme** : le health check Docker teste juste la connectivite HTTP, pas l'etat reel (DB, etc.)
-- **Correction** : ajouter un `GET /health` qui execute `SELECT 1` et retourne l'etat DB + timestamp
+Corrige : `GET /health` execute `SELECT 1` et retourne l'etat DB + timestamp. Health check Docker pointe vers `/health`.
 
-### Pas de centralisation des logs Docker
+### ~~Pas de centralisation des logs Docker~~ ✅
 
-- **Probleme** : logs perdus au restart des conteneurs, pas de rotation configuree
-- **Correction** : ajouter `logging: { driver: "json-file", options: { max-size: "10m", max-file: "3" } }` dans docker-compose.prod.yml
+Corrige : `logging: json-file` avec `max-size: 10m` et `max-file: 3` sur les 3 services dans `docker-compose.prod.yml`.
 
 ### Timeout Nginx potentiellement insuffisant
 

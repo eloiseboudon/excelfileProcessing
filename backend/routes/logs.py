@@ -96,7 +96,9 @@ def _count_lines(path: Path) -> int:
 @token_required("admin")
 def read_app_logs():
     """Return the last N lines of the application log file."""
-    lines_count = min(request.args.get("lines", 200, type=int), 1000)
+    DEFAULT_LOG_LINES = 200
+    MAX_LOG_LINES = 1000
+    lines_count = min(request.args.get("lines", DEFAULT_LOG_LINES, type=int), MAX_LOG_LINES)
 
     log_path = Path(current_app.root_path) / "logs" / "app.log"
     if not log_path.exists():

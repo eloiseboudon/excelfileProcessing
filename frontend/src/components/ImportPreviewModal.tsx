@@ -12,8 +12,8 @@ interface ImportPreviewModalProps {
 function ImportPreviewModal({ rows, onClose }: ImportPreviewModalProps) {
   const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
   return (
-    <div className="fixed inset-0 bg-[var(--color-bg-overlay)] flex items-center justify-center z-50">
-      <div className="bg-[var(--color-bg-surface)] p-6 rounded-md border border-[var(--color-border-default)] max-w-4xl w-5/6">
+    <div className="fixed inset-0 bg-[var(--color-bg-overlay)] flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-[var(--color-bg-surface)] p-6 rounded-md border border-[var(--color-border-default)] max-w-4xl w-5/6" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-xl font-semibold mb-4">Prévisualisation de l'import</h2>
         {rows.length > 0 ? (
           <div className="overflow-auto max-h-[60vh] mb-4">

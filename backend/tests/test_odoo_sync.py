@@ -55,7 +55,7 @@ class TestOdooConfig:
         data = rv.get_json()
         assert data["configured"] is True
         assert data["url"] == "https://odoo.test.com"
-        assert data["password"] == "********"
+        assert data["password"] == "__UNCHANGED__"
 
     def test_put_config_create(self, client, admin_headers):
         rv = client.put(
@@ -83,7 +83,7 @@ class TestOdooConfig:
                     "url": "https://new-url.com",
                     "database": "test_db",
                     "login": "admin",
-                    "password": "********",
+                    "password": "__UNCHANGED__",
                 }
             ),
             headers=admin_headers,
