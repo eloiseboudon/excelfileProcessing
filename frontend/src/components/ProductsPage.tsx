@@ -8,14 +8,7 @@ import SupplierPriceModal from './SupplierPriceModal';
 import ProductTable from './ProductTable';
 import type { SortConfig } from './SortableColumnHeader';
 
-import {
-  fetchBrands,
-  fetchColors,
-  fetchDeviceTypes,
-  fetchMemoryOptions,
-  fetchNormeOptions,
-  fetchRAMOptions,
-} from '../api';
+import { useProductAttributeOptions } from '../hooks/useProductAttributeOptions';
 import { useNotification } from './NotificationProvider';
 
 export interface AggregatedProduct {
@@ -66,12 +59,14 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
   const [showColumnMenu, setShowColumnMenu] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(20);
-  const [brandOptions, setBrandOptions] = useState<string[]>([]);
-  const [colorOptions, setColorOptions] = useState<string[]>([]);
-  const [memoryOptions, setMemoryOptions] = useState<string[]>([]);
-  const [typeOptions, setTypeOptions] = useState<string[]>([]);
-  const [ramOptions, setRamOptions] = useState<string[]>([]);
-  const [normeOptions, setNormeOptions] = useState<string[]>([]);
+  const {
+    brandNames: brandOptions,
+    colorNames: colorOptions,
+    memoryNames: memoryOptions,
+    typeNames: typeOptions,
+    ramNames: ramOptions,
+    normeNames: normeOptions,
+  } = useProductAttributeOptions();
   const [tab, setTab] = useState<'calculations' | 'reference'>('calculations');
   const [recalculating, setRecalculating] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<AggregatedProduct | null>(null);
@@ -167,76 +162,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
 
   useEffect(() => {
     refreshData();
-
-    Promise.all([
-      fetchBrands(),
-      fetchColors(),
-      fetchMemoryOptions(),
-      fetchDeviceTypes(),
-      fetchRAMOptions(),
-      fetchNormeOptions(),
-    ])
-      .then(([brands, colors, memories, types, rams, normes]) => {
-        setBrandOptions(brands.map((b: any) => b.brand));
-        setColorOptions(colors.map((c: any) => c.color));
-        setMemoryOptions(memories.map((m: any) => m.memory));
-        setTypeOptions(types.map((t: any) => t.type));
-        setRamOptions(rams.map((r: any) => r.ram));
-        setNormeOptions(normes.map((n: any) => n.norme));
-      })
-      .catch(() => {
-        setBrandOptions([]);
-        setColorOptions([]);
-        setMemoryOptions([]);
-        setTypeOptions([]);
-        setRamOptions([]);
-        setNormeOptions([]);
-      });
   }, []);
-
-  useEffect(() => {
-    const usedBrands = Array.from(
-      new Set(data.map((d) => d.brand).filter((brand): brand is string => typeof brand === 'string'))
-    );
-    if (usedBrands.length) {
-      setBrandOptions((prev) => Array.from(new Set([...prev, ...usedBrands])));
-    }
-
-    const usedColors = Array.from(
-      new Set(data.map((d) => d.color).filter((color): color is string => typeof color === 'string'))
-    );
-    if (usedColors.length) {
-      setColorOptions((prev) => Array.from(new Set([...prev, ...usedColors])));
-    }
-
-    const usedMemories = Array.from(
-      new Set(data.map((d) => d.memory).filter((memory): memory is string => typeof memory === 'string'))
-    );
-    if (usedMemories.length) {
-      setMemoryOptions((prev) => Array.from(new Set([...prev, ...usedMemories])));
-    }
-
-    const usedTypes = Array.from(
-      new Set(data.map((d) => d.type).filter((type): type is string => typeof type === 'string'))
-    );
-    if (usedTypes.length) {
-      setTypeOptions((prev) => Array.from(new Set([...prev, ...usedTypes])));
-    }
-
-    const usedRams = Array.from(
-      new Set(data.map((d) => d.ram).filter((ram): ram is string => typeof ram === 'string'))
-    );
-    if (usedRams.length) {
-      setRamOptions((prev) => Array.from(new Set([...prev, ...usedRams])));
-    }
-
-    const usedNormes = Array.from(
-      new Set(data.map((d) => d.norme).filter((n): n is string => typeof n === 'string'))
-    );
-    if (usedNormes.length) {
-      setNormeOptions((prev) => Array.from(new Set([...prev, ...usedNormes])));
-    }
-  }, [data]);
 
   useEffect(() => {
     setCurrentPage(1);

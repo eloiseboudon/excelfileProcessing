@@ -1,14 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { SortConfig } from './SortableColumnHeader';
-import {
-  fetchProducts,
-  fetchBrands,
-  fetchColors,
-  fetchMemoryOptions,
-  fetchDeviceTypes,
-  fetchRAMOptions,
-  fetchNormeOptions,
-} from '../api';
+import { fetchProducts } from '../api';
+import { useProductAttributeOptions } from '../hooks/useProductAttributeOptions';
 import ProductReferenceForm from './ProductReferenceForm';
 import ProductReferenceTable from './ProductReferenceTable';
 
@@ -43,12 +36,14 @@ function ProductReference() {
   const [showColumnMenu, setShowColumnMenu] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(20);
-  const [brandOptions, setBrandOptions] = useState<string[]>([]);
-  const [colorOptions, setColorOptions] = useState<string[]>([]);
-  const [memoryOptions, setMemoryOptions] = useState<string[]>([]);
-  const [typeOptions, setTypeOptions] = useState<string[]>([]);
-  const [ramOptions, setRamOptions] = useState<string[]>([]);
-  const [normeOptions, setNormeOptions] = useState<string[]>([]);
+  const {
+    brandNames: brandOptions,
+    colorNames: colorOptions,
+    memoryNames: memoryOptions,
+    typeNames: typeOptions,
+    ramNames: ramOptions,
+    normeNames: normeOptions,
+  } = useProductAttributeOptions();
 
   const columns: Column[] = [
     { key: 'id', label: 'ID' },
@@ -70,31 +65,6 @@ function ProductReference() {
         setVisibleColumns(columns.map((c) => c.key));
       })
       .catch(() => setProducts([]));
-
-    Promise.all([
-      fetchBrands(),
-      fetchColors(),
-      fetchMemoryOptions(),
-      fetchDeviceTypes(),
-      fetchRAMOptions(),
-      fetchNormeOptions(),
-    ])
-      .then(([b, c, m, t, r, n]) => {
-        setBrandOptions((b as any[]).map((br) => br.brand));
-        setColorOptions((c as any[]).map((co) => co.color));
-        setMemoryOptions((m as any[]).map((me) => me.memory));
-        setTypeOptions((t as any[]).map((ty) => ty.type));
-        setRamOptions((r as any[]).map((ra) => ra.ram));
-        setNormeOptions((n as any[]).map((no) => no.norme));
-      })
-      .catch(() => {
-        setBrandOptions([]);
-        setColorOptions([]);
-        setMemoryOptions([]);
-        setTypeOptions([]);
-        setRamOptions([]);
-        setNormeOptions([]);
-      });
   }, []);
 
   useEffect(() => {

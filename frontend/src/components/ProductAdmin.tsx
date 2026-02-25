@@ -3,15 +3,10 @@ import { useEffect, useState } from 'react';
 import {
   createProduct,
   deleteProduct,
-  fetchBrands,
-  fetchColors,
-  fetchDeviceTypes,
-  fetchMemoryOptions,
-  fetchRAMOptions,
-  fetchNormeOptions,
   fetchProducts,
   updateProduct
 } from '../api';
+import { useProductAttributeOptions } from '../hooks/useProductAttributeOptions';
 import { useNotification } from './NotificationProvider';
 
 interface ProductItem {
@@ -29,40 +24,11 @@ interface ProductItem {
 
 function ProductAdmin() {
   const [products, setProducts] = useState<ProductItem[]>([]);
-  const [brands, setBrands] = useState<any[]>([]);
-  const [colors, setColors] = useState<any[]>([]);
-  const [memories, setMemories] = useState<any[]>([]);
-  const [types, setTypes] = useState<any[]>([]);
-  const [rams, setRams] = useState<any[]>([]);
-  const [normes, setNormes] = useState<any[]>([]);
+  const { brands, colors, memories, types, rams, normes } = useProductAttributeOptions();
   const notify = useNotification();
 
   useEffect(() => {
     load();
-    Promise.all([
-      fetchBrands(),
-      fetchColors(),
-      fetchMemoryOptions(),
-      fetchDeviceTypes(),
-      fetchRAMOptions(),
-      fetchNormeOptions(),
-    ])
-      .then(([b, c, m, t, r, n]) => {
-        setBrands(b as any[]);
-        setColors(c as any[]);
-        setMemories(m as any[]);
-        setTypes(t as any[]);
-        setRams(r as any[]);
-        setNormes(n as any[]);
-      })
-      .catch(() => {
-        setBrands([]);
-        setColors([]);
-        setMemories([]);
-        setTypes([]);
-        setRams([]);
-        setNormes([]);
-      });
   }, []);
 
   const load = async () => {
