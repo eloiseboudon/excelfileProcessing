@@ -186,9 +186,8 @@ ajtpro/
 │   │   ├── components/
 │   │   │   ├── AdminPage.tsx              # Administration generale (dont onglet Automatisation)
 │   │   │   ├── NightlyPipelinePanel.tsx   # Pipeline nightly (config, trigger, historique, destinataires)
-│   │   │   ├── DataImportPage.tsx         # Synchronisation fournisseurs (onglets Synchro/Rapports/Odoo/Rapprochement)
+│   │   │   ├── SyncPage.tsx               # Page synchronisation (onglets Odoo/Pipeline nightly)
 │   │   │   ├── MatchingPanel.tsx          # Rapprochement LLM (declenchement, validation, stats)
-│   │   │   ├── FormattingPage.tsx         # Mise en forme
 │   │   │   ├── ImportPreviewModal.tsx     # Apercu avant import
 │   │   │   ├── InfoButton.tsx             # Bouton info (i)
 │   │   │   ├── LogsPanel.tsx              # Logs d'activite et logs applicatifs
@@ -196,7 +195,6 @@ ajtpro/
 │   │   │   ├── MultiSelectFilter.tsx      # Filtre multi-selection avec recherche
 │   │   │   ├── NotificationProvider.tsx   # Systeme de notifications
 │   │   │   ├── OdooSyncPanel.tsx         # Synchronisation Odoo (config, sync, historique)
-│   │   │   ├── ProcessingPage.tsx         # Traitement des donnees
 │   │   │   ├── ProductAdmin.tsx           # Administration produits
 │   │   │   ├── ProductEditModal.tsx       # Modale d'edition produit
 │   │   │   ├── ProductFilters.tsx         # Filtres produits

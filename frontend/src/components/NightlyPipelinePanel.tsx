@@ -45,7 +45,7 @@ function StatusBadge({ status }: { status: string }) {
     running: 'En cours',
   };
   return (
-    <span className={`px-2 py-0.5 rounded text-xs font-medium ${styles[status] ?? 'bg-zinc-500/15 text-zinc-400'}`}>
+    <span className={`px-2 py-0.5 rounded text-xs font-medium ${styles[status] ?? 'bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)]'}`}>
       {labels[status] ?? status}
     </span>
   );

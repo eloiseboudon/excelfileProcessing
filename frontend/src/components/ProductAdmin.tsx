@@ -128,7 +128,7 @@ function ProductAdmin() {
       <div className="flex justify-end mb-4">
         <button
           onClick={handleAdd}
-          className="flex items-center space-x-2 px-3 py-2 bg-green-600 text-[var(--color-text-primary)] rounded hover:bg-green-700"
+          className="btn btn-primary flex items-center space-x-2"
         >
           <Plus className="w-4 h-4" />
           <span>Ajouter</span>
@@ -137,13 +137,7 @@ function ProductAdmin() {
       <div className="space-y-2">
         {products.map((p) => (
           <div key={p.id} className="flex items-center space-x-2 bg-[var(--color-bg-elevated)] p-2 rounded">
-            {/* <span className="w-10 text-[var(--color-text-muted)]">{p.id > 0 ? p.id : '-'}</span> */}
-            {/* <input
-              value={p.ean ?? ''}
-              onChange={(e) => handleChange(p.id, 'ean', e.target.value)}
-              placeholder="ean"
-              className="w-24 px-2 py-1 bg-[var(--color-bg-input)] rounded"
-            /> */}
+
 
             <select
               value={p.brand_id ?? ''}
@@ -258,10 +252,10 @@ function ProductAdmin() {
                 <option key={n.id} value={n.id}>{n.norme}</option>
               ))}
             </select>
-            <button onClick={() => handleSave(p.id)} className="p-2 bg-green-600 text-[var(--color-text-primary)] rounded hover:bg-green-700">
+            <button onClick={() => handleSave(p.id)} className="btn btn-primary p-2">
               <Save className="w-4 h-4" />
             </button>
-            <button onClick={() => handleDelete(p.id)} className="p-2 bg-red-600 text-[var(--color-text-primary)] rounded hover:bg-red-700">
+            <button onClick={() => handleDelete(p.id)} className="btn btn-secondary p-2 text-red-400 hover:text-red-300">
               <Trash2 className="w-4 h-4" />
             </button>
           </div>

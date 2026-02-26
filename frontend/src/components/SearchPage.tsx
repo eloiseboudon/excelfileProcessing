@@ -154,7 +154,6 @@ function SearchPage() {
         setError(null);
       })
       .catch((err) => {
-        console.error('Unable to fetch supplier catalog', err);
         setProducts([]);
         setPriceRange({ min: 0, max: 1 });
         setMinPrice(0);
