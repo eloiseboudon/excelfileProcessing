@@ -21,9 +21,10 @@ function renderProducts() {
     card.className = 'card reveal';
     card.dataset.product = idx;
     card.style.animationDelay = (idx % 6) * 0.05 + 's';
+    card.onclick = () => openModal(idx);
 
     card.innerHTML = `
-      <div class="card-img-wrap" onclick="openModal(${idx})">
+      <div class="card-img-wrap">
         <span class="card-badge ${badgeClass}">${p.badge === 'soon' ? 'Bientôt' : p.badge}</span>
         <img class="card-img" id="img-${p.id}" src="${c0.img}" alt="${p.name}" loading="lazy"
           onerror="this.parentElement.innerHTML='<div class=img-fallback>${p.name}</div>'">
@@ -83,9 +84,31 @@ function openModal(idx) {
   const p = PRODUCTS[idx];
   currentModal = idx;
 
+  // Zoom-from-card animation
+  const cardEl = document.querySelector(`[data-product="${idx}"]`);
+  const modalEl = document.querySelector('#modal .modal');
+  if (cardEl && modalEl) {
+    const rect = cardEl.getBoundingClientRect();
+    const cardCX = rect.left + rect.width / 2;
+    const cardCY = rect.top + rect.height / 2;
+    const fromX = cardCX - window.innerWidth / 2;
+    const fromY = cardCY - window.innerHeight / 2;
+    modalEl.style.setProperty('--from-x', `${fromX}px`);
+    modalEl.style.setProperty('--from-y', `${fromY}px`);
+    // Restart animation
+    modalEl.style.animation = 'none';
+    modalEl.offsetHeight; // force reflow
+    modalEl.style.animation = '';
+    // Brief card scale-up
+    cardEl.classList.add('is-zooming');
+    setTimeout(() => cardEl.classList.remove('is-zooming'), 250);
+  }
+
   document.getElementById('modal-name').textContent = p.name;
   document.getElementById('modal-sub').textContent  = p.specs;
-  document.getElementById('modal-img').src          = p.colors[0].img;
+  const modalImg = document.getElementById('modal-img');
+  modalImg.style.display = '';
+  modalImg.src = p.colors[0].img;
 
   const d = p.details;
   const specItems = [
@@ -126,7 +149,9 @@ function switchModalColor(ci) {
   const p = PRODUCTS[currentModal];
   const c = p.colors[ci];
 
-  document.getElementById('modal-img').src              = c.img;
+  const modalImg = document.getElementById('modal-img');
+  modalImg.style.display = '';
+  modalImg.src = c.img;
   document.getElementById('modal-color-name').textContent = c.name;
   if (p.badge !== 'soon') document.getElementById('modal-cart').href = BASE + c.url;
 
