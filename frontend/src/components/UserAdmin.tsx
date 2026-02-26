@@ -1,7 +1,6 @@
 import { Plus, Save, Trash } from 'lucide-react';
-import { useEffect, useState } from 'react';
 import { createUser, deleteUser, fetchUsers, updateUser } from '../api';
-import { useNotification } from './NotificationProvider';
+import { useAdminCrud } from '../hooks/useAdminCrud';
 
 interface UserItem {
   id: number;
@@ -17,67 +16,26 @@ interface UserAdminProps {
   onClose: () => void;
 }
 
-function UserAdmin({ isVisible, onClose }: UserAdminProps) {
-  const [users, setUsers] = useState<UserItem[]>([]);
-  const notify = useNotification();
+const USER_INITIAL: Omit<UserItem, 'id'> = {
+  username: '',
+  role: 'client',
+  first_name: '',
+  last_name: '',
+  email: '',
+};
 
-  useEffect(() => {
-    if (isVisible) {
-      load();
-    }
-  }, [isVisible]);
-
-  const load = async () => {
-    try {
-      const res = await fetchUsers();
-      setUsers(res as any[]);
-    } catch {
-      setUsers([]);
-    }
-  };
-
-  const handleChange = (id: number, field: keyof UserItem, value: string) => {
-    setUsers(prev => prev.map(u => (u.id === id ? { ...u, [field]: value } : u)));
-  };
-
-  const handleSave = async (id: number) => {
-    const item = users.find(u => u.id === id);
-    if (!item) return;
-    try {
-      if (id < 0) {
-        await createUser({ username: item.username, role: item.role, first_name: item.first_name, last_name: item.last_name, email: item.email });
-        notify('Utilisateur créé', 'success');
-      } else {
-        await updateUser(id, { username: item.username, role: item.role, first_name: item.first_name, last_name: item.last_name, email: item.email });
-        notify('Utilisateur mis à jour', 'success');
-      }
-      await load();
-    } catch {
-      /* empty */
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    if (id < 0) {
-      setUsers(prev => prev.filter(u => u.id !== id));
-      return;
-    }
-    if (!window.confirm('Supprimer cet utilisateur ?')) return;
-    try {
-      await deleteUser(id);
-      notify('Utilisateur supprimé', 'success');
-      await load();
-    } catch {
-      /* empty */
-    }
-  };
-
-  const handleAdd = () => {
-    setUsers(prev => [
-      ...prev,
-      { id: Date.now() * -1, username: '', role: 'client', first_name: '', last_name: '', email: '' }
-    ]);
-  };
+function UserAdmin({ isVisible }: UserAdminProps) {
+  const { data: users, handleChange, handleSave, handleDelete, handleAdd } =
+    useAdminCrud<UserItem>({
+      fetchFn: () => fetchUsers().then((r) => r as UserItem[]),
+      createFn: (payload) => createUser(payload),
+      updateFn: (id, payload) => updateUser(id, payload),
+      deleteFn: deleteUser,
+      initialItem: USER_INITIAL,
+      confirmDelete: true,
+      confirmDeleteMessage: 'Supprimer cet utilisateur ?',
+      enabled: isVisible,
+    });
 
   if (!isVisible) return null;
 
