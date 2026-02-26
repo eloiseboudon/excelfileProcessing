@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HOTWAV × AJT PRO — Catalogue 2026</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -22,15 +23,15 @@
       <span class="sep">×</span>
       <img src="imgs/ajt-logo.png" alt="AJT PRO" onerror="this.style.display='none'">
     </a>
-    <button class="nav-menu-btn" onclick="document.querySelector('.nav-tabs').classList.toggle('open')">☰</button>
+    <button class="nav-menu-btn" onclick="document.querySelector('.nav-tabs').classList.toggle('open')"><i class="ti ti-menu-2"></i></button>
     <div class="nav-tabs">
       <button class="nav-tab active"  onclick="filterCategory('all', this)">Tout</button>
-      <button class="nav-tab" onclick="filterCategory('rugged-phones', this)">🛡️ Smartphones Renforcés</button>
-      <button class="nav-tab" onclick="filterCategory('phones', this)">📱 Smartphones</button>
-      <button class="nav-tab" onclick="filterCategory('rugged-tabs', this)">🛡️ Tablettes Renforcées</button>
-      <button class="nav-tab" onclick="filterCategory('tabs', this)">📲 Tablettes</button>
+      <button class="nav-tab" onclick="filterCategory('rugged-phones', this)"><i class="ti ti-shield-check"></i> Smartphones Renforcés</button>
+      <button class="nav-tab" onclick="filterCategory('phones', this)"><i class="ti ti-device-mobile"></i> Smartphones</button>
+      <button class="nav-tab" onclick="filterCategory('rugged-tabs', this)"><i class="ti ti-shield-check"></i> Tablettes Renforcées</button>
+      <button class="nav-tab" onclick="filterCategory('tabs', this)"><i class="ti ti-device-tablet"></i> Tablettes</button>
     </div>
-    <a href="https://shop.ajtpro.com" class="nav-shop" target="_blank">🛒 Boutique</a>
+    <a href="https://shop.ajtpro.com" class="nav-shop" target="_blank"><i class="ti ti-shopping-cart"></i> Boutique</a>
   </div>
 </nav>
 
@@ -50,7 +51,7 @@
 <!-- Section 1 : Smartphones Renforcés -->
 <div class="section reveal" data-cat="rugged-phones">
   <div class="section-header">
-    <span class="section-icon">🛡️</span>
+    <i class="ti ti-shield-check section-icon"></i>
     <h2 class="section-title">Smartphones Renforcés</h2>
   </div>
   <p class="section-sub">IP68 · IP69K · MIL-STD 810</p>
@@ -60,7 +61,7 @@
 <!-- Section 2 : Smartphones -->
 <div class="section reveal" data-cat="phones">
   <div class="section-header">
-    <span class="section-icon">📱</span>
+    <i class="ti ti-device-mobile section-icon"></i>
     <h2 class="section-title">Smartphones</h2>
   </div>
   <p class="section-sub">Performance & Design</p>
@@ -70,7 +71,7 @@
 <!-- Section 3 : Tablettes Renforcées -->
 <div class="section reveal" data-cat="rugged-tabs">
   <div class="section-header">
-    <span class="section-icon">🛡️</span>
+    <i class="ti ti-shield-check section-icon"></i>
     <h2 class="section-title">Tablettes Renforcées</h2>
   </div>
   <p class="section-sub">IP68 · IP69K · MIL-STD 810</p>
@@ -80,7 +81,7 @@
 <!-- Section 4 : Tablettes -->
 <div class="section reveal" data-cat="tabs">
   <div class="section-header">
-    <span class="section-icon">📲</span>
+    <i class="ti ti-device-tablet section-icon"></i>
     <h2 class="section-title">Tablettes</h2>
   </div>
   <p class="section-sub">Productivité & Divertissement</p>
@@ -90,7 +91,7 @@
 <!-- Modal produit -->
 <div class="modal-overlay" id="modal" onclick="if(event.target===this) closeModal()">
   <div class="modal">
-    <button class="modal-close" onclick="closeModal()">✕</button>
+    <button class="modal-close" onclick="closeModal()"><i class="ti ti-x"></i></button>
     <div class="modal-content">
       <div class="modal-img-side">
         <img id="modal-img" src="" alt=""
@@ -105,7 +106,7 @@
           <div class="modal-color-dots" id="modal-colors"></div>
           <div class="modal-color-name" id="modal-color-name"></div>
         </div>
-        <a class="modal-cart" id="modal-cart" href="#" target="_blank">🛒 Voir sur la boutique</a>
+        <a class="modal-cart" id="modal-cart" href="#" target="_blank"><i class="ti ti-shopping-cart"></i> Voir sur la boutique</a>
       </div>
     </div>
   </div>
@@ -122,7 +123,7 @@
     </a>
   </div>
   <p>Catalogue HOTWAV 2026 — Distribué en France par AJT Pro</p>
-  <a href="https://shop.ajtpro.com" class="footer-link" target="_blank">🛒 Visiter la boutique en ligne →</a>
+  <a href="https://shop.ajtpro.com" class="footer-link" target="_blank"><i class="ti ti-shopping-cart"></i> Visiter la boutique en ligne</a>
 </footer>
 
 <script src="js/products.js"></script>

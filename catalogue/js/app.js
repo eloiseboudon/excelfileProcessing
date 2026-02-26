@@ -48,7 +48,7 @@ function renderProducts() {
              href="${p.badge === 'soon' ? '#' : BASE + c0.url}"
              target="_blank"
              onclick="event.stopPropagation()">
-            ${p.badge === 'soon' ? '⏳' : '🛒'}
+            <i class="ti ${p.badge === 'soon' ? 'ti-clock-hour3' : 'ti-shopping-cart'}"></i>
           </a>
         </div>
       </div>
@@ -132,11 +132,11 @@ function openModal(idx) {
 
   const cart = document.getElementById('modal-cart');
   if (p.badge === 'soon') {
-    cart.textContent   = '⏳ Bientôt disponible';
+    cart.innerHTML     = '<i class="ti ti-clock-hour3"></i> Bientôt disponible';
     cart.href          = '#';
     cart.style.opacity = '.5';
   } else {
-    cart.textContent   = '🛒 Voir sur la boutique';
+    cart.innerHTML     = '<i class="ti ti-shopping-cart"></i> Voir sur la boutique';
     cart.href          = BASE + p.colors[0].url;
     cart.style.opacity = '1';
   }
@@ -153,7 +153,11 @@ function switchModalColor(ci) {
   modalImg.style.display = '';
   modalImg.src = c.img;
   document.getElementById('modal-color-name').textContent = c.name;
-  if (p.badge !== 'soon') document.getElementById('modal-cart').href = BASE + c.url;
+  if (p.badge !== 'soon') {
+    const cart = document.getElementById('modal-cart');
+    cart.innerHTML = '<i class="ti ti-shopping-cart"></i> Voir sur la boutique';
+    cart.href = BASE + c.url;
+  }
 
   document.querySelectorAll('.modal-color-dot').forEach((d, i) => {
     d.classList.toggle('active', i === ci);
