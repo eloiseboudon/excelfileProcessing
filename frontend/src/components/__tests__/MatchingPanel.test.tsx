@@ -305,7 +305,7 @@ describe('MatchingPanel', () => {
     await waitFor(() => {
       expect(screen.getByTestId('model-filter')).toBeInTheDocument();
     });
-    expect(screen.getByPlaceholderText('Filtrer par modele...')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Filtrer par modèle...')).toBeInTheDocument();
   });
 
   it('shows bottom pagination when multiple pages', async () => {
