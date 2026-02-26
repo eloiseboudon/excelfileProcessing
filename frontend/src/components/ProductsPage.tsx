@@ -1,10 +1,11 @@
 import { ArrowLeft, ChevronLeft, ChevronRight, Package, RefreshCw } from 'lucide-react';
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import * as XLSX from 'xlsx';
-import { calculateProducts, fetchProductPriceSummary, updateProduct } from '../api';
+import { bulkUpdateProducts, calculateProducts, fetchProductPriceSummary, updateProduct } from '../api';
 import { getCurrentTimestamp, getCurrentWeekYear } from '../utils/date';
 import ProductReference from './ProductReference';
 import SupplierPriceModal from './SupplierPriceModal';
+import BulkMarginModal from './BulkMarginModal';
 import ProductTable from './ProductTable';
 import type { SortConfig } from './SortableColumnHeader';
 
@@ -70,6 +71,8 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
   const [tab, setTab] = useState<'calculations' | 'reference'>('calculations');
   const [recalculating, setRecalculating] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<AggregatedProduct | null>(null);
+  const [selectedProductIds, setSelectedProductIds] = useState<Set<number>>(new Set());
+  const [showBulkMarginModal, setShowBulkMarginModal] = useState(false);
   const notify = useNotification();
 
   const getBaseBuyPrice = useCallback((product: AggregatedProduct) => {
@@ -120,6 +123,59 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
         : prev
     );
   }, [data, getBaseBuyPrice, notify]);
+
+  const toggleProductSelection = useCallback((id: number) => {
+    setSelectedProductIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleBulkMarginUpdate = useCallback(async (margin: number) => {
+    const count = selectedProductIds.size;
+    const confirmed = window.confirm(
+      `Appliquer une marge de ${margin} € à ${count} produit${count > 1 ? 's' : ''} ?`
+    );
+    if (!confirmed) return;
+
+    const normalizedMargin = Number(margin.toFixed(2));
+    const updates = Array.from(selectedProductIds).flatMap((id) => {
+      const product = data.find((p) => p.id === id);
+      if (!product) return [];
+      const baseBuyPrice = getBaseBuyPrice(product);
+      const tcpValue = Number.isFinite(product.tcp) ? product.tcp : 0;
+      const baseCost = baseBuyPrice + tcpValue;
+      const derivedPercent = baseCost
+        ? Number(((normalizedMargin / baseCost) * 100).toFixed(4))
+        : null;
+      const recommendedPrice = Number((baseCost + normalizedMargin).toFixed(2));
+      return [{ id, marge: normalizedMargin, marge_percent: derivedPercent ?? undefined, recommended_price: recommendedPrice }];
+    });
+
+    try {
+      await bulkUpdateProducts(updates as Record<string, unknown>[]);
+      setData((prev) =>
+        prev.map((item) => {
+          if (!selectedProductIds.has(item.id)) return item;
+          const baseBuyPrice = getBaseBuyPrice(item);
+          const tcpValue = Number.isFinite(item.tcp) ? item.tcp : 0;
+          const baseCost = baseBuyPrice + tcpValue;
+          const derivedPercent = baseCost
+            ? Number(((normalizedMargin / baseCost) * 100).toFixed(4))
+            : null;
+          const recommendedPrice = Number((baseCost + normalizedMargin).toFixed(2));
+          return { ...item, marge: normalizedMargin, margePercent: derivedPercent, averagePrice: recommendedPrice };
+        })
+      );
+      notify(`${updates.length} produit${updates.length > 1 ? 's' : ''} mis à jour`, 'success');
+      setSelectedProductIds(new Set());
+      setShowBulkMarginModal(false);
+    } catch {
+      notify('Erreur lors de la mise à jour des marges', 'error');
+    }
+  }, [selectedProductIds, data, getBaseBuyPrice, notify]);
 
   const baseColumns: { key: string; label: string }[] = useMemo(() => {
     if (role === 'client') {
@@ -225,6 +281,20 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
       setCurrentPage(totalPages);
     }
   }, [totalPages, currentPage]);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedProductIds((prev) => {
+      const pageIds = paginatedData.map((p) => p.id);
+      const allSelected = pageIds.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allSelected) {
+        pageIds.forEach((id) => next.delete(id));
+      } else {
+        pageIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  }, [paginatedData]);
 
   const toggleColumn = (key: string) => {
     setVisibleColumns((prev) =>
@@ -801,6 +871,17 @@ td.neg{color:#f87171;font-weight:500}
                 <button onClick={handleExportHtml} className="btn btn-secondary text-sm">
                   Génère HTML
                 </button>
+                {selectedProductIds.size > 0 && (
+                  <>
+                    <div className="w-px h-6 bg-[var(--color-border-subtle)]" />
+                    <button
+                      onClick={() => setShowBulkMarginModal(true)}
+                      className="btn btn-primary text-sm"
+                    >
+                      Maj des marges ({selectedProductIds.size})
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -824,6 +905,9 @@ td.neg{color:#f87171;font-weight:500}
                 sortConfig={sortConfig}
                 onSort={handleSort}
                 onRowClick={role !== 'client' ? setSelectedProduct : undefined}
+                selectedProductIds={selectedProductIds}
+                onToggleSelection={toggleProductSelection}
+                onToggleSelectAll={toggleSelectAll}
               />
             </div>
             <div className="px-4 py-3 border-t border-[var(--color-border-subtle)]">
@@ -833,6 +917,13 @@ td.neg{color:#f87171;font-weight:500}
         </>
       )}
       {role !== 'client' && tab === 'reference' && <ProductReference />}
+      {showBulkMarginModal && (
+        <BulkMarginModal
+          count={selectedProductIds.size}
+          onConfirm={handleBulkMarginUpdate}
+          onClose={() => setShowBulkMarginModal(false)}
+        />
+      )}
       {role !== 'client' && selectedProduct && (
         <SupplierPriceModal
           prices={selectedProduct.salePrices}

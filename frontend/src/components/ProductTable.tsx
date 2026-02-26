@@ -21,6 +21,9 @@ interface ProductTableProps {
   normeOptions: string[];
   sortConfig: SortConfig;
   onSort: (column: string) => void;
+  selectedProductIds?: Set<number>;
+  onToggleSelection?: (id: number) => void;
+  onToggleSelectAll?: () => void;
 }
 
 function ProductTable({
@@ -41,11 +44,24 @@ function ProductTable({
   sortConfig,
   onSort,
   onRowClick,
+  selectedProductIds,
+  onToggleSelection,
+  onToggleSelectAll,
 }: ProductTableProps) {
   return (
     <table className="table border-0">
       <thead>
         <tr className="bg-[var(--color-bg-elevated)]">
+          {role !== 'client' && (
+            <th className="px-3 py-2 border-b border-[var(--color-border-default)] w-10">
+              <input
+                type="checkbox"
+                checked={paginatedData.length > 0 && paginatedData.every((p) => selectedProductIds?.has(p.id))}
+                onChange={onToggleSelectAll}
+                className="rounded"
+              />
+            </th>
+          )}
           {columns.map(
             (col) =>
               visibleColumns.includes(col.key) && (
@@ -86,6 +102,19 @@ function ProductTable({
               className={`odd:bg-[var(--color-bg-surface)] even:bg-[var(--color-bg-elevated)] hover:bg-[var(--color-bg-elevated)]/80 ${onRowClick ? 'cursor-pointer' : ''}`}
               onClick={onRowClick ? () => onRowClick(row) : undefined}
             >
+              {role !== 'client' && (
+                <td
+                  className="px-3 py-1 border-b border-[var(--color-border-default)]"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedProductIds?.has(row.id) ?? false}
+                    onChange={() => onToggleSelection?.(row.id)}
+                    className="rounded"
+                  />
+                </td>
+              )}
               {columns.map((col) => {
                 if (!visibleColumns.includes(col.key)) return null;
                 let value: any = (row as any)[col.key];
