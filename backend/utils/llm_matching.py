@@ -30,6 +30,7 @@ from models import (
     PendingMatch,
     Product,
     ProductCalculation,
+    ProductEanHistory,
     Supplier,
     SupplierProductRef,
     SupplierCatalog,
@@ -949,6 +950,7 @@ def run_matching_job(
             )
             for ti in catalog_entries:
                 _create_supplier_ref(ti.supplier_id, ti, product.id)
+                _log_ean_history(product.id, ti.ean, ti.supplier_id, run_id, "auto_match")
             top_cache.product_id = product.id
             top_cache.match_score = top_score
             top_cache.match_source = "auto"
@@ -1136,6 +1138,25 @@ def _save_extraction_cache(
             extracted_attributes=extracted,
         )
         db.session.add(cache)
+
+
+def _log_ean_history(
+    product_id: int,
+    ean: str | None,
+    supplier_id: int,
+    run_id: int | None,
+    source: str,
+) -> None:
+    """Record an EAN association in product_ean_history if EAN is present."""
+    if not ean:
+        return
+    db.session.add(ProductEanHistory(
+        product_id=product_id,
+        ean=ean,
+        supplier_id=supplier_id,
+        matching_run_id=run_id,
+        source=source,
+    ))
 
 
 def _create_supplier_ref(

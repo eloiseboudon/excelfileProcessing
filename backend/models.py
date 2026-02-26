@@ -605,3 +605,24 @@ class PendingMatch(db.Model):
     resolved_product_id = db.Column(db.Integer, db.ForeignKey("products.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     resolved_at = db.Column(db.DateTime, nullable=True)
+
+
+class ProductEanHistory(db.Model):
+    __tablename__ = "product_ean_history"
+    __table_args__ = (
+        db.Index("ix_product_ean_history_product_ean", "product_id", "ean"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey("products.id"), nullable=False)
+    ean = db.Column(db.String(20), nullable=False)
+    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=False)
+    matching_run_id = db.Column(
+        db.Integer, db.ForeignKey("matching_runs.id"), nullable=True
+    )
+    source = db.Column(db.String(20), nullable=False)
+    seen_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    product = db.relationship("Product", backref=db.backref("ean_history", lazy=True))
+    supplier = db.relationship("Supplier")
+    matching_run = db.relationship("MatchingRun")
