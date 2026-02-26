@@ -49,6 +49,8 @@ services:
     container_name: ajt_frontend_prod
     environment:
       - VITE_API_BASE=https://ajtpro.api.tulip-saas.fr
+    volumes:
+      - ./catalogue:/usr/share/nginx/html/catalogue:ro
     ports:
       - "3000:80"
     networks:
