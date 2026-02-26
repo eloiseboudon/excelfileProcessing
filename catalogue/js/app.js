@@ -145,11 +145,20 @@ function filterCategory(cat, btn) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
 
+  let firstVisible = null;
   document.querySelectorAll('.section').forEach(s => {
-    s.style.display = (cat === 'all' || s.dataset.cat === cat) ? '' : 'none';
+    const visible = cat === 'all' || s.dataset.cat === cat;
+    s.style.display = visible ? '' : 'none';
+    if (visible && !firstVisible) firstVisible = s;
   });
 
   document.querySelector('.nav-tabs').classList.remove('open');
+
+  if (firstVisible) {
+    const navHeight = document.querySelector('.nav').offsetHeight;
+    const top = firstVisible.getBoundingClientRect().top + window.scrollY - navHeight - 16;
+    window.scrollTo({ top, behavior: 'smooth' });
+  }
 }
 
 // ===== SCROLL REVEAL =====
