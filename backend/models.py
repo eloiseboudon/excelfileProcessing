@@ -508,8 +508,13 @@ class LabelCache(db.Model):
     match_source = db.Column(db.String(20), nullable=False)
     extracted_attributes = db.Column(JSONB, nullable=True)
     match_reasoning = db.Column(JSONB, nullable=True)
+    last_seen_run_id = db.Column(
+        db.Integer, db.ForeignKey("matching_runs.id"), nullable=True
+    )
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     last_used_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    last_seen_run = db.relationship("MatchingRun")
 
 
 class ActivityLog(db.Model):

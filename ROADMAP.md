@@ -353,11 +353,12 @@ Fichiers concernes : `backend/utils/etl.py`, `backend/tests/test_etl_persist.py`
 Automatisation complete du cycle nocturne : sync Odoo + fournisseurs + re-matching LLM + rapport email.
 
 - **Orchestrateur** (`utils/nightly_pipeline.py`) : enchaine les 4 etapes et cree un `NightlyJob` en DB pour tracer chaque execution
-- **Re-matching intelligent** : chaque nuit, tous les produits sont re-evalues contre le catalogue mis a jour
+- **Re-matching incremental** : chaque nuit, seuls les nouveaux labels fournisseurs sont evalues
   - Le `LabelCache` accumule les extractions LLM (bibliotheque historique) — labels deja vus = 0 appel API
-  - Matches identiques a la veille → auto-valides (`PendingMatch.status = "validated"`)
-  - Matches changes ou nouveaux → `pending` pour validation le matin
-  - `skip_already_matched=True` dans `run_matching_job` pour court-circuiter les exclusions
+  - `last_seen_run_id` sur `LabelCache` : marque chaque label vu lors du run Phase 1
+  - Nettoyage selectif : labels disparus du catalogue fournisseur → product_id reset, PendingMatch supprimes
+  - Matchs existants (auto, pending, rejected) preserves si le label est toujours present
+  - Seuls les produits non encore resolus sont re-evalues (reduction de ~95% du scoring)
 - **Planificateur** (`utils/nightly_scheduler.py`) : `threading.Timer` verifiant chaque minute si l'heure UTC configuree est atteinte. Variable `_last_run_date` pour eviter de relancer plusieurs fois la meme nuit
 - **Rapport email** : webhook n8n (stdlib `urllib`, zero dependance externe). Payload JSON avec statut, compteurs, duree, lien de validation et corps HTML. Workflow n8n importable dans `n8n_nightly_workflow.json`
 - **8 endpoints REST** (`routes/nightly.py`, prefix `/nightly`) : GET/PUT config, POST trigger, GET jobs, GET jobs/<id>, GET/POST/DELETE recipients

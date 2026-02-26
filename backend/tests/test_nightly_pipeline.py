@@ -279,7 +279,8 @@ class TestApplyValidationHistory:
 
 class TestRunMatchingStepNightly:
     @patch("utils.llm_matching.run_matching_job")
-    def test_calls_skip_already_matched(self, mock_run):
+    def test_calls_incremental_matching(self, mock_run):
+        """Nightly matching runs incrementally (no skip_already_matched flag)."""
         from utils.nightly_pipeline import _run_matching_step
 
         mock_run.return_value = {"total_products": 10, "llm_calls": 2, "auto_matched": 3, "pending_review": 7}
@@ -287,11 +288,12 @@ class TestRunMatchingStepNightly:
         _run_matching_step()
 
         mock_run.assert_called_once_with(
-            supplier_id=None, limit=None, skip_already_matched=True
+            supplier_id=None, limit=None
         )
 
     @patch("utils.llm_matching.run_matching_job")
-    def test_resets_label_cache_product_ids(self, mock_run):
+    def test_preserves_existing_matches(self, mock_run):
+        """Nightly no longer resets LabelCache.product_id — existing matches are preserved."""
         from models import Supplier
         from utils.nightly_pipeline import _run_matching_step
 
@@ -312,9 +314,9 @@ class TestRunMatchingStepNightly:
 
         _run_matching_step()
 
-        # LabelCache product_id should have been cleared before matching
+        # Existing match should be preserved (no more full reset)
         db.session.refresh(lc)
-        assert lc.product_id is None
+        assert lc.product_id == 42
 
 
 # ---------------------------------------------------------------------------
