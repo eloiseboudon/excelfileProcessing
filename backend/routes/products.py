@@ -14,7 +14,6 @@ from models import (
     ColorTranslation,
     ImportHistory,
     InternalProduct,
-    MappingVersion,
     Product,
     ProductCalculation,
     SupplierAPI,
@@ -26,7 +25,7 @@ from sqlalchemy.orm import joinedload
 from utils.activity import log_activity
 from utils.auth import token_required
 from utils.calculations import recalculate_product_calculations
-from utils.etl import run_fetch_job
+from utils.etl import run_fetch_job, select_best_mapping
 
 
 def _start_of_day_utc() -> datetime:
@@ -49,7 +48,7 @@ def _ensure_daily_supplier_cache() -> None:
         if not supplier:
             continue
 
-        mapping = _select_best_mapping(api.id)
+        mapping = select_best_mapping(api.id)
         if not mapping:
             continue
 
@@ -102,23 +101,6 @@ def _ensure_daily_supplier_cache() -> None:
 
 logger = logging.getLogger(__name__)
 
-
-def _select_best_mapping(supplier_api_id: int):
-    """Return the best MappingVersion for a supplier API (active first, then latest)."""
-    mapping_query = MappingVersion.query.filter_by(supplier_api_id=supplier_api_id)
-    mapping = (
-        mapping_query.filter(MappingVersion.is_active.is_(True))
-        .order_by(MappingVersion.version.desc(), MappingVersion.id.desc())
-        .first()
-    )
-    if not mapping:
-        mapping = (
-            mapping_query.order_by(
-                MappingVersion.version.desc(), MappingVersion.id.desc()
-            )
-            .first()
-        )
-    return mapping
 
 
 def _serialize_product_attrs(product) -> dict:
@@ -245,7 +227,7 @@ def refresh_supplier_catalog():
         if not supplier:
             continue
 
-        mapping = _select_best_mapping(api.id)
+        mapping = select_best_mapping(api.id)
         if not mapping:
             continue
 

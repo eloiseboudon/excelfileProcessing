@@ -35,7 +35,7 @@ function ProductAdmin() {
     try {
       const res = await fetchProducts();
       setProducts(
-        (res as any[]).map((p) => ({
+        (res as Record<string, unknown>[]).map((p) => ({
           id: p.id,
           ean: p.ean ?? '',
           model: p.model ?? '',
@@ -86,8 +86,8 @@ function ProductAdmin() {
         notify('Produit mis à jour', 'success');
       }
       await load();
-    } catch {
-      /* empty */
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Erreur de sauvegarde', 'error');
     }
   };
 
@@ -100,8 +100,8 @@ function ProductAdmin() {
         notify('Produit supprimé', 'success');
         await load();
       }
-    } catch {
-      /* empty */
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Erreur de suppression', 'error');
     }
   };
 

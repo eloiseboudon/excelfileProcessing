@@ -38,8 +38,8 @@ const FIELD_LABELS: Record<string, string> = {
 
 function ReferenceAdmin({ isVisible, onClose }: ReferenceAdminProps) {
   const [table, setTable] = useState<string | null>(null);
-  const [data, setData] = useState<any[]>([]);
-  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [data, setData] = useState<Record<string, unknown>[]>([]);
+  const [suppliers, setSuppliers] = useState<Record<string, unknown>[]>([]);
   const notify = useNotification();
 
   useEffect(() => {
@@ -51,7 +51,7 @@ function ReferenceAdmin({ isVisible, onClose }: ReferenceAdminProps) {
   useEffect(() => {
     if (table === 'format_imports') {
       fetchSuppliers()
-        .then((s) => setSuppliers(s as any[]))
+        .then((s) => setSuppliers(s as Record<string, unknown>[]))
         .catch(() => setSuppliers([]));
     }
   }, [table]);
@@ -59,7 +59,7 @@ function ReferenceAdmin({ isVisible, onClose }: ReferenceAdminProps) {
   const load = async (t: string) => {
     try {
       const res = await fetchReferenceTable(t);
-      setData(res as any[]);
+      setData(res as Record<string, unknown>[]);
     } catch {
       setData([]);
     }
@@ -74,7 +74,7 @@ function ReferenceAdmin({ isVisible, onClose }: ReferenceAdminProps) {
   const handleSave = async (id: number) => {
     const item = data.find((d) => d.id === id);
     if (!item) return;
-    const payload: Record<string, any> = { ...item };
+    const payload: Record<string, unknown> = { ...item };
     delete payload.id;
     try {
       if (id < 0) {
@@ -100,14 +100,14 @@ function ReferenceAdmin({ isVisible, onClose }: ReferenceAdminProps) {
         notify('Entrée supprimée', 'success');
         await load(table!);
       }
-    } catch {
-      /* empty */
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Erreur de suppression', 'error');
     }
   };
 
   const handleAdd = () => {
     const fields = data.length > 0 ? Object.keys(data[0]).filter((k) => k !== 'id') : [];
-    const newItem: any = { id: Date.now() * -1 };
+    const newItem: Record<string, unknown> = { id: Date.now() * -1 };
     fields.forEach((f) => (newItem[f] = ''));
     setData((prev) => [...prev, newItem]);
   };

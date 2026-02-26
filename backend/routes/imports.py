@@ -19,7 +19,7 @@ from sqlalchemy import extract, func
 from sqlalchemy.orm import joinedload
 from utils.activity import log_activity
 from utils.auth import token_required
-from utils.etl import run_fetch_job
+from utils.etl import run_fetch_job, select_best_mapping
 
 
 def _select_endpoint(
@@ -52,19 +52,6 @@ def _select_endpoint(
         return endpoints[0]
     return None
 
-
-def _select_mapping(endpoint: ApiEndpoint, mapping_version_id: int | None) -> MappingVersion | None:
-    query = MappingVersion.query.filter_by(supplier_api_id=endpoint.supplier_api_id)
-    if mapping_version_id is not None:
-        mapping = query.filter_by(id=mapping_version_id).first()
-        if mapping:
-            return mapping
-
-    return (
-        query.filter_by(is_active=True)
-        .order_by(MappingVersion.version.desc(), MappingVersion.id.desc())
-        .first()
-    )
 
 bp = Blueprint("imports", __name__)
 
@@ -920,7 +907,7 @@ def fetch_supplier_api(supplier_id: int):
             400,
         )
 
-    mapping = _select_mapping(endpoint, mapping_version_id)
+    mapping = select_best_mapping(endpoint.supplier_api_id, mapping_version_id)
     if not mapping:
         return (
             jsonify({"error": "Aucun mapping actif trouvé pour cet endpoint"}),
