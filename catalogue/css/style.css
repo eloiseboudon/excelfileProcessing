@@ -219,7 +219,7 @@ body {
 .color-dots { display:flex; gap:6px; }
 .color-dot {
   width:22px; height:22px; border-radius:50%;
-  border:2px solid transparent;
+  border:2px solid rgba(255,255,255,0.18);
   cursor:pointer; transition:all .25s;
   position:relative;
 }
@@ -296,7 +296,7 @@ body {
 .modal-color-dots { display:flex; gap:8px; }
 .modal-color-dot {
   width:28px; height:28px; border-radius:50%;
-  border:2px solid transparent;
+  border:2px solid rgba(255,255,255,0.18);
   cursor:pointer; transition:all .25s;
 }
 .modal-color-dot:hover, .modal-color-dot.active {
