@@ -39,7 +39,6 @@ function MatchingPanel() {
 
   // Run state
   const [running, setRunning] = useState(false);
-  const [lastRunSummary, setLastRunSummary] = useState<MatchingStatsData['last_run']>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const runStartTimeRef = useRef<number>(0);
 
@@ -126,8 +125,6 @@ function MatchingPanel() {
       await runMatching(undefined, undefined);
       notify('Rapprochement lance en arriere-plan — les stats se mettent a jour automatiquement', 'success');
       runStartTimeRef.current = Date.now();
-      setLastRunSummary(null);
-
       let elapsed = 0;
       const MAX_DURATION = 10 * 60 * 1000;
       const POLL_INTERVAL = 5000;
@@ -141,7 +138,6 @@ function MatchingPanel() {
           const ranAt = lr.ran_at ? new Date(lr.ran_at).getTime() : 0;
           if (ranAt >= runStartTimeRef.current) {
             stopPolling();
-            setLastRunSummary(lr);
             if (lr.status === 'error') {
               notify(`Erreur rapprochement : ${lr.error_message ?? 'Erreur inconnue'}`, 'error');
             } else if (!lr.total_products) {
@@ -424,67 +420,6 @@ function MatchingPanel() {
         )}
       </div>
 
-      {/* Résumé dernier run */}
-      {!running && (() => {
-        const displayRun = lastRunSummary ?? stats?.last_run;
-        if (!displayRun) return null;
-        const ranAtLabel = displayRun.ran_at
-          ? new Date(displayRun.ran_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
-          : null;
-        return (
-          <div className={`p-3 rounded-md border text-sm ${
-            displayRun.status === 'error'
-              ? 'bg-[var(--color-bg-elevated)] border-red-500/30'
-              : 'bg-[var(--color-bg-elevated)] border-[var(--color-border-subtle)]'
-          }`}>
-            {ranAtLabel && (
-              <p className="text-xs text-[var(--color-text-muted)] mb-3">
-                Dernier run — {ranAtLabel}
-              </p>
-            )}
-            {displayRun.status === 'error' ? (
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-                <div>
-                  <p className="font-medium text-red-400">Erreur lors du rapprochement</p>
-                  <p className="text-red-400/80 mt-0.5">{displayRun.error_message}</p>
-                </div>
-              </div>
-            ) : !displayRun.total_products ? (
-              <p className="text-[var(--color-text-muted)]">
-                Aucun nouveau produit a traiter — tous les produits sont deja en attente de validation ou apparies.
-              </p>
-            ) : (
-              <div className="grid grid-cols-2 gap-x-8 gap-y-1.5 text-sm">
-                <span className="text-[var(--color-text-muted)]">Produits traites</span>
-                <span className="font-medium">{displayRun.total_products}</span>
-                <span className="text-[var(--color-text-muted)]">Depuis le cache</span>
-                <span>{displayRun.from_cache ?? '—'}</span>
-                <span className="text-[var(--color-text-muted)]">Appels LLM (batches)</span>
-                <span>{displayRun.llm_calls ?? '—'}</span>
-                <span className="text-[var(--color-text-muted)]">Auto-matches (≥90 pts)</span>
-                <span className="text-green-400">{displayRun.auto_matched ?? 0}</span>
-                <span className="text-[var(--color-text-muted)]">A valider (50-89 pts)</span>
-                <span className="text-[#B8860B]">{displayRun.pending_review ?? 0}</span>
-                <span className="text-[var(--color-text-muted)]">Rejetes auto</span>
-                <span>{displayRun.auto_rejected ?? 0}</span>
-                <span className="text-[var(--color-text-muted)]">Non trouves</span>
-                <span className="text-[var(--color-text-muted)]">{displayRun.not_found ?? 0}</span>
-                <span className="text-[var(--color-text-muted)]">Cout estime</span>
-                <span>~{(displayRun.cost_estimate ?? 0).toFixed(4)} €</span>
-                <span className="text-[var(--color-text-muted)]">Duree</span>
-                <span>{displayRun.duration_seconds ? `${Math.round(displayRun.duration_seconds)}s` : '—'}</span>
-                {(displayRun.errors ?? 0) > 0 && (
-                  <>
-                    <span className="text-[var(--color-text-muted)]">Erreurs LLM</span>
-                    <span className="text-red-400">{displayRun.errors}</span>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      })()}
     </div>
   );
 }

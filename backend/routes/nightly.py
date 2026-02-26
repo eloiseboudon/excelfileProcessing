@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
 
-from models import NightlyConfig, NightlyEmailRecipient, NightlyJob, db
+from models import MatchingRun, NightlyConfig, NightlyEmailRecipient, NightlyJob, db
 from utils.auth import token_required
 
 nightly_bp = Blueprint("nightly", __name__, url_prefix="/nightly")
@@ -163,7 +163,7 @@ def _config_to_dict(config: NightlyConfig) -> dict:
 
 
 def _job_to_dict(job: NightlyJob) -> dict:
-    return {
+    d = {
         "id": job.id,
         "started_at": job.started_at.isoformat() if job.started_at else None,
         "finished_at": job.finished_at.isoformat() if job.finished_at else None,
@@ -174,6 +174,21 @@ def _job_to_dict(job: NightlyJob) -> dict:
         "email_sent": job.email_sent,
         "error_message": job.error_message,
     }
+    mr = MatchingRun.query.filter_by(nightly_job_id=job.id).first()
+    if mr:
+        d["matching_detail"] = {
+            "total_products": mr.total_products,
+            "from_cache": mr.from_cache,
+            "llm_calls": mr.llm_calls,
+            "auto_matched": mr.auto_matched,
+            "pending_review": mr.pending_review,
+            "auto_rejected": mr.auto_rejected,
+            "not_found": mr.not_found,
+            "errors": mr.errors,
+            "cost_estimate": mr.cost_estimate,
+            "duration_seconds": mr.duration_seconds,
+        }
+    return d
 
 
 def _recipient_to_dict(r: NightlyEmailRecipient) -> dict:

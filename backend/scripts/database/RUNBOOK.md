@@ -70,3 +70,51 @@ docker exec -it ajt_backend_prod python scripts/fix_region_null_matches.py --dry
 docker exec -it ajt_backend_prod python scripts/repromote_region_pending.py
 docker exec -it ajt_backend_prod python scripts/repromote_region_pending.py --dry-run
 ```
+
+---
+
+## Requêtes SQL directes
+
+Toutes les requêtes SQL se lancent via le container PostgreSQL :
+```bash
+docker exec postgres_prod psql -U $(grep POSTGRES_USER .env | cut -d= -f2) -d $(grep POSTGRES_DB .env | cut -d= -f2) -c "<SQL>"
+```
+
+### Nettoyer les nightly jobs orphelins (status "running" bloqué)
+```bash
+docker exec postgres_prod psql -U $(grep POSTGRES_USER .env | cut -d= -f2) -d $(grep POSTGRES_DB .env | cut -d= -f2) -c "
+UPDATE nightly_jobs SET status='failed', finished_at=NOW(), error_message='Manually cancelled' WHERE status='running';"
+```
+
+### Supprimer les nightly jobs en doublon (garder le meilleur par créneau)
+Garde le job `completed` en priorité, sinon le premier par id. Supprime les doublons sur le même créneau (minute).
+```bash
+docker exec postgres_prod psql -U $(grep POSTGRES_USER .env | cut -d= -f2) -d $(grep POSTGRES_DB .env | cut -d= -f2) -c "
+DELETE FROM nightly_jobs WHERE id IN (
+  SELECT id FROM (
+    SELECT id, ROW_NUMBER() OVER (
+      PARTITION BY date_trunc('minute', started_at)
+      ORDER BY CASE status WHEN 'completed' THEN 0 ELSE 1 END, id
+    ) AS rn
+    FROM nightly_jobs
+  ) ranked WHERE rn > 1
+);"
+```
+
+### Lister les nightly jobs récents
+```bash
+docker exec postgres_prod psql -U $(grep POSTGRES_USER .env | cut -d= -f2) -d $(grep POSTGRES_DB .env | cut -d= -f2) -c "
+SELECT id, started_at, status, odoo_synced, suppliers_synced, matching_submitted, email_sent
+FROM nightly_jobs ORDER BY id DESC LIMIT 20;"
+```
+
+### Vérifier les permissions du volume logs
+```bash
+docker run --rm -v ajtpro_ajtpro_backend_logs:/logs alpine ls -la /logs/
+```
+
+### Fixer les permissions du volume logs (si PermissionError)
+```bash
+docker run --rm -v ajtpro_ajtpro_backend_logs:/logs alpine chown -R 1000:1000 /logs
+docker compose -f docker-compose.prod.yml restart backend
+```

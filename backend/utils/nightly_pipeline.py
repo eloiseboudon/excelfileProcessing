@@ -26,6 +26,35 @@ def run_nightly_pipeline() -> Dict[str, Any]:
         db,
     )
 
+    # Prevent duplicate runs (e.g. multiple Gunicorn workers triggering simultaneously).
+    # pg_try_advisory_lock is atomic — only one connection can acquire it.
+    # Falls back to a simple running-job check on non-PostgreSQL engines (tests use SQLite).
+    from sqlalchemy import text
+
+    use_pg_lock = "postgresql" in str(db.engine.url)
+    if use_pg_lock:
+        lock_acquired = db.session.execute(text("SELECT pg_try_advisory_lock(73901)")).scalar()
+        if not lock_acquired:
+            logger.info("Nightly pipeline lock already held by another worker, skipping.")
+            return {"skipped": True, "reason": "already_running"}
+    else:
+        already_running = NightlyJob.query.filter_by(status="running").first()
+        if already_running:
+            logger.info("Nightly pipeline already running (job #%d), skipping.", already_running.id)
+            return {"skipped": True, "reason": "already_running"}
+
+    try:
+        return _run_pipeline_locked(db, NightlyJob, NightlyEmailRecipient,
+                                    ApiFetchJob, OdooSyncJob, SupplierAPI)
+    finally:
+        if use_pg_lock:
+            db.session.execute(text("SELECT pg_advisory_unlock(73901)"))
+            db.session.commit()
+
+
+def _run_pipeline_locked(db, NightlyJob, NightlyEmailRecipient,
+                         ApiFetchJob, OdooSyncJob, SupplierAPI) -> Dict[str, Any]:
+    """Core pipeline logic, called while holding the advisory lock."""
     job = NightlyJob(status="running")
     db.session.add(job)
     db.session.commit()

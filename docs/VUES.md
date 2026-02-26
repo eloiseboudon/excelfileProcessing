@@ -590,7 +590,12 @@ Les 20 derniers `NightlyJob` avec :
 | Email envoyé | `nightly_jobs.email_sent` |
 | Erreur | `nightly_jobs.error_message` (si failed) |
 
-Endpoint : `GET /nightly/jobs` + `GET /nightly/jobs/<id>`
+**Panneau détail au clic** : cliquer sur une ligne déplie un panneau sous la ligne avec :
+- **Résumé pipeline** : Odoo sync, fournisseurs traités, labels soumis, durée totale, message d'erreur éventuel
+- **Détail matching LLM** (si `matching_detail` existe via `MatchingRun.nightly_job_id`) : produits traités, depuis le cache, appels LLM, auto-matchés, à valider, rejetés auto, non trouvés, erreurs, coût estimé, durée matching
+- Chevron indicateur (gold quand déplié) + bordure gold à gauche du panneau
+
+Endpoint : `GET /nightly/jobs` + `GET /nightly/jobs/<id>` (enrichi avec `matching_detail`)
 
 #### Section Destinataires email
 
