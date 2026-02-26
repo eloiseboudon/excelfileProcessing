@@ -257,7 +257,7 @@ function SupplierApiReports() {
               >
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                   <div>
-                    <p className="text-xs text-zinc-500 uppercase tracking-wide">Fournisseur</p>
+                    <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-wide">Fournisseur</p>
                     <h3 className="text-lg font-semibold text-[var(--color-text-heading)]">
                       {report.supplier || 'Fournisseur'}
                     </h3>
@@ -267,7 +267,7 @@ function SupplierApiReports() {
                           key={item.title}
                           className="rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-bg-faint)] px-3 py-2"
                         >
-                          <p className="text-[11px] uppercase tracking-wide text-zinc-500">{item.title}</p>
+                          <p className="text-[11px] uppercase tracking-wide text-[var(--color-text-muted)]">{item.title}</p>
                           <p
                             className={`text-lg font-semibold ${
                               item.highlight ? 'text-[var(--color-text-heading)]' : 'text-[var(--color-text-secondary)]'

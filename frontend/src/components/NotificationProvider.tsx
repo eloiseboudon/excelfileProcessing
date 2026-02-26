@@ -30,11 +30,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         {notifications.map(n => (
           <div
             key={n.id}
-            className={`px-4 py-2 rounded shadow-lg text-[var(--color-text-primary)] ${n.type === 'error'
-                ? 'bg-red-600'
+            className={`px-4 py-2 rounded shadow-lg text-white ${n.type === 'error'
+                ? 'bg-red-500/90'
                 : n.type === 'info'
-                  ? 'bg-blue-600'
-                  : 'bg-green-600'
+                  ? 'bg-[#B8860B]/90'
+                  : 'bg-green-500/90'
               }`}
           >
             {n.message}

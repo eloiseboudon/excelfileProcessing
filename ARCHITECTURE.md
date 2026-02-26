@@ -203,8 +203,8 @@ Les champs `exp` (expiration) et `iat` (issued at) sont des timestamps UNIX. Le 
 
 ### Stockage cote client
 
-- L'access token est conserve en memoire (variable JavaScript).
-- Le refresh token est stocke dans le `localStorage` du navigateur.
+- L'access token est conserve dans le `localStorage` du navigateur (cle `token`).
+- Le refresh token est stocke dans un cookie HTTPOnly (`Secure`, `SameSite=Lax`), inaccessible au JavaScript.
 - Le client API centralise (`api.ts`) injecte automatiquement le header `Authorization: Bearer <token>` via la fonction utilitaire `crudRequest()`.
 
 ### Protection des routes

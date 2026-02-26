@@ -49,7 +49,7 @@ Page dediee a l'import et au suivi des donnees fournisseurs, accessible depuis P
 - **Import de fichiers Excel** avec apercu avant validation
 - **Calcul automatique** des prix de vente apres import
 
-Composants concernes : `DataImportPage`, `SupplierApiSyncPanel`, `SupplierApiReports`, `ProcessingPage`, `ImportPreviewModal`
+Composants concernes : `SyncPage`, `SupplierApiSyncPanel`, `SupplierApiReports`, `ImportPreviewModal`
 
 ---
 
@@ -84,7 +84,7 @@ Traitement des fichiers Excel fournisseurs pour generation de documents prets a 
 - **Export Excel** du fichier formate
 - **Generation HTML** pour apercu navigateur
 
-Composants concernes : `FormattingPage`
+Composants concernes : `ProductsPage` (export integre)
 
 ---
 
@@ -107,7 +107,7 @@ Refonte complete de l'interface utilisateur avec un design system coherent sur t
 - **Arrondis reduits** : cards rounded-lg (8px), boutons/inputs rounded-md (6px) pour un rendu plus professionnel
 - **Layout centralise** : wrapper `<main>` unique dans `App.tsx` avec `max-w-7xl mx-auto px-4 sm:px-6 lg:px-8`, suppression des wrappers individuels dans chaque page pour garantir un alignement parfait navbar/contenu
 
-Fichiers concernes : `App.tsx`, `LoginPage.tsx`, `SearchPage.tsx`, `SearchControls.tsx`, `ProductsPage.tsx`, `AdminPage.tsx`, `DataImportPage.tsx`, `ReferenceAdmin.tsx`, `TranslationAdmin.tsx`, `UserAdmin.tsx`, `SupplierApiAdmin.tsx`, `StatisticsPage.tsx`, `StatsFilters.tsx`, `FormattingPage.tsx`, `ProcessingPage.tsx`, `index.css`
+Fichiers concernes : `App.tsx`, `LoginPage.tsx`, `SearchPage.tsx`, `SearchControls.tsx`, `ProductsPage.tsx`, `AdminPage.tsx`, `SyncPage.tsx`, `ReferenceAdmin.tsx`, `TranslationAdmin.tsx`, `UserAdmin.tsx`, `SupplierApiAdmin.tsx`, `StatisticsPage.tsx`, `StatsFilters.tsx`, `index.css`
 
 ---
 
@@ -141,7 +141,7 @@ Synchronisation du referentiel produit avec l'ERP Odoo 17 via API XML-RPC :
 - **Synchronisation automatique** : planificateur configurable (intervalle minimum 15 min)
 - **Historique** : suivi de tous les jobs de synchronisation avec rapports expansibles
 
-Composants concernes : `OdooSyncPanel`, `DataImportPage`
+Composants concernes : `OdooSyncPanel`, `SyncPage`
 
 ---
 
@@ -168,7 +168,7 @@ Modeles ajoutes : `ModelReference`, `LabelCache`, `PendingMatch`. Colonne `regio
 
 Pre-requis : cle API Anthropic (`ANTHROPIC_API_KEY` dans `.env`). Cout estime : < 0.30€ par sync de 3000 produits.
 
-Composants concernes : `MatchingPanel`, `DataImportPage`
+Composants concernes : `MatchingPanel`, `SyncPage`
 
 ---
 
@@ -217,7 +217,7 @@ Infrastructure de tests unitaires et d'integration pour le backend et le fronten
 - **Tests utils** : `date.ts`, `numbers.ts`, `text.ts`, `processing.ts`, `html.ts` (fonctions pures)
 - **Tests composants** : `LoginPage`, `NotificationProvider`, `App` (rendu, formulaires, navigation conditionnelle)
 - **Tests composants** : `MatchingPanel` (render, run matching avec limit, validation, rejet, remaining, pagination)
-- **127 tests** dans 13 fichiers
+- **186 tests** dans 18 fichiers
 
 ### CI/CD
 
@@ -448,7 +448,7 @@ Corrige : `min(limit, 100)` sur le dernier endpoint non borne (`odoo.py` sync jo
 
 ### Pas de lazy loading pour les composants lourds
 
-- **Fichiers** : `StatisticsPage.tsx`, `FormattingPage.tsx`, `MatchingPanel.tsx`
+- **Fichiers** : `StatisticsPage.tsx`, `MatchingPanel.tsx`, `ProductsPage.tsx`
 - **Probleme** : composants de 500-1000 lignes charges de maniere synchrone
 - **Correction** : utiliser `React.lazy()` + `Suspense` pour le code splitting
 
@@ -667,10 +667,8 @@ Correction appliquee : le bloc `mergeUsedOptions` entier a ete supprime lors de 
 Composants sans aucun test dans `frontend/src/components/` :
 
 - `AdminPage.tsx`
-- `DataImportPage.tsx`
-- `FormattingPage.tsx`
+- `SyncPage.tsx`
 - `ImportPreviewModal.tsx`
-- `ProcessingPage.tsx`
 - `ProductAdmin.tsx`
 - `ProductEditModal.tsx`
 - `ProductFilters.tsx`
