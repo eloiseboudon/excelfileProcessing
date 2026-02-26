@@ -1,5 +1,5 @@
 import { ArrowLeft, Plus, Save, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   createReferenceItem,
   deleteReferenceItem,
@@ -7,7 +7,7 @@ import {
   fetchSuppliers,
   updateReferenceItem
 } from '../api';
-import { useNotification } from './NotificationProvider';
+import { useAdminCrud } from '../hooks/useAdminCrud';
 
 interface ReferenceAdminProps {
   onClose: () => void;
@@ -36,17 +36,25 @@ const FIELD_LABELS: Record<string, string> = {
   pattern: 'Motif',
 };
 
-function ReferenceAdmin({ isVisible, onClose }: ReferenceAdminProps) {
+function ReferenceAdmin({ isVisible }: ReferenceAdminProps) {
   const [table, setTable] = useState<string | null>(null);
-  const [data, setData] = useState<Record<string, unknown>[]>([]);
   const [suppliers, setSuppliers] = useState<Record<string, unknown>[]>([]);
-  const notify = useNotification();
 
-  useEffect(() => {
-    if (isVisible && table) {
-      load(table);
-    }
-  }, [isVisible, table]);
+  const fetchFn = useCallback(
+    () =>
+      table
+        ? fetchReferenceTable(table).then((r) => r as Record<string, unknown>[])
+        : Promise.resolve([]),
+    [table]
+  );
+
+  const { data, handleChange, handleSave, handleDelete, handleAdd } = useAdminCrud({
+    fetchFn,
+    createFn: (payload) => createReferenceItem(table!, payload),
+    updateFn: (id, payload) => updateReferenceItem(table!, id, payload),
+    deleteFn: (id) => deleteReferenceItem(table!, id),
+    enabled: isVisible && !!table,
+  });
 
   useEffect(() => {
     if (table === 'format_imports') {
@@ -55,62 +63,6 @@ function ReferenceAdmin({ isVisible, onClose }: ReferenceAdminProps) {
         .catch(() => setSuppliers([]));
     }
   }, [table]);
-
-  const load = async (t: string) => {
-    try {
-      const res = await fetchReferenceTable(t);
-      setData(res as Record<string, unknown>[]);
-    } catch {
-      setData([]);
-    }
-  };
-
-  const handleChange = (id: number, field: string, value: string) => {
-    setData((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
-    );
-  };
-
-  const handleSave = async (id: number) => {
-    const item = data.find((d) => d.id === id);
-    if (!item) return;
-    const payload: Record<string, unknown> = { ...item };
-    delete payload.id;
-    try {
-      if (id < 0) {
-        await createReferenceItem(table!, payload);
-        notify('Entrée créée', 'success');
-      } else {
-        await updateReferenceItem(table!, id, payload);
-        notify('Entrée mise à jour', 'success');
-      }
-      await load(table!);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erreur';
-      notify(message, 'error');
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    try {
-      if (id < 0) {
-        setData((prev) => prev.filter((i) => i.id !== id));
-      } else {
-        await deleteReferenceItem(table!, id);
-        notify('Entrée supprimée', 'success');
-        await load(table!);
-      }
-    } catch (err) {
-      notify(err instanceof Error ? err.message : 'Erreur de suppression', 'error');
-    }
-  };
-
-  const handleAdd = () => {
-    const fields = data.length > 0 ? Object.keys(data[0]).filter((k) => k !== 'id') : [];
-    const newItem: Record<string, unknown> = { id: Date.now() * -1 };
-    fields.forEach((f) => (newItem[f] = ''));
-    setData((prev) => [...prev, newItem]);
-  };
 
   if (!isVisible) return null;
 
@@ -169,29 +121,29 @@ function ReferenceAdmin({ isVisible, onClose }: ReferenceAdminProps) {
                       <select
                         key={f}
                         value={item[f] ?? ''}
-                        onChange={(e) => handleChange(item.id, f, e.target.value)}
+                        onChange={(e) => handleChange(item.id as number, f, e.target.value)}
                         className="flex-1 px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded text-sm"
                       >
                         <option value="">--</option>
                         {suppliers.map((s) => (
-                          <option key={s.id} value={s.id}>{s.name}</option>
+                          <option key={s.id as number} value={s.id as number}>{s.name as string}</option>
                         ))}
                       </select>
                     ) : (
                       <input
                         key={f}
-                        value={item[f] ?? ''}
+                        value={item[f] as string ?? ''}
                         placeholder={f}
-                        onChange={(e) => handleChange(item.id, f, e.target.value)}
+                        onChange={(e) => handleChange(item.id as number, f, e.target.value)}
                         className="flex-1 px-2 py-1 bg-[var(--color-bg-input)] text-[var(--color-text-primary)] rounded placeholder:italic text-sm"
                       />
                     )
                   ))}
                   <div className="flex items-center gap-1">
-                    <button onClick={() => handleSave(item.id)} className="btn btn-primary p-1.5">
+                    <button onClick={() => handleSave(item.id as number)} className="btn btn-primary p-1.5">
                       <Save className="w-4 h-4" />
                     </button>
-                    <button onClick={() => handleDelete(item.id)} className="btn btn-secondary p-1.5 text-red-500">
+                    <button onClick={() => handleDelete(item.id as number)} className="btn btn-secondary p-1.5 text-red-500">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
