@@ -1,5 +1,5 @@
-import { CheckCircle, Clock, Loader2, Mail, Play, RefreshCw, Trash2, XCircle } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { CheckCircle, ChevronDown, ChevronRight, Clock, Loader2, Mail, Play, RefreshCw, Trash2, XCircle } from 'lucide-react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import {
   NightlyConfig,
   NightlyJob,
@@ -89,6 +89,7 @@ export default function NightlyPipelinePanel() {
   const [pipelineResult, setPipelineResult] = useState<'success' | 'error' | null>(null);
   const [configError, setConfigError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
   const [newEmail, setNewEmail] = useState('');
   const [newName, setNewName] = useState('');
   const [addingRecipient, setAddingRecipient] = useState(false);
@@ -351,43 +352,159 @@ export default function NightlyPipelinePanel() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)]">
-                {jobs.map((job) => (
-                  <tr key={job.id} className="hover:bg-[var(--color-bg-elevated)] transition-colors">
-                    <td className="py-2 px-3 text-[var(--color-text-secondary)]">
-                      {formatDate(job.started_at)}
-                    </td>
-                    <td className="py-2 px-3">
-                      <StatusBadge status={job.status} />
-                      {job.error_message && (
-                        <span
-                          className="ml-2 text-xs text-red-400"
-                          title={job.error_message}
-                        >
-                          (voir erreur)
-                        </span>
+                {jobs.map((job) => {
+                  const isSelected = selectedJobId === job.id;
+                  const md = job.matching_detail;
+                  return (
+                    <Fragment key={job.id}>
+                      <tr
+                        className="hover:bg-[var(--color-bg-elevated)] transition-colors cursor-pointer"
+                        onClick={() => setSelectedJobId(isSelected ? null : job.id)}
+                      >
+                        <td className="py-2 px-3 text-[var(--color-text-secondary)] flex items-center gap-1.5">
+                          {isSelected ? (
+                            <ChevronDown className="w-3.5 h-3.5 text-[#B8860B] shrink-0" />
+                          ) : (
+                            <ChevronRight className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" />
+                          )}
+                          {formatDate(job.started_at)}
+                        </td>
+                        <td className="py-2 px-3">
+                          <StatusBadge status={job.status} />
+                          {job.error_message && (
+                            <span
+                              className="ml-2 text-xs text-red-400"
+                              title={job.error_message}
+                            >
+                              (voir erreur)
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2 px-3 text-right text-[var(--color-text-secondary)]">
+                          {job.odoo_synced ?? '—'}
+                        </td>
+                        <td className="py-2 px-3 text-right text-[var(--color-text-secondary)]">
+                          {job.suppliers_synced ?? '—'}
+                        </td>
+                        <td className="py-2 px-3 text-right text-[var(--color-text-secondary)]">
+                          {job.matching_submitted ?? '—'}
+                        </td>
+                        <td className="py-2 px-3 text-center">
+                          {job.email_sent ? (
+                            <span className="text-green-400 text-xs">Oui</span>
+                          ) : (
+                            <span className="text-[var(--color-text-muted)] text-xs">Non</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-3 text-right text-[var(--color-text-muted)]">
+                          {formatDuration(job)}
+                        </td>
+                      </tr>
+                      {isSelected && (
+                        <tr>
+                          <td colSpan={7} className="p-0">
+                            <div className="bg-[var(--color-bg-elevated)] border-l-2 border-[#B8860B] px-5 py-4 space-y-4">
+                              {/* Résumé pipeline */}
+                              <div>
+                                <h4 className="text-sm font-semibold text-[var(--color-text-heading)] mb-2">
+                                  Résumé pipeline
+                                </h4>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                                  <div>
+                                    <span className="text-[var(--color-text-muted)]">Produits Odoo sync.</span>
+                                    <p className="text-[var(--color-text-primary)] font-medium">{job.odoo_synced ?? '—'}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-[var(--color-text-muted)]">Fournisseurs traités</span>
+                                    <p className="text-[var(--color-text-primary)] font-medium">{job.suppliers_synced ?? '—'}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-[var(--color-text-muted)]">Labels soumis</span>
+                                    <p className="text-[var(--color-text-primary)] font-medium">{job.matching_submitted ?? '—'}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-[var(--color-text-muted)]">Durée totale</span>
+                                    <p className="text-[var(--color-text-primary)] font-medium">{formatDuration(job)}</p>
+                                  </div>
+                                </div>
+                                {job.error_message && (
+                                  <div className="mt-3 p-2 rounded-md bg-[var(--color-bg-surface)] border border-red-500/30 text-red-400 text-xs">
+                                    {job.error_message}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Détail matching LLM */}
+                              {md && (
+                                <div>
+                                  <h4 className="text-sm font-semibold text-[var(--color-text-heading)] mb-2">
+                                    Détail matching LLM
+                                  </h4>
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                                    <div>
+                                      <span className="text-[var(--color-text-muted)]">Produits traités</span>
+                                      <p className="text-[var(--color-text-primary)] font-medium">{md.total_products ?? '—'}</p>
+                                    </div>
+                                    <div>
+                                      <span className="text-[var(--color-text-muted)]">Depuis le cache</span>
+                                      <p className="text-[var(--color-text-primary)] font-medium">{md.from_cache ?? '—'}</p>
+                                    </div>
+                                    <div>
+                                      <span className="text-[var(--color-text-muted)]">Appels LLM</span>
+                                      <p className="text-[var(--color-text-primary)] font-medium">{md.llm_calls ?? '—'}</p>
+                                    </div>
+                                    <div>
+                                      <span className="text-[var(--color-text-muted)]">Auto-matchés</span>
+                                      <p className="text-green-400 font-medium">{md.auto_matched ?? '—'}</p>
+                                    </div>
+                                    <div>
+                                      <span className="text-[var(--color-text-muted)]">À valider</span>
+                                      <p className="text-yellow-400 font-medium">{md.pending_review ?? '—'}</p>
+                                    </div>
+                                    <div>
+                                      <span className="text-[var(--color-text-muted)]">Rejetés auto</span>
+                                      <p className="text-red-400 font-medium">{md.auto_rejected ?? '—'}</p>
+                                    </div>
+                                    <div>
+                                      <span className="text-[var(--color-text-muted)]">Non trouvés</span>
+                                      <p className="text-[var(--color-text-muted)] font-medium">{md.not_found ?? '—'}</p>
+                                    </div>
+                                    <div>
+                                      <span className="text-[var(--color-text-muted)]">Erreurs</span>
+                                      <p className={`font-medium ${md.errors ? 'text-red-400' : 'text-[var(--color-text-primary)]'}`}>{md.errors ?? '0'}</p>
+                                    </div>
+                                    <div>
+                                      <span className="text-[var(--color-text-muted)]">Coût estimé</span>
+                                      <p className="text-[var(--color-text-primary)] font-medium">
+                                        {md.cost_estimate != null ? `$${md.cost_estimate.toFixed(4)}` : '—'}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <span className="text-[var(--color-text-muted)]">Durée matching</span>
+                                      <p className="text-[var(--color-text-primary)] font-medium">
+                                        {md.duration_seconds != null
+                                          ? md.duration_seconds >= 60
+                                            ? `${Math.floor(md.duration_seconds / 60)}m ${Math.floor(md.duration_seconds % 60)}s`
+                                            : `${Math.floor(md.duration_seconds)}s`
+                                          : '—'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {!md && (
+                                <p className="text-xs text-[var(--color-text-muted)] italic">
+                                  Aucun détail de matching disponible pour cette exécution.
+                                </p>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
                       )}
-                    </td>
-                    <td className="py-2 px-3 text-right text-[var(--color-text-secondary)]">
-                      {job.odoo_synced ?? '—'}
-                    </td>
-                    <td className="py-2 px-3 text-right text-[var(--color-text-secondary)]">
-                      {job.suppliers_synced ?? '—'}
-                    </td>
-                    <td className="py-2 px-3 text-right text-[var(--color-text-secondary)]">
-                      {job.matching_submitted ?? '—'}
-                    </td>
-                    <td className="py-2 px-3 text-center">
-                      {job.email_sent ? (
-                        <span className="text-green-400 text-xs">Oui</span>
-                      ) : (
-                        <span className="text-[var(--color-text-muted)] text-xs">Non</span>
-                      )}
-                    </td>
-                    <td className="py-2 px-3 text-right text-[var(--color-text-muted)]">
-                      {formatDuration(job)}
-                    </td>
-                  </tr>
-                ))}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>

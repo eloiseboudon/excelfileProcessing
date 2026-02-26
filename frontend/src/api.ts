@@ -1043,6 +1043,19 @@ export interface NightlyConfig {
   updated_at: string | null;
 }
 
+export interface NightlyMatchingDetail {
+  total_products: number | null;
+  from_cache: number | null;
+  llm_calls: number | null;
+  auto_matched: number | null;
+  pending_review: number | null;
+  auto_rejected: number | null;
+  not_found: number | null;
+  errors: number | null;
+  cost_estimate: number | null;
+  duration_seconds: number | null;
+}
+
 export interface NightlyJob {
   id: number;
   started_at: string | null;
@@ -1053,6 +1066,7 @@ export interface NightlyJob {
   matching_submitted: number | null;
   email_sent: boolean;
   error_message: string | null;
+  matching_detail?: NightlyMatchingDetail;
 }
 
 export interface NightlyRecipient {
