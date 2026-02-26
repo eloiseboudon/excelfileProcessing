@@ -1,3 +1,5 @@
+name: ajtpro
+
 services:
   backend:
     build:
