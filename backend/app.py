@@ -64,7 +64,9 @@ def create_app():
     configure_logging(app)
 
     with app.app_context():
-        db.create_all()
+        # Schema is managed by Alembic migrations (alembic upgrade head).
+        # Do NOT call db.create_all() here — it bypasses Alembic and causes
+        # DuplicateTable errors when migrations run later.
         _cleanup_orphaned_jobs()
 
     register_routes(app)
