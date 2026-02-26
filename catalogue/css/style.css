@@ -133,7 +133,8 @@ body {
   display:flex; align-items:center; gap:16px;
   margin-bottom:8px;
 }
-.section-icon { font-size:28px; }
+.section-icon { font-size:28px; line-height:1; }
+.nav-tab i, .nav-shop i { font-size:15px; }
 .section-title {
   font-size:clamp(1.5rem, 3vw, 2rem);
   font-weight:800;
