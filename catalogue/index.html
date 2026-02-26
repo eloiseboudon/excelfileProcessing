@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HOTWAV × AJT PRO — Catalogue 2025</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #08080e; --card: rgba(16,16,22,0.9); --gold: #d4a843; --gold-bright: #f0d870;
+  --gold-dim: rgba(212,168,67,0.15); --red: #d42b2b; --text: #e8e4dc;
+  --text-dim: rgba(255,255,255,0.5); --text-ghost: rgba(255,255,255,0.12);
+  --glass: rgba(255,255,255,0.03); --border: rgba(212,168,67,0.08);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
+::selection{background:rgba(212,168,67,0.3);color:#fff}
+
+/* NAV */
+.nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(8,8,14,0.85);backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid var(--border)}
+.nav::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent 15%,var(--gold) 50%,transparent 85%);box-shadow:0 0 12px rgba(212,168,67,0.3)}
+.nav-inner{max-width:1200px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:24px}
+.nav-logos{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.nav-logos img{height:28px;filter:drop-shadow(0 0 8px rgba(212,168,67,0.2))}
+.nav-logos .x{font-size:12px;color:rgba(212,168,67,0.15)}
+.nav-tabs{display:flex;gap:4px;flex:1;justify-content:center;flex-wrap:wrap}
+.nav-tab{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;color:var(--text-dim);cursor:pointer;transition:all 0.3s;border:1px solid transparent;white-space:nowrap}
+.nav-tab:hover{color:var(--text);background:var(--glass)}
+.nav-tab.active{color:var(--gold);background:var(--gold-dim);border-color:rgba(212,168,67,0.2);box-shadow:0 0 15px rgba(212,168,67,0.1)}
+.nav-search{position:relative;flex-shrink:0}
+.nav-search input{background:var(--glass);border:1px solid var(--border);border-radius:8px;padding:8px 12px 8px 36px;font-size:13px;color:var(--text);font-family:inherit;width:200px;transition:all 0.3s;outline:none}
+.nav-search input:focus{border-color:rgba(212,168,67,0.3);box-shadow:0 0 15px rgba(212,168,67,0.1);width:260px}
+.nav-search input::placeholder{color:var(--text-ghost)}
+.nav-search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;stroke:var(--text-ghost);fill:none;stroke-width:2}
+
+/* HERO */
+.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:80px 24px;position:relative;overflow:hidden}
+.hero-orb{position:absolute;border-radius:50%;pointer-events:none}
+.hero-orb.gold{width:600px;height:600px;top:-150px;left:-100px;background:radial-gradient(circle,rgba(212,168,67,0.08),transparent 60%)}
+.hero-orb.red{width:400px;height:400px;bottom:-100px;right:-50px;background:radial-gradient(circle,rgba(212,43,43,0.05),transparent 60%)}
+.hero-logos{display:flex;align-items:center;gap:24px;margin-bottom:40px;z-index:1}
+.hero-logos img{height:50px;filter:drop-shadow(0 0 20px rgba(212,168,67,0.3));animation:fadeUp .8s ease both}
+.hero-logos .x{font-size:24px;color:rgba(212,168,67,0.15);animation:fadeUp .8s .1s ease both}
+.hero h1{font-size:clamp(40px,8vw,72px);font-weight:900;letter-spacing:12px;z-index:1;background:linear-gradient(180deg,#fff,rgba(255,255,255,0.7));-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-shadow:0 0 60px rgba(212,168,67,0.2);animation:fadeUp .8s .2s ease both}
+.hero h2{font-size:clamp(20px,4vw,32px);font-weight:300;letter-spacing:10px;z-index:1;margin-top:4px;background:linear-gradient(90deg,#b89838,#f0d870,#b89838);-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 10px rgba(212,168,67,0.4));animation:fadeUp .8s .3s ease both}
+.hero-bar{width:60px;height:3px;margin:24px auto;z-index:1;background:linear-gradient(90deg,transparent,var(--red),#ff4545,var(--red),transparent);box-shadow:0 0 20px rgba(255,60,60,0.5);animation:fadeUp .8s .4s ease both}
+.hero-img{max-height:280px;z-index:1;margin:16px 0;filter:drop-shadow(0 10px 50px rgba(212,168,67,0.25));animation:fadeUp 1s .5s ease both}
+.hero-stats{display:flex;gap:40px;z-index:1;margin-top:32px;animation:fadeUp .8s .6s ease both}
+.hero-stat{text-align:center}
+.hero-stat .num{font-size:32px;font-weight:900;background:linear-gradient(180deg,var(--gold),var(--gold-bright));-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 8px rgba(212,168,67,0.3))}
+.hero-stat .label{font-size:11px;color:var(--text-dim);letter-spacing:2px;margin-top:4px}
+.hero-scroll{position:absolute;bottom:32px;z-index:1;animation:bounce 2s infinite;cursor:pointer}
+.hero-scroll svg{width:24px;height:24px;stroke:var(--gold);fill:none;stroke-width:2;opacity:0.5}
+@keyframes fadeUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(8px)}}
+
+/* SECTIONS */
+.section{padding:80px 24px 40px;max-width:1200px;margin:0 auto}
+.section-header{text-align:center;margin-bottom:48px}
+.section-header h2{font-size:36px;font-weight:900;letter-spacing:3px;color:#fff;text-shadow:0 0 30px rgba(212,168,67,0.15)}
+.section-header .bar{width:40px;height:3px;margin:12px auto;background:linear-gradient(90deg,transparent,var(--red),transparent);box-shadow:0 0 10px rgba(255,60,60,0.4)}
+.section-header .sub{font-size:14px;color:var(--text-dim);letter-spacing:3px;margin-top:8px;background:linear-gradient(90deg,var(--gold),var(--gold-bright));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+
+/* GRID */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:20px}
+.product{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;transition:all .4s cubic-bezier(.4,0,.2,1);cursor:pointer;position:relative}
+.product::before{content:'';position:absolute;inset:-1px;border-radius:16px;z-index:0;background:linear-gradient(135deg,rgba(212,168,67,0.12),transparent 50%,rgba(212,168,67,0.06));opacity:0;transition:opacity .4s;pointer-events:none}
+.product:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,0.4),0 0 30px rgba(212,168,67,0.06)}
+.product:hover::before{opacity:1}
+.product-img{width:100%;height:240px;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,rgba(212,168,67,0.03),transparent 70%);padding:16px;position:relative;z-index:1}
+.product-img img{max-width:90%;max-height:210px;object-fit:contain;filter:drop-shadow(0 4px 20px rgba(0,0,0,0.4));transition:transform .4s}
+.product:hover .product-img img{transform:scale(1.05)}
+.product-badge{position:absolute;top:12px;left:12px;z-index:2;background:linear-gradient(135deg,#c41e3a,#ff3b3b);color:#fff;font-size:10px;font-weight:700;letter-spacing:1px;padding:4px 10px;border-radius:6px;box-shadow:0 0 12px rgba(255,59,59,0.4)}
+.product-info{padding:0 20px 20px;position:relative;z-index:1}
+.product-name{font-size:20px;font-weight:800;background:linear-gradient(90deg,var(--gold),var(--gold-bright));-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 6px rgba(212,168,67,0.3))}
+.product-tags{display:flex;gap:6px;margin:8px 0 12px;flex-wrap:wrap}
+.ptag{font-size:11px;padding:3px 10px;border-radius:6px}
+.ptag-net{font-weight:600;color:rgba(255,255,255,0.8);background:var(--gold-dim);border:1px solid rgba(212,168,67,0.15)}
+.ptag-mem{color:var(--text-dim);background:var(--glass)}
+.product-specs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px}
+.pspec{background:var(--glass);border:1px solid rgba(255,255,255,0.03);border-radius:8px;padding:8px 10px}
+.pspec-label{font-size:9px;color:rgba(212,168,67,0.4);font-weight:700;letter-spacing:1.5px;text-transform:uppercase}
+.pspec-val{font-size:12px;color:var(--text-dim);font-weight:500;margin-top:2px}
+.product-colors{border-top:1px solid var(--border);padding-top:12px}
+.product-colors-title{font-size:9px;color:rgba(212,168,67,0.3);font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
+.pcolor{display:flex;align-items:center;gap:8px;padding:3px 0}
+.pcolor-dot{width:10px;height:10px;border-radius:50%;background:linear-gradient(135deg,var(--gold),#9b7d2e);box-shadow:0 0 4px rgba(212,168,67,0.3);flex-shrink:0}
+.pcolor-name{font-size:12px;color:rgba(255,255,255,0.6);flex:1}
+.pcolor-ean{font-size:10px;font-family:'Courier New',monospace;color:var(--text-ghost)}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:24px}
+.modal-overlay.open{display:flex;animation:fadeIn .3s}
+.modal{background:linear-gradient(145deg,rgba(16,16,24,0.98),rgba(12,12,18,0.99));border:1px solid rgba(212,168,67,0.1);border-radius:20px;max-width:700px;width:100%;max-height:90vh;overflow-y:auto;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.6)}
+.modal-close{position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;background:var(--glass);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:5;color:var(--text-dim);font-size:18px;transition:all .2s}
+.modal-close:hover{background:var(--gold-dim);color:var(--gold)}
+.modal-img{width:100%;height:350px;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse,rgba(212,168,67,0.04),transparent 70%);padding:24px}
+.modal-img img{max-width:90%;max-height:300px;object-fit:contain;filter:drop-shadow(0 8px 30px rgba(0,0,0,0.5))}
+.modal-body{padding:24px 28px 28px}
+.modal-name{font-size:28px;font-weight:900;background:linear-gradient(90deg,var(--gold),var(--gold-bright));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+/* FOOTER */
+.footer{padding:60px 24px;text-align:center;border-top:1px solid var(--border);margin-top:60px}
+.footer-logos{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:20px}
+.footer-logos img{height:32px;filter:drop-shadow(0 0 10px rgba(212,168,67,0.2))}
+.footer-logos .x{font-size:14px;color:rgba(212,168,67,0.1)}
+.footer p{font-size:12px;color:var(--text-ghost);margin:4px 0}
+.footer .url{font-weight:700;background:linear-gradient(90deg,var(--gold),var(--gold-bright));-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:14px}
+.reveal{opacity:0;transform:translateY(40px);transition:opacity .6s,transform .6s}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.count-badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;border-radius:10px;background:var(--gold-dim);color:var(--gold);font-size:10px;font-weight:700;margin-left:6px;padding:0 6px}
+@media(max-width:768px){.nav-tabs{display:none}.nav-search input{width:140px}.hero h1{letter-spacing:6px}.grid{grid-template-columns:1fr}.hero-stats{gap:20px}}
+</style>
+</head>
+<body>
+
+<nav class="nav"><div class="nav-inner">
+  <div class="nav-logos"><img src="imgs/hotwav-logo-transparent.png" alt="HOTWAV"/><span class="x">×</span><img src="imgs/ajt-logo-transparent.png" alt="AJT PRO"/></div>
+  <div class="nav-tabs" id="navTabs"></div>
+  <div class="nav-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" id="searchInput" placeholder="Rechercher..."/></div>
+</div></nav>
+
+<section class="hero" id="hero">
+  <div class="hero-orb gold"></div><div class="hero-orb red"></div>
+  <div class="hero-logos"><img src="imgs/hotwav-logo-transparent.png" alt="HOTWAV"/><span class="x">×</span><img src="imgs/ajt-logo-transparent.png" alt="AJT PRO"/></div>
+  <h1>CATALOGUE</h1><h2>PRODUITS 2025</h2><div class="hero-bar"></div>
+  <img src="imgs/a17promax.png" class="hero-img" alt="A17 Pro Max"/>
+  <div class="hero-stats">
+    <div class="hero-stat"><div class="num" id="stat-total">0</div><div class="label">PRODUITS</div></div>
+    <div class="hero-stat"><div class="num">4</div><div class="label">CATÉGORIES</div></div>
+    <div class="hero-stat"><div class="num" id="stat-5g">0</div><div class="label">MODÈLES 5G</div></div>
+  </div>
+  <div class="hero-scroll" onclick="document.getElementById('sec-0').scrollIntoView({behavior:'smooth'})"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></div>
+</section>
+
+<div id="catalog"></div>
+
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal"><div class="modal-close" onclick="closeModal()">✕</div>
+  <div class="modal-img"><img id="modal-img"/></div>
+  <div class="modal-body" id="modal-body"></div></div>
+</div>
+
+<footer class="footer">
+  <div class="footer-logos"><img src="imgs/hotwav-logo-transparent.png" alt="HOTWAV"/><span class="x">×</span><img src="imgs/ajt-logo-transparent.png" alt="AJT PRO"/></div>
+  <p class="url">shop.ajtpro.com</p><p>Distributeur officiel Hotwav en France</p>
+  <p style="margin-top:12px">© 2025 AJT Pro — Tous droits réservés</p>
+</footer>
+
+<script>
+const SECTIONS = [{"id": "rugged", "title": "Smartphones Renforcés", "icon": "🛡️", "sub": "IP68 · IP69K · MIL-STD 810", "items": [{"n": "Hyper 7 Pro", "net": "5G", "mem": "16/256 Go", "scr": "6,6\" FHD+", "bat": "10 800 mAh", "chg": "33W", "cam": "200MP + 24MP", "cert": "IP68/IP69K · 810G", "i": "hyper7pro.png", "c": [["Black", "6971593176424"], ["Red", "6971593176493"]]}, {"n": "Hyper 7", "net": "5G", "mem": "8/256 Go", "scr": "6,6\" FHD+", "bat": "10 800 mAh", "chg": "33W", "cam": "64MP", "cert": "IP68/IP69K · 810G", "i": "hyper7.png", "c": [["Black", "6971593179074"], ["Yellow", "6971593179081"]]}, {"n": "Hyper 7S", "net": "5G · NFC", "mem": "4/256 Go", "scr": "6,6\" FHD+", "bat": "10 800 mAh", "chg": "33W", "cam": "21MP", "cert": "IP68/IP69K · 810H", "i": "hyper7s.png", "c": [["Phoenix Black", "6971593179784"], ["Punk Yellow", "6971593179791"]]}, {"n": "Hyper 8 Pro", "net": "5G", "mem": "12/512 Go", "scr": "6,6\" FHD+", "bat": "10 800 mAh", "chg": "33W", "cam": "108MP", "cert": "IP68/IP69K · 810H", "i": "hyper8pro.png", "c": [["Black", "6971593171887"]]}, {"n": "Hyper 8 Ultra", "net": "5G · Walkie-Talkie", "mem": "12/512 Go", "scr": "6,6\" FHD+", "bat": "10 800 mAh", "chg": "33W", "cam": "108MP", "cert": "IP68/IP69K · 810H", "i": "hyper8ultra.png", "c": [["Bronze Gold", "6971593179685"]]}, {"n": "Cyber 16 Pro", "net": "4G · NFC", "mem": "8/512 Go", "scr": "6,6\" 2K", "bat": "10 800 mAh", "chg": "33W", "cam": "108MP + 32MP", "cert": "IP68/IP69K · 810H", "i": "cyber16pro.png", "c": [["Gold", "6971593170965"], ["Black", "6971593171283"]]}, {"n": "Cyber 15", "net": "4G", "mem": "12/256 Go", "scr": "6,6\" FHD+", "bat": "6 280 mAh", "chg": "33W", "cam": "200MP + 24MP", "cert": "IP68/IP69K · 810G", "i": "cyber15.jpg", "c": [["Black", "6971593175649"], ["Gold", "6971593175656"]]}, {"n": "Cyber 13", "net": "4G", "mem": "8/128 Go", "scr": "6,6\" HD+", "bat": "10 800 mAh", "chg": "", "cam": "64MP", "cert": "IP68/IP69K · 810H", "i": "cyber13.png", "c": [["Black", "6971593176301"], ["Orange", "6971593176288"]]}, {"n": "T7 Pro", "net": "4G · NFC", "mem": "6/256 Go", "scr": "6,6\" FHD+", "bat": "6 280 mAh", "chg": "20W", "cam": "64MP", "cert": "IP68/IP69K · 810G", "i": "t7pro.jpg", "c": [["Orange", "6971593175816"]]}, {"n": "T7", "net": "4G", "mem": "4/128 Go", "scr": "6,52\" HD+", "bat": "6 280 mAh", "chg": "", "cam": "20MP", "cert": "IP68/IP69K · 810G", "i": "t7.png", "c": [["Black", "6971593175489"], ["Red", "6971593175496"]]}, {"n": "T7S", "net": "4G", "mem": "4/128 Go", "scr": "6,52\" HD+", "bat": "6 280 mAh", "chg": "", "cam": "21MP", "cert": "IP68/IP69K · 810H", "i": "t7s.png", "c": [["Black", "6971593178930"], ["Green", "6971593178947"]]}]}, {"id": "smartphones", "title": "Smartphones", "icon": "📱", "sub": "Performance & Design", "items": [{"n": "Note 18 GT", "net": "4G · NFC", "mem": "8/256 Go", "scr": "7,2\" HD+", "bat": "6 200 mAh", "chg": "20W", "cam": "13MP", "cert": "", "i": "note18gt.png", "c": [["Midnight Black", "6971593171429"], ["Desert Gold", "6971593171436"], ["Mint Green", "6971593171504"]]}, {"n": "Note 18 Pro", "net": "4G · NFC", "mem": "6/128 Go", "scr": "7,2\" HD+", "bat": "6 200 mAh", "chg": "20W", "cam": "13MP", "cert": "", "i": "note18pro.png", "c": [["Midnight Black", "6971593171290"], ["Desert Gold", "6971593171405"], ["Mint Green", "6971593171412"]]}, {"n": "Note 16 Pro", "net": "4G", "mem": "4/128 Go", "scr": "6,9\" HD+", "bat": "5 160 mAh", "chg": "10W", "cam": "13MP", "cert": "", "i": "note16pro.png", "c": [["Black", "6971593179302"], ["Gold", "6971593179319"], ["Red", "6971593179326"]]}, {"n": "Note 16", "net": "4G", "mem": "4/64 Go", "scr": "6,9\" HD+", "bat": "5 160 mAh", "chg": "10W", "cam": "13MP", "cert": "", "i": "note16.png", "c": [["Black", "6971593179210"], ["Blue", "6971593179234"], ["Gold", "6971593179227"]]}, {"n": "Note 15 Pro", "net": "4G", "mem": "4/128 Go", "scr": "6,6\" HD+", "bat": "5 160 mAh", "chg": "10W", "cam": "13MP", "cert": "", "i": "note15pro.png", "c": [["Black", "6971593176899"], ["Mint Blue", "6971593176912"], ["Phantom Blue", "6971593176905"]]}, {"n": "Note 15", "net": "4G", "mem": "4/64 Go", "scr": "6,6\" HD+", "bat": "5 160 mAh", "chg": "", "cam": "13MP", "cert": "", "i": "note15.png", "c": [["Black", "6971593176790"], ["Indigo", "6971593176431"], ["Ocean Blue", "6971593176806"]]}, {"n": "Note 13 Max", "net": "4G", "mem": "6/256 Go", "scr": "6,8\" HD+", "bat": "5 160 mAh", "chg": "", "cam": "48MP", "cert": "", "i": "note13max.png", "c": [["Phantom Black", "6971593177551"], ["Radiant Purple", "6971593177544"], ["Titan Gold", "6971593177568"]]}, {"n": "Note 13", "net": "4G", "mem": "4/128 Go", "scr": "6,6\" HD+", "bat": "5 160 mAh", "chg": "", "cam": "50MP", "cert": "", "i": "note13.png", "c": [["Blue", "6971593175793"], ["Dark Grey", "6971593175519"], ["Purple", "6971593175502"]]}, {"n": "A17 Pro Max", "net": "4G", "mem": "3/128 Go", "scr": "", "bat": "", "chg": "", "cam": "", "cert": "", "i": "a17promax.png", "c": [["Moonlight Silver", "6971593174772"], ["Nebula Black", "6971593174765"], ["Sunset Orange", "6971593175083"]]}, {"n": "A16 Pro Max", "net": "4G", "mem": "3/64 Go", "scr": "", "bat": "", "chg": "", "cam": "", "cert": "", "i": "a16promax.png", "c": [["Pearl White", "6971593175298"], ["Space Black", "6971593175281"], ["Bamboo Green", "6971593175304"]]}, {"n": "A56", "net": "4G", "mem": "3/128 Go", "scr": "", "bat": "", "chg": "", "cam": "", "cert": "", "i": "a56.png", "c": [["Aurora White", "6971593175328"], ["Midnight Black", "6971593175311"], ["Bamboo Green", "6971593175335"]]}, {"n": "A36", "net": "4G", "mem": "3/64 Go", "scr": "", "bat": "", "chg": "", "cam": "", "cert": "", "i": "a36.png", "c": [["Aurora White", "6971593175724"], ["Satin Black", "6971593175380"], ["Neon Orange", "6971593171177"]]}, {"n": "A26 Ultra", "net": "4G", "mem": "3/128 Go", "scr": "", "bat": "", "chg": "", "cam": "", "cert": "", "i": "a26ultra.png", "soon": true, "c": [["Space Black", "—"], ["Aurora White", "—"], ["Neon Orange", "—"]]}]}, {"id": "tabs-rugged", "title": "Tablettes Renforcées", "icon": "🛡️", "sub": "IP68 · IP69K · MIL-STD 810", "items": [{"n": "TAB R9 Ultra", "net": "5G", "mem": "8/512 Go", "scr": "11\" 2K", "bat": "20 080 mAh", "chg": "", "cam": "64MP", "cert": "IP68/IP69K · 810H", "i": "tabr9ultra.png", "c": [["Black", "6971593179654"], ["Red", "6971593179661"]]}, {"n": "TAB R9 Plus", "net": "LTE", "mem": "8/512 Go", "scr": "11\" 2K", "bat": "20 080 mAh", "chg": "", "cam": "64MP", "cert": "IP68/IP69K · 810H", "i": "tabr9plus.png", "c": [["Black", "6971593179654"], ["Red", "6971593179661"]]}, {"n": "TAB R9 Pro", "net": "LTE", "mem": "6/256 Go", "scr": "11\" FHD+", "bat": "20 080 mAh", "chg": "20W", "cam": "64MP", "cert": "IP68/IP69K · 810G", "i": "tabr9pro.png", "c": [["Black", "6971593178398"], ["Red", "6971593178336"]]}, {"n": "TAB R10 Pro", "net": "LTE", "mem": "8/256 Go", "scr": "10,1\" HD+", "bat": "10 800 mAh", "chg": "", "cam": "13MP", "cert": "IP68/IP69K · 810G", "i": "tabr10pro.png", "c": [["Black", "6971593178862"], ["Orange", "6971593178855"]]}, {"n": "TAB R8", "net": "LTE", "mem": "4/128 Go", "scr": "10,1\" HD+", "bat": "10 800 mAh", "chg": "", "cam": "13MP", "cert": "IP68/IP69K · 810G", "i": "tabr8.png", "c": [["Black", "6971593178343"], ["Orange", "6971593177537"]]}, {"n": "TAB R7", "net": "LTE", "mem": "6/256 Go", "scr": "10,1\" HD+", "bat": "15 600 mAh", "chg": "", "cam": "16MP", "cert": "IP68/IP69K · 810G", "i": "tabr7.png", "c": [["Grey", "6971593175229"], ["Orange", "6971593175236"]]}]}, {"id": "tablets", "title": "Tablettes", "icon": "📲", "sub": "Productivité & Divertissement", "items": [{"n": "TAB PAD 11", "net": "LTE", "mem": "6/256 Go", "scr": "11\" 2K", "bat": "8 000 mAh", "chg": "", "cam": "16MP", "cert": "", "i": "tabpad11.png", "c": [["Grey", "6971593175472"]]}, {"n": "TAB PAD 13 Pro", "net": "LTE", "mem": "4/256 Go", "scr": "10,1\" HD+", "bat": "6 000 mAh", "chg": "", "cam": "13MP", "cert": "", "i": "tabpad13pro.png", "c": [["Twilight Grey", "6971593173263"], ["Mint Green", "6971593173270"]]}, {"n": "TAB PAD 13", "net": "LTE", "mem": "4/128 Go", "scr": "10,1\" HD+", "bat": "6 000 mAh", "chg": "", "cam": "13MP", "cert": "", "i": "tabpad13.png", "c": [["Twilight Grey", "6971593173317"], ["Mint Green", "6971593173324"]]}, {"n": "TAB PAD 12", "net": "LTE", "mem": "3/64 Go", "scr": "10,1\" HD+", "bat": "6 000 mAh", "chg": "", "cam": "8MP", "cert": "", "i": "tabpad12.png", "c": [["Twilight Grey", "6971593171184"], ["Misty Blue", "6971593171191"]]}]}];
+const IMG_PATH = 'imgs/';
+
+let totalProducts=0,count5g=0;
+SECTIONS.forEach(s=>s.items.forEach(p=>{totalProducts++;if(p.net.includes('5G'))count5g++;}));
+document.getElementById('stat-total').textContent=totalProducts;
+document.getElementById('stat-5g').textContent=count5g;
+
+const navTabs=document.getElementById('navTabs');
+SECTIONS.forEach((sec,i)=>{const t=document.createElement('div');t.className='nav-tab'+(i===0?' active':'');t.textContent=sec.title;t.onclick=()=>document.getElementById('sec-'+i).scrollIntoView({behavior:'smooth'});navTabs.appendChild(t);});
+
+const catalog=document.getElementById('catalog');
+SECTIONS.forEach((sec,si)=>{
+  const section=document.createElement('section');section.className='section';section.id='sec-'+si;
+  let h=`<div class="section-header reveal"><h2>${sec.icon} ${sec.title} <span class="count-badge">${sec.items.length}</span></h2><div class="bar"></div><div class="sub">${sec.sub}</div></div>`;
+  let g='<div class="grid">';
+  sec.items.forEach((p,pi)=>{
+    const badge=p.soon?'<div class="product-badge">BIENTÔT DISPONIBLE</div>':'';
+    let specs='';
+    if(p.scr)specs+=`<div class="pspec"><div class="pspec-label">Écran</div><div class="pspec-val">${p.scr}</div></div>`;
+    let bat=p.bat;if(p.chg)bat+=' · '+p.chg;
+    if(bat)specs+=`<div class="pspec"><div class="pspec-label">Batterie</div><div class="pspec-val">${bat}</div></div>`;
+    if(p.cam)specs+=`<div class="pspec"><div class="pspec-label">Caméra</div><div class="pspec-val">${p.cam}</div></div>`;
+    if(p.cert)specs+=`<div class="pspec"><div class="pspec-label">Protection</div><div class="pspec-val">${p.cert}</div></div>`;
+    let colors=p.c.map(c=>`<div class="pcolor"><div class="pcolor-dot"></div><span class="pcolor-name">${c[0]}</span><span class="pcolor-ean">${c[1]}</span></div>`).join('');
+    g+=`<div class="product reveal" data-sec="${si}" data-idx="${pi}" onclick="openModal(${si},${pi})">
+      <div class="product-img">${badge}<img src="${IMG_PATH}${p.i}" alt="${p.n}" onerror="this.style.display='none'"/></div>
+      <div class="product-info"><div class="product-name">${p.n}</div>
+      <div class="product-tags"><span class="ptag ptag-net">${p.net}</span><span class="ptag ptag-mem">${p.mem}</span></div>
+      ${specs?`<div class="product-specs">${specs}</div>`:''}
+      <div class="product-colors"><div class="product-colors-title">Coloris & EAN</div>${colors}</div></div></div>`;
+  });
+  g+='</div>';section.innerHTML=h+g;catalog.appendChild(section);
+});
+
+function openModal(si,pi){
+  const p=SECTIONS[si].items[pi];
+  document.getElementById('modal-img').src=IMG_PATH+p.i;
+  let specs='';
+  if(p.scr)specs+=`<div class="pspec"><div class="pspec-label">Écran</div><div class="pspec-val">${p.scr}</div></div>`;
+  let bat=p.bat;if(p.chg)bat+=' · '+p.chg;
+  if(bat)specs+=`<div class="pspec"><div class="pspec-label">Batterie</div><div class="pspec-val">${bat}</div></div>`;
+  if(p.cam)specs+=`<div class="pspec"><div class="pspec-label">Caméra</div><div class="pspec-val">${p.cam}</div></div>`;
+  if(p.cert)specs+=`<div class="pspec"><div class="pspec-label">Protection</div><div class="pspec-val">${p.cert}</div></div>`;
+  let colors=p.c.map(c=>`<div class="pcolor"><div class="pcolor-dot"></div><span class="pcolor-name">${c[0]}</span><span class="pcolor-ean">${c[1]}</span></div>`).join('');
+  document.getElementById('modal-body').innerHTML=`<div class="modal-name">${p.n}</div>
+    <div class="product-tags" style="margin:12px 0 16px"><span class="ptag ptag-net">${p.net}</span><span class="ptag ptag-mem">${p.mem}</span>
+    ${p.soon?'<span class="ptag" style="background:rgba(212,43,43,0.15);color:#ff6b6b;border:1px solid rgba(212,43,43,0.2)">Bientôt disponible</span>':''}</div>
+    ${specs?`<div class="product-specs" style="margin-bottom:16px">${specs}</div>`:''}
+    <div class="product-colors"><div class="product-colors-title">Coloris & EAN</div>${colors}</div>`;
+  document.getElementById('modal').classList.add('open');document.body.style.overflow='hidden';
+}
+function closeModal(){document.getElementById('modal').classList.remove('open');document.body.style.overflow='';}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+
+document.getElementById('searchInput').addEventListener('input',function(){
+  const q=this.value.toLowerCase().trim();
+  document.querySelectorAll('.product').forEach(el=>{
+    const si=+el.dataset.sec,pi=+el.dataset.idx,p=SECTIONS[si].items[pi];
+    const text=(p.n+' '+p.net+' '+p.mem+' '+(p.cert||'')).toLowerCase();
+    el.style.display=(!q||text.includes(q))?'':'none';
+  });
+});
+
+const observer=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');observer.unobserve(e.target);}});},{threshold:0.1});
+document.querySelectorAll('.reveal').forEach(el=>observer.observe(el));
+
+const sectionEls=SECTIONS.map((_,i)=>document.getElementById('sec-'+i));
+window.addEventListener('scroll',()=>{
+  const scrollY=window.scrollY+200;let activeIdx=0;
+  sectionEls.forEach((el,i)=>{if(el&&el.offsetTop<=scrollY)activeIdx=i;});
+  document.querySelectorAll('.nav-tab').forEach((t,i)=>t.classList.toggle('active',i===activeIdx));
+});
+</script>
+</body></html>
