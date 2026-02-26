@@ -126,12 +126,22 @@ function ProductTable({
                   col.key.startsWith('pa_') &&
                   typeof value === 'number' &&
                   value === minPrice;
+                const isEuroColumn =
+                  col.key === 'averagePrice' || col.key === 'marge' || col.key.startsWith('pa_');
+                const displayValue =
+                  value !== undefined && value !== null
+                    ? typeof value === 'number'
+                      ? isEuroColumn
+                        ? `${value} €`
+                        : String(value)
+                      : String(value)
+                    : '';
                 return (
                   <td
                     key={col.key}
                     className={`px-3 py-1 border-b border-[var(--color-border-default)] ${isMin ? 'text-green-400' : ''}`}
                   >
-                    {value !== undefined ? String(value) : ''}
+                    {displayValue}
                   </td>
                 );
               })}

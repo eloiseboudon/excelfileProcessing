@@ -1,21 +1,24 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 
+export type MarginUnit = '€' | '%';
+
 interface BulkMarginModalProps {
   count: number;
-  onConfirm: (margin: number) => void;
+  onConfirm: (value: number, unit: MarginUnit) => void;
   onClose: () => void;
 }
 
 function BulkMarginModal({ count, onConfirm, onClose }: BulkMarginModalProps) {
   const [marginInput, setMarginInput] = useState('');
+  const [unit, setUnit] = useState<MarginUnit>('€');
 
-  const parsedMargin = parseFloat(marginInput.replace(',', '.'));
-  const isValid = !isNaN(parsedMargin) && parsedMargin >= 0;
+  const parsedValue = parseFloat(marginInput.replace(',', '.'));
+  const isValid = !isNaN(parsedValue) && parsedValue >= 0;
 
   const handleSubmit = () => {
     if (!isValid) return;
-    onConfirm(parsedMargin);
+    onConfirm(parsedValue, unit);
   };
 
   return (
@@ -32,22 +35,49 @@ function BulkMarginModal({ count, onConfirm, onClose }: BulkMarginModalProps) {
             <X className="w-4 h-4" />
           </button>
         </div>
+
+        <div className="mb-4">
+          <span className="block text-sm text-[var(--color-text-muted)] mb-2">Unité</span>
+          <div className="flex rounded-md overflow-hidden border border-[var(--color-border-strong)] w-fit">
+            {(['€', '%'] as MarginUnit[]).map((u) => (
+              <button
+                key={u}
+                type="button"
+                onClick={() => setUnit(u)}
+                className={`px-4 py-1.5 text-sm font-medium transition-colors ${
+                  unit === u
+                    ? 'bg-[#B8860B] text-white'
+                    : 'bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+                }`}
+              >
+                {u}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="mb-5">
           <label className="block text-sm text-[var(--color-text-muted)] mb-1">
-            Nouvelle marge (€)
+            Nouvelle marge ({unit})
           </label>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            value={marginInput}
-            onChange={(e) => setMarginInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-            placeholder="Ex : 15"
-            className="w-full px-3 py-2 bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded-md text-sm"
-            autoFocus
-          />
+          <div className="relative">
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={marginInput}
+              onChange={(e) => setMarginInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+              placeholder={unit === '%' ? 'Ex : 15' : 'Ex : 20'}
+              className="w-full px-3 py-2 pr-8 bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] rounded-md text-sm"
+              autoFocus
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[var(--color-text-muted)] pointer-events-none">
+              {unit}
+            </span>
+          </div>
         </div>
+
         <div className="flex gap-2 justify-end">
           <button onClick={onClose} className="btn btn-secondary text-sm">
             Annuler

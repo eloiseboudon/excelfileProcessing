@@ -5,7 +5,7 @@ import { bulkUpdateProducts, calculateProducts, fetchProductPriceSummary, update
 import { getCurrentTimestamp, getCurrentWeekYear } from '../utils/date';
 import ProductReference from './ProductReference';
 import SupplierPriceModal from './SupplierPriceModal';
-import BulkMarginModal from './BulkMarginModal';
+import BulkMarginModal, { type MarginUnit } from './BulkMarginModal';
 import ProductTable from './ProductTable';
 import type { SortConfig } from './SortableColumnHeader';
 
@@ -133,24 +133,34 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
     });
   }, []);
 
-  const handleBulkMarginUpdate = useCallback(async (margin: number) => {
+  const handleBulkMarginUpdate = useCallback(async (value: number, unit: MarginUnit) => {
     const count = selectedProductIds.size;
     const confirmed = window.confirm(
-      `Appliquer une marge de ${margin} € à ${count} produit${count > 1 ? 's' : ''} ?`
+      `Appliquer une marge de ${value} ${unit} à ${count} produit${count > 1 ? 's' : ''} ?`
     );
     if (!confirmed) return;
 
-    const normalizedMargin = Number(margin.toFixed(2));
-    const updates = Array.from(selectedProductIds).flatMap((id) => {
-      const product = data.find((p) => p.id === id);
-      if (!product) return [];
+    const computeForProduct = (product: AggregatedProduct) => {
       const baseBuyPrice = getBaseBuyPrice(product);
       const tcpValue = Number.isFinite(product.tcp) ? product.tcp : 0;
       const baseCost = baseBuyPrice + tcpValue;
-      const derivedPercent = baseCost
-        ? Number(((normalizedMargin / baseCost) * 100).toFixed(4))
-        : null;
+      let normalizedMargin: number;
+      let derivedPercent: number | null;
+      if (unit === '%') {
+        normalizedMargin = Number((baseCost * (value / 100)).toFixed(2));
+        derivedPercent = Number(value.toFixed(4));
+      } else {
+        normalizedMargin = Number(value.toFixed(2));
+        derivedPercent = baseCost ? Number(((normalizedMargin / baseCost) * 100).toFixed(4)) : null;
+      }
       const recommendedPrice = Number((baseCost + normalizedMargin).toFixed(2));
+      return { normalizedMargin, derivedPercent, recommendedPrice };
+    };
+
+    const updates = Array.from(selectedProductIds).flatMap((id) => {
+      const product = data.find((p) => p.id === id);
+      if (!product) return [];
+      const { normalizedMargin, derivedPercent, recommendedPrice } = computeForProduct(product);
       return [{ id, marge: normalizedMargin, marge_percent: derivedPercent ?? undefined, recommended_price: recommendedPrice }];
     });
 
@@ -159,13 +169,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
       setData((prev) =>
         prev.map((item) => {
           if (!selectedProductIds.has(item.id)) return item;
-          const baseBuyPrice = getBaseBuyPrice(item);
-          const tcpValue = Number.isFinite(item.tcp) ? item.tcp : 0;
-          const baseCost = baseBuyPrice + tcpValue;
-          const derivedPercent = baseCost
-            ? Number(((normalizedMargin / baseCost) * 100).toFixed(4))
-            : null;
-          const recommendedPrice = Number((baseCost + normalizedMargin).toFixed(2));
+          const { normalizedMargin, derivedPercent, recommendedPrice } = computeForProduct(item);
           return { ...item, marge: normalizedMargin, margePercent: derivedPercent, averagePrice: recommendedPrice };
         })
       );
@@ -874,11 +878,20 @@ td.neg{color:#f87171;font-weight:500}
                 {selectedProductIds.size > 0 && (
                   <>
                     <div className="w-px h-6 bg-[var(--color-border-subtle)]" />
+                    <span className="text-sm text-[var(--color-text-muted)]">
+                      {selectedProductIds.size} sélectionné{selectedProductIds.size > 1 ? 's' : ''}
+                    </span>
+                    <button
+                      onClick={() => setSelectedProductIds(new Set())}
+                      className="btn btn-secondary text-sm"
+                    >
+                      Désélectionner
+                    </button>
                     <button
                       onClick={() => setShowBulkMarginModal(true)}
                       className="btn btn-primary text-sm"
                     >
-                      Maj des marges ({selectedProductIds.size})
+                      Maj des marges
                     </button>
                   </>
                 )}
