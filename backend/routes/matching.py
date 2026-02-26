@@ -22,6 +22,7 @@ from models import (
 from utils.activity import log_activity
 from utils.auth import token_required
 from utils.llm_matching import (
+    _log_ean_history,
     create_product_from_extraction,
     normalize_label,
     run_matching_job,
@@ -204,6 +205,13 @@ def validate_match():
             last_seen_at=datetime.now(timezone.utc),
         )
         db.session.add(ref)
+        _log_ean_history(
+            product_id,
+            catalog_entry.ean if catalog_entry else None,
+            pm.supplier_id,
+            run_id=None,
+            source="manual_validation",
+        )
 
     # Retrieve the score breakdown for the validated product from PendingMatch candidates
     candidate_reasoning = None
@@ -281,6 +289,13 @@ def reject_match():
             last_seen_at=datetime.now(timezone.utc),
         )
         db.session.add(ref)
+        _log_ean_history(
+            product.id,
+            catalog_entry.ean if catalog_entry else None,
+            pm.supplier_id,
+            run_id=None,
+            source="manual_reject_create",
+        )
 
         normalized = normalize_label(pm.source_label)
         cache = LabelCache(

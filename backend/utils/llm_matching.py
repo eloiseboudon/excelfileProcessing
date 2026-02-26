@@ -30,6 +30,7 @@ from models import (
     PendingMatch,
     Product,
     ProductCalculation,
+    ProductEanHistory,
     Supplier,
     SupplierProductRef,
     SupplierCatalog,
@@ -670,6 +671,7 @@ def run_matching_job(
     cross_supplier_hits = 0
     fuzzy_hits = 0
     attr_share_hits = 0
+    brands_with_new_labels: set[str] = set()
     products_to_process: list = []
     remaining = 0
     cost_estimate = 0.0
@@ -734,6 +736,7 @@ def run_matching_job(
             or (cached.product_id is None and not cached.extracted_attributes)
         )
         if not needs_extraction:
+            cached.last_seen_run_id = run_id
             continue
 
         # Step 2: Cross-supplier sharing — same normalized_label, different supplier
@@ -741,7 +744,10 @@ def run_matching_job(
         if cross_entry and cross_entry.supplier_id != sid:
             attrs = dict(cross_entry.extracted_attributes)
             attrs["raw_label"] = original_label
-            _save_extraction_cache(sid, normalized, attrs)
+            _save_extraction_cache(sid, normalized, attrs, run_id=run_id)
+            _brand = (attrs.get("brand") or "").strip().lower()
+            if _brand:
+                brands_with_new_labels.add(_brand)
             cross_supplier_hits += 1
             continue
 
@@ -752,7 +758,10 @@ def run_matching_job(
         if fuzzy_entry:
             attrs = dict(fuzzy_entry.extracted_attributes)
             attrs["raw_label"] = original_label
-            _save_extraction_cache(sid, normalized, attrs)
+            _save_extraction_cache(sid, normalized, attrs, run_id=run_id)
+            _brand = (attrs.get("brand") or "").strip().lower()
+            if _brand:
+                brands_with_new_labels.add(_brand)
             fuzzy_hits += 1
             continue
 
@@ -800,25 +809,37 @@ def run_matching_job(
             extraction["raw_label"] = original_label
             extraction["region"] = (extraction.get("region") or "EU").strip().upper()
 
+            # Track brand for Option A re-evaluation
+            _brand = (extraction.get("brand") or "").strip().lower()
+            if _brand:
+                brands_with_new_labels.add(_brand)
+
             # Attribute-based cross-supplier sharing: if the same (brand, model, storage,
             # color, region) tuple is already matched in another supplier's cache, assign
             # product_id directly without going through Phase 2 scoring.
             attr_key = _make_attr_key(extraction)
             if attr_key and attr_key in attr_product_index:
                 matched_product_id = attr_product_index[attr_key]
-                _save_attr_share_cache(sid, normalized, matched_product_id, extraction)
+                _save_attr_share_cache(sid, normalized, matched_product_id, extraction, run_id=run_id)
                 catalog_entries = label_to_catalogs.get((sid, normalized), [])
                 for ti in catalog_entries:
                     _create_supplier_ref(ti.supplier_id, ti, matched_product_id)
                 attr_share_hits += 1
             else:
-                _save_extraction_cache(sid, normalized, extraction)
+                _save_extraction_cache(sid, normalized, extraction, run_id=run_id)
 
+    db.session.flush()
+
+    # -----------------------------------------------------------------------
+    # Selective cleanup: reset matches for labels no longer in supplier catalog
+    # -----------------------------------------------------------------------
+    _cleanup_orphaned_labels(run_id, supplier_id)
     db.session.flush()
 
     # -----------------------------------------------------------------------
     # Phase 2: Match Odoo Products against extracted cache entries
     # -----------------------------------------------------------------------
+    reopened_product_ids: set[int] = set()
     if skip_already_matched:
         # Nightly mode: re-evaluate every product against tonight's updated catalog.
         # Caller is responsible for resetting LabelCache.product_id and PendingMatch
@@ -843,14 +864,44 @@ def run_matching_job(
             .all()
         }
 
-        # Exclude products already queued in a pending or auto-rejected match
+        # Exclude products already queued in a pending or auto-rejected match,
+        # UNLESS their brand received new labels this run (Option A re-evaluation).
         pending_product_ids = set()
+        pms_to_delete: list[int] = []
         for pm in PendingMatch.query.filter(
             PendingMatch.status.in_(["pending", "rejected"])
         ).all():
             for c in pm.candidates or []:
-                if c.get("product_id"):
-                    pending_product_ids.add(c["product_id"])
+                pid = c.get("product_id")
+                if not pid:
+                    continue
+                # Check if this product's brand has new labels → re-evaluate
+                product_obj = db.session.get(Product, pid)
+                if product_obj and brands_with_new_labels:
+                    prod_brand = (product_obj.brand.brand if product_obj.brand else "").strip().lower()
+                    if prod_brand and prod_brand in brands_with_new_labels:
+                        reopened_product_ids.add(pid)
+                        pms_to_delete.append(pm.id)
+                        break
+                pending_product_ids.add(pid)
+
+        # Delete stale PendingMatches for products being re-evaluated
+        if pms_to_delete:
+            PendingMatch.query.filter(PendingMatch.id.in_(pms_to_delete)).delete(
+                synchronize_session=False
+            )
+            db.session.flush()
+            current_app.logger.info(
+                "Option A: %d products re-opened, %d PendingMatches deleted (brands: %s)",
+                len(reopened_product_ids),
+                len(pms_to_delete),
+                ", ".join(sorted(brands_with_new_labels)),
+            )
+
+    # Re-opened products must not be excluded even if they appear in matched/pending sets
+    if reopened_product_ids:
+        matched_product_ids -= reopened_product_ids
+        pending_product_ids -= reopened_product_ids
 
     all_products_list = Product.query.all()
     products_to_process = [
@@ -949,6 +1000,7 @@ def run_matching_job(
             )
             for ti in catalog_entries:
                 _create_supplier_ref(ti.supplier_id, ti, product.id)
+                _log_ean_history(product.id, ti.ean, ti.supplier_id, run_id, "auto_match")
             top_cache.product_id = product.id
             top_cache.match_score = top_score
             top_cache.match_source = "auto"
@@ -1086,6 +1138,7 @@ def _save_attr_share_cache(
     normalized_label: str,
     product_id: int,
     extracted: Dict[str, Any],
+    run_id: int | None = None,
 ) -> None:
     """Save a cache entry that was directly matched via attribute-based cross-supplier sharing.
 
@@ -1101,6 +1154,7 @@ def _save_attr_share_cache(
         existing.match_source = "attr_share"
         existing.extracted_attributes = extracted
         existing.last_used_at = now
+        existing.last_seen_run_id = run_id
     else:
         cache = LabelCache(
             supplier_id=supplier_id,
@@ -1110,6 +1164,7 @@ def _save_attr_share_cache(
             match_source="attr_share",
             extracted_attributes=extracted,
             last_used_at=now,
+            last_seen_run_id=run_id,
         )
         db.session.add(cache)
 
@@ -1118,6 +1173,7 @@ def _save_extraction_cache(
     supplier_id: int,
     normalized_label: str,
     extracted: Dict[str, Any],
+    run_id: int | None = None,
 ) -> None:
     """Save extracted attributes without product_id (pre-matching phase)."""
     existing = LabelCache.query.filter_by(
@@ -1126,6 +1182,7 @@ def _save_extraction_cache(
     if existing:
         existing.extracted_attributes = extracted
         existing.last_used_at = datetime.now(timezone.utc)
+        existing.last_seen_run_id = run_id
     else:
         cache = LabelCache(
             supplier_id=supplier_id,
@@ -1134,8 +1191,79 @@ def _save_extraction_cache(
             match_score=None,
             match_source="extracted",
             extracted_attributes=extracted,
+            last_seen_run_id=run_id,
         )
         db.session.add(cache)
+
+
+def _cleanup_orphaned_labels(run_id: int, supplier_id: int | None) -> None:
+    """Reset matches and delete PendingMatches for labels no longer in the supplier catalog.
+
+    A label is "orphaned" when it was not seen during this run's Phase 1
+    (last_seen_run_id != run_id), meaning the supplier no longer carries it.
+    """
+    from utils.normalize import normalize_label as _normalize
+
+    orphan_filter = [
+        LabelCache.last_seen_run_id.isnot(None),
+        LabelCache.last_seen_run_id != run_id,
+    ]
+    if supplier_id:
+        orphan_filter.append(LabelCache.supplier_id == supplier_id)
+
+    orphaned = LabelCache.query.filter(*orphan_filter).all()
+    if not orphaned:
+        return
+
+    # Build lookup for fast PendingMatch matching
+    orphan_keys: set[tuple[int, str]] = set()
+    for entry in orphaned:
+        if entry.product_id is not None:
+            entry.product_id = None
+            entry.match_source = "extracted"
+            entry.match_score = None
+            entry.match_reasoning = None
+        orphan_keys.add((entry.supplier_id, entry.normalized_label))
+
+    # Delete stale PendingMatches whose label is orphaned
+    pending_deleted = 0
+    pending_to_delete = []
+    for pm in PendingMatch.query.filter(
+        PendingMatch.status.in_(["pending", "rejected"])
+    ).all():
+        normalized = _normalize(pm.source_label)
+        if (pm.supplier_id, normalized) in orphan_keys:
+            pending_to_delete.append(pm.id)
+    if pending_to_delete:
+        PendingMatch.query.filter(PendingMatch.id.in_(pending_to_delete)).delete(
+            synchronize_session=False
+        )
+        pending_deleted = len(pending_to_delete)
+
+    current_app.logger.info(
+        "Cleanup: %d orphaned labels reset, %d stale PendingMatches deleted",
+        len(orphaned),
+        pending_deleted,
+    )
+
+
+def _log_ean_history(
+    product_id: int,
+    ean: str | None,
+    supplier_id: int,
+    run_id: int | None,
+    source: str,
+) -> None:
+    """Record an EAN association in product_ean_history if EAN is present."""
+    if not ean:
+        return
+    db.session.add(ProductEanHistory(
+        product_id=product_id,
+        ean=ean,
+        supplier_id=supplier_id,
+        matching_run_id=run_id,
+        source=source,
+    ))
 
 
 def _create_supplier_ref(

@@ -164,7 +164,9 @@ Module de matching intelligent qui utilise Claude Haiku (Anthropic) pour associe
 - **Lotissement (limit)** : parametre `limit` sur `run_matching_job` pour traiter les produits par lots (50, 100, 200 ou tous). Evite les timeouts 504 nginx/gunicorn sur les grands catalogues. Le rapport inclut `remaining` pour que l'utilisateur sache combien de produits restent a traiter. Selecteur de limite visible dans l'interface
 - **7 endpoints API** : run, pending, validate, reject, stats, cache, delete cache
 
-Modeles ajoutes : `ModelReference`, `LabelCache`, `PendingMatch`. Colonne `region` ajoutee sur `Product` et `SupplierCatalog` (anciennement `TemporaryImport`).
+Modeles ajoutes : `ModelReference`, `LabelCache`, `PendingMatch`, `ProductEanHistory`. Colonne `region` ajoutee sur `Product` et `SupplierCatalog` (anciennement `TemporaryImport`).
+
+- **Historique EAN par produit** : table `product_ean_history` pour tracker les associations EAN→produit au fil du temps. Chaque run de matching (auto ou manuel) log l'EAN associe avec le fournisseur, le run et la source (`auto_match`, `manual_validation`, `manual_reject_create`). Pas d'unicite : les doublons sont voulus pour tracer l'evolution. Index sur `(product_id, ean)` pour les requetes rapides. Affichage UI a venir.
 
 Pre-requis : cle API Anthropic (`ANTHROPIC_API_KEY` dans `.env`). Cout estime : < 0.30€ par sync de 3000 produits.
 
@@ -351,18 +353,21 @@ Fichiers concernes : `backend/utils/etl.py`, `backend/tests/test_etl_persist.py`
 Automatisation complete du cycle nocturne : sync Odoo + fournisseurs + re-matching LLM + rapport email.
 
 - **Orchestrateur** (`utils/nightly_pipeline.py`) : enchaine les 4 etapes et cree un `NightlyJob` en DB pour tracer chaque execution
-- **Re-matching intelligent** : chaque nuit, tous les produits sont re-evalues contre le catalogue mis a jour
+- **Re-matching incremental** : chaque nuit, seuls les nouveaux labels fournisseurs sont evalues
   - Le `LabelCache` accumule les extractions LLM (bibliotheque historique) — labels deja vus = 0 appel API
-  - Matches identiques a la veille → auto-valides (`PendingMatch.status = "validated"`)
-  - Matches changes ou nouveaux → `pending` pour validation le matin
-  - `skip_already_matched=True` dans `run_matching_job` pour court-circuiter les exclusions
+  - `last_seen_run_id` sur `LabelCache` : marque chaque label vu lors du run Phase 1
+  - Nettoyage selectif : labels disparus du catalogue fournisseur → product_id reset, PendingMatch supprimes
+  - Matchs existants (auto, pending, rejected) preserves si le label est toujours present
+  - Seuls les produits non encore resolus sont re-evalues (reduction de ~95% du scoring)
+  - **Option A** : re-evaluation automatique des pending/rejected quand de nouveaux labels arrivent pour la meme brand
+  - **Option D** : full rescore chaque dimanche — reset des auto-matches et pending, re-evaluation complete du catalogue
 - **Planificateur** (`utils/nightly_scheduler.py`) : `threading.Timer` verifiant chaque minute si l'heure UTC configuree est atteinte. Variable `_last_run_date` pour eviter de relancer plusieurs fois la meme nuit
 - **Rapport email** : webhook n8n (stdlib `urllib`, zero dependance externe). Payload JSON avec statut, compteurs, duree, lien de validation et corps HTML. Workflow n8n importable dans `n8n_nightly_workflow.json`
 - **8 endpoints REST** (`routes/nightly.py`, prefix `/nightly`) : GET/PUT config, POST trigger, GET jobs, GET jobs/<id>, GET/POST/DELETE recipients
 - **3 nouveaux modeles** : `NightlyConfig`, `NightlyJob`, `NightlyEmailRecipient`
 - **Resilience** : cleanup automatique au demarrage (`_cleanup_orphaned_jobs`) des jobs laisses en "running" par un crash ou hot-reload
 - **UI admin** : onglet "Automatisation" dans AdminPage — toggle enable, selecteur heure, bouton trigger, tableau historique, CRUD destinataires
-- **34 tests** : `tests/test_routes_nightly.py` (22 tests) + `tests/test_nightly_pipeline.py` (12 tests)
+- **41 tests** : `tests/test_routes_nightly.py` (22 tests) + `tests/test_nightly_pipeline.py` (19 tests)
 
 Variables d'environnement : `NIGHTLY_WEBHOOK_URL`, `ENABLE_NIGHTLY_SCHEDULER` (false par defaut), `FRONTEND_URL` (lien validation email).
 

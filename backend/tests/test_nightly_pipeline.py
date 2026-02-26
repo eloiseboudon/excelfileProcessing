@@ -279,7 +279,8 @@ class TestApplyValidationHistory:
 
 class TestRunMatchingStepNightly:
     @patch("utils.llm_matching.run_matching_job")
-    def test_calls_skip_already_matched(self, mock_run):
+    def test_calls_incremental_matching(self, mock_run):
+        """Nightly matching runs incrementally (no skip_already_matched flag)."""
         from utils.nightly_pipeline import _run_matching_step
 
         mock_run.return_value = {"total_products": 10, "llm_calls": 2, "auto_matched": 3, "pending_review": 7}
@@ -287,11 +288,12 @@ class TestRunMatchingStepNightly:
         _run_matching_step()
 
         mock_run.assert_called_once_with(
-            supplier_id=None, limit=None, skip_already_matched=True
+            supplier_id=None, limit=None
         )
 
     @patch("utils.llm_matching.run_matching_job")
-    def test_resets_label_cache_product_ids(self, mock_run):
+    def test_preserves_existing_matches(self, mock_run):
+        """Nightly no longer resets LabelCache.product_id — existing matches are preserved."""
         from models import Supplier
         from utils.nightly_pipeline import _run_matching_step
 
@@ -312,9 +314,91 @@ class TestRunMatchingStepNightly:
 
         _run_matching_step()
 
-        # LabelCache product_id should have been cleared before matching
+        # Existing match should be preserved (no more full reset)
         db.session.refresh(lc)
-        assert lc.product_id is None
+        assert lc.product_id == 42
+
+    @patch("utils.nightly_pipeline.datetime")
+    @patch("utils.llm_matching.run_matching_job")
+    def test_sunday_full_rescore_resets_auto_matches(self, mock_run, mock_dt):
+        """On Sunday, auto-matched LabelCache entries and pending PendingMatches are reset."""
+        from models import Supplier
+        from utils.nightly_pipeline import _run_matching_step
+
+        # Simulate Sunday (weekday() == 6)
+        mock_now = MagicMock()
+        mock_now.weekday.return_value = 6
+        mock_dt.now.return_value = mock_now
+        mock_run.return_value = {"total_products": 5, "llm_calls": 1, "auto_matched": 2, "pending_review": 3}
+
+        s = Supplier(name="S3")
+        db.session.add(s)
+        db.session.commit()
+
+        lc_auto = LabelCache(
+            supplier_id=s.id, normalized_label="auto_lbl",
+            match_source="auto", product_id=99, match_score=95,
+        )
+        lc_manual = LabelCache(
+            supplier_id=s.id, normalized_label="manual_lbl",
+            match_source="manual", product_id=100, match_score=85,
+        )
+        pm = PendingMatch(
+            supplier_id=s.id, source_label="pending_lbl",
+            extracted_attributes={}, candidates=[], status="pending",
+        )
+        db.session.add_all([lc_auto, lc_manual, pm])
+        db.session.commit()
+        pm_id = pm.id
+
+        _run_matching_step()
+
+        # Auto-matched entry should be reset
+        db.session.refresh(lc_auto)
+        assert lc_auto.product_id is None
+        assert lc_auto.match_source == "extracted"
+
+        # Manual entry should be preserved
+        db.session.refresh(lc_manual)
+        assert lc_manual.product_id == 100
+
+        # Pending match should be deleted
+        assert PendingMatch.query.get(pm_id) is None
+
+    @patch("utils.nightly_pipeline.datetime")
+    @patch("utils.llm_matching.run_matching_job")
+    def test_weekday_does_not_reset(self, mock_run, mock_dt):
+        """On a weekday (non-Sunday), no reset occurs."""
+        from models import Supplier
+        from utils.nightly_pipeline import _run_matching_step
+
+        # Simulate Wednesday (weekday() == 2)
+        mock_now = MagicMock()
+        mock_now.weekday.return_value = 2
+        mock_dt.now.return_value = mock_now
+        mock_run.return_value = {"total_products": 0, "llm_calls": 0, "auto_matched": 0, "pending_review": 0}
+
+        s = Supplier(name="S4")
+        db.session.add(s)
+        db.session.commit()
+
+        lc = LabelCache(
+            supplier_id=s.id, normalized_label="lbl_wed",
+            match_source="auto", product_id=50,
+        )
+        pm = PendingMatch(
+            supplier_id=s.id, source_label="pm_wed",
+            extracted_attributes={}, candidates=[], status="pending",
+        )
+        db.session.add_all([lc, pm])
+        db.session.commit()
+        pm_id = pm.id
+
+        _run_matching_step()
+
+        db.session.refresh(lc)
+        assert lc.product_id == 50  # Preserved
+        assert PendingMatch.query.get(pm_id) is not None  # Still there
 
 
 # ---------------------------------------------------------------------------

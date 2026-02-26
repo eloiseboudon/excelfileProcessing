@@ -267,55 +267,55 @@ def _run_suppliers_step() -> int:
 
 
 def _run_matching_step() -> Dict[str, Any]:
-    """Nightly matching: full re-evaluation of all products against the updated catalog.
+    """Nightly matching: incremental evaluation — only new/changed labels are scored.
 
     Strategy:
-    1. Capture yesterday's validation history (auto-matched + manually validated).
-    2. Reset: delete all PendingMatch, clear LabelCache.product_id links.
-       The LabelCache *extractions* (extracted_attributes) are preserved — this is the
-       accumulated knowledge base that prevents redundant LLM calls.
-    3. Run matching on ALL products (skip_already_matched=True).
-    4. Auto-validate results that reproduce a known good match from yesterday.
+    - Existing matches (auto-matched, pending, rejected) are preserved.
+    - Phase 1 marks every label still present in the supplier catalog (last_seen_run_id).
+    - Labels no longer in the catalog are cleaned up (product_id reset, PendingMatch deleted).
+    - Phase 2 only scores products not yet matched/pending against the candidate pool.
+    - Result: only genuinely new supplier labels trigger scoring work.
+
+    Weekly full rescore (Sunday): all auto-matched and pending/rejected results are
+    reset so Phase 2 re-evaluates the entire product catalog from scratch. Manual
+    validations (status='validated'/'created') are preserved.
     """
     from models import LabelCache, PendingMatch, db
     from utils import llm_matching
 
-    # Step A — capture yesterday's validation history
-    # Sources: LabelCache auto-matches (lower priority) + PendingMatch validated (higher)
-    validation_history: Dict[tuple, int] = {}
+    is_sunday = datetime.now(timezone.utc).weekday() == 6  # 0=Monday, 6=Sunday
 
-    for entry in LabelCache.query.filter(LabelCache.product_id.isnot(None)).all():
-        validation_history[(entry.normalized_label, entry.supplier_id)] = entry.product_id
+    if is_sunday:
+        # Reset auto-matched LabelCache entries (preserve manual validations via SupplierProductRef)
+        reset_count = LabelCache.query.filter(
+            LabelCache.product_id.isnot(None),
+            LabelCache.match_source.in_(["auto", "attr_share"]),
+        ).update(
+            {"product_id": None, "match_score": None, "match_reasoning": None,
+             "match_source": "extracted"},
+            synchronize_session="fetch",
+        )
 
-    for pm in PendingMatch.query.filter(
-        PendingMatch.status.in_(["validated", "created"]),
-        PendingMatch.resolved_product_id.isnot(None),
-    ).all():
-        # PendingMatch.source_label overrides cache entry (manual decision wins)
-        validation_history[(pm.source_label, pm.supplier_id)] = pm.resolved_product_id
+        # Delete pending/rejected PendingMatches (manual validations are preserved)
+        deleted_pm = PendingMatch.query.filter(
+            PendingMatch.status.in_(["pending", "rejected"])
+        ).delete(synchronize_session="fetch")
 
-    logger.info("Nightly matching: %d historical validations captured", len(validation_history))
+        db.session.flush()
+        logger.info(
+            "Sunday full rescore: %d LabelCache matches reset, %d PendingMatches deleted",
+            reset_count, deleted_pm,
+        )
 
-    # Step B — full reset (catalog changed → re-score everything)
-    deleted = PendingMatch.query.delete()
-    LabelCache.query.update({"product_id": None}, synchronize_session=False)
-    db.session.commit()
-    logger.info("Nightly matching: reset complete (%d PendingMatch deleted)", deleted)
-
-    # Step C — run matching on ALL products, reusing cached LLM extractions
-    result = llm_matching.run_matching_job(supplier_id=None, limit=None, skip_already_matched=True)
+    result = llm_matching.run_matching_job(supplier_id=None, limit=None)
     logger.info(
-        "Nightly matching: %d products processed (llm_calls=%d, auto=%d, pending=%d)",
+        "Nightly matching (%s): %d products processed (llm_calls=%d, auto=%d, pending=%d)",
+        "full rescore" if is_sunday else "incremental",
         result.get("total_products", 0),
         result.get("llm_calls", 0),
         result.get("auto_matched", 0),
         result.get("pending_review", 0),
     )
-
-    # Step D — auto-validate matches consistent with yesterday's history
-    if validation_history:
-        auto_validated = _apply_validation_history(validation_history)
-        logger.info("Nightly matching: %d matches auto-validated from history", auto_validated)
 
     return result
 
