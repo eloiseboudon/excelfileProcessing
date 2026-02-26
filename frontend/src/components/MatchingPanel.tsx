@@ -1,20 +1,24 @@
 import {
   AlertTriangle,
+  BarChart3,
   Check,
   ChevronLeft,
   ChevronRight,
   GitMerge,
   Loader2,
   Play,
+  RefreshCw,
   Search,
   X,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import {
+  fetchMatchingRuns,
   fetchPendingMatches,
   fetchMatchingStats,
   fetchSuppliers,
   MatchingCandidate,
+  MatchingRunItem,
   MatchingStatsData,
   PendingMatchItem,
   rejectMatch,
@@ -30,8 +34,119 @@ const statusLabels: Record<string, string> = {
   created: 'Matchs crees',
 };
 
+const CHART_COLORS = ['#B8860B', '#38bdf8', '#22c55e', '#e879f9', '#facc15', '#f43f5e'];
+
+interface ChartPoint { label: string; value: number }
+
+function MultiLineChart({ series, yLabel }: { series: { name: string; data: ChartPoint[] }[]; yLabel?: string }) {
+  const width = 700, height = 280, padding = 50;
+  const all = series.flatMap(s => s.data);
+  if (!all.length) return <div className="h-40 flex items-center justify-center text-sm text-[var(--color-text-muted)]">Aucune donnée</div>;
+
+  const maxVal = Math.max(...all.map(d => d.value)) * 1.15 || 1;
+  const labels = Array.from(new Set(all.map(d => d.label)));
+  const stepX = (width - padding * 2) / Math.max(1, labels.length - 1);
+  const ticks = 4;
+  const stepY = (height - padding * 2) / ticks;
+
+  const paths = series.map((s, idx) => {
+    const pts = labels.map((l, i) => {
+      const found = s.data.find(d => d.label === l);
+      return found ? { x: padding + i * stepX, y: height - padding - (found.value / maxVal) * (height - padding * 2) } : null;
+    }).filter(Boolean) as { x: number; y: number }[];
+    return { name: s.name, color: CHART_COLORS[idx % CHART_COLORS.length], points: pts, path: pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ') };
+  });
+
+  return (
+    <div>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full" preserveAspectRatio="xMidYMid meet">
+        {Array.from({ length: ticks + 1 }).map((_, i) => (
+          <line key={i} x1={padding} y1={height - padding - i * stepY} x2={width - padding} y2={height - padding - i * stepY} stroke="var(--color-chart-grid, rgba(255,255,255,0.06))" />
+        ))}
+        <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="var(--color-chart-axis, rgba(255,255,255,0.2))" />
+        <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="var(--color-chart-axis, rgba(255,255,255,0.2))" />
+        {labels.map((l, i) => (
+          <text key={l} x={padding + i * stepX} y={height - padding + 16} fontSize="9" textAnchor="middle" fill="var(--color-chart-text, rgba(255,255,255,0.5))">{l}</text>
+        ))}
+        {Array.from({ length: ticks + 1 }).map((_, i) => (
+          <text key={i} x={padding - 6} y={height - padding - i * stepY + 3} fontSize="9" textAnchor="end" fill="var(--color-chart-text, rgba(255,255,255,0.5))">{((maxVal / ticks) * i).toFixed(maxVal < 1 ? 4 : 0)}</text>
+        ))}
+        {yLabel && <text x={12} y={height / 2} fontSize="10" fill="var(--color-chart-text, rgba(255,255,255,0.5))" transform={`rotate(-90, 12, ${height / 2})`} textAnchor="middle">{yLabel}</text>}
+        {paths.map(s => (
+          <g key={s.name}>
+            <path d={s.path} fill="none" stroke={s.color} strokeWidth="2" />
+            {s.points.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r={3} fill={s.color} />)}
+          </g>
+        ))}
+      </svg>
+      <div className="flex gap-4 justify-center mt-1">
+        {paths.map(s => (
+          <div key={s.name} className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
+            <span className="w-3 h-0.5 rounded" style={{ background: s.color }} />
+            {s.name}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StackedBarChart({ series, labels }: { series: { name: string; color: string; values: number[] }[]; labels: string[] }) {
+  const width = 700, height = 280, padding = 50;
+  if (!labels.length) return <div className="h-40 flex items-center justify-center text-sm text-[var(--color-text-muted)]">Aucune donnée</div>;
+
+  const totals = labels.map((_, i) => series.reduce((sum, s) => sum + (s.values[i] || 0), 0));
+  const maxVal = Math.max(...totals) * 1.15 || 1;
+  const barW = Math.min(30, (width - padding * 2) / labels.length - 4);
+  const stepX = (width - padding * 2) / labels.length;
+  const ticks = 4;
+  const stepY = (height - padding * 2) / ticks;
+
+  return (
+    <div>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full" preserveAspectRatio="xMidYMid meet">
+        {Array.from({ length: ticks + 1 }).map((_, i) => (
+          <line key={i} x1={padding} y1={height - padding - i * stepY} x2={width - padding} y2={height - padding - i * stepY} stroke="var(--color-chart-grid, rgba(255,255,255,0.06))" />
+        ))}
+        <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="var(--color-chart-axis, rgba(255,255,255,0.2))" />
+        <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="var(--color-chart-axis, rgba(255,255,255,0.2))" />
+        {labels.map((l, i) => {
+          const cx = padding + i * stepX + stepX / 2;
+          let cumY = 0;
+          return (
+            <g key={i}>
+              {series.map(s => {
+                const val = s.values[i] || 0;
+                const barH = (val / maxVal) * (height - padding * 2);
+                const y = height - padding - cumY - barH;
+                cumY += barH;
+                return <rect key={s.name} x={cx - barW / 2} y={y} width={barW} height={barH} fill={s.color} rx={1} />;
+              })}
+              <text x={cx} y={height - padding + 16} fontSize="9" textAnchor="middle" fill="var(--color-chart-text, rgba(255,255,255,0.5))">{l}</text>
+            </g>
+          );
+        })}
+        {Array.from({ length: ticks + 1 }).map((_, i) => (
+          <text key={i} x={padding - 6} y={height - padding - i * stepY + 3} fontSize="9" textAnchor="end" fill="var(--color-chart-text, rgba(255,255,255,0.5))">{((maxVal / ticks) * i).toFixed(0)}</text>
+        ))}
+      </svg>
+      <div className="flex gap-4 justify-center mt-1">
+        {series.map(s => (
+          <div key={s.name} className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
+            <span className="w-3 h-3 rounded-sm" style={{ background: s.color }} />
+            {s.name}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function MatchingPanel() {
   const notify = useNotification();
+
+  // Tab
+  const [activeTab, setActiveTab] = useState<'validation' | 'rapport'>('validation');
 
   // Suppliers
   const [suppliers, setSuppliers] = useState<{ id: number; name: string }[]>([]);
@@ -57,6 +172,10 @@ function MatchingPanel() {
   // Stats
   const [stats, setStats] = useState<MatchingStatsData | null>(null);
 
+  // Rapport — matching runs history
+  const [runs, setRuns] = useState<MatchingRunItem[]>([]);
+  const [loadingRuns, setLoadingRuns] = useState(false);
+
   // Error
   const [error, setError] = useState<string | null>(null);
 
@@ -69,6 +188,10 @@ function MatchingPanel() {
       .catch(() => {});
     loadStats();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'rapport' && runs.length === 0) loadRuns();
+  }, [activeTab]);
 
   useEffect(() => {
     loadPending();
@@ -95,6 +218,14 @@ function MatchingPanel() {
     return fetchMatchingStats()
       .then((data) => { setStats(data); return data; })
       .catch(() => undefined);
+  }
+
+  function loadRuns() {
+    setLoadingRuns(true);
+    fetchMatchingRuns(30)
+      .then(setRuns)
+      .catch(() => notify('Erreur lors du chargement des runs', 'error'))
+      .finally(() => setLoadingRuns(false));
   }
 
   function handleModelInputChange(value: string) {
@@ -281,145 +412,280 @@ function MatchingPanel() {
         </div>
       )}
 
-      {/* Bandeau "en cours" */}
-      {running && (
-        <div className="flex items-center gap-2 p-3 rounded-md bg-[var(--color-bg-elevated)] border border-[var(--color-border-subtle)]">
-          <Loader2 className="w-4 h-4 animate-spin text-[#B8860B] shrink-0" />
-          <p className="text-sm text-[var(--color-text-primary)]">
-            Rapprochement en cours — les statistiques se mettent a jour toutes les 5s.
-          </p>
-        </div>
-      )}
-
-      {/* Erreur inline */}
-      {error && !running && (
-        <div className="flex items-start gap-2 p-3 rounded-md bg-[var(--color-bg-elevated)] border border-red-500/30">
-          <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5 shrink-0" />
-          <div>
-            <p className="text-sm font-medium text-red-400">Echec du rapprochement</p>
-            <p className="text-sm text-red-400/80 mt-1">{error}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Produits Odoo sans correspondance fournisseur */}
-      {stats && stats.total_odoo_unmatched > 0 && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-400/70">
-            Produits Odoo sans correspondance fournisseur
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-amber-500/10 rounded-md px-3 py-2">
-              <div className="text-xl font-bold text-amber-400">
-                {stats.total_odoo_never_submitted}
-              </div>
-              <div className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                jamais soumis au LLM
-              </div>
-              {stats.total_odoo_never_submitted > 0 && (
-                <div className="text-xs text-amber-400/60 mt-1">
-                  → lancez le rapprochement
-                </div>
-              )}
-            </div>
-            <div className="bg-[var(--color-bg-elevated)] rounded-md px-3 py-2">
-              <div className="text-xl font-bold text-[var(--color-text-primary)]">
-                {stats.total_pending}
-              </div>
-              <div className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                en attente de validation
-              </div>
-              {stats.total_pending > 0 && (
-                <div className="text-xs text-[var(--color-text-muted)]/60 mt-1">
-                  → validez les matchs ci-dessous
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Section Validation — PRIMARY */}
-      <div className="card overflow-hidden">
-        <div className="p-4 flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h3 className="text-sm font-semibold text-[var(--color-text-heading)]">
-              {statusLabels[statusFilter]} ({pendingTotal})
-            </h3>
-            <select
-              value={selectedSupplier ?? ''}
-              onChange={(e) => {
-                const val = e.target.value;
-                setSelectedSupplier(val ? Number(val) : undefined);
-                setPendingPage(1);
-              }}
-              className="rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] px-2 py-1 text-xs"
-              data-testid="supplier-filter"
-            >
-              <option value="">Tous les fournisseurs</option>
-              {suppliers.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setPendingPage(1);
-              }}
-              className="rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] px-2 py-1 text-xs"
-              data-testid="status-filter"
-            >
-              <option value="pending">En attente</option>
-              <option value="validated">Valides</option>
-              <option value="rejected">Rejetes</option>
-              <option value="created">Crees</option>
-            </select>
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-              <input
-                type="text"
-                value={modelInput}
-                onChange={(e) => handleModelInputChange(e.target.value)}
-                placeholder="Filtrer par modèle..."
-                className="rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] pl-7 pr-2 py-1 text-xs w-44"
-                data-testid="model-filter"
-              />
-            </div>
-          </div>
-          {paginationControls}
-        </div>
-
-        {loadingPending ? (
-          <div className="p-8 flex justify-center">
-            <Loader2 className="w-6 h-6 animate-spin text-[var(--color-text-muted)]" />
-          </div>
-        ) : pending.length === 0 ? (
-          <div className="p-8 text-center text-sm text-[var(--color-text-muted)]">
-            Aucun match a afficher.
-          </div>
-        ) : (
-          <div className="divide-y divide-[var(--color-border-subtle)]">
-            {pending.map((pm) => (
-              <PendingMatchRow
-                key={pm.id}
-                pm={pm}
-                canValidate={canValidate}
-                showActions={showActions}
-                onValidate={handleValidate}
-                onReject={handleReject}
-              />
-            ))}
-          </div>
-        )}
-
-        {paginationControls && (
-          <div className="p-4 border-t border-[var(--color-border-subtle)] flex justify-end">
-            {paginationControls}
-          </div>
-        )}
+      {/* Tabs */}
+      <div className="border-b border-[var(--color-border-subtle)] flex gap-0">
+        <button
+          type="button"
+          onClick={() => setActiveTab('validation')}
+          className={`px-4 py-2 text-sm font-medium -mb-px ${activeTab === 'validation' ? 'border-b-2 border-[#B8860B] text-[#B8860B]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'}`}
+        >
+          <Check className="w-4 h-4 inline -mt-0.5 mr-1.5" />
+          Validation
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('rapport')}
+          className={`px-4 py-2 text-sm font-medium -mb-px ${activeTab === 'rapport' ? 'border-b-2 border-[#B8860B] text-[#B8860B]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'}`}
+        >
+          <BarChart3 className="w-4 h-4 inline -mt-0.5 mr-1.5" />
+          Rapport
+        </button>
       </div>
 
+      {activeTab === 'validation' && (
+        <>
+          {/* Bandeau "en cours" */}
+          {running && (
+            <div className="flex items-center gap-2 p-3 rounded-md bg-[var(--color-bg-elevated)] border border-[var(--color-border-subtle)]">
+              <Loader2 className="w-4 h-4 animate-spin text-[#B8860B] shrink-0" />
+              <p className="text-sm text-[var(--color-text-primary)]">
+                Rapprochement en cours — les statistiques se mettent a jour toutes les 5s.
+              </p>
+            </div>
+          )}
+
+          {/* Erreur inline */}
+          {error && !running && (
+            <div className="flex items-start gap-2 p-3 rounded-md bg-[var(--color-bg-elevated)] border border-red-500/30">
+              <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-red-400">Echec du rapprochement</p>
+                <p className="text-sm text-red-400/80 mt-1">{error}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Produits Odoo sans correspondance fournisseur */}
+          {stats && stats.total_odoo_unmatched > 0 && (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-400/70">
+                Produits Odoo sans correspondance fournisseur
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-amber-500/10 rounded-md px-3 py-2">
+                  <div className="text-xl font-bold text-amber-400">
+                    {stats.total_odoo_never_submitted}
+                  </div>
+                  <div className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                    jamais soumis au LLM
+                  </div>
+                  {stats.total_odoo_never_submitted > 0 && (
+                    <div className="text-xs text-amber-400/60 mt-1">
+                      → lancez le rapprochement
+                    </div>
+                  )}
+                </div>
+                <div className="bg-[var(--color-bg-elevated)] rounded-md px-3 py-2">
+                  <div className="text-xl font-bold text-[var(--color-text-primary)]">
+                    {stats.total_pending}
+                  </div>
+                  <div className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                    en attente de validation
+                  </div>
+                  {stats.total_pending > 0 && (
+                    <div className="text-xs text-[var(--color-text-muted)]/60 mt-1">
+                      → validez les matchs ci-dessous
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Section Validation — PRIMARY */}
+          <div className="card overflow-hidden">
+            <div className="p-4 flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h3 className="text-sm font-semibold text-[var(--color-text-heading)]">
+                  {statusLabels[statusFilter]} ({pendingTotal})
+                </h3>
+                <select
+                  value={selectedSupplier ?? ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSelectedSupplier(val ? Number(val) : undefined);
+                    setPendingPage(1);
+                  }}
+                  className="rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] px-2 py-1 text-xs"
+                  data-testid="supplier-filter"
+                >
+                  <option value="">Tous les fournisseurs</option>
+                  {suppliers.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value);
+                    setPendingPage(1);
+                  }}
+                  className="rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] px-2 py-1 text-xs"
+                  data-testid="status-filter"
+                >
+                  <option value="pending">En attente</option>
+                  <option value="validated">Valides</option>
+                  <option value="rejected">Rejetes</option>
+                  <option value="created">Crees</option>
+                </select>
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+                  <input
+                    type="text"
+                    value={modelInput}
+                    onChange={(e) => handleModelInputChange(e.target.value)}
+                    placeholder="Filtrer par modèle..."
+                    className="rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] pl-7 pr-2 py-1 text-xs w-44"
+                    data-testid="model-filter"
+                  />
+                </div>
+              </div>
+              {paginationControls}
+            </div>
+
+            {loadingPending ? (
+              <div className="p-8 flex justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-[var(--color-text-muted)]" />
+              </div>
+            ) : pending.length === 0 ? (
+              <div className="p-8 text-center text-sm text-[var(--color-text-muted)]">
+                Aucun match a afficher.
+              </div>
+            ) : (
+              <div className="divide-y divide-[var(--color-border-subtle)]">
+                {pending.map((pm) => (
+                  <PendingMatchRow
+                    key={pm.id}
+                    pm={pm}
+                    canValidate={canValidate}
+                    showActions={showActions}
+                    onValidate={handleValidate}
+                    onReject={handleReject}
+                  />
+                ))}
+              </div>
+            )}
+
+            {paginationControls && (
+              <div className="p-4 border-t border-[var(--color-border-subtle)] flex justify-end">
+                {paginationControls}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {activeTab === 'rapport' && <RapportTab runs={runs} loading={loadingRuns} onRefresh={loadRuns} />}
+
+    </div>
+  );
+}
+
+
+function RapportTab({ runs, loading, onRefresh }: { runs: MatchingRunItem[]; loading: boolean; onRefresh: () => void }) {
+  // Reverse to show oldest → newest (left to right) and limit to 15
+  const sorted = [...runs].filter(r => r.status === 'completed').reverse().slice(-15);
+  const dateLabels = sorted.map(r => r.ran_at ? new Date(r.ran_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : '?');
+
+  // Chart 1: Cost & Cache
+  const costData: ChartPoint[] = sorted.map((r, i) => ({ label: dateLabels[i], value: r.cost_estimate ?? 0 }));
+  const cacheData: ChartPoint[] = sorted.map((r, i) => {
+    const total = (r.from_cache ?? 0) + (r.llm_calls ?? 0) * 25; // approximate total labels
+    const pct = total > 0 ? ((r.from_cache ?? 0) / total) * 100 : 0;
+    return { label: dateLabels[i], value: Math.round(pct) };
+  });
+
+  // Chart 2: Stacked results
+  const stackedSeries = [
+    { name: 'Auto-matchés', color: '#22c55e', values: sorted.map(r => r.auto_matched ?? 0) },
+    { name: 'À valider', color: '#f59e0b', values: sorted.map(r => r.pending_review ?? 0) },
+    { name: 'Rejetés', color: '#ef4444', values: sorted.map(r => r.auto_rejected ?? 0) },
+    { name: 'Non trouvés', color: '#6b7280', values: sorted.map(r => r.not_found ?? 0) },
+  ];
+
+  // Chart 3: Products processed (coverage proxy)
+  const productsData: ChartPoint[] = sorted.map((r, i) => ({ label: dateLabels[i], value: r.total_products ?? 0 }));
+  const autoData: ChartPoint[] = sorted.map((r, i) => ({ label: dateLabels[i], value: r.auto_matched ?? 0 }));
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-[var(--color-text-heading)]">
+          Historique des runs ({runs.length})
+        </h3>
+        <button type="button" onClick={onRefresh} disabled={loading} className="btn btn-secondary text-xs py-1 px-2 flex items-center gap-1.5">
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          Rafraîchir
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="p-8 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-[var(--color-text-muted)]" /></div>
+      ) : sorted.length === 0 ? (
+        <div className="p-8 text-center text-sm text-[var(--color-text-muted)]">Aucun run complété.</div>
+      ) : (
+        <>
+          {/* Chart 1: Cost & Cache */}
+          <div className="card p-4 space-y-2">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Coût LLM & Taux de cache</h4>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-[var(--color-text-muted)] mb-1">Coût estimé (€)</p>
+                <MultiLineChart series={[{ name: 'Coût (€)', data: costData }]} yLabel="€" />
+              </div>
+              <div>
+                <p className="text-xs text-[var(--color-text-muted)] mb-1">Taux de cache (%)</p>
+                <MultiLineChart series={[{ name: 'Cache %', data: cacheData }]} yLabel="%" />
+              </div>
+            </div>
+          </div>
+
+          {/* Chart 2: Stacked results */}
+          <div className="card p-4 space-y-2">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Répartition des résultats</h4>
+            <StackedBarChart series={stackedSeries} labels={dateLabels} />
+          </div>
+
+          {/* Chart 3: Coverage proxy */}
+          <div className="card p-4 space-y-2">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Produits traités par run</h4>
+            <MultiLineChart series={[{ name: 'Produits traités', data: productsData }, { name: 'Auto-matchés', data: autoData }]} />
+          </div>
+
+          {/* History table */}
+          <div className="card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-[var(--color-border-subtle)]">
+                    {['Date', 'Durée', 'Coût', 'Produits', 'Cache', 'Auto', 'Pending', 'Rejetés', 'Not found', 'LLM calls'].map(h => (
+                      <th key={h} className="px-3 py-2 text-left font-medium text-[var(--color-text-muted)] whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--color-border-subtle)]">
+                  {[...sorted].reverse().map(r => (
+                    <tr key={r.id} className="hover:bg-[var(--color-bg-elevated)]">
+                      <td className="px-3 py-2 whitespace-nowrap text-[var(--color-text-primary)]">
+                        {r.ran_at ? new Date(r.ran_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap text-[var(--color-text-muted)]">{r.duration_seconds ? `${r.duration_seconds.toFixed(1)}s` : '—'}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-[var(--color-text-muted)]">{r.cost_estimate ? `${r.cost_estimate.toFixed(4)}€` : '—'}</td>
+                      <td className="px-3 py-2 whitespace-nowrap font-medium text-[var(--color-text-primary)]">{r.total_products ?? '—'}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-[#B8860B]">{r.from_cache ?? '—'}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-emerald-400">{r.auto_matched ?? '—'}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-amber-400">{r.pending_review ?? '—'}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-red-400">{r.auto_rejected ?? '—'}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-[var(--color-text-muted)]">{r.not_found ?? '—'}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-[var(--color-text-muted)]">{r.llm_calls ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

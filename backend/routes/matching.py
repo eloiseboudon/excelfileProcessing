@@ -557,6 +557,44 @@ def matching_stats():
     }), 200
 
 
+@bp.route("/matching/runs", methods=["GET"])
+@token_required("admin")
+def list_runs():
+    """Return the most recent matching runs for the Rapport tab."""
+    limit = request.args.get("limit", 30, type=int)
+    limit = min(limit, 100)
+
+    runs = (
+        MatchingRun.query
+        .order_by(MatchingRun.id.desc())
+        .limit(limit)
+        .all()
+    )
+
+    return jsonify([
+        {
+            "id": r.id,
+            "ran_at": r.ran_at.isoformat() if r.ran_at else None,
+            "status": r.status,
+            "total_products": r.total_products,
+            "from_cache": r.from_cache,
+            "llm_calls": r.llm_calls,
+            "auto_matched": r.auto_matched,
+            "pending_review": r.pending_review,
+            "auto_rejected": r.auto_rejected,
+            "not_found": r.not_found,
+            "errors": r.errors,
+            "cost_estimate": r.cost_estimate,
+            "duration_seconds": r.duration_seconds,
+            "cross_supplier_hits": r.cross_supplier_hits,
+            "fuzzy_hits": r.fuzzy_hits,
+            "attr_share_hits": r.attr_share_hits,
+            "nightly_job_id": r.nightly_job_id,
+        }
+        for r in runs
+    ]), 200
+
+
 @bp.route("/matching/cache", methods=["GET"])
 @token_required("admin")
 def list_cache():

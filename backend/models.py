@@ -583,6 +583,9 @@ class MatchingRun(db.Model):
     cost_estimate = db.Column(db.Float, nullable=True)
     duration_seconds = db.Column(db.Float, nullable=True)
     error_message = db.Column(db.Text, nullable=True)
+    cross_supplier_hits = db.Column(db.Integer, nullable=True)
+    fuzzy_hits = db.Column(db.Integer, nullable=True)
+    attr_share_hits = db.Column(db.Integer, nullable=True)
 
 
 class NightlyEmailRecipient(db.Model):

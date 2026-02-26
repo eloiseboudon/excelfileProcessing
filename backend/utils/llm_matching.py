@@ -1066,6 +1066,9 @@ def run_matching_job(
             mr.cost_estimate = cost_estimate
             mr.duration_seconds = duration
             mr.error_message = error_message
+            mr.cross_supplier_hits = cross_supplier_hits
+            mr.fuzzy_hits = fuzzy_hits
+            mr.attr_share_hits = attr_share_hits
             db.session.commit()
     except Exception:
         current_app.logger.exception("Failed to update MatchingRun #%d", run_id)
