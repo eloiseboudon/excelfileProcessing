@@ -326,7 +326,7 @@ export async function fetchSupplierApiReports(limit = 20) {
   return res.json() as Promise<SupplierApiReportEntry[]>;
 }
 
-export async function createProduct(data: any) {
+export async function createProduct(data: Record<string, unknown>) {
   return crudRequest('POST', `${API_BASE}/products`, data);
 }
 
@@ -378,11 +378,11 @@ export async function deleteSupplierApiField(fieldId: number) {
   return crudRequest('DELETE', `${API_BASE}/supplier_api/fields/${fieldId}`);
 }
 
-export async function updateProduct(id: number, data: any) {
+export async function updateProduct(id: number, data: Record<string, unknown>) {
   return crudRequest('PUT', `${API_BASE}/products/${id}`, data);
 }
 
-export async function bulkUpdateProducts(data: any[]) {
+export async function bulkUpdateProducts(data: Record<string, unknown>[]) {
   return crudRequest('PUT', `${API_BASE}/products/bulk_update`, data);
 }
 
@@ -519,11 +519,11 @@ export async function fetchReferenceTable(table: string) {
   return res.json();
 }
 
-export async function updateReferenceItem(table: string, id: number, data: any) {
+export async function updateReferenceItem(table: string, id: number, data: Record<string, unknown>) {
   return crudRequest('PUT', `${API_BASE}/references/${table}/${id}`, data);
 }
 
-export async function createReferenceItem(table: string, data: any) {
+export async function createReferenceItem(table: string, data: Record<string, unknown>) {
   return crudRequest('POST', `${API_BASE}/references/${table}`, data);
 }
 
@@ -539,11 +539,11 @@ export async function fetchUsers() {
   return res.json();
 }
 
-export async function updateUser(id: number, data: any) {
+export async function updateUser(id: number, data: Record<string, unknown>) {
   return crudRequest('PUT', `${API_BASE}/users/${id}`, data);
 }
 
-export async function createUser(data: any) {
+export async function createUser(data: Record<string, unknown>) {
   return crudRequest('POST', `${API_BASE}/users`, data);
 }
 

@@ -35,6 +35,30 @@ from models import (
 )
 
 
+def select_best_mapping(
+    supplier_api_id: int, mapping_version_id: int | None = None
+) -> MappingVersion | None:
+    """Return the best MappingVersion for a supplier API.
+
+    If *mapping_version_id* is given and exists, return it directly.
+    Otherwise fall back to the latest active version, then any latest version.
+    """
+    query = MappingVersion.query.filter_by(supplier_api_id=supplier_api_id)
+    if mapping_version_id is not None:
+        explicit = query.filter_by(id=mapping_version_id).first()
+        if explicit:
+            return explicit
+
+    active = (
+        query.filter(MappingVersion.is_active.is_(True))
+        .order_by(MappingVersion.version.desc(), MappingVersion.id.desc())
+        .first()
+    )
+    return active or query.order_by(
+        MappingVersion.version.desc(), MappingVersion.id.desc()
+    ).first()
+
+
 _EXPRESSION_CACHE: Dict[str, jmespath.parser.ParsedResult] = {}
 _MAX_REPORT_ITEMS = 200
 _MAX_RAW_SAMPLE_ITEMS = 25

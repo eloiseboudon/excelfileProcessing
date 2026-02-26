@@ -20,8 +20,8 @@ const TABLES = [
 
 function TranslationAdmin({ isVisible, onClose }: TranslationAdminProps) {
   const [table, setTable] = useState<string | null>(null);
-  const [data, setData] = useState<any[]>([]);
-  const [colors, setColors] = useState<any[]>([]);
+  const [data, setData] = useState<Record<string, unknown>[]>([]);
+  const [colors, setColors] = useState<Record<string, unknown>[]>([]);
   const notify = useNotification();
 
   useEffect(() => {
@@ -37,15 +37,15 @@ function TranslationAdmin({ isVisible, onClose }: TranslationAdminProps) {
           fetchReferenceTable(t),
           fetchColors(),
         ]);
-        setColors(cols as any[]);
-        const mapped = (translations as any[]).map((item) => {
-          const c = (cols as any[]).find((cc) => cc.color === item.color_target);
+        setColors(cols as Record<string, unknown>[]);
+        const mapped = (translations as Record<string, unknown>[]).map((item) => {
+          const c = (cols as Record<string, unknown>[]).find((cc) => cc.color === item.color_target);
           return { ...item, color_target_id: c ? c.id : '' };
         });
         setData(mapped);
       } else {
         const res = await fetchReferenceTable(t);
-        setData(res as any[]);
+        setData(res as Record<string, unknown>[]);
       }
     } catch {
       setData([]);
@@ -71,7 +71,7 @@ function TranslationAdmin({ isVisible, onClose }: TranslationAdminProps) {
   const handleSave = async (id: number) => {
     const item = data.find((d) => d.id === id);
     if (!item) return;
-    const payload: Record<string, any> = { ...item };
+    const payload: Record<string, unknown> = { ...item };
     delete payload.id;
     try {
       if (id < 0) {
@@ -82,8 +82,8 @@ function TranslationAdmin({ isVisible, onClose }: TranslationAdminProps) {
         notify('Entrée mise à jour', 'success');
       }
       await load(table!);
-    } catch {
-      /* empty */
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Erreur de sauvegarde', 'error');
     }
   };
 
@@ -96,15 +96,15 @@ function TranslationAdmin({ isVisible, onClose }: TranslationAdminProps) {
         notify('Entrée supprimée', 'success');
         await load(table!);
       }
-    } catch {
-      /* empty */
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Erreur de suppression', 'error');
     }
   };
 
   const handleAdd = () => {
     const fields =
       data.length > 0 ? Object.keys(data[0]).filter((k) => k !== 'id') : [];
-    const newItem: any = { id: Date.now() * -1 };
+    const newItem: Record<string, unknown> = { id: Date.now() * -1 };
     fields.forEach((f) => (newItem[f] = ''));
     if (table === 'color_translations') {
       newItem.color_target_id = colors[0]?.id ?? '';
