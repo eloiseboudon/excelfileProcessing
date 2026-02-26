@@ -31,30 +31,39 @@ def configure_logging(app):
     level_name = os.getenv("LOG_LEVEL", "INFO").upper()
     level = getattr(logging, level_name, logging.INFO)
 
-    # --- file handler (JSON, 10 MB, 5 backups) ---
-    file_handler = RotatingFileHandler(
-        str(log_dir / "app.log"),
-        maxBytes=10 * 1024 * 1024,
-        backupCount=5,
-        encoding="utf-8",
-    )
-    file_handler.setLevel(level)
-    file_handler.setFormatter(_JSONFormatter())
-
-    # --- console handler (human-readable) ---
+    # --- console handler (human-readable) — always available ---
     console_handler = logging.StreamHandler()
     console_handler.setLevel(level)
     console_handler.setFormatter(
         logging.Formatter("[%(asctime)s] %(levelname)s %(name)s: %(message)s")
     )
 
+    # --- file handler (JSON, 10 MB, 5 backups) — best effort ---
+    file_handler = None
+    try:
+        file_handler = RotatingFileHandler(
+            str(log_dir / "app.log"),
+            maxBytes=10 * 1024 * 1024,
+            backupCount=5,
+            encoding="utf-8",
+        )
+        file_handler.setLevel(level)
+        file_handler.setFormatter(_JSONFormatter())
+    except PermissionError:
+        logging.warning(
+            "Cannot write to %s — file logging disabled, using console only.",
+            log_dir / "app.log",
+        )
+
     # apply to the root logger so every library benefits
     root = logging.getLogger()
     root.setLevel(level)
-    root.addHandler(file_handler)
     root.addHandler(console_handler)
+    if file_handler:
+        root.addHandler(file_handler)
 
     # also configure Flask's own logger
     app.logger.setLevel(level)
-    app.logger.addHandler(file_handler)
     app.logger.addHandler(console_handler)
+    if file_handler:
+        app.logger.addHandler(file_handler)
