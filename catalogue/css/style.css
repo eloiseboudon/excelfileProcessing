@@ -254,7 +254,14 @@ body {
   max-width:900px; width:100%;
   max-height:90vh; overflow-y:auto;
   position:relative;
-  animation: scaleIn .3s ease;
+  animation: zoomFromCard .35s cubic-bezier(.25,.46,.45,.94) forwards;
+  --from-x: 0px;
+  --from-y: 0px;
+}
+.card.is-zooming {
+  transform: translateY(-6px) scale(1.06);
+  transition: transform .18s cubic-bezier(.25,.46,.45,.94);
+  z-index: 1;
 }
 .modal-close {
   position:absolute; top:16px; right:16px;
@@ -340,6 +347,10 @@ body {
 @keyframes scaleIn {
   from { opacity:0; transform:scale(.95); }
   to { opacity:1; transform:scale(1); }
+}
+@keyframes zoomFromCard {
+  from { opacity:0; transform:translate(var(--from-x), var(--from-y)) scale(0.12); }
+  to   { opacity:1; transform:translate(0,0) scale(1); }
 }
 @keyframes pulse {
   0%, 100% { opacity:1; }
