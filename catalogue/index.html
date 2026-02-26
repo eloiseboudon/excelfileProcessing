@@ -1,228 +1,1028 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>HOTWAV × AJT PRO — Catalogue 2025</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HOTWAV × AJT PRO — Catalogue 2026</title>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #08080e; --card: rgba(16,16,22,0.9); --gold: #d4a843; --gold-bright: #f0d870;
-  --gold-dim: rgba(212,168,67,0.15); --red: #d42b2b; --text: #e8e4dc;
-  --text-dim: rgba(255,255,255,0.5); --text-ghost: rgba(255,255,255,0.12);
-  --glass: rgba(255,255,255,0.03); --border: rgba(212,168,67,0.08);
+  --bg: #08080e;
+  --bg2: #0e0e18;
+  --card-bg: rgba(255,255,255,0.04);
+  --card-border: rgba(255,255,255,0.08);
+  --gold: #d4a843;
+  --gold-dim: rgba(212,168,67,0.15);
+  --red: #d42b2b;
+  --red-dim: rgba(212,43,43,0.15);
+  --text: #f0f0f0;
+  --text-dim: #8a8a9a;
+  --text-mid: #b0b0c0;
+  --radius: 20px;
+  --radius-sm: 12px;
 }
-*{margin:0;padding:0;box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
-::selection{background:rgba(212,168,67,0.3);color:#fff}
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Poppins', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+  line-height: 1.6;
+}
 
-/* NAV */
-.nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(8,8,14,0.85);backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid var(--border)}
-.nav::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent 15%,var(--gold) 50%,transparent 85%);box-shadow:0 0 12px rgba(212,168,67,0.3)}
-.nav-inner{max-width:1200px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:24px}
-.nav-logos{display:flex;align-items:center;gap:12px;flex-shrink:0}
-.nav-logos img{height:28px;filter:drop-shadow(0 0 8px rgba(212,168,67,0.2))}
-.nav-logos .x{font-size:12px;color:rgba(212,168,67,0.15)}
-.nav-tabs{display:flex;gap:4px;flex:1;justify-content:center;flex-wrap:wrap}
-.nav-tab{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;color:var(--text-dim);cursor:pointer;transition:all 0.3s;border:1px solid transparent;white-space:nowrap}
-.nav-tab:hover{color:var(--text);background:var(--glass)}
-.nav-tab.active{color:var(--gold);background:var(--gold-dim);border-color:rgba(212,168,67,0.2);box-shadow:0 0 15px rgba(212,168,67,0.1)}
-.nav-search{position:relative;flex-shrink:0}
-.nav-search input{background:var(--glass);border:1px solid var(--border);border-radius:8px;padding:8px 12px 8px 36px;font-size:13px;color:var(--text);font-family:inherit;width:200px;transition:all 0.3s;outline:none}
-.nav-search input:focus{border-color:rgba(212,168,67,0.3);box-shadow:0 0 15px rgba(212,168,67,0.1);width:260px}
-.nav-search input::placeholder{color:var(--text-ghost)}
-.nav-search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;stroke:var(--text-ghost);fill:none;stroke-width:2}
+/* ========== BACKGROUND ORBS ========== */
+.orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.12;
+  pointer-events: none;
+  z-index: 0;
+}
+.orb-1 { width:600px; height:600px; background:var(--gold); top:-200px; left:-200px; }
+.orb-2 { width:500px; height:500px; background:var(--red); bottom:-150px; right:-150px; }
+.orb-3 { width:400px; height:400px; background:#4a3aff; top:50%; left:50%; transform:translate(-50%,-50%); }
 
-/* HERO */
-.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:80px 24px;position:relative;overflow:hidden}
-.hero-orb{position:absolute;border-radius:50%;pointer-events:none}
-.hero-orb.gold{width:600px;height:600px;top:-150px;left:-100px;background:radial-gradient(circle,rgba(212,168,67,0.08),transparent 60%)}
-.hero-orb.red{width:400px;height:400px;bottom:-100px;right:-50px;background:radial-gradient(circle,rgba(212,43,43,0.05),transparent 60%)}
-.hero-logos{display:flex;align-items:center;gap:24px;margin-bottom:40px;z-index:1}
-.hero-logos img{height:50px;filter:drop-shadow(0 0 20px rgba(212,168,67,0.3));animation:fadeUp .8s ease both}
-.hero-logos .x{font-size:24px;color:rgba(212,168,67,0.15);animation:fadeUp .8s .1s ease both}
-.hero h1{font-size:clamp(40px,8vw,72px);font-weight:900;letter-spacing:12px;z-index:1;background:linear-gradient(180deg,#fff,rgba(255,255,255,0.7));-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-shadow:0 0 60px rgba(212,168,67,0.2);animation:fadeUp .8s .2s ease both}
-.hero h2{font-size:clamp(20px,4vw,32px);font-weight:300;letter-spacing:10px;z-index:1;margin-top:4px;background:linear-gradient(90deg,#b89838,#f0d870,#b89838);-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 10px rgba(212,168,67,0.4));animation:fadeUp .8s .3s ease both}
-.hero-bar{width:60px;height:3px;margin:24px auto;z-index:1;background:linear-gradient(90deg,transparent,var(--red),#ff4545,var(--red),transparent);box-shadow:0 0 20px rgba(255,60,60,0.5);animation:fadeUp .8s .4s ease both}
-.hero-img{max-height:280px;z-index:1;margin:16px 0;filter:drop-shadow(0 10px 50px rgba(212,168,67,0.25));animation:fadeUp 1s .5s ease both}
-.hero-stats{display:flex;gap:40px;z-index:1;margin-top:32px;animation:fadeUp .8s .6s ease both}
-.hero-stat{text-align:center}
-.hero-stat .num{font-size:32px;font-weight:900;background:linear-gradient(180deg,var(--gold),var(--gold-bright));-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 8px rgba(212,168,67,0.3))}
-.hero-stat .label{font-size:11px;color:var(--text-dim);letter-spacing:2px;margin-top:4px}
-.hero-scroll{position:absolute;bottom:32px;z-index:1;animation:bounce 2s infinite;cursor:pointer}
-.hero-scroll svg{width:24px;height:24px;stroke:var(--gold);fill:none;stroke-width:2;opacity:0.5}
-@keyframes fadeUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
-@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(8px)}}
+/* ========== SCROLLBAR ========== */
+::-webkit-scrollbar { width:6px; }
+::-webkit-scrollbar-track { background:var(--bg); }
+::-webkit-scrollbar-thumb { background:var(--gold); border-radius:3px; }
 
-/* SECTIONS */
-.section{padding:80px 24px 40px;max-width:1200px;margin:0 auto}
-.section-header{text-align:center;margin-bottom:48px}
-.section-header h2{font-size:36px;font-weight:900;letter-spacing:3px;color:#fff;text-shadow:0 0 30px rgba(212,168,67,0.15)}
-.section-header .bar{width:40px;height:3px;margin:12px auto;background:linear-gradient(90deg,transparent,var(--red),transparent);box-shadow:0 0 10px rgba(255,60,60,0.4)}
-.section-header .sub{font-size:14px;color:var(--text-dim);letter-spacing:3px;margin-top:8px;background:linear-gradient(90deg,var(--gold),var(--gold-bright));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+/* ========== NAV ========== */
+.nav {
+  position: sticky; top:0; z-index:100;
+  background: rgba(8,8,14,0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--card-border);
+  padding: 0 24px;
+}
+.nav-inner {
+  max-width: 1400px; margin:0 auto;
+  display:flex; align-items:center; justify-content:space-between;
+  height: 64px;
+}
+.nav-logo { display:flex; align-items:center; gap:16px; text-decoration:none; }
+.nav-logo img { height:36px; }
+.nav-logo .sep { color:var(--text-dim); font-weight:300; font-size:20px; }
+.nav-tabs { display:flex; gap:4px; }
+.nav-tab {
+  padding: 8px 18px; border-radius:100px;
+  font-size: 13px; font-weight:500; color:var(--text-dim);
+  cursor:pointer; transition:all .3s; border:none; background:none;
+  white-space:nowrap;
+}
+.nav-tab:hover { color:var(--text); background:rgba(255,255,255,0.06); }
+.nav-tab.active { color:var(--bg); background:var(--gold); font-weight:600; }
+.nav-shop {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 20px; border-radius:100px;
+  background:var(--gold); color:var(--bg);
+  font-size:13px; font-weight:600;
+  text-decoration:none; transition:all .3s;
+}
+.nav-shop:hover { background:#e0b84e; transform:scale(1.03); }
 
-/* GRID */
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:20px}
-.product{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;transition:all .4s cubic-bezier(.4,0,.2,1);cursor:pointer;position:relative}
-.product::before{content:'';position:absolute;inset:-1px;border-radius:16px;z-index:0;background:linear-gradient(135deg,rgba(212,168,67,0.12),transparent 50%,rgba(212,168,67,0.06));opacity:0;transition:opacity .4s;pointer-events:none}
-.product:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,0.4),0 0 30px rgba(212,168,67,0.06)}
-.product:hover::before{opacity:1}
-.product-img{width:100%;height:240px;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,rgba(212,168,67,0.03),transparent 70%);padding:16px;position:relative;z-index:1}
-.product-img img{max-width:90%;max-height:210px;object-fit:contain;filter:drop-shadow(0 4px 20px rgba(0,0,0,0.4));transition:transform .4s}
-.product:hover .product-img img{transform:scale(1.05)}
-.product-badge{position:absolute;top:12px;left:12px;z-index:2;background:linear-gradient(135deg,#c41e3a,#ff3b3b);color:#fff;font-size:10px;font-weight:700;letter-spacing:1px;padding:4px 10px;border-radius:6px;box-shadow:0 0 12px rgba(255,59,59,0.4)}
-.product-info{padding:0 20px 20px;position:relative;z-index:1}
-.product-name{font-size:20px;font-weight:800;background:linear-gradient(90deg,var(--gold),var(--gold-bright));-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 6px rgba(212,168,67,0.3))}
-.product-tags{display:flex;gap:6px;margin:8px 0 12px;flex-wrap:wrap}
-.ptag{font-size:11px;padding:3px 10px;border-radius:6px}
-.ptag-net{font-weight:600;color:rgba(255,255,255,0.8);background:var(--gold-dim);border:1px solid rgba(212,168,67,0.15)}
-.ptag-mem{color:var(--text-dim);background:var(--glass)}
-.product-specs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px}
-.pspec{background:var(--glass);border:1px solid rgba(255,255,255,0.03);border-radius:8px;padding:8px 10px}
-.pspec-label{font-size:9px;color:rgba(212,168,67,0.4);font-weight:700;letter-spacing:1.5px;text-transform:uppercase}
-.pspec-val{font-size:12px;color:var(--text-dim);font-weight:500;margin-top:2px}
-.product-colors{border-top:1px solid var(--border);padding-top:12px}
-.product-colors-title{font-size:9px;color:rgba(212,168,67,0.3);font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
-.pcolor{display:flex;align-items:center;gap:8px;padding:3px 0}
-.pcolor-dot{width:10px;height:10px;border-radius:50%;background:linear-gradient(135deg,var(--gold),#9b7d2e);box-shadow:0 0 4px rgba(212,168,67,0.3);flex-shrink:0}
-.pcolor-name{font-size:12px;color:rgba(255,255,255,0.6);flex:1}
-.pcolor-ean{font-size:10px;font-family:'Courier New',monospace;color:var(--text-ghost)}
+/* ========== HERO ========== */
+.hero {
+  position:relative;
+  padding: 100px 24px 80px;
+  text-align:center;
+  overflow:hidden;
+}
+.hero::before {
+  content:'';
+  position:absolute; top:0; left:50%; transform:translateX(-50%);
+  width:800px; height:800px;
+  background:radial-gradient(circle, var(--gold-dim) 0%, transparent 70%);
+  pointer-events:none;
+}
+.hero-badge {
+  display:inline-flex; align-items:center; gap:8px;
+  padding:6px 16px; border-radius:100px;
+  background:var(--gold-dim);
+  color:var(--gold); font-size:12px; font-weight:600;
+  letter-spacing:1px; text-transform:uppercase;
+  margin-bottom:24px;
+  animation: fadeInUp .8s ease;
+}
+.hero h1 {
+  font-size:clamp(2.5rem, 6vw, 5rem);
+  font-weight:900;
+  line-height:1.05;
+  letter-spacing:-2px;
+  margin-bottom:16px;
+  animation: fadeInUp .8s ease .1s both;
+}
+.hero h1 span { color:var(--gold); }
+.hero p {
+  font-size:clamp(1rem, 2vw, 1.25rem);
+  color:var(--text-dim); max-width:600px; margin:0 auto 40px;
+  animation: fadeInUp .8s ease .2s both;
+}
+.hero-stats {
+  display:flex; justify-content:center; gap:48px; flex-wrap:wrap;
+  animation: fadeInUp .8s ease .3s both;
+}
+.hero-stat { text-align:center; }
+.hero-stat .num {
+  font-size:2.5rem; font-weight:800; color:var(--gold);
+  line-height:1.1;
+}
+.hero-stat .label { font-size:12px; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; }
 
-/* MODAL */
-.modal-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:24px}
-.modal-overlay.open{display:flex;animation:fadeIn .3s}
-.modal{background:linear-gradient(145deg,rgba(16,16,24,0.98),rgba(12,12,18,0.99));border:1px solid rgba(212,168,67,0.1);border-radius:20px;max-width:700px;width:100%;max-height:90vh;overflow-y:auto;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.6)}
-.modal-close{position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;background:var(--glass);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:5;color:var(--text-dim);font-size:18px;transition:all .2s}
-.modal-close:hover{background:var(--gold-dim);color:var(--gold)}
-.modal-img{width:100%;height:350px;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse,rgba(212,168,67,0.04),transparent 70%);padding:24px}
-.modal-img img{max-width:90%;max-height:300px;object-fit:contain;filter:drop-shadow(0 8px 30px rgba(0,0,0,0.5))}
-.modal-body{padding:24px 28px 28px}
-.modal-name{font-size:28px;font-weight:900;background:linear-gradient(90deg,var(--gold),var(--gold-bright));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+/* ========== SECTION ========== */
+.section {
+  max-width:1400px; margin:0 auto;
+  padding: 60px 24px 40px;
+}
+.section-header {
+  display:flex; align-items:center; gap:16px;
+  margin-bottom:8px;
+}
+.section-icon { font-size:28px; }
+.section-title {
+  font-size:clamp(1.5rem, 3vw, 2rem);
+  font-weight:800;
+  letter-spacing:-1px;
+}
+.section-sub {
+  color:var(--text-dim); font-size:13px; font-weight:500;
+  margin-bottom:32px; padding-left:44px;
+  letter-spacing:1px;
+}
 
-/* FOOTER */
-.footer{padding:60px 24px;text-align:center;border-top:1px solid var(--border);margin-top:60px}
-.footer-logos{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:20px}
-.footer-logos img{height:32px;filter:drop-shadow(0 0 10px rgba(212,168,67,0.2))}
-.footer-logos .x{font-size:14px;color:rgba(212,168,67,0.1)}
-.footer p{font-size:12px;color:var(--text-ghost);margin:4px 0}
-.footer .url{font-weight:700;background:linear-gradient(90deg,var(--gold),var(--gold-bright));-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:14px}
-.reveal{opacity:0;transform:translateY(40px);transition:opacity .6s,transform .6s}
-.reveal.visible{opacity:1;transform:translateY(0)}
-.count-badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;border-radius:10px;background:var(--gold-dim);color:var(--gold);font-size:10px;font-weight:700;margin-left:6px;padding:0 6px}
-@media(max-width:768px){.nav-tabs{display:none}.nav-search input{width:140px}.hero h1{letter-spacing:6px}.grid{grid-template-columns:1fr}.hero-stats{gap:20px}}
+/* ========== PRODUCT GRID ========== */
+.grid {
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap:20px;
+}
+
+/* ========== PRODUCT CARD ========== */
+.card {
+  background: var(--card-bg);
+  border:1px solid var(--card-border);
+  border-radius: var(--radius);
+  overflow:hidden;
+  transition: all .4s cubic-bezier(.25,.46,.45,.94);
+  position:relative;
+  cursor:pointer;
+}
+.card:hover {
+  border-color: rgba(212,168,67,0.3);
+  transform: translateY(-6px);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 0 40px var(--gold-dim);
+}
+.card-img-wrap {
+  position:relative;
+  height:320px;
+  display:flex; align-items:center; justify-content:center;
+  background: radial-gradient(ellipse at center, rgba(255,255,255,0.03) 0%, transparent 70%);
+  overflow:hidden;
+  padding:20px;
+}
+.card-img {
+  max-height:100%; max-width:100%;
+  object-fit:contain;
+  transition:transform .5s cubic-bezier(.25,.46,.45,.94);
+}
+.card:hover .card-img { transform:scale(1.06); }
+.card-badge {
+  position:absolute; top:12px; left:12px;
+  padding:4px 10px; border-radius:6px;
+  font-size:11px; font-weight:700;
+  text-transform:uppercase; letter-spacing:.5px;
+}
+.badge-5g { background:var(--red); color:#fff; }
+.badge-4g { background:rgba(255,255,255,0.12); color:var(--text-mid); }
+.badge-lte { background:rgba(74,58,255,0.3); color:#a0a0ff; }
+.badge-soon {
+  background:rgba(212,168,67,0.2); color:var(--gold);
+  animation: pulse 2s infinite;
+}
+.card-body { padding:16px 20px 20px; }
+.card-name {
+  font-size:18px; font-weight:700;
+  margin-bottom:2px;
+}
+.card-specs {
+  font-size:12px; color:var(--text-dim);
+  margin-bottom:12px;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+.card-highlights {
+  display:flex; gap:8px; flex-wrap:wrap;
+  margin-bottom:14px;
+}
+.card-hl {
+  padding:4px 10px; border-radius:6px;
+  background:rgba(255,255,255,0.06);
+  font-size:11px; font-weight:500; color:var(--text-mid);
+}
+.card-bottom {
+  display:flex; align-items:center; justify-content:space-between;
+}
+.color-dots { display:flex; gap:6px; }
+.color-dot {
+  width:22px; height:22px; border-radius:50%;
+  border:2px solid transparent;
+  cursor:pointer; transition:all .25s;
+  position:relative;
+}
+.color-dot:hover, .color-dot.active {
+  border-color:var(--gold);
+  transform:scale(1.15);
+  box-shadow:0 0 8px var(--gold-dim);
+}
+.card-cart {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 14px; border-radius:10px;
+  background:var(--gold); color:var(--bg);
+  font-size:12px; font-weight:700;
+  text-decoration:none; transition:all .3s;
+  border:none; cursor:pointer;
+}
+.card-cart:hover { background:#e0b84e; transform:scale(1.05); }
+
+/* ========== MODAL ========== */
+.modal-overlay {
+  position:fixed; inset:0; z-index:200;
+  background:rgba(0,0,0,0.8);
+  backdrop-filter:blur(10px);
+  display:none; align-items:center; justify-content:center;
+  padding:24px;
+}
+.modal-overlay.open { display:flex; }
+.modal {
+  background:var(--bg2);
+  border:1px solid var(--card-border);
+  border-radius:var(--radius);
+  max-width:900px; width:100%;
+  max-height:90vh; overflow-y:auto;
+  position:relative;
+  animation: scaleIn .3s ease;
+}
+.modal-close {
+  position:absolute; top:16px; right:16px;
+  width:36px; height:36px; border-radius:50%;
+  background:rgba(255,255,255,0.08);
+  border:none; color:var(--text); font-size:18px;
+  cursor:pointer; transition:all .2s;
+  display:flex; align-items:center; justify-content:center;
+  z-index:10;
+}
+.modal-close:hover { background:rgba(255,255,255,0.15); }
+.modal-content {
+  display:grid; grid-template-columns:1fr 1fr; gap:0;
+}
+.modal-img-side {
+  display:flex; align-items:center; justify-content:center;
+  padding:40px;
+  background:radial-gradient(ellipse at center, rgba(255,255,255,0.03) 0%, transparent 70%);
+  min-height:400px;
+}
+.modal-img-side img {
+  max-width:100%; max-height:400px; object-fit:contain;
+}
+.modal-info { padding:40px 32px; }
+.modal-name { font-size:28px; font-weight:800; margin-bottom:4px; letter-spacing:-1px; }
+.modal-sub { color:var(--text-dim); font-size:14px; margin-bottom:20px; }
+.modal-spec-grid {
+  display:grid; grid-template-columns:1fr 1fr; gap:10px;
+  margin-bottom:20px;
+}
+.modal-spec {
+  padding:12px; border-radius:var(--radius-sm);
+  background:rgba(255,255,255,0.04);
+}
+.modal-spec .val { font-size:16px; font-weight:700; }
+.modal-spec .lbl { font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.5px; }
+.modal-colors { margin-bottom:20px; }
+.modal-colors-label { font-size:12px; color:var(--text-dim); margin-bottom:8px; text-transform:uppercase; letter-spacing:1px; }
+.modal-color-dots { display:flex; gap:8px; }
+.modal-color-dot {
+  width:28px; height:28px; border-radius:50%;
+  border:2px solid transparent;
+  cursor:pointer; transition:all .25s;
+}
+.modal-color-dot:hover, .modal-color-dot.active {
+  border-color:var(--gold);
+  transform:scale(1.15);
+}
+.modal-color-name {
+  font-size:13px; color:var(--text-mid); margin-top:6px;
+}
+.modal-cart {
+  display:inline-flex; align-items:center; gap:8px;
+  padding:14px 28px; border-radius:14px;
+  background:var(--gold); color:var(--bg);
+  font-size:15px; font-weight:700;
+  text-decoration:none; transition:all .3s;
+  border:none; cursor:pointer; width:100%; justify-content:center;
+}
+.modal-cart:hover { background:#e0b84e; }
+
+/* ========== FOOTER ========== */
+.footer {
+  text-align:center;
+  padding:60px 24px 40px;
+  border-top:1px solid var(--card-border);
+  margin-top:60px;
+}
+.footer-logos { display:flex; justify-content:center; gap:24px; align-items:center; margin-bottom:16px; }
+.footer-logos img { height:32px; opacity:.6; }
+.footer p { color:var(--text-dim); font-size:13px; margin-bottom:12px; }
+.footer-link {
+  display:inline-flex; align-items:center; gap:6px;
+  color:var(--gold); text-decoration:none; font-weight:600; font-size:14px;
+}
+.footer-link:hover { text-decoration:underline; }
+
+/* ========== ANIMATIONS ========== */
+@keyframes fadeInUp {
+  from { opacity:0; transform:translateY(30px); }
+  to { opacity:1; transform:translateY(0); }
+}
+@keyframes scaleIn {
+  from { opacity:0; transform:scale(.95); }
+  to { opacity:1; transform:scale(1); }
+}
+@keyframes pulse {
+  0%, 100% { opacity:1; }
+  50% { opacity:.6; }
+}
+
+/* Scroll reveal */
+.reveal {
+  opacity:0; transform:translateY(30px);
+  transition: opacity .6s ease, transform .6s ease;
+}
+.reveal.visible {
+  opacity:1; transform:translateY(0);
+}
+
+/* ========== RESPONSIVE ========== */
+@media (max-width:768px) {
+  .nav-tabs { display:none; }
+  .grid { grid-template-columns:1fr 1fr; gap:12px; }
+  .card-img-wrap { height:220px; padding:12px; }
+  .card-body { padding:12px 14px 16px; }
+  .card-name { font-size:15px; }
+  .card-highlights { display:none; }
+  .hero { padding:60px 20px 50px; }
+  .hero-stats { gap:24px; }
+  .modal-content { grid-template-columns:1fr; }
+  .modal-img-side { min-height:250px; padding:24px; }
+  .modal-info { padding:24px 20px; }
+  .modal-spec-grid { grid-template-columns:1fr 1fr; gap:8px; }
+}
+@media (max-width:480px) {
+  .grid { grid-template-columns:1fr; }
+  .card-img-wrap { height:280px; }
+}
+
+/* Mobile nav toggle */
+.nav-menu-btn {
+  display:none; background:none; border:none;
+  color:var(--text); font-size:24px; cursor:pointer;
+}
+@media(max-width:768px) {
+  .nav-menu-btn { display:block; }
+  .nav-tabs.open {
+    display:flex; flex-direction:column;
+    position:absolute; top:64px; left:0; right:0;
+    background:rgba(8,8,14,0.95);
+    backdrop-filter:blur(20px);
+    padding:12px;
+    border-bottom:1px solid var(--card-border);
+  }
+}
+
+/* onerror fallback */
+.img-fallback {
+  display:flex; align-items:center; justify-content:center;
+  width:100%; height:100%;
+  color:var(--text-dim); font-size:14px;
+  background:rgba(255,255,255,0.02);
+  border-radius:12px;
+}
 </style>
 </head>
 <body>
 
-<nav class="nav"><div class="nav-inner">
-  <div class="nav-logos"><img src="imgs/hotwav-logo-transparent.png" alt="HOTWAV"/><span class="x">×</span><img src="imgs/ajt-logo-transparent.png" alt="AJT PRO"/></div>
-  <div class="nav-tabs" id="navTabs"></div>
-  <div class="nav-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" id="searchInput" placeholder="Rechercher..."/></div>
-</div></nav>
+<!-- Background orbs -->
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
 
-<section class="hero" id="hero">
-  <div class="hero-orb gold"></div><div class="hero-orb red"></div>
-  <div class="hero-logos"><img src="imgs/hotwav-logo-transparent.png" alt="HOTWAV"/><span class="x">×</span><img src="imgs/ajt-logo-transparent.png" alt="AJT PRO"/></div>
-  <h1>CATALOGUE</h1><h2>PRODUITS 2025</h2><div class="hero-bar"></div>
-  <img src="imgs/a17promax.png" class="hero-img" alt="A17 Pro Max"/>
-  <div class="hero-stats">
-    <div class="hero-stat"><div class="num" id="stat-total">0</div><div class="label">PRODUITS</div></div>
-    <div class="hero-stat"><div class="num">4</div><div class="label">CATÉGORIES</div></div>
-    <div class="hero-stat"><div class="num" id="stat-5g">0</div><div class="label">MODÈLES 5G</div></div>
+<!-- Navigation -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="https://shop.ajtpro.com" class="nav-logo" target="_blank">
+      <img src="imgs/hotwav-logo.png" alt="HOTWAV" onerror="this.style.display='none'">
+      <span class="sep">×</span>
+      <img src="imgs/ajt-logo.png" alt="AJT PRO" onerror="this.style.display='none'">
+    </a>
+    <button class="nav-menu-btn" onclick="document.querySelector('.nav-tabs').classList.toggle('open')">☰</button>
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="filterCategory('all', this)">Tout</button>
+      <button class="nav-tab" onclick="filterCategory('rugged-phones', this)">🛡️ Smartphones Renforcés</button>
+      <button class="nav-tab" onclick="filterCategory('phones', this)">📱 Smartphones</button>
+      <button class="nav-tab" onclick="filterCategory('rugged-tabs', this)">🛡️ Tablettes Renforcées</button>
+      <button class="nav-tab" onclick="filterCategory('tabs', this)">📲 Tablettes</button>
+    </div>
+    <a href="https://shop.ajtpro.com" class="nav-shop" target="_blank">🛒 Boutique</a>
   </div>
-  <div class="hero-scroll" onclick="document.getElementById('sec-0').scrollIntoView({behavior:'smooth'})"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-badge">✦ Distributeur Officiel France</div>
+  <h1>Catalogue <span>HOTWAV</span><br>2026</h1>
+  <p>Smartphones et tablettes robustes, pensés pour résister à tout. Distribués en France par AJT Pro.</p>
+  <div class="hero-stats">
+    <div class="hero-stat"><div class="num" id="counter1">36</div><div class="label">Produits</div></div>
+    <div class="hero-stat"><div class="num">4</div><div class="label">Catégories</div></div>
+    <div class="hero-stat"><div class="num">90+</div><div class="label">Références</div></div>
+    <div class="hero-stat"><div class="num">IP69K</div><div class="label">Protection Max</div></div>
+  </div>
 </section>
 
-<div id="catalog"></div>
-
-<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
-  <div class="modal"><div class="modal-close" onclick="closeModal()">✕</div>
-  <div class="modal-img"><img id="modal-img"/></div>
-  <div class="modal-body" id="modal-body"></div></div>
+<!-- ===== SECTION 1: SMARTPHONES RENFORCÉS ===== -->
+<div class="section reveal" data-cat="rugged-phones">
+  <div class="section-header">
+    <span class="section-icon">🛡️</span>
+    <h2 class="section-title">Smartphones Renforcés</h2>
+  </div>
+  <p class="section-sub">IP68 · IP69K · MIL-STD 810</p>
+  <div class="grid" id="grid-rugged-phones"></div>
 </div>
 
+<!-- ===== SECTION 2: SMARTPHONES ===== -->
+<div class="section reveal" data-cat="phones">
+  <div class="section-header">
+    <span class="section-icon">📱</span>
+    <h2 class="section-title">Smartphones</h2>
+  </div>
+  <p class="section-sub">Performance & Design</p>
+  <div class="grid" id="grid-phones"></div>
+</div>
+
+<!-- ===== SECTION 3: TABLETTES RENFORCÉES ===== -->
+<div class="section reveal" data-cat="rugged-tabs">
+  <div class="section-header">
+    <span class="section-icon">🛡️</span>
+    <h2 class="section-title">Tablettes Renforcées</h2>
+  </div>
+  <p class="section-sub">IP68 · IP69K · MIL-STD 810</p>
+  <div class="grid" id="grid-rugged-tabs"></div>
+</div>
+
+<!-- ===== SECTION 4: TABLETTES ===== -->
+<div class="section reveal" data-cat="tabs">
+  <div class="section-header">
+    <span class="section-icon">📲</span>
+    <h2 class="section-title">Tablettes</h2>
+  </div>
+  <p class="section-sub">Productivité & Divertissement</p>
+  <div class="grid" id="grid-tabs"></div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-content">
+      <div class="modal-img-side">
+        <img id="modal-img" src="" alt="" onerror="this.parentElement.innerHTML='<div class=img-fallback>Image non disponible</div>'">
+      </div>
+      <div class="modal-info">
+        <h2 class="modal-name" id="modal-name"></h2>
+        <p class="modal-sub" id="modal-sub"></p>
+        <div class="modal-spec-grid" id="modal-specs"></div>
+        <div class="modal-colors">
+          <div class="modal-colors-label">Coloris disponibles</div>
+          <div class="modal-color-dots" id="modal-colors"></div>
+          <div class="modal-color-name" id="modal-color-name"></div>
+        </div>
+        <a class="modal-cart" id="modal-cart" href="#" target="_blank">🛒 Voir sur la boutique</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Footer -->
 <footer class="footer">
-  <div class="footer-logos"><img src="imgs/hotwav-logo-transparent.png" alt="HOTWAV"/><span class="x">×</span><img src="imgs/ajt-logo-transparent.png" alt="AJT PRO"/></div>
-  <p class="url">shop.ajtpro.com</p><p>Distributeur officiel Hotwav en France</p>
-  <p style="margin-top:12px">© 2025 AJT Pro — Tous droits réservés</p>
+  <div class="footer-logos">
+    <a href="https://shop.ajtpro.com" target="_blank"><img src="imgs/hotwav-logo.png" alt="HOTWAV" onerror="this.style.display='none'"></a>
+    <a href="https://shop.ajtpro.com" target="_blank"><img src="imgs/ajt-logo.png" alt="AJT PRO" onerror="this.style.display='none'"></a>
+  </div>
+  <p>Catalogue HOTWAV 2026 — Distribué en France par AJT Pro</p>
+  <a href="https://shop.ajtpro.com" class="footer-link" target="_blank">🛒 Visiter la boutique en ligne →</a>
 </footer>
 
 <script>
-const SECTIONS = [{"id": "rugged", "title": "Smartphones Renforcés", "icon": "🛡️", "sub": "IP68 · IP69K · MIL-STD 810", "items": [{"n": "Hyper 7 Pro", "net": "5G", "mem": "16/256 Go", "scr": "6,6\" FHD+", "bat": "10 800 mAh", "chg": "33W", "cam": "200MP + 24MP", "cert": "IP68/IP69K · 810G", "i": "hyper7pro.png", "c": [["Black", "6971593176424"], ["Red", "6971593176493"]]}, {"n": "Hyper 7", "net": "5G", "mem": "8/256 Go", "scr": "6,6\" FHD+", "bat": "10 800 mAh", "chg": "33W", "cam": "64MP", "cert": "IP68/IP69K · 810G", "i": "hyper7.png", "c": [["Black", "6971593179074"], ["Yellow", "6971593179081"]]}, {"n": "Hyper 7S", "net": "5G · NFC", "mem": "4/256 Go", "scr": "6,6\" FHD+", "bat": "10 800 mAh", "chg": "33W", "cam": "21MP", "cert": "IP68/IP69K · 810H", "i": "hyper7s.png", "c": [["Phoenix Black", "6971593179784"], ["Punk Yellow", "6971593179791"]]}, {"n": "Hyper 8 Pro", "net": "5G", "mem": "12/512 Go", "scr": "6,6\" FHD+", "bat": "10 800 mAh", "chg": "33W", "cam": "108MP", "cert": "IP68/IP69K · 810H", "i": "hyper8pro.png", "c": [["Black", "6971593171887"]]}, {"n": "Hyper 8 Ultra", "net": "5G · Walkie-Talkie", "mem": "12/512 Go", "scr": "6,6\" FHD+", "bat": "10 800 mAh", "chg": "33W", "cam": "108MP", "cert": "IP68/IP69K · 810H", "i": "hyper8ultra.png", "c": [["Bronze Gold", "6971593179685"]]}, {"n": "Cyber 16 Pro", "net": "4G · NFC", "mem": "8/512 Go", "scr": "6,6\" 2K", "bat": "10 800 mAh", "chg": "33W", "cam": "108MP + 32MP", "cert": "IP68/IP69K · 810H", "i": "cyber16pro.png", "c": [["Gold", "6971593170965"], ["Black", "6971593171283"]]}, {"n": "Cyber 15", "net": "4G", "mem": "12/256 Go", "scr": "6,6\" FHD+", "bat": "6 280 mAh", "chg": "33W", "cam": "200MP + 24MP", "cert": "IP68/IP69K · 810G", "i": "cyber15.jpg", "c": [["Black", "6971593175649"], ["Gold", "6971593175656"]]}, {"n": "Cyber 13", "net": "4G", "mem": "8/128 Go", "scr": "6,6\" HD+", "bat": "10 800 mAh", "chg": "", "cam": "64MP", "cert": "IP68/IP69K · 810H", "i": "cyber13.png", "c": [["Black", "6971593176301"], ["Orange", "6971593176288"]]}, {"n": "T7 Pro", "net": "4G · NFC", "mem": "6/256 Go", "scr": "6,6\" FHD+", "bat": "6 280 mAh", "chg": "20W", "cam": "64MP", "cert": "IP68/IP69K · 810G", "i": "t7pro.jpg", "c": [["Orange", "6971593175816"]]}, {"n": "T7", "net": "4G", "mem": "4/128 Go", "scr": "6,52\" HD+", "bat": "6 280 mAh", "chg": "", "cam": "20MP", "cert": "IP68/IP69K · 810G", "i": "t7.png", "c": [["Black", "6971593175489"], ["Red", "6971593175496"]]}, {"n": "T7S", "net": "4G", "mem": "4/128 Go", "scr": "6,52\" HD+", "bat": "6 280 mAh", "chg": "", "cam": "21MP", "cert": "IP68/IP69K · 810H", "i": "t7s.png", "c": [["Black", "6971593178930"], ["Green", "6971593178947"]]}]}, {"id": "smartphones", "title": "Smartphones", "icon": "📱", "sub": "Performance & Design", "items": [{"n": "Note 18 GT", "net": "4G · NFC", "mem": "8/256 Go", "scr": "7,2\" HD+", "bat": "6 200 mAh", "chg": "20W", "cam": "13MP", "cert": "", "i": "note18gt.png", "c": [["Midnight Black", "6971593171429"], ["Desert Gold", "6971593171436"], ["Mint Green", "6971593171504"]]}, {"n": "Note 18 Pro", "net": "4G · NFC", "mem": "6/128 Go", "scr": "7,2\" HD+", "bat": "6 200 mAh", "chg": "20W", "cam": "13MP", "cert": "", "i": "note18pro.png", "c": [["Midnight Black", "6971593171290"], ["Desert Gold", "6971593171405"], ["Mint Green", "6971593171412"]]}, {"n": "Note 16 Pro", "net": "4G", "mem": "4/128 Go", "scr": "6,9\" HD+", "bat": "5 160 mAh", "chg": "10W", "cam": "13MP", "cert": "", "i": "note16pro.png", "c": [["Black", "6971593179302"], ["Gold", "6971593179319"], ["Red", "6971593179326"]]}, {"n": "Note 16", "net": "4G", "mem": "4/64 Go", "scr": "6,9\" HD+", "bat": "5 160 mAh", "chg": "10W", "cam": "13MP", "cert": "", "i": "note16.png", "c": [["Black", "6971593179210"], ["Blue", "6971593179234"], ["Gold", "6971593179227"]]}, {"n": "Note 15 Pro", "net": "4G", "mem": "4/128 Go", "scr": "6,6\" HD+", "bat": "5 160 mAh", "chg": "10W", "cam": "13MP", "cert": "", "i": "note15pro.png", "c": [["Black", "6971593176899"], ["Mint Blue", "6971593176912"], ["Phantom Blue", "6971593176905"]]}, {"n": "Note 15", "net": "4G", "mem": "4/64 Go", "scr": "6,6\" HD+", "bat": "5 160 mAh", "chg": "", "cam": "13MP", "cert": "", "i": "note15.png", "c": [["Black", "6971593176790"], ["Indigo", "6971593176431"], ["Ocean Blue", "6971593176806"]]}, {"n": "Note 13 Max", "net": "4G", "mem": "6/256 Go", "scr": "6,8\" HD+", "bat": "5 160 mAh", "chg": "", "cam": "48MP", "cert": "", "i": "note13max.png", "c": [["Phantom Black", "6971593177551"], ["Radiant Purple", "6971593177544"], ["Titan Gold", "6971593177568"]]}, {"n": "Note 13", "net": "4G", "mem": "4/128 Go", "scr": "6,6\" HD+", "bat": "5 160 mAh", "chg": "", "cam": "50MP", "cert": "", "i": "note13.png", "c": [["Blue", "6971593175793"], ["Dark Grey", "6971593175519"], ["Purple", "6971593175502"]]}, {"n": "A17 Pro Max", "net": "4G", "mem": "3/128 Go", "scr": "", "bat": "", "chg": "", "cam": "", "cert": "", "i": "a17promax.png", "c": [["Moonlight Silver", "6971593174772"], ["Nebula Black", "6971593174765"], ["Sunset Orange", "6971593175083"]]}, {"n": "A16 Pro Max", "net": "4G", "mem": "3/64 Go", "scr": "", "bat": "", "chg": "", "cam": "", "cert": "", "i": "a16promax.png", "c": [["Pearl White", "6971593175298"], ["Space Black", "6971593175281"], ["Bamboo Green", "6971593175304"]]}, {"n": "A56", "net": "4G", "mem": "3/128 Go", "scr": "", "bat": "", "chg": "", "cam": "", "cert": "", "i": "a56.png", "c": [["Aurora White", "6971593175328"], ["Midnight Black", "6971593175311"], ["Bamboo Green", "6971593175335"]]}, {"n": "A36", "net": "4G", "mem": "3/64 Go", "scr": "", "bat": "", "chg": "", "cam": "", "cert": "", "i": "a36.png", "c": [["Aurora White", "6971593175724"], ["Satin Black", "6971593175380"], ["Neon Orange", "6971593171177"]]}, {"n": "A26 Ultra", "net": "4G", "mem": "3/128 Go", "scr": "", "bat": "", "chg": "", "cam": "", "cert": "", "i": "a26ultra.png", "soon": true, "c": [["Space Black", "—"], ["Aurora White", "—"], ["Neon Orange", "—"]]}]}, {"id": "tabs-rugged", "title": "Tablettes Renforcées", "icon": "🛡️", "sub": "IP68 · IP69K · MIL-STD 810", "items": [{"n": "TAB R9 Ultra", "net": "5G", "mem": "8/512 Go", "scr": "11\" 2K", "bat": "20 080 mAh", "chg": "", "cam": "64MP", "cert": "IP68/IP69K · 810H", "i": "tabr9ultra.png", "c": [["Black", "6971593179654"], ["Red", "6971593179661"]]}, {"n": "TAB R9 Plus", "net": "LTE", "mem": "8/512 Go", "scr": "11\" 2K", "bat": "20 080 mAh", "chg": "", "cam": "64MP", "cert": "IP68/IP69K · 810H", "i": "tabr9plus.png", "c": [["Black", "6971593179654"], ["Red", "6971593179661"]]}, {"n": "TAB R9 Pro", "net": "LTE", "mem": "6/256 Go", "scr": "11\" FHD+", "bat": "20 080 mAh", "chg": "20W", "cam": "64MP", "cert": "IP68/IP69K · 810G", "i": "tabr9pro.png", "c": [["Black", "6971593178398"], ["Red", "6971593178336"]]}, {"n": "TAB R10 Pro", "net": "LTE", "mem": "8/256 Go", "scr": "10,1\" HD+", "bat": "10 800 mAh", "chg": "", "cam": "13MP", "cert": "IP68/IP69K · 810G", "i": "tabr10pro.png", "c": [["Black", "6971593178862"], ["Orange", "6971593178855"]]}, {"n": "TAB R8", "net": "LTE", "mem": "4/128 Go", "scr": "10,1\" HD+", "bat": "10 800 mAh", "chg": "", "cam": "13MP", "cert": "IP68/IP69K · 810G", "i": "tabr8.png", "c": [["Black", "6971593178343"], ["Orange", "6971593177537"]]}, {"n": "TAB R7", "net": "LTE", "mem": "6/256 Go", "scr": "10,1\" HD+", "bat": "15 600 mAh", "chg": "", "cam": "16MP", "cert": "IP68/IP69K · 810G", "i": "tabr7.png", "c": [["Grey", "6971593175229"], ["Orange", "6971593175236"]]}]}, {"id": "tablets", "title": "Tablettes", "icon": "📲", "sub": "Productivité & Divertissement", "items": [{"n": "TAB PAD 11", "net": "LTE", "mem": "6/256 Go", "scr": "11\" 2K", "bat": "8 000 mAh", "chg": "", "cam": "16MP", "cert": "", "i": "tabpad11.png", "c": [["Grey", "6971593175472"]]}, {"n": "TAB PAD 13 Pro", "net": "LTE", "mem": "4/256 Go", "scr": "10,1\" HD+", "bat": "6 000 mAh", "chg": "", "cam": "13MP", "cert": "", "i": "tabpad13pro.png", "c": [["Twilight Grey", "6971593173263"], ["Mint Green", "6971593173270"]]}, {"n": "TAB PAD 13", "net": "LTE", "mem": "4/128 Go", "scr": "10,1\" HD+", "bat": "6 000 mAh", "chg": "", "cam": "13MP", "cert": "", "i": "tabpad13.png", "c": [["Twilight Grey", "6971593173317"], ["Mint Green", "6971593173324"]]}, {"n": "TAB PAD 12", "net": "LTE", "mem": "3/64 Go", "scr": "10,1\" HD+", "bat": "6 000 mAh", "chg": "", "cam": "8MP", "cert": "", "i": "tabpad12.png", "c": [["Twilight Grey", "6971593171184"], ["Misty Blue", "6971593171191"]]}]}];
-const IMG_PATH = 'imgs/';
+const BASE = 'https://shop.ajtpro.com';
+const PRODUCTS = [
+// ===== SECTION 1: SMARTPHONES RENFORCÉS =====
+{
+  id:'hyper7pro', name:'Hyper 7 Pro', cat:'rugged-phones',
+  badge:'5G', specs:'16/256 Go · 6,6" FHD+ · 10 800 mAh · 33W · 200MP + 24MP',
+  highlights:['5G','16 Go','200MP','10800 mAh'],
+  details:{screen:'6,6" FHD+',ram:'16 Go',storage:'256 Go',battery:'10 800 mAh · 33W',camera:'200MP + 24MP',protection:'IP68/IP69K · MIL-STD 810G'},
+  colors:[
+    {name:'Black',hex:'#1a1a1a',img:'imgs/hyper7pro-black.png',url:'/shop/hotwav-hyper-7-pro-5g-ds-16-256gb-black-nfc-19480'},
+    {name:'Red',hex:'#8b1a1a',img:'imgs/hyper7pro-red.png',url:'/shop/hotwav-hyper-7-pro-5g-ds-16-256gb-red-nfc-19481'}
+  ]
+},
+{
+  id:'hyper7', name:'Hyper 7', cat:'rugged-phones',
+  badge:'5G', specs:'8/256 Go · 6,6" FHD+ · 10 800 mAh · 33W · 64MP',
+  highlights:['5G','8 Go','64MP','10800 mAh'],
+  details:{screen:'6,6" FHD+',ram:'8 Go',storage:'256 Go',battery:'10 800 mAh · 33W',camera:'64MP',protection:'IP68/IP69K · MIL-STD 810G'},
+  colors:[
+    {name:'Black',hex:'#1a1a1a',img:'imgs/hyper7-black.png',url:'/shop/hotwav-hyper-7-5g-ds-8-256gb-black-nfc-22487'},
+    {name:'Yellow',hex:'#c8a832',img:'imgs/hyper7-yellow.png',url:'/shop/hotwav-hyper-7-5g-ds-8-256gb-yellow-nfc-22488'}
+  ]
+},
+{
+  id:'hyper7s', name:'Hyper 7S', cat:'rugged-phones',
+  badge:'5G', specs:'4/256 Go · 6,6" FHD+ · 10 800 mAh · 33W · 21MP · NFC',
+  highlights:['5G','NFC','10800 mAh'],
+  details:{screen:'6,6" FHD+',ram:'4 Go',storage:'256 Go',battery:'10 800 mAh · 33W',camera:'21MP',protection:'IP68/IP69K · MIL-STD 810H'},
+  colors:[
+    {name:'Phoenix Black',hex:'#1a1a1a',img:'imgs/hyper7s-black.png',url:'/shop/hotwav-hyper-7s-5g-ds-4-256gb-phoenix-black-24350'},
+    {name:'Punk Yellow',hex:'#d4c832',img:'imgs/hyper7s-yellow.png',url:'/shop/hotwav-hyper-7s-5g-ds-4-256gb-punk-yellow-24349'}
+  ]
+},
+{
+  id:'hyper8pro', name:'Hyper 8 Pro', cat:'rugged-phones',
+  badge:'5G', specs:'12/512 Go · 6,6" FHD+ · 10 800 mAh · 33W · 108MP',
+  highlights:['5G','12 Go','512 Go','108MP'],
+  details:{screen:'6,6" FHD+',ram:'12 Go',storage:'512 Go',battery:'10 800 mAh · 33W',camera:'108MP',protection:'IP68/IP69K · MIL-STD 810H'},
+  colors:[
+    {name:'Black',hex:'#1a1a1a',img:'imgs/hyper8pro-black.png',url:'/shop/hotwav-hyper-8-pro-5g-ds-12-512gb-black-25329'}
+  ]
+},
+{
+  id:'hyper8ultra', name:'Hyper 8 Ultra', cat:'rugged-phones',
+  badge:'5G', specs:'12/512 Go · 6,6" FHD+ · 10 800 mAh · 33W · 108MP · Walkie-Talkie',
+  highlights:['5G','Walkie-Talkie','512 Go','108MP'],
+  details:{screen:'6,6" FHD+',ram:'12 Go',storage:'512 Go',battery:'10 800 mAh · 33W',camera:'108MP',protection:'IP68/IP69K · MIL-STD 810H'},
+  colors:[
+    {name:'Bronze Gold',hex:'#b8860b',img:'imgs/hyper8ultra-gold.png',url:'/shop/hotwav-hyper-8-ultra-5g-ds-12-512gb-gold-25330'}
+  ]
+},
+{
+  id:'cyber16pro', name:'Cyber 16 Pro', cat:'rugged-phones',
+  badge:'4G', specs:'8/512 Go · 6,6" 2K · 10 800 mAh · 33W · 108MP + 32MP · NFC',
+  highlights:['2K','NFC','512 Go','108MP'],
+  details:{screen:'6,6" 2K',ram:'8 Go',storage:'512 Go',battery:'10 800 mAh · 33W',camera:'108MP + 32MP',protection:'IP68/IP69K · MIL-STD 810H'},
+  colors:[
+    {name:'Gold',hex:'#c4a35a',img:'imgs/cyber16pro-gold.png',url:'/shop/hotwav-cyber-16-pro-4g-ds-8-512gb-gold-nfc-24351'},
+    {name:'Black',hex:'#1a1a1a',img:'imgs/cyber16pro-black.png',url:'/shop/hotwav-cyber-16-pro-4g-ds-8-512gb-black-nfc-24352'}
+  ]
+},
+{
+  id:'cyber15', name:'Cyber 15', cat:'rugged-phones',
+  badge:'4G', specs:'12/256 Go · 6,6" FHD+ · 6 280 mAh · 33W · 200MP + 24MP',
+  highlights:['12 Go','200MP','33W'],
+  details:{screen:'6,6" FHD+',ram:'12 Go',storage:'256 Go',battery:'6 280 mAh · 33W',camera:'200MP + 24MP',protection:'IP68/IP69K · MIL-STD 810G'},
+  colors:[
+    {name:'Black',hex:'#1a1a1a',img:'imgs/cyber15-black.png',url:'/shop/hotwav-cyber-15-4g-ds-12-256gb-black-nfc-19592'},
+    {name:'Gold',hex:'#c4a35a',img:'imgs/cyber15-gold.png',url:'/shop/hotwav-cyber-15-4g-ds-12-256gb-gold-nfc-19593'}
+  ]
+},
+{
+  id:'cyber13', name:'Cyber 13', cat:'rugged-phones',
+  badge:'4G', specs:'8/128 Go · 6,6" HD+ · 10 800 mAh · 64MP',
+  highlights:['8 Go','10800 mAh','64MP'],
+  details:{screen:'6,6" HD+',ram:'8 Go',storage:'128 Go',battery:'10 800 mAh',camera:'64MP',protection:'IP68/IP69K · MIL-STD 810H'},
+  colors:[
+    {name:'Black',hex:'#1a1a1a',img:'imgs/cyber13-black.png',url:'/shop/hotwav-cyber-13-4g-ds-8-128gb-black-nfc-19483'},
+    {name:'Orange',hex:'#e07020',img:'imgs/cyber13-orange.png',url:'/shop/hotwav-cyber-13-4g-ds-8-128gb-orange-nfc-19484'}
+  ]
+},
+{
+  id:'t7pro', name:'T7 Pro', cat:'rugged-phones',
+  badge:'4G', specs:'6/256 Go · 6,6" FHD+ · 6 280 mAh · 20W · 64MP · NFC',
+  highlights:['NFC','64MP','20W'],
+  details:{screen:'6,6" FHD+',ram:'6 Go',storage:'256 Go',battery:'6 280 mAh · 20W',camera:'64MP',protection:'IP68/IP69K · MIL-STD 810G'},
+  colors:[
+    {name:'Black',hex:'#1a1a1a',img:'imgs/t7pro-black.png',url:'/shop/hotwav-t7-pro-4g-ds-6-256gb-black-nfc-19511'},
+    {name:'Orange',hex:'#e07020',img:'imgs/t7pro-orange.png',url:'/shop/hotwav-t7-pro-4g-ds-6-256gb-orange-nfc-19487'}
+  ]
+},
+{
+  id:'t7', name:'T7', cat:'rugged-phones',
+  badge:'4G', specs:'4/128 Go · 6,52" HD+ · 6 280 mAh · 20MP',
+  highlights:['6280 mAh','IP69K'],
+  details:{screen:'6,52" HD+',ram:'4 Go',storage:'128 Go',battery:'6 280 mAh',camera:'20MP',protection:'IP68/IP69K · MIL-STD 810G'},
+  colors:[
+    {name:'Black',hex:'#1a1a1a',img:'imgs/t7-black.png',url:'/shop/hotwav-t7-4g-ds-4-128gb-black-19485'},
+    {name:'Red',hex:'#8b1a1a',img:'imgs/t7-red.png',url:'/shop/hotwav-t7-4g-ds-4-128gb-red-19486'}
+  ]
+},
+{
+  id:'t7s', name:'T7S', cat:'rugged-phones',
+  badge:'4G', specs:'4/128 Go · 6,52" HD+ · 6 280 mAh · 21MP',
+  highlights:['6280 mAh','IP69K'],
+  details:{screen:'6,52" HD+',ram:'4 Go',storage:'128 Go',battery:'6 280 mAh',camera:'21MP',protection:'IP68/IP69K · MIL-STD 810H'},
+  colors:[
+    {name:'Black',hex:'#1a1a1a',img:'imgs/t7s-black.png',url:'/shop/hotwav-t7s-4g-ds-4-128gb-black-19594'},
+    {name:'Green',hex:'#2d5a2d',img:'imgs/t7s-green.png',url:'/shop/hotwav-t7s-4g-ds-4-128gb-green-19595'}
+  ]
+},
 
-let totalProducts=0,count5g=0;
-SECTIONS.forEach(s=>s.items.forEach(p=>{totalProducts++;if(p.net.includes('5G'))count5g++;}));
-document.getElementById('stat-total').textContent=totalProducts;
-document.getElementById('stat-5g').textContent=count5g;
+// ===== SECTION 2: SMARTPHONES =====
+{
+  id:'note18gt', name:'Note 18 GT', cat:'phones',
+  badge:'4G', specs:'8/256 Go · 7,2" HD+ · 6 200 mAh · 20W · 13MP · NFC',
+  highlights:['7,2"','NFC','8 Go','256 Go'],
+  details:{screen:'7,2" HD+',ram:'8 Go',storage:'256 Go',battery:'6 200 mAh · 20W',camera:'13MP',protection:'—'},
+  colors:[
+    {name:'Midnight Black',hex:'#1a1a2e',img:'imgs/note18gt-black.png',url:'/shop/hotwav-note-18-gt-4g-ds-8-256gb-midnight-black-72-24358'},
+    {name:'Desert Gold',hex:'#c4a35a',img:'imgs/note18gt-gold.png',url:'/shop/hotwav-note-18-gt-4g-ds-8-256gb-desert-gold-72-24357'},
+    {name:'Mint Green',hex:'#8fbc8f',img:'imgs/note18gt-green.png',url:'/shop/hotwav-note-18-gt-4g-ds-8-256gb-mint-green-72-24356'}
+  ]
+},
+{
+  id:'note18pro', name:'Note 18 Pro', cat:'phones',
+  badge:'4G', specs:'6/128 Go · 7,2" HD+ · 6 200 mAh · 20W · 13MP · NFC',
+  highlights:['7,2"','NFC','6 Go'],
+  details:{screen:'7,2" HD+',ram:'6 Go',storage:'128 Go',battery:'6 200 mAh · 20W',camera:'13MP',protection:'—'},
+  colors:[
+    {name:'Midnight Black',hex:'#1a1a2e',img:'imgs/note18pro-black.png',url:'/shop/hotwav-note-18-pro-4g-ds-6-128gb-midnight-black-72-24353'},
+    {name:'Desert Gold',hex:'#c4a35a',img:'imgs/note18pro-gold.png',url:'/shop/hotwav-note-18-pro-4g-ds-6-128gb-desert-gold-72-24354'},
+    {name:'Mint Green',hex:'#8fbc8f',img:'imgs/note18pro-green.png',url:'/shop/hotwav-note-18-pro-4g-ds-6-128gb-mint-green-72-24355'}
+  ]
+},
+{
+  id:'note16pro', name:'Note 16 Pro', cat:'phones',
+  badge:'4G', specs:'4/128 Go · 6,9" HD+ · 5 160 mAh · 10W · 13MP',
+  highlights:['6,9"','128 Go'],
+  details:{screen:'6,9" HD+',ram:'4 Go',storage:'128 Go',battery:'5 160 mAh · 10W',camera:'13MP',protection:'—'},
+  colors:[
+    {name:'Black',hex:'#1a1a1a',img:'imgs/note16pro-black.png',url:'/shop/hotwav-note-16-pro-4g-ds-4-128gb-black-69-22492'},
+    {name:'Gold',hex:'#c4a35a',img:'imgs/note16pro-gold.png',url:'/shop/hotwav-note-16-pro-4g-ds-4-128gb-gold-69-22493'},
+    {name:'Red',hex:'#8b1a1a',img:'imgs/note16pro-red.png',url:'/shop/hotwav-note-16-pro-4g-ds-4-128gb-red-69-22494'}
+  ]
+},
+{
+  id:'note16', name:'Note 16', cat:'phones',
+  badge:'4G', specs:'4/64 Go · 6,9" HD+ · 5 160 mAh · 10W · 13MP',
+  highlights:['6,9"','64 Go'],
+  details:{screen:'6,9" HD+',ram:'4 Go',storage:'64 Go',battery:'5 160 mAh · 10W',camera:'13MP',protection:'—'},
+  colors:[
+    {name:'Black',hex:'#1a1a1a',img:'imgs/note16-all.png',url:'/shop/hotwav-note-16-4g-ds-4-64gb-black-69-22489'},
+    {name:'Blue',hex:'#4169e1',img:'imgs/note16-all.png',url:'/shop/hotwav-note-16-4g-ds-4-64gb-blue-69-22490'},
+    {name:'Gold',hex:'#c4a35a',img:'imgs/note16-all.png',url:'/shop/hotwav-note-16-4g-ds-4-64gb-gold-69-22491'}
+  ]
+},
+{
+  id:'note15pro', name:'Note 15 Pro', cat:'phones',
+  badge:'4G', specs:'4/128 Go · 6,6" HD+ · 5 160 mAh · 10W · 13MP',
+  highlights:['128 Go','IP68'],
+  details:{screen:'6,6" HD+',ram:'4 Go',storage:'128 Go',battery:'5 160 mAh · 10W',camera:'13MP',protection:'—'},
+  colors:[
+    {name:'Black',hex:'#1a1a1a',img:'imgs/note15pro-black.png',url:'/shop/hotwav-note-15-pro-4g-ds-4-128gb-black-19488'},
+    {name:'Mint Blue',hex:'#7ec8c8',img:'imgs/note15pro-mintblue.png',url:'/shop/hotwav-note-15-pro-4g-ds-4-128gb-mint-blue-19492'},
+    {name:'Phantom Blue',hex:'#3a3a6e',img:'imgs/note15pro-phantomblue.png',url:'/shop/hotwav-note-15-pro-4g-ds-4-128gb-phantom-blue-19491'}
+  ]
+},
+{
+  id:'note15', name:'Note 15', cat:'phones',
+  badge:'4G', specs:'4/64 Go · 6,6" HD+ · 5 160 mAh · 13MP',
+  highlights:['64 Go'],
+  details:{screen:'6,6" HD+',ram:'4 Go',storage:'64 Go',battery:'5 160 mAh',camera:'13MP',protection:'—'},
+  colors:[
+    {name:'Black',hex:'#1a1a1a',img:'imgs/note15-black.png',url:'/shop/hotwav-note-15-4g-ds-4-64gb-black-19493'},
+    {name:'Indigo',hex:'#4b0082',img:'imgs/note15-indigo.png',url:'/shop/hotwav-note-15-4g-ds-4-64gb-indigo-19495'},
+    {name:'Ocean Blue',hex:'#4682b4',img:'imgs/note15-oceanblue.png',url:'/shop/hotwav-note-15-4g-ds-4-64gb-ocean-blue-19494'}
+  ]
+},
+{
+  id:'note13max', name:'Note 13 Max', cat:'phones',
+  badge:'4G', specs:'6/256 Go · 6,8" HD+ · 5 160 mAh · 48MP',
+  highlights:['6 Go','256 Go','48MP'],
+  details:{screen:'6,8" HD+',ram:'6 Go',storage:'256 Go',battery:'5 160 mAh',camera:'48MP',protection:'—'},
+  colors:[
+    {name:'Phantom Black',hex:'#1a1a2e',img:'imgs/note13max-black.png',url:'/shop/hotwav-note-13-max-4g-ds-6-256gb-phantom-black-19499'},
+    {name:'Radiant Purple',hex:'#6a0dad',img:'imgs/note13max-purple.png',url:'/shop/hotwav-note-13-max-4g-ds-6-256gb-radiant-purple-19501'},
+    {name:'Titan Gold',hex:'#c4a35a',img:'imgs/note13max-gold.png',url:'/shop/hotwav-note-13-max-4g-ds-6-256gb-titan-gold-19534'}
+  ]
+},
+{
+  id:'note13', name:'Note 13', cat:'phones',
+  badge:'4G', specs:'4/128 Go · 6,6" HD+ · 5 160 mAh · 50MP',
+  highlights:['50MP','128 Go'],
+  details:{screen:'6,6" HD+',ram:'4 Go',storage:'128 Go',battery:'5 160 mAh',camera:'50MP',protection:'—'},
+  colors:[
+    {name:'Blue',hex:'#4169e1',img:'imgs/note13-blue.png',url:'/shop/hotwav-note-13-4g-ds-4-128gb-blue-19498'},
+    {name:'Dark Grey',hex:'#404040',img:'imgs/note13-grey.png',url:'/shop/hotwav-note-13-4g-ds-4-128gb-dark-grey-19496'},
+    {name:'Purple',hex:'#6a0dad',img:'imgs/note13-purple.png',url:'/shop/hotwav-note-13-4g-ds-4-128gb-purple-19497'}
+  ]
+},
+{
+  id:'a17promax', name:'A17 Pro Max', cat:'phones',
+  badge:'4G', specs:'3/128 Go',
+  highlights:['128 Go'],
+  details:{screen:'—',ram:'3 Go',storage:'128 Go',battery:'—',camera:'—',protection:'—'},
+  colors:[
+    {name:'Moonlight Silver',hex:'#c0c0c0',img:'imgs/a17promax-silver.png',url:'/shop/hotwav-a17-pro-max-4g-ds-3-128gb-moonlight-silver-25163'},
+    {name:'Nebula Black',hex:'#1a1a2e',img:'imgs/a17promax-black.png',url:'/shop/hotwav-a17-pro-max-4g-ds-3-128gb-nebula-black-25162'},
+    {name:'Sunset Orange',hex:'#e07020',img:'imgs/a17promax-orange.png',url:'/shop/hotwav-a17-pro-max-4g-ds-3-128gb-sunset-orange-25169'}
+  ]
+},
+{
+  id:'a16promax', name:'A16 Pro Max', cat:'phones',
+  badge:'4G', specs:'3/64 Go',
+  highlights:['64 Go'],
+  details:{screen:'—',ram:'3 Go',storage:'64 Go',battery:'—',camera:'—',protection:'—'},
+  colors:[
+    {name:'Pearl White',hex:'#f0ead6',img:'imgs/a16promax-white.png',url:'/shop/hotwav-a16-pro-max-4g-ds-3-64gb-pearl-white-25167'},
+    {name:'Space Black',hex:'#1a1a2e',img:'imgs/a16promax-black.png',url:'/shop/hotwav-a16-pro-max-4g-ds-3-64gb-space-black-25165'},
+    {name:'Bamboo Green',hex:'#6b8e5a',img:'imgs/a16promax-green.png',url:'/shop/hotwav-a16-pro-max-4g-ds-3-64gb-bamboo-green-25166'}
+  ]
+},
+{
+  id:'a56', name:'A56', cat:'phones',
+  badge:'4G', specs:'3/128 Go',
+  highlights:['128 Go'],
+  details:{screen:'—',ram:'3 Go',storage:'128 Go',battery:'—',camera:'—',protection:'—'},
+  colors:[
+    {name:'Aurora White',hex:'#f0ead6',img:'imgs/a56-white.png',url:'/shop/hotwav-a56-4g-ds-3-128gb-aurora-white-25318'},
+    {name:'Midnight Black',hex:'#1a1a2e',img:'imgs/a56-black.png',url:'/shop/hotwav-a56-4g-ds-3-128gb-midnight-black-25319'},
+    {name:'Bamboo Green',hex:'#6b8e5a',img:'imgs/a56-green.png',url:'/shop/hotwav-a56-4g-ds-3-128gb-bamboo-green-25320'}
+  ]
+},
+{
+  id:'a36', name:'A36', cat:'phones',
+  badge:'4G', specs:'3/64 Go',
+  highlights:['64 Go'],
+  details:{screen:'—',ram:'3 Go',storage:'64 Go',battery:'—',camera:'—',protection:'—'},
+  colors:[
+    {name:'Aurora White',hex:'#f0ead6',img:'imgs/a36-white.png',url:'/shop/hotwav-a36-4g-ds-3-64gb-aurora-white-25317'},
+    {name:'Satin Black',hex:'#1a1a1a',img:'imgs/a36-black.png',url:'/shop/hotwav-a36-4g-ds-3-64gb-satin-black-25164'},
+    {name:'Neon Orange',hex:'#ff6600',img:'imgs/a36-orange.png',url:'/shop/hotwav-a36-4g-ds-3-64gb-neon-orange-25316'}
+  ]
+},
+{
+  id:'a26ultra', name:'A26 Ultra', cat:'phones',
+  badge:'soon', specs:'3/128 Go · Bientôt disponible',
+  highlights:['128 Go','NOUVEAU'],
+  details:{screen:'—',ram:'3 Go',storage:'128 Go',battery:'—',camera:'—',protection:'—'},
+  colors:[
+    {name:'Space Black',hex:'#1a1a2e',img:'imgs/a26ultra-all.png',url:'#'},
+    {name:'Aurora White',hex:'#f0ead6',img:'imgs/a26ultra-all.png',url:'#'},
+    {name:'Neon Orange',hex:'#ff6600',img:'imgs/a26ultra-all.png',url:'#'}
+  ]
+},
 
-const navTabs=document.getElementById('navTabs');
-SECTIONS.forEach((sec,i)=>{const t=document.createElement('div');t.className='nav-tab'+(i===0?' active':'');t.textContent=sec.title;t.onclick=()=>document.getElementById('sec-'+i).scrollIntoView({behavior:'smooth'});navTabs.appendChild(t);});
+// ===== SECTION 3: TABLETTES RENFORCÉES =====
+{
+  id:'tabr9ultra', name:'TAB R9 Ultra', cat:'rugged-tabs',
+  badge:'5G', specs:'8/512 Go · 11" 2K · 20 080 mAh · 64MP',
+  highlights:['5G','2K','20080 mAh','512 Go'],
+  details:{screen:'11" 2K',ram:'8 Go',storage:'512 Go',battery:'20 080 mAh',camera:'64MP',protection:'IP68/IP69K · MIL-STD 810H'},
+  colors:[
+    {name:'Black',hex:'#1a1a1a',img:'imgs/tabr9ultra-black.png',url:'/shop/hotwav-tab-r9-ultra-5g-11-8-512gb-black-25328'},
+    {name:'Red',hex:'#8b1a1a',img:'imgs/tabr9ultra-red.png',url:'/shop/hotwav-tab-r9-ultra-5g-11-8-512gb-red-25327'}
+  ]
+},
+{
+  id:'tabr9plus', name:'TAB R9 Plus', cat:'rugged-tabs',
+  badge:'LTE', specs:'8/512 Go · 11" 2K · 20 080 mAh · 64MP',
+  highlights:['2K','20080 mAh','512 Go'],
+  details:{screen:'11" 2K',ram:'8 Go',storage:'512 Go',battery:'20 080 mAh',camera:'64MP',protection:'IP68/IP69K · MIL-STD 810H'},
+  colors:[
+    {name:'Black',hex:'#1a1a1a',img:'imgs/tabr9plus-black.png',url:'/shop/hotwav-tab-r9-plus-11-8-512gb-black-lte-24359'},
+    {name:'Red',hex:'#8b1a1a',img:'imgs/tabr9plus-red.png',url:'/shop/hotwav-tab-r9-plus-11-8-512gb-red-lte-24360'}
+  ]
+},
+{
+  id:'tabr9pro', name:'TAB R9 Pro', cat:'rugged-tabs',
+  badge:'LTE', specs:'6/256 Go · 11" FHD+ · 20 080 mAh · 20W · 64MP',
+  highlights:['FHD+','20080 mAh','20W'],
+  details:{screen:'11" FHD+',ram:'6 Go',storage:'256 Go',battery:'20 080 mAh · 20W',camera:'64MP',protection:'IP68/IP69K · MIL-STD 810G'},
+  colors:[
+    {name:'Black',hex:'#1a1a1a',img:'imgs/tabr9pro-black.png',url:'/shop/hotwav-tab-r9-pro-11-6-256gb-black-lte-19535'},
+    {name:'Red',hex:'#8b1a1a',img:'imgs/tabr9pro-red.png',url:'/shop/hotwav-tab-r9-pro-11-6-256gb-red-lte-19518'}
+  ]
+},
+{
+  id:'tabr10pro', name:'TAB R10 Pro', cat:'rugged-tabs',
+  badge:'LTE', specs:'8/256 Go · 10,1" HD+ · 10 800 mAh · 13MP',
+  highlights:['8 Go','10800 mAh'],
+  details:{screen:'10,1" HD+',ram:'8 Go',storage:'256 Go',battery:'10 800 mAh',camera:'13MP',protection:'IP68/IP69K · MIL-STD 810G'},
+  colors:[
+    {name:'Black',hex:'#1a1a1a',img:'imgs/tabr10pro-black.png',url:'/shop/hotwav-tab-r10-pro-10-1-8-256gb-black-lte-22495'},
+    {name:'Orange',hex:'#e07020',img:'imgs/tabr10pro-orange.png',url:'/shop/hotwav-tab-r10-pro-10-1-8-256gb-orange-lte-22496'}
+  ]
+},
+{
+  id:'tabr8', name:'TAB R8', cat:'rugged-tabs',
+  badge:'LTE', specs:'4/128 Go · 10,1" HD+ · 10 800 mAh · 13MP',
+  highlights:['10800 mAh','128 Go'],
+  details:{screen:'10,1" HD+',ram:'4 Go',storage:'128 Go',battery:'10 800 mAh',camera:'13MP',protection:'IP68/IP69K · MIL-STD 810G'},
+  colors:[
+    {name:'Black',hex:'#1a1a1a',img:'imgs/tabr8-black.png',url:'/shop/hotwav-tab-r8-10-1-4-128gb-black-lte-19580'},
+    {name:'Orange',hex:'#e07020',img:'imgs/tabr8-orange.png',url:'/shop/hotwav-tab-r8-10-1-4-128gb-orange-lte-19596'}
+  ]
+},
+{
+  id:'tabr7', name:'TAB R7', cat:'rugged-tabs',
+  badge:'LTE', specs:'6/256 Go · 10,1" HD+ · 15 600 mAh · 16MP',
+  highlights:['15600 mAh','256 Go'],
+  details:{screen:'10,1" HD+',ram:'6 Go',storage:'256 Go',battery:'15 600 mAh',camera:'16MP',protection:'IP68/IP69K · MIL-STD 810G'},
+  colors:[
+    {name:'Grey',hex:'#808080',img:'imgs/tabr7-grey.png',url:'/shop/hotwav-tab-r7-10-1-6-256gb-grey-lte-19507'},
+    {name:'Orange',hex:'#e07020',img:'imgs/tabr7-orange.png',url:'/shop/hotwav-tab-r7-10-1-6-256gb-orange-lte-19579'}
+  ]
+},
 
-const catalog=document.getElementById('catalog');
-SECTIONS.forEach((sec,si)=>{
-  const section=document.createElement('section');section.className='section';section.id='sec-'+si;
-  let h=`<div class="section-header reveal"><h2>${sec.icon} ${sec.title} <span class="count-badge">${sec.items.length}</span></h2><div class="bar"></div><div class="sub">${sec.sub}</div></div>`;
-  let g='<div class="grid">';
-  sec.items.forEach((p,pi)=>{
-    const badge=p.soon?'<div class="product-badge">BIENTÔT DISPONIBLE</div>':'';
-    let specs='';
-    if(p.scr)specs+=`<div class="pspec"><div class="pspec-label">Écran</div><div class="pspec-val">${p.scr}</div></div>`;
-    let bat=p.bat;if(p.chg)bat+=' · '+p.chg;
-    if(bat)specs+=`<div class="pspec"><div class="pspec-label">Batterie</div><div class="pspec-val">${bat}</div></div>`;
-    if(p.cam)specs+=`<div class="pspec"><div class="pspec-label">Caméra</div><div class="pspec-val">${p.cam}</div></div>`;
-    if(p.cert)specs+=`<div class="pspec"><div class="pspec-label">Protection</div><div class="pspec-val">${p.cert}</div></div>`;
-    let colors=p.c.map(c=>`<div class="pcolor"><div class="pcolor-dot"></div><span class="pcolor-name">${c[0]}</span><span class="pcolor-ean">${c[1]}</span></div>`).join('');
-    g+=`<div class="product reveal" data-sec="${si}" data-idx="${pi}" onclick="openModal(${si},${pi})">
-      <div class="product-img">${badge}<img src="${IMG_PATH}${p.i}" alt="${p.n}" onerror="this.style.display='none'"/></div>
-      <div class="product-info"><div class="product-name">${p.n}</div>
-      <div class="product-tags"><span class="ptag ptag-net">${p.net}</span><span class="ptag ptag-mem">${p.mem}</span></div>
-      ${specs?`<div class="product-specs">${specs}</div>`:''}
-      <div class="product-colors"><div class="product-colors-title">Coloris & EAN</div>${colors}</div></div></div>`;
-  });
-  g+='</div>';section.innerHTML=h+g;catalog.appendChild(section);
-});
-
-function openModal(si,pi){
-  const p=SECTIONS[si].items[pi];
-  document.getElementById('modal-img').src=IMG_PATH+p.i;
-  let specs='';
-  if(p.scr)specs+=`<div class="pspec"><div class="pspec-label">Écran</div><div class="pspec-val">${p.scr}</div></div>`;
-  let bat=p.bat;if(p.chg)bat+=' · '+p.chg;
-  if(bat)specs+=`<div class="pspec"><div class="pspec-label">Batterie</div><div class="pspec-val">${bat}</div></div>`;
-  if(p.cam)specs+=`<div class="pspec"><div class="pspec-label">Caméra</div><div class="pspec-val">${p.cam}</div></div>`;
-  if(p.cert)specs+=`<div class="pspec"><div class="pspec-label">Protection</div><div class="pspec-val">${p.cert}</div></div>`;
-  let colors=p.c.map(c=>`<div class="pcolor"><div class="pcolor-dot"></div><span class="pcolor-name">${c[0]}</span><span class="pcolor-ean">${c[1]}</span></div>`).join('');
-  document.getElementById('modal-body').innerHTML=`<div class="modal-name">${p.n}</div>
-    <div class="product-tags" style="margin:12px 0 16px"><span class="ptag ptag-net">${p.net}</span><span class="ptag ptag-mem">${p.mem}</span>
-    ${p.soon?'<span class="ptag" style="background:rgba(212,43,43,0.15);color:#ff6b6b;border:1px solid rgba(212,43,43,0.2)">Bientôt disponible</span>':''}</div>
-    ${specs?`<div class="product-specs" style="margin-bottom:16px">${specs}</div>`:''}
-    <div class="product-colors"><div class="product-colors-title">Coloris & EAN</div>${colors}</div>`;
-  document.getElementById('modal').classList.add('open');document.body.style.overflow='hidden';
+// ===== SECTION 4: TABLETTES =====
+{
+  id:'tabpad11', name:'TAB PAD 11', cat:'tabs',
+  badge:'LTE', specs:'6/256 Go · 11" 2K · 8 000 mAh · 16MP',
+  highlights:['11"','2K','256 Go'],
+  details:{screen:'11" 2K',ram:'6 Go',storage:'256 Go',battery:'8 000 mAh',camera:'16MP',protection:'—'},
+  colors:[
+    {name:'Grey',hex:'#808080',img:'imgs/tabpad11-grey.png',url:'/shop/hotwav-tab-pad-11-11-6-256gb-grey-lte-23067'}
+  ]
+},
+{
+  id:'tabpad13pro', name:'TAB PAD 13 Pro', cat:'tabs',
+  badge:'LTE', specs:'4/256 Go · 10,1" HD+ · 6 000 mAh · 13MP',
+  highlights:['256 Go','10,1"'],
+  details:{screen:'10,1" HD+',ram:'4 Go',storage:'256 Go',battery:'6 000 mAh',camera:'13MP',protection:'—'},
+  colors:[
+    {name:'Twilight Grey',hex:'#6e6e7e',img:'imgs/tabpad13pro-grey.png',url:'/shop/hotwav-tab-pad-13-pro-101-4-256gb-twilight-grey-lte-25326'},
+    {name:'Mint Green',hex:'#8fbc8f',img:'imgs/tabpad13pro-green.png',url:'/shop/hotwav-tab-pad-13-pro-101-4-256gb-mint-green-lte-25325'}
+  ]
+},
+{
+  id:'tabpad13', name:'TAB PAD 13', cat:'tabs',
+  badge:'LTE', specs:'4/128 Go · 10,1" HD+ · 6 000 mAh · 13MP',
+  highlights:['128 Go','10,1"'],
+  details:{screen:'10,1" HD+',ram:'4 Go',storage:'128 Go',battery:'6 000 mAh',camera:'13MP',protection:'—'},
+  colors:[
+    {name:'Twilight Grey',hex:'#6e6e7e',img:'imgs/tabpad13-grey.png',url:'/shop/hotwav-tab-pad-13-101-4-128gb-twilight-grey-lte-25323'},
+    {name:'Mint Green',hex:'#8fbc8f',img:'imgs/tabpad13-green.png',url:'/shop/hotwav-tab-pad-13-101-4-128gb-mint-green-lte-25324'}
+  ]
+},
+{
+  id:'tabpad12', name:'TAB PAD 12', cat:'tabs',
+  badge:'LTE', specs:'3/64 Go · 10,1" HD+ · 6 000 mAh · 8MP',
+  highlights:['64 Go','10,1"'],
+  details:{screen:'10,1" HD+',ram:'3 Go',storage:'64 Go',battery:'6 000 mAh',camera:'8MP',protection:'—'},
+  colors:[
+    {name:'Twilight Grey',hex:'#6e6e7e',img:'imgs/tabpad12-all.png',url:'/shop/hotwav-tab-pad-12-101-3-64gb-twilight-grey-lte-25321'},
+    {name:'Misty Blue',hex:'#7ea8be',img:'imgs/tabpad12-all.png',url:'/shop/hotwav-tab-pad-12-101-3-64gb-misty-blue-lte-25322'}
+  ]
 }
-function closeModal(){document.getElementById('modal').classList.remove('open');document.body.style.overflow='';}
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+];
 
-document.getElementById('searchInput').addEventListener('input',function(){
-  const q=this.value.toLowerCase().trim();
-  document.querySelectorAll('.product').forEach(el=>{
-    const si=+el.dataset.sec,pi=+el.dataset.idx,p=SECTIONS[si].items[pi];
-    const text=(p.n+' '+p.net+' '+p.mem+' '+(p.cert||'')).toLowerCase();
-    el.style.display=(!q||text.includes(q))?'':'none';
+// ===== RENDER =====
+function renderProducts() {
+  const grids = {
+    'rugged-phones': document.getElementById('grid-rugged-phones'),
+    'phones': document.getElementById('grid-phones'),
+    'rugged-tabs': document.getElementById('grid-rugged-tabs'),
+    'tabs': document.getElementById('grid-tabs')
+  };
+  PRODUCTS.forEach((p, idx) => {
+    const grid = grids[p.cat];
+    if (!grid) return;
+    const c0 = p.colors[0];
+    const badgeClass = p.badge==='5G'?'badge-5g':p.badge==='LTE'?'badge-lte':p.badge==='soon'?'badge-soon':'badge-4g';
+    const card = document.createElement('div');
+    card.className = 'card reveal';
+    card.dataset.product = idx;
+    card.style.animationDelay = (idx%6)*0.05+'s';
+    card.innerHTML = `
+      <div class="card-img-wrap" onclick="openModal(${idx})">
+        <span class="card-badge ${badgeClass}">${p.badge==='soon'?'Bientôt':p.badge}</span>
+        <img class="card-img" id="img-${p.id}" src="${c0.img}" alt="${p.name}" loading="lazy"
+          onerror="this.parentElement.innerHTML='<div class=img-fallback>${p.name}</div>'">
+      </div>
+      <div class="card-body">
+        <div class="card-name">${p.name}</div>
+        <div class="card-specs">${p.specs}</div>
+        <div class="card-highlights">${p.highlights.map(h=>'<span class="card-hl">'+h+'</span>').join('')}</div>
+        <div class="card-bottom">
+          <div class="color-dots">
+            ${p.colors.map((c,ci)=>`<div class="color-dot ${ci===0?'active':''}" style="background:${c.hex}" title="${c.name}" onclick="event.stopPropagation();switchColor('${p.id}',${idx},${ci})"></div>`).join('')}
+          </div>
+          <a class="card-cart" id="cart-${p.id}" href="${p.badge==='soon'?'#':BASE+c0.url}" target="_blank" onclick="event.stopPropagation()">${p.badge==='soon'?'⏳':'🛒'}</a>
+        </div>
+      </div>
+    `;
+    grid.appendChild(card);
   });
+}
+
+function switchColor(pid, prodIdx, colorIdx) {
+  const p = PRODUCTS[prodIdx];
+  const c = p.colors[colorIdx];
+  const img = document.getElementById('img-'+pid);
+  if (img) { img.src = c.img; }
+  const cart = document.getElementById('cart-'+pid);
+  if (cart && p.badge!=='soon') { cart.href = BASE + c.url; }
+  // Update dots
+  const card = document.querySelector(`[data-product="${prodIdx}"]`);
+  if (card) {
+    card.querySelectorAll('.color-dot').forEach((d,i)=>{
+      d.classList.toggle('active', i===colorIdx);
+    });
+  }
+}
+
+// ===== MODAL =====
+let currentModal = null;
+let currentModalColor = 0;
+
+function openModal(idx) {
+  const p = PRODUCTS[idx];
+  currentModal = idx;
+  currentModalColor = 0;
+  document.getElementById('modal-name').textContent = p.name;
+  document.getElementById('modal-sub').textContent = p.specs;
+  document.getElementById('modal-img').src = p.colors[0].img;
+  const d = p.details;
+  document.getElementById('modal-specs').innerHTML = `
+    ${d.screen!=='—'?`<div class="modal-spec"><div class="val">${d.screen}</div><div class="lbl">Écran</div></div>`:''}
+    ${d.ram!=='—'?`<div class="modal-spec"><div class="val">${d.ram}</div><div class="lbl">RAM</div></div>`:''}
+    ${d.storage!=='—'?`<div class="modal-spec"><div class="val">${d.storage}</div><div class="lbl">Stockage</div></div>`:''}
+    ${d.battery!=='—'?`<div class="modal-spec"><div class="val">${d.battery}</div><div class="lbl">Batterie</div></div>`:''}
+    ${d.camera!=='—'?`<div class="modal-spec"><div class="val">${d.camera}</div><div class="lbl">Caméra</div></div>`:''}
+    ${d.protection!=='—'?`<div class="modal-spec"><div class="val">${d.protection}</div><div class="lbl">Protection</div></div>`:''}
+  `;
+  document.getElementById('modal-colors').innerHTML = p.colors.map((c,ci)=>
+    `<div class="modal-color-dot ${ci===0?'active':''}" style="background:${c.hex}" title="${c.name}" onclick="switchModalColor(${ci})"></div>`
+  ).join('');
+  document.getElementById('modal-color-name').textContent = p.colors[0].name;
+  const cart = document.getElementById('modal-cart');
+  if(p.badge==='soon'){
+    cart.textContent = '⏳ Bientôt disponible';
+    cart.href = '#';
+    cart.style.opacity='.5';
+  } else {
+    cart.textContent = '🛒 Voir sur la boutique';
+    cart.href = BASE + p.colors[0].url;
+    cart.style.opacity='1';
+  }
+  document.getElementById('modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function switchModalColor(ci) {
+  const p = PRODUCTS[currentModal];
+  const c = p.colors[ci];
+  currentModalColor = ci;
+  document.getElementById('modal-img').src = c.img;
+  document.getElementById('modal-color-name').textContent = c.name;
+  if(p.badge!=='soon') document.getElementById('modal-cart').href = BASE + c.url;
+  document.querySelectorAll('.modal-color-dot').forEach((d,i)=> d.classList.toggle('active', i===ci));
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// ===== FILTER =====
+function filterCategory(cat, btn) {
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.section').forEach(s=>{
+    if(cat==='all') { s.style.display=''; }
+    else { s.style.display = s.dataset.cat===cat ? '' : 'none'; }
+  });
+  // Close mobile menu
+  document.querySelector('.nav-tabs').classList.remove('open');
+}
+
+// ===== SCROLL REVEAL =====
+function initReveal() {
+  const obs = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{
+      if(e.isIntersecting) { e.target.classList.add('visible'); }
+    });
+  }, {threshold:0.05});
+  document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
+}
+
+// ===== KEYBOARD =====
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape') closeModal();
 });
 
-const observer=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');observer.unobserve(e.target);}});},{threshold:0.1});
-document.querySelectorAll('.reveal').forEach(el=>observer.observe(el));
-
-const sectionEls=SECTIONS.map((_,i)=>document.getElementById('sec-'+i));
-window.addEventListener('scroll',()=>{
-  const scrollY=window.scrollY+200;let activeIdx=0;
-  sectionEls.forEach((el,i)=>{if(el&&el.offsetTop<=scrollY)activeIdx=i;});
-  document.querySelectorAll('.nav-tab').forEach((t,i)=>t.classList.toggle('active',i===activeIdx));
-});
+// ===== INIT =====
+renderProducts();
+initReveal();
 </script>
-</body></html>
+</body>
+</html>
