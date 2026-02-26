@@ -899,6 +899,32 @@ export interface CacheList {
   per_page: number;
 }
 
+export interface MatchingRunItem {
+  id: number;
+  ran_at: string | null;
+  status: string;
+  total_products: number | null;
+  from_cache: number | null;
+  llm_calls: number | null;
+  auto_matched: number | null;
+  pending_review: number | null;
+  auto_rejected: number | null;
+  not_found: number | null;
+  errors: number | null;
+  cost_estimate: number | null;
+  duration_seconds: number | null;
+  cross_supplier_hits: number | null;
+  fuzzy_hits: number | null;
+  attr_share_hits: number | null;
+  nightly_job_id: number | null;
+}
+
+export async function fetchMatchingRuns(limit = 30): Promise<MatchingRunItem[]> {
+  const res = await fetchWithAuth(`${API_BASE}/matching/runs?limit=${limit}`);
+  if (!res.ok) throw new Error(await extractErrorMessage(res));
+  return res.json();
+}
+
 export async function runMatching(supplierId?: number, limit?: number): Promise<void> {
   const body: Record<string, unknown> = {};
   if (supplierId) body.supplier_id = supplierId;
