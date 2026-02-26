@@ -275,12 +275,42 @@ def _run_matching_step() -> Dict[str, Any]:
     - Labels no longer in the catalog are cleaned up (product_id reset, PendingMatch deleted).
     - Phase 2 only scores products not yet matched/pending against the candidate pool.
     - Result: only genuinely new supplier labels trigger scoring work.
+
+    Weekly full rescore (Sunday): all auto-matched and pending/rejected results are
+    reset so Phase 2 re-evaluates the entire product catalog from scratch. Manual
+    validations (status='validated'/'created') are preserved.
     """
+    from models import LabelCache, PendingMatch, db
     from utils import llm_matching
+
+    is_sunday = datetime.now(timezone.utc).weekday() == 6  # 0=Monday, 6=Sunday
+
+    if is_sunday:
+        # Reset auto-matched LabelCache entries (preserve manual validations via SupplierProductRef)
+        reset_count = LabelCache.query.filter(
+            LabelCache.product_id.isnot(None),
+            LabelCache.match_source.in_(["auto", "attr_share"]),
+        ).update(
+            {"product_id": None, "match_score": None, "match_reasoning": None,
+             "match_source": "extracted"},
+            synchronize_session="fetch",
+        )
+
+        # Delete pending/rejected PendingMatches (manual validations are preserved)
+        deleted_pm = PendingMatch.query.filter(
+            PendingMatch.status.in_(["pending", "rejected"])
+        ).delete(synchronize_session="fetch")
+
+        db.session.flush()
+        logger.info(
+            "Sunday full rescore: %d LabelCache matches reset, %d PendingMatches deleted",
+            reset_count, deleted_pm,
+        )
 
     result = llm_matching.run_matching_job(supplier_id=None, limit=None)
     logger.info(
-        "Nightly matching: %d products processed (llm_calls=%d, auto=%d, pending=%d)",
+        "Nightly matching (%s): %d products processed (llm_calls=%d, auto=%d, pending=%d)",
+        "full rescore" if is_sunday else "incremental",
         result.get("total_products", 0),
         result.get("llm_calls", 0),
         result.get("auto_matched", 0),

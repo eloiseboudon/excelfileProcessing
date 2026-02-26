@@ -671,6 +671,7 @@ def run_matching_job(
     cross_supplier_hits = 0
     fuzzy_hits = 0
     attr_share_hits = 0
+    brands_with_new_labels: set[str] = set()
     products_to_process: list = []
     remaining = 0
     cost_estimate = 0.0
@@ -744,6 +745,9 @@ def run_matching_job(
             attrs = dict(cross_entry.extracted_attributes)
             attrs["raw_label"] = original_label
             _save_extraction_cache(sid, normalized, attrs, run_id=run_id)
+            _brand = (attrs.get("brand") or "").strip().lower()
+            if _brand:
+                brands_with_new_labels.add(_brand)
             cross_supplier_hits += 1
             continue
 
@@ -755,6 +759,9 @@ def run_matching_job(
             attrs = dict(fuzzy_entry.extracted_attributes)
             attrs["raw_label"] = original_label
             _save_extraction_cache(sid, normalized, attrs, run_id=run_id)
+            _brand = (attrs.get("brand") or "").strip().lower()
+            if _brand:
+                brands_with_new_labels.add(_brand)
             fuzzy_hits += 1
             continue
 
@@ -802,6 +809,11 @@ def run_matching_job(
             extraction["raw_label"] = original_label
             extraction["region"] = (extraction.get("region") or "EU").strip().upper()
 
+            # Track brand for Option A re-evaluation
+            _brand = (extraction.get("brand") or "").strip().lower()
+            if _brand:
+                brands_with_new_labels.add(_brand)
+
             # Attribute-based cross-supplier sharing: if the same (brand, model, storage,
             # color, region) tuple is already matched in another supplier's cache, assign
             # product_id directly without going through Phase 2 scoring.
@@ -827,6 +839,7 @@ def run_matching_job(
     # -----------------------------------------------------------------------
     # Phase 2: Match Odoo Products against extracted cache entries
     # -----------------------------------------------------------------------
+    reopened_product_ids: set[int] = set()
     if skip_already_matched:
         # Nightly mode: re-evaluate every product against tonight's updated catalog.
         # Caller is responsible for resetting LabelCache.product_id and PendingMatch
@@ -851,14 +864,44 @@ def run_matching_job(
             .all()
         }
 
-        # Exclude products already queued in a pending or auto-rejected match
+        # Exclude products already queued in a pending or auto-rejected match,
+        # UNLESS their brand received new labels this run (Option A re-evaluation).
         pending_product_ids = set()
+        pms_to_delete: list[int] = []
         for pm in PendingMatch.query.filter(
             PendingMatch.status.in_(["pending", "rejected"])
         ).all():
             for c in pm.candidates or []:
-                if c.get("product_id"):
-                    pending_product_ids.add(c["product_id"])
+                pid = c.get("product_id")
+                if not pid:
+                    continue
+                # Check if this product's brand has new labels → re-evaluate
+                product_obj = db.session.get(Product, pid)
+                if product_obj and brands_with_new_labels:
+                    prod_brand = (product_obj.brand.brand if product_obj.brand else "").strip().lower()
+                    if prod_brand and prod_brand in brands_with_new_labels:
+                        reopened_product_ids.add(pid)
+                        pms_to_delete.append(pm.id)
+                        break
+                pending_product_ids.add(pid)
+
+        # Delete stale PendingMatches for products being re-evaluated
+        if pms_to_delete:
+            PendingMatch.query.filter(PendingMatch.id.in_(pms_to_delete)).delete(
+                synchronize_session=False
+            )
+            db.session.flush()
+            current_app.logger.info(
+                "Option A: %d products re-opened, %d PendingMatches deleted (brands: %s)",
+                len(reopened_product_ids),
+                len(pms_to_delete),
+                ", ".join(sorted(brands_with_new_labels)),
+            )
+
+    # Re-opened products must not be excluded even if they appear in matched/pending sets
+    if reopened_product_ids:
+        matched_product_ids -= reopened_product_ids
+        pending_product_ids -= reopened_product_ids
 
     all_products_list = Product.query.all()
     products_to_process = [

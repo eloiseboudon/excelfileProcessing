@@ -359,13 +359,15 @@ Automatisation complete du cycle nocturne : sync Odoo + fournisseurs + re-matchi
   - Nettoyage selectif : labels disparus du catalogue fournisseur → product_id reset, PendingMatch supprimes
   - Matchs existants (auto, pending, rejected) preserves si le label est toujours present
   - Seuls les produits non encore resolus sont re-evalues (reduction de ~95% du scoring)
+  - **Option A** : re-evaluation automatique des pending/rejected quand de nouveaux labels arrivent pour la meme brand
+  - **Option D** : full rescore chaque dimanche — reset des auto-matches et pending, re-evaluation complete du catalogue
 - **Planificateur** (`utils/nightly_scheduler.py`) : `threading.Timer` verifiant chaque minute si l'heure UTC configuree est atteinte. Variable `_last_run_date` pour eviter de relancer plusieurs fois la meme nuit
 - **Rapport email** : webhook n8n (stdlib `urllib`, zero dependance externe). Payload JSON avec statut, compteurs, duree, lien de validation et corps HTML. Workflow n8n importable dans `n8n_nightly_workflow.json`
 - **8 endpoints REST** (`routes/nightly.py`, prefix `/nightly`) : GET/PUT config, POST trigger, GET jobs, GET jobs/<id>, GET/POST/DELETE recipients
 - **3 nouveaux modeles** : `NightlyConfig`, `NightlyJob`, `NightlyEmailRecipient`
 - **Resilience** : cleanup automatique au demarrage (`_cleanup_orphaned_jobs`) des jobs laisses en "running" par un crash ou hot-reload
 - **UI admin** : onglet "Automatisation" dans AdminPage — toggle enable, selecteur heure, bouton trigger, tableau historique, CRUD destinataires
-- **34 tests** : `tests/test_routes_nightly.py` (22 tests) + `tests/test_nightly_pipeline.py` (12 tests)
+- **41 tests** : `tests/test_routes_nightly.py` (22 tests) + `tests/test_nightly_pipeline.py` (19 tests)
 
 Variables d'environnement : `NIGHTLY_WEBHOOK_URL`, `ENABLE_NIGHTLY_SCHEDULER` (false par defaut), `FRONTEND_URL` (lien validation email).
 
