@@ -15,9 +15,14 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column("matching_runs", sa.Column("cross_supplier_hits", sa.Integer(), nullable=True))
-    op.add_column("matching_runs", sa.Column("fuzzy_hits", sa.Integer(), nullable=True))
-    op.add_column("matching_runs", sa.Column("attr_share_hits", sa.Integer(), nullable=True))
+    conn = op.get_bind()
+    columns = [c["name"] for c in sa.inspect(conn).get_columns("matching_runs")]
+    if "cross_supplier_hits" not in columns:
+        op.add_column("matching_runs", sa.Column("cross_supplier_hits", sa.Integer(), nullable=True))
+    if "fuzzy_hits" not in columns:
+        op.add_column("matching_runs", sa.Column("fuzzy_hits", sa.Integer(), nullable=True))
+    if "attr_share_hits" not in columns:
+        op.add_column("matching_runs", sa.Column("attr_share_hits", sa.Integer(), nullable=True))
 
 
 def downgrade():

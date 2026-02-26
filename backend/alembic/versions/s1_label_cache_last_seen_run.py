@@ -15,11 +15,17 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column(
-        "label_cache",
-        sa.Column("last_seen_run_id", sa.Integer(), sa.ForeignKey("matching_runs.id"), nullable=True),
-    )
-    op.create_index("ix_label_cache_last_seen_run", "label_cache", ["last_seen_run_id"])
+    conn = op.get_bind()
+    columns = [c["name"] for c in sa.inspect(conn).get_columns("label_cache")]
+    if "last_seen_run_id" not in columns:
+        op.add_column(
+            "label_cache",
+            sa.Column("last_seen_run_id", sa.Integer(), sa.ForeignKey("matching_runs.id"), nullable=True),
+        )
+    op.execute("""
+        CREATE INDEX IF NOT EXISTS ix_label_cache_last_seen_run
+        ON label_cache (last_seen_run_id)
+    """)
 
 
 def downgrade():
