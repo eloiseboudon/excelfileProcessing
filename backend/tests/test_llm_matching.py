@@ -727,6 +727,72 @@ class TestScoreMatch:
         assert 0 < details["model_family"] < 45
 
 
+    def test_model_version_different_base_not_disqualified(self, brand_samsung, memory_256, color_noir):
+        """Tab A9 vs Tab S9: same version (9) but different base (a vs s) → fuzzy ratio handles it."""
+        tab_s9 = Product(
+            model="Tab S9",
+            brand_id=brand_samsung.id,
+            memory_id=memory_256.id,
+            color_id=color_noir.id,
+        )
+        db.session.add(tab_s9)
+        db.session.commit()
+
+        extracted = {
+            "brand": "Samsung",
+            "model_family": "Tab A9",
+            "storage": "256 Go",
+            "color": "Noir",
+        }
+        score, details = score_match(extracted, tab_s9, {})
+        # Should NOT be disqualified by version — bases differ ("tab a" vs "tab s")
+        assert details.get("disqualified") != "model_version_mismatch"
+
+    def test_model_multi_version_numbers(self, brand_samsung, memory_128):
+        """Redmi Note 13 Pro vs Redmi Note 12 Pro: versions [13] vs [12] → disqualify."""
+        from models import Brand
+        xiaomi = Brand(brand="Xiaomi")
+        db.session.add(xiaomi)
+        db.session.flush()
+
+        note12 = Product(model="Redmi Note 12 Pro", brand_id=xiaomi.id, memory_id=memory_128.id)
+        db.session.add(note12)
+        db.session.commit()
+
+        extracted = {
+            "brand": "Xiaomi",
+            "model_family": "Redmi Note 13 Pro",
+            "storage": "128 Go",
+        }
+        score, details = score_match(extracted, note12, {})
+        assert score == 0
+        assert details.get("disqualified") == "model_version_mismatch"
+
+
+class TestExtractModelVersions:
+    def test_iphone_15_pro(self):
+        from utils.llm_matching import _extract_model_versions
+        base, versions = _extract_model_versions("iphone 15 pro max")
+        assert versions == ["15"]
+        assert "iphone" in base
+        assert "pro" in base
+
+    def test_galaxy_s25(self):
+        from utils.llm_matching import _extract_model_versions
+        base, versions = _extract_model_versions("galaxy s25 ultra")
+        assert versions == ["25"]
+
+    def test_redmi_note_13(self):
+        from utils.llm_matching import _extract_model_versions
+        base, versions = _extract_model_versions("redmi note 13 pro")
+        assert versions == ["13"]
+
+    def test_no_version(self):
+        from utils.llm_matching import _extract_model_versions
+        base, versions = _extract_model_versions("pixel pro")
+        assert versions == []
+
+
 class TestNormalizeStorage:
     def test_with_go(self):
         assert _normalize_storage("256 Go") == "256"
@@ -1374,3 +1440,61 @@ class TestRunMatchingJob:
             product_id=product_s25.id,
         ).first()
         assert ref is not None
+
+    @patch("utils.llm_matching.call_llm_extraction")
+    def test_ean_bonus_boosts_score(
+        self,
+        mock_llm,
+        supplier,
+        brand_samsung,
+        memory_256,
+        color_noir,
+        device_type,
+        color_translations,
+    ):
+        """When a supplier catalog EAN matches a known product EAN, score gets a +20 bonus."""
+        from models import ProductEanHistory
+
+        # Product with a known EAN
+        product = Product(
+            model="Galaxy A55",
+            brand_id=brand_samsung.id,
+            memory_id=memory_256.id,
+            color_id=color_noir.id,
+            ean="4901234567890",
+        )
+        db.session.add(product)
+        db.session.commit()
+
+        # Supplier catalog entry with matching EAN
+        ti = SupplierCatalog(
+            description="Samsung Galaxy A55 256Go Noir",
+            quantity=5,
+            selling_price=350.0,
+            ean="4901234567890",
+            supplier_id=supplier.id,
+        )
+        db.session.add(ti)
+        db.session.commit()
+
+        # LLM extracts attributes — model slightly different to get a sub-90 base score
+        mock_llm.return_value = [{
+            "brand": "Samsung",
+            "model_family": "Galaxy A55",
+            "storage": "256 Go",
+            "color": "Noir",
+            "device_type": "Smartphone",
+            "region": None,
+            "confidence": 0.90,
+        }]
+
+        report = run_matching_job(supplier_id=supplier.id)
+
+        # The product should be auto-matched (base score + EAN bonus pushes above 90)
+        cache = LabelCache.query.filter_by(
+            supplier_id=supplier.id,
+            normalized_label=normalize_label("Samsung Galaxy A55 256Go Noir"),
+        ).first()
+        assert cache is not None
+        assert cache.product_id == product.id
+        assert cache.match_reasoning.get("ean_bonus") == 20
