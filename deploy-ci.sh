@@ -72,6 +72,11 @@ docker network rm ajtpro_default 2>/dev/null || true
 log "Demarrage des containers..."
 docker compose -f "$COMPOSE_FILE" up -d
 
+# 7b. Fix alembic stamp if legacy revision name exists (one-time fix)
+docker compose -f "$COMPOSE_FILE" exec -T postgres psql -U postgres -d ajtpro -c \
+  "UPDATE alembic_version SET version_num = 'v2_populate_ram' WHERE version_num = 'v2_populate_ram_from_description';" 2>/dev/null \
+  && log "Alembic stamp corrige (legacy rename)" || true
+
 # 8. Attente que le backend soit pret + migrations Alembic
 log "Attente que le backend demarre..."
 for i in $(seq 1 30); do
