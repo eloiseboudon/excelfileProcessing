@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
   <link rel="stylesheet" href="css/admin.css">
 </head>
-<body x-data="adminApp()" @keydown.escape.window="handleEscape()">
+<body x-data="adminApp()" @keydown.escape.window="handleEscape()" data-upload-url="http://localhost:8090" data-upload-token="REPLACE_IN_PROD">
 
 <!-- Mobile header -->
 <div class="mobile-header">
@@ -320,7 +320,18 @@
               </div>
               <div class="form-group">
                 <label>Image</label>
-                <input type="text" x-model="c.img" placeholder="imgs/xxx.png">
+                <div class="img-upload-zone" @click="uploadImage(i)" :class="{ uploading: isUploadingColor(i) }">
+                  <template x-if="isUploadingColor(i)">
+                    <div class="upload-spinner"><i class="ti ti-loader-2"></i></div>
+                  </template>
+                  <template x-if="!isUploadingColor(i) && c.img">
+                    <img class="img-thumb" :src="c.img" :alt="c.name">
+                  </template>
+                  <template x-if="!isUploadingColor(i) && !c.img">
+                    <div class="upload-placeholder"><i class="ti ti-photo-up"></i><span>Upload</span></div>
+                  </template>
+                </div>
+                <input type="text" x-model="c.img" placeholder="imgs/xxx.png" style="font-size:11px;margin-top:4px">
               </div>
               <div class="form-group">
                 <label>URL boutique</label>

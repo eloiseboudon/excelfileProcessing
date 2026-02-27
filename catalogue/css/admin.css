@@ -581,7 +581,7 @@ body {
 }
 .color-variant-item {
   display: grid;
-  grid-template-columns: 50px 1fr 1fr 1fr auto;
+  grid-template-columns: 50px 1fr 100px 1fr auto;
   gap: 10px;
   align-items: end;
   padding: 14px;
@@ -592,6 +592,57 @@ body {
 .color-variant-item .form-group { gap: 3px; }
 .color-variant-item label { font-size: 11px; }
 .color-variant-item input { font-size: 12px; padding: 8px 10px; }
+
+/* ========== IMAGE UPLOAD ZONE ========== */
+.img-upload-zone {
+  width: 80px;
+  height: 80px;
+  border: 2px dashed var(--card-border);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all .2s;
+  overflow: hidden;
+  background: rgba(255,255,255,0.02);
+}
+.img-upload-zone:hover {
+  border-color: var(--gold);
+  background: var(--gold-dim);
+}
+.img-upload-zone.uploading {
+  border-color: var(--gold);
+  pointer-events: none;
+}
+.img-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  color: var(--text-dim);
+}
+.upload-placeholder i {
+  font-size: 22px;
+}
+.upload-placeholder span {
+  font-size: 10px;
+  font-weight: 500;
+}
+.upload-spinner {
+  color: var(--gold);
+  font-size: 24px;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
 
 /* ========== PREVIEW CARD ========== */
 .preview-overlay {
