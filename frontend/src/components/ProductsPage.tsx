@@ -186,13 +186,13 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
       return [
         { key: 'averagePrice', label: 'Prix de vente' },
         { key: 'model', label: 'Modèle' },
-        { key: 'description', label: 'Description' },
+        { key: 'description', label: 'Nomenclature' },
       ];
     }
     return [
       { key: 'id', label: 'ID' },
       { key: 'model', label: 'Modèle' },
-      { key: 'description', label: 'Description' },
+      { key: 'description', label: 'Nomenclature' },
       { key: 'brand', label: 'Marque' },
       { key: 'memory', label: 'Mémoire' },
       { key: 'color', label: 'Couleur' },
@@ -518,7 +518,7 @@ function ProductsPage({ onBack, role }: ProductsPageProps) {
     const rows = filteredData.map((p) => ({
       'Prix de vente': p.averagePrice > 0 ? p.averagePrice : '',
       'Modèle': p.model ?? '',
-      'Description': p.description ?? '',
+      'Nomenclature': p.description ?? '',
     }));
     const ws = XLSX_lib.utils.json_to_sheet(rows);
     const wb = XLSX_lib.utils.book_new();

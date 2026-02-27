@@ -7,7 +7,7 @@ import type { Column } from '../ProductReference';
 const columns: Column[] = [
   { key: 'id', label: 'ID' },
   { key: 'model', label: 'Modèle' },
-  { key: 'description', label: 'Description' },
+  { key: 'description', label: 'Nomenclature' },
   { key: 'brand', label: 'Marque' },
   { key: 'ean', label: 'EAN' },
 ];

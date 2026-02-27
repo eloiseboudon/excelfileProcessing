@@ -575,14 +575,14 @@ function MatchingPanel() {
         </>
       )}
 
-      {activeTab === 'rapport' && <RapportTab runs={runs} loading={loadingRuns} onRefresh={loadRuns} />}
+      {activeTab === 'rapport' && <RapportTab runs={runs} loading={loadingRuns} onRefresh={loadRuns} stats={stats} />}
 
     </div>
   );
 }
 
 
-function RapportTab({ runs, loading, onRefresh }: { runs: MatchingRunItem[]; loading: boolean; onRefresh: () => void }) {
+function RapportTab({ runs, loading, onRefresh, stats }: { runs: MatchingRunItem[]; loading: boolean; onRefresh: () => void; stats: MatchingStatsData | null }) {
   // Reverse to show oldest → newest (left to right) and limit to 15
   const sorted = [...runs].filter(r => r.status === 'completed').reverse().slice(-15);
   const dateLabels = sorted.map(r => r.ran_at ? new Date(r.ran_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : '?');
@@ -603,9 +603,12 @@ function RapportTab({ runs, loading, onRefresh }: { runs: MatchingRunItem[]; loa
     { name: 'Non trouvés', color: '#6b7280', values: sorted.map(r => r.not_found ?? 0) },
   ];
 
-  // Chart 3: Products processed (coverage proxy)
+  // Chart 3: Products processed
   const productsData: ChartPoint[] = sorted.map((r, i) => ({ label: dateLabels[i], value: r.total_products ?? 0 }));
   const autoData: ChartPoint[] = sorted.map((r, i) => ({ label: dateLabels[i], value: r.auto_matched ?? 0 }));
+
+  // Coverage KPI: live from stats endpoint
+  const coveragePct = stats ? stats.coverage_pct : null;
 
   return (
     <div className="space-y-6">
@@ -646,10 +649,29 @@ function RapportTab({ runs, loading, onRefresh }: { runs: MatchingRunItem[]; loa
             <StackedBarChart series={stackedSeries} labels={dateLabels} />
           </div>
 
-          {/* Chart 3: Coverage proxy */}
-          <div className="card p-4 space-y-2">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Produits traités par run</h4>
-            <MultiLineChart series={[{ name: 'Produits traités', data: productsData }, { name: 'Auto-matchés', data: autoData }]} />
+          {/* Coverage KPI + Chart 3 */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Coverage gauge */}
+            <div className="card p-4 flex flex-col items-center justify-center">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)] mb-3">Couverture TCP</h4>
+              {coveragePct !== null && stats ? (
+                <>
+                  <CoverageGauge percent={coveragePct} />
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)] mt-2">
+                    {stats.total_odoo_matched} <span className="text-[var(--color-text-muted)] font-normal">/ {stats.total_odoo_products}</span>
+                  </p>
+                  <p className="text-xs text-[var(--color-text-muted)]">produits dans TCP / référentiel Odoo</p>
+                </>
+              ) : (
+                <p className="text-xs text-[var(--color-text-muted)]">Chargement…</p>
+              )}
+            </div>
+
+            {/* Products processed chart */}
+            <div className="card p-4 space-y-2 lg:col-span-2">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Produits traités par run</h4>
+              <MultiLineChart series={[{ name: 'Produits traités', data: productsData }, { name: 'Auto-matchés', data: autoData }]} />
+            </div>
           </div>
 
           {/* History table */}
@@ -658,7 +680,7 @@ function RapportTab({ runs, loading, onRefresh }: { runs: MatchingRunItem[]; loa
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-[var(--color-border-subtle)]">
-                    {['Date', 'Durée', 'Coût', 'Produits', 'Cache', 'Auto', 'Pending', 'Rejetés', 'Not found', 'LLM calls'].map(h => (
+                    {['Date', 'Durée', 'Coût', 'Couverture', 'Produits', 'Cache', 'Auto', 'Pending', 'Rejetés', 'Not found', 'LLM calls'].map(h => (
                       <th key={h} className="px-3 py-2 text-left font-medium text-[var(--color-text-muted)] whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -671,6 +693,11 @@ function RapportTab({ runs, loading, onRefresh }: { runs: MatchingRunItem[]; loa
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-[var(--color-text-muted)]">{r.duration_seconds ? `${r.duration_seconds.toFixed(1)}s` : '—'}</td>
                       <td className="px-3 py-2 whitespace-nowrap text-[var(--color-text-muted)]">{r.cost_estimate ? `${r.cost_estimate.toFixed(4)}€` : '—'}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-[#B8860B] font-medium">
+                        {r.total_odoo_products != null && r.matched_products != null
+                          ? `${r.matched_products}/${r.total_odoo_products} (${((r.matched_products / r.total_odoo_products) * 100).toFixed(1)}%)`
+                          : '—'}
+                      </td>
                       <td className="px-3 py-2 whitespace-nowrap font-medium text-[var(--color-text-primary)]">{r.total_products ?? '—'}</td>
                       <td className="px-3 py-2 whitespace-nowrap text-[#B8860B]">{r.from_cache ?? '—'}</td>
                       <td className="px-3 py-2 whitespace-nowrap text-emerald-400">{r.auto_matched ?? '—'}</td>
@@ -697,8 +724,45 @@ const SCORE_LABELS: Record<string, string> = {
   model_family: 'Modèle',
   color: 'Couleur',
   region: 'Région',
-  label_similarity: 'Libellé',
+  label_similarity: 'Nomenclature',
 };
+
+function CoverageGauge({ percent }: { percent: number }) {
+  const size = 120;
+  const stroke = 10;
+  const radius = (size - stroke) / 2;
+  const circumference = Math.PI * radius; // half circle
+  const offset = circumference - (Math.min(percent, 100) / 100) * circumference;
+
+  return (
+    <svg width={size} height={size / 2 + 10} viewBox={`0 0 ${size} ${size / 2 + 10}`}>
+      {/* Background arc */}
+      <path
+        d={`M ${stroke / 2} ${size / 2} A ${radius} ${radius} 0 0 1 ${size - stroke / 2} ${size / 2}`}
+        fill="none"
+        stroke="var(--color-border-subtle)"
+        strokeWidth={stroke}
+        strokeLinecap="round"
+      />
+      {/* Filled arc */}
+      <path
+        d={`M ${stroke / 2} ${size / 2} A ${radius} ${radius} 0 0 1 ${size - stroke / 2} ${size / 2}`}
+        fill="none"
+        stroke="#B8860B"
+        strokeWidth={stroke}
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        className="transition-all duration-700"
+      />
+      {/* Percentage text */}
+      <text x={size / 2} y={size / 2 - 2} textAnchor="middle" className="text-xl font-bold" fill="var(--color-text-primary)" fontSize="22">
+        {percent.toFixed(1)}%
+      </text>
+    </svg>
+  );
+}
+
 
 function ScoreDetails({ details }: { details: Record<string, number> }) {
   const entries = Object.entries(details).filter(

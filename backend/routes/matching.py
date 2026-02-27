@@ -597,6 +597,8 @@ def list_runs():
             "cross_supplier_hits": r.cross_supplier_hits,
             "fuzzy_hits": r.fuzzy_hits,
             "attr_share_hits": r.attr_share_hits,
+            "total_odoo_products": r.total_odoo_products,
+            "matched_products": r.matched_products,
             "nightly_job_id": r.nightly_job_id,
         }
         for r in runs

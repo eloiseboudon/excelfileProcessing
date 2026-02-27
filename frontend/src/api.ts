@@ -916,6 +916,8 @@ export interface MatchingRunItem {
   cross_supplier_hits: number | null;
   fuzzy_hits: number | null;
   attr_share_hits: number | null;
+  total_odoo_products: number | null;
+  matched_products: number | null;
   nightly_job_id: number | null;
 }
 

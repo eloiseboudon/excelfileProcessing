@@ -7,7 +7,7 @@ import type { ProductItem, Column } from '../ProductReference';
 const columns: Column[] = [
   { key: 'id', label: 'ID' },
   { key: 'model', label: 'Modèle' },
-  { key: 'description', label: 'Description' },
+  { key: 'description', label: 'Nomenclature' },
   { key: 'brand', label: 'Marque' },
   { key: 'memory', label: 'Mémoire' },
   { key: 'color', label: 'Couleur' },
@@ -86,7 +86,7 @@ describe('ProductReferenceTable', () => {
   it('renders column headers', () => {
     render(<ProductReferenceTable {...defaultProps} />);
     expect(screen.getByText('Modèle')).toBeInTheDocument();
-    expect(screen.getByText('Description')).toBeInTheDocument();
+    expect(screen.getByText('Nomenclature')).toBeInTheDocument();
     expect(screen.getByText('Marque')).toBeInTheDocument();
     expect(screen.getByText('Mémoire')).toBeInTheDocument();
     expect(screen.getByText('Couleur')).toBeInTheDocument();

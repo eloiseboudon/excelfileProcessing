@@ -181,8 +181,8 @@ def list_jobs():
         [
             {
                 "id": j.id,
-                "started_at": j.started_at.isoformat() if j.started_at else None,
-                "ended_at": j.ended_at.isoformat() if j.ended_at else None,
+                "started_at": (j.started_at.isoformat() + "Z") if j.started_at else None,
+                "ended_at": (j.ended_at.isoformat() + "Z") if j.ended_at else None,
                 "status": j.status,
                 "trigger": j.trigger,
                 "error_message": j.error_message,
@@ -218,8 +218,8 @@ def get_job(job_id):
     return jsonify(
         {
             "id": job.id,
-            "started_at": job.started_at.isoformat() if job.started_at else None,
-            "ended_at": job.ended_at.isoformat() if job.ended_at else None,
+            "started_at": (job.started_at.isoformat() + "Z") if job.started_at else None,
+            "ended_at": (job.ended_at.isoformat() + "Z") if job.ended_at else None,
             "status": job.status,
             "trigger": job.trigger,
             "error_message": job.error_message,

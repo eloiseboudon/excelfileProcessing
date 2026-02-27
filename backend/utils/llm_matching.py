@@ -1107,6 +1107,10 @@ def run_matching_job(
             mr.cross_supplier_hits = cross_supplier_hits
             mr.fuzzy_hits = fuzzy_hits
             mr.attr_share_hits = attr_share_hits
+            mr.total_odoo_products = Product.query.count()
+            mr.matched_products = db.session.query(
+                db.func.count(db.func.distinct(ProductCalculation.product_id))
+            ).scalar()
             db.session.commit()
     except Exception:
         current_app.logger.exception("Failed to update MatchingRun #%d", run_id)
