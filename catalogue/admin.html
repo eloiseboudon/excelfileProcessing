@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HOTWAV × AJT PRO — Gestion Catalogue</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+<!-- Mobile header -->
+<div class="mobile-header">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <img src="imgs/hotwav-logo.png" alt="HOTWAV" style="height:24px" onerror="this.style.display='none'">
+    <span style="color:var(--gold);font-weight:700;font-size:14px;">Gestion Catalogue</span>
+  </div>
+</div>
+
+<!-- Layout -->
+<div class="admin-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <a href="admin.html" class="sidebar-logo">
+      <img src="imgs/hotwav-logo.png" alt="HOTWAV" onerror="this.style.display='none'">
+      <span>Gestion Catalogue</span>
+    </a>
+
+    <nav class="sidebar-nav">
+      <button class="sidebar-link active">
+        <i class="ti ti-layout-dashboard"></i> Tableau de bord
+      </button>
+      <button class="sidebar-link" onclick="document.getElementById('products-section').scrollIntoView({behavior:'smooth'})">
+        <i class="ti ti-package"></i> Produits
+      </button>
+      <button class="sidebar-link" onclick="exportProductsJS()">
+        <i class="ti ti-download"></i> Exporter JS
+      </button>
+      <button class="sidebar-link" onclick="importProductsJS()">
+        <i class="ti ti-upload"></i> Importer JS
+      </button>
+      <button class="sidebar-link" onclick="resetFromOriginal()">
+        <i class="ti ti-refresh"></i> Reset original
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <a href="index.html" target="_blank">
+        <i class="ti ti-external-link"></i> Voir la vitrine
+      </a>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main-content">
+
+    <!-- Header -->
+    <div class="page-header">
+      <h1><i class="ti ti-device-mobile-star"></i> Gestion du Catalogue HOTWAV</h1>
+      <p>Gérez les produits du catalogue. Les modifications sont sauvegardées en local. Exportez le fichier pour mettre à jour la vitrine.</p>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="stat-total">0</div>
+        <div class="stat-label">Total produits</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-rugged-phones">0</div>
+        <div class="stat-label">Smartphones Renforcés</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-phones">0</div>
+        <div class="stat-label">Smartphones</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-rugged-tabs">0</div>
+        <div class="stat-label">Tablettes Renforcées</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-tabs">0</div>
+        <div class="stat-label">Tablettes</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-colors">0</div>
+        <div class="stat-label">Total coloris</div>
+      </div>
+    </div>
+
+    <!-- Products section -->
+    <div id="products-section">
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <div class="toolbar-search">
+          <i class="ti ti-search"></i>
+          <input type="text" id="search-input" placeholder="Rechercher par nom ou id...">
+        </div>
+        <select id="cat-filter">
+          <option value="">Toutes les catégories</option>
+          <option value="rugged-phones">Smartphones Renforcés</option>
+          <option value="phones">Smartphones</option>
+          <option value="rugged-tabs">Tablettes Renforcées</option>
+          <option value="tabs">Tablettes</option>
+        </select>
+        <button class="btn btn-primary" onclick="openAddModal()">
+          <i class="ti ti-plus"></i> Ajouter
+        </button>
+        <button class="btn btn-secondary" onclick="exportProductsJS()">
+          <i class="ti ti-download"></i> Exporter products.js
+        </button>
+      </div>
+
+      <!-- Table -->
+      <div class="product-table-wrap">
+        <table class="product-table">
+          <thead>
+            <tr>
+              <th style="width:40px"></th>
+              <th>Produit</th>
+              <th>Catégorie</th>
+              <th>Badge</th>
+              <th>Coloris</th>
+              <th style="width:160px">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="products-tbody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Product Modal -->
+<div class="admin-modal-overlay" id="product-modal" onclick="if(event.target===this) closeProductModal()">
+  <div class="admin-modal">
+    <div class="admin-modal-header">
+      <h2><i class="ti ti-package"></i> <span id="modal-title-text">Ajouter un produit</span></h2>
+      <button class="btn-icon" onclick="closeProductModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="admin-modal-body">
+
+      <!-- Infos de base -->
+      <div class="form-section">
+        <div class="form-section-title"><i class="ti ti-info-circle"></i> Informations de base</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>ID unique</label>
+            <input type="text" id="f-id" placeholder="hyper7pro">
+          </div>
+          <div class="form-group">
+            <label>Nom</label>
+            <input type="text" id="f-name" placeholder="Hyper 7 Pro">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Catégorie</label>
+            <select id="f-cat">
+              <option value="rugged-phones">Smartphones Renforcés</option>
+              <option value="phones">Smartphones</option>
+              <option value="rugged-tabs">Tablettes Renforcées</option>
+              <option value="tabs">Tablettes</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Badge</label>
+            <select id="f-badge">
+              <option value="5G">5G</option>
+              <option value="4G" selected>4G</option>
+              <option value="LTE">LTE</option>
+              <option value="soon">Bientôt</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row full">
+          <div class="form-group">
+            <label>Specs (résumé affiché sur la carte)</label>
+            <input type="text" id="f-specs" placeholder="16/256 Go · 6,6&quot; FHD+ · 10 800 mAh · 33W · 200MP">
+          </div>
+        </div>
+      </div>
+
+      <!-- Highlights -->
+      <div class="form-section">
+        <div class="form-section-title"><i class="ti ti-star"></i> Highlights</div>
+        <div class="tags-container" id="highlights-tags"></div>
+        <div class="tags-input-row">
+          <input type="text" id="highlight-input" placeholder="Ajouter un tag..." onkeydown="handleHighlightKey(event)">
+          <button class="btn btn-secondary btn-sm" onclick="addHighlight()"><i class="ti ti-plus"></i></button>
+        </div>
+      </div>
+
+      <!-- Détails techniques -->
+      <div class="form-section">
+        <div class="form-section-title"><i class="ti ti-cpu"></i> Détails techniques</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Écran</label>
+            <input type="text" id="f-screen" placeholder="6,6&quot; FHD+">
+          </div>
+          <div class="form-group">
+            <label>RAM</label>
+            <input type="text" id="f-ram" placeholder="16 Go">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Stockage</label>
+            <input type="text" id="f-storage" placeholder="256 Go">
+          </div>
+          <div class="form-group">
+            <label>Batterie</label>
+            <input type="text" id="f-battery" placeholder="10 800 mAh · 33W">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Caméra</label>
+            <input type="text" id="f-camera" placeholder="200MP + 24MP">
+          </div>
+          <div class="form-group">
+            <label>Protection</label>
+            <input type="text" id="f-protection" placeholder="IP68/IP69K · MIL-STD 810G">
+          </div>
+        </div>
+      </div>
+
+      <!-- Variantes couleur -->
+      <div class="form-section">
+        <div class="form-section-title"><i class="ti ti-palette"></i> Variantes couleur</div>
+        <div class="color-variants" id="color-variants"></div>
+        <button class="btn btn-secondary btn-sm" onclick="addColor()" style="margin-top:10px">
+          <i class="ti ti-plus"></i> Ajouter une couleur
+        </button>
+      </div>
+
+    </div>
+    <div class="admin-modal-footer">
+      <button class="btn btn-secondary" onclick="closeProductModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveProduct()"><i class="ti ti-check"></i> Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Preview overlay -->
+<div class="preview-overlay" id="preview-overlay" onclick="if(event.target===this) closePreview()">
+  <div class="preview-container">
+    <div class="preview-close">
+      <button class="btn btn-secondary btn-sm" onclick="closePreview()"><i class="ti ti-x"></i> Fermer</button>
+    </div>
+    <div id="preview-content"></div>
+  </div>
+</div>
+
+<!-- Confirm dialog -->
+<div class="confirm-overlay" id="confirm-dialog" onclick="if(event.target===this) closeConfirm()">
+  <div class="confirm-box">
+    <h3><i class="ti ti-alert-triangle" style="color:var(--gold)"></i> Confirmation</h3>
+    <p id="confirm-text"></p>
+    <div class="confirm-actions">
+      <button class="btn btn-secondary" onclick="closeConfirm()">Annuler</button>
+      <button class="btn btn-danger" id="confirm-action">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Scripts -->
+<script src="js/products.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>
