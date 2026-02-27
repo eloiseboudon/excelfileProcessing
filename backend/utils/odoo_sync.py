@@ -266,7 +266,19 @@ def _parse_name_fallback(
             found = _find_in(color_lookup)
         result["color_id"] = found
     if memory_id is None:
-        result["memory_id"] = _find_in(memory_lookup)
+        # Try to extract storage from "RAM/StorageGo" or "StorageGo" pattern
+        mem_match = re.search(r"\b\d+/(\d+)\s*(?:go|gb)\b", name_lower)
+        if not mem_match:
+            mem_match = re.search(r"\b(\d+)\s*(?:go|gb)\b", name_lower)
+        if mem_match:
+            mem_key = f"{mem_match.group(1)} go"
+            if mem_key in memory_lookup:
+                matched_strings.append(mem_key)
+                result["memory_id"] = memory_lookup[mem_key]
+            else:
+                result["memory_id"] = _find_in(memory_lookup)
+        else:
+            result["memory_id"] = _find_in(memory_lookup)
     if ram_id is None:
         # Try to extract RAM from "RAM/StorageGo" pattern (e.g. "8/256Go", "8/256GB")
         ram_match = re.search(r"\b(\d+)/\d+\s*(?:go|gb)\b", name_lower)
