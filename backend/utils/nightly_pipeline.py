@@ -307,6 +307,13 @@ def _run_matching_step() -> Dict[str, Any]:
             reset_count, deleted_pm,
         )
 
+    # Build validation history from previously validated PendingMatches.
+    # Key = (source_label, supplier_id), value = resolved_product_id.
+    validation_history: Dict[tuple, int] = {}
+    for pm in PendingMatch.query.filter_by(status="validated").all():
+        if pm.resolved_product_id:
+            validation_history[(pm.source_label, pm.supplier_id)] = pm.resolved_product_id
+
     result = llm_matching.run_matching_job(supplier_id=None, limit=None)
     logger.info(
         "Nightly matching (%s): %d products processed (llm_calls=%d, auto=%d, pending=%d)",
@@ -316,6 +323,16 @@ def _run_matching_step() -> Dict[str, Any]:
         result.get("auto_matched", 0),
         result.get("pending_review", 0),
     )
+
+    # Auto-validate new pending matches that reproduce a known validated match
+    if validation_history:
+        auto_validated = _apply_validation_history(validation_history)
+        if auto_validated:
+            logger.info(
+                "Validation history: %d pending match(es) auto-validated from prior decisions",
+                auto_validated,
+            )
+            result["auto_validated_from_history"] = auto_validated
 
     return result
 

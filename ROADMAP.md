@@ -362,6 +362,10 @@ Automatisation complete du cycle nocturne : sync Odoo + fournisseurs + re-matchi
   - **Option A** : re-evaluation automatique des pending/rejected quand de nouveaux labels arrivent pour la meme brand
   - **Option D** : full rescore chaque dimanche — reset des auto-matches et pending, re-evaluation complete du catalogue
   - **Onglet Rapport** : graphiques d'evolution (cout LLM, taux de cache, repartition resultats, produits traites) + tableau historique des runs
+  - **Historique de validation** : les PendingMatch deja valides par un humain sont auto-valides si le meme label repropose le meme produit lors d'un run suivant (reduction du travail de validation matinal)
+  - **Classification device types avant matching** : `assign_device_types` est maintenant appele avant chaque matching (nightly ET manuel) pour eviter les faux negatifs sur le hard disqualifier device_type
+  - **Detection de version modele amelioree** : tokenisation base+version au lieu du premier nombre — evite les faux positifs (Tab A9 vs Tab S9) et detecte correctement les vrais conflits (Redmi Note 13 vs Note 12)
+  - **Bonus EAN en Phase 2** : si l'EAN du catalogue fournisseur correspond a un EAN produit connu (Product.ean ou ProductEanHistory), +20 pts de bonus au scoring. Sert de premier filtre fiable sans auto-valider seul — la verification par nom reste necessaire
 - **Planificateur** (`utils/nightly_scheduler.py`) : `threading.Timer` verifiant chaque minute si l'heure UTC configuree est atteinte. Variable `_last_run_date` pour eviter de relancer plusieurs fois la meme nuit
 - **Rapport email** : webhook n8n (stdlib `urllib`, zero dependance externe). Payload JSON avec statut, compteurs, duree, lien de validation et corps HTML. Workflow n8n importable dans `n8n_nightly_workflow.json`
 - **8 endpoints REST** (`routes/nightly.py`, prefix `/nightly`) : GET/PUT config, POST trigger, GET jobs, GET jobs/<id>, GET/POST/DELETE recipients

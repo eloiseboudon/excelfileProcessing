@@ -365,6 +365,49 @@ class TestRunMatchingStepNightly:
         # Pending match should be deleted
         assert PendingMatch.query.get(pm_id) is None
 
+    @patch("utils.llm_matching.run_matching_job")
+    def test_applies_validation_history_after_matching(self, mock_run):
+        """After matching, pending matches that reproduce a validated decision are auto-validated."""
+        from models import Product, Supplier
+        from utils.nightly_pipeline import _run_matching_step
+
+        s = Supplier(name="S_hist")
+        p = Product(description="iPhone 16 128GB")
+        db.session.add_all([s, p])
+        db.session.commit()
+
+        # Simulate a previously validated match
+        pm_old = PendingMatch(
+            supplier_id=s.id, source_label="iphone 16 128gb",
+            extracted_attributes={}, candidates=[{"product_id": p.id, "score": 80}],
+            status="validated", resolved_product_id=p.id,
+        )
+        db.session.add(pm_old)
+        db.session.commit()
+
+        def create_new_pending(*args, **kwargs):
+            """Simulate run_matching_job creating a new pending match for the same label."""
+            pm_new = PendingMatch(
+                supplier_id=s.id, source_label="iphone 16 128gb",
+                extracted_attributes={}, candidates=[{"product_id": p.id, "score": 78}],
+                status="pending",
+            )
+            db.session.add(pm_new)
+            db.session.commit()
+            return {"total_products": 1, "llm_calls": 0, "auto_matched": 0, "pending_review": 1}
+
+        mock_run.side_effect = create_new_pending
+
+        result = _run_matching_step()
+
+        assert result.get("auto_validated_from_history") == 1
+        # The new pending match should now be validated
+        new_pm = PendingMatch.query.filter_by(
+            supplier_id=s.id, source_label="iphone 16 128gb", status="validated",
+        ).order_by(PendingMatch.id.desc()).first()
+        assert new_pm is not None
+        assert new_pm.resolved_product_id == p.id
+
     @patch("utils.nightly_pipeline.datetime")
     @patch("utils.llm_matching.run_matching_job")
     def test_weekday_does_not_reset(self, mock_run, mock_dt):

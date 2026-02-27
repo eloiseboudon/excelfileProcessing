@@ -38,6 +38,14 @@ def _run_matching_background(app, supplier_id, limit) -> None:
     """Run matching job in a background thread with its own app context."""
     with app.app_context():
         try:
+            # Ensure device types are assigned before scoring — device_type is a
+            # hard disqualifier and products without a type miss all candidates.
+            from utils.nightly_pipeline import _run_assign_types_step
+            try:
+                _run_assign_types_step()
+            except Exception:
+                logger.warning("assign_device_types failed before matching, continuing anyway", exc_info=True)
+
             result = run_matching_job(supplier_id=supplier_id, limit=limit)
             logger.info(
                 "Matching termine: %d produits, %d auto, %d review, %d rejetes, %d non trouves, %d erreurs",

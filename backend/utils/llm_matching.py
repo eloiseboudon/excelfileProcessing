@@ -402,14 +402,19 @@ def score_match(
     prod_model = re.sub(r'\b\d+\s*(?:go|gb|to|tb)\b', '', prod_model, flags=re.IGNORECASE).strip()
 
     if ext_model and prod_model:
-        # Hard disqualifier: same model name structure but different version number
-        # e.g. "iphone 16" vs "iphone 15", "galaxy s25" vs "galaxy s24"
-        ext_ver = re.search(r'\d+', ext_model)
-        prod_ver = re.search(r'\d+', prod_model)
-        if ext_ver and prod_ver and ext_ver.group() != prod_ver.group():
-            details["model_family"] = 0
-            details["disqualified"] = "model_version_mismatch"
-            return 0, details
+        # Hard disqualifier: same model base but different version numbers.
+        # Tokenize into (text_base, version_numbers) so that:
+        #   "iphone 15 pro" vs "iphone 16 pro" → base similar, versions [15] vs [16] → disqualify
+        #   "tab a9" vs "tab s9" → base differs ("tab a" vs "tab s") → let fuzzy ratio handle it
+        #   "redmi note 13 pro" vs "redmi note 12 pro" → same base, [13] vs [12] → disqualify
+        ext_base, ext_versions = _extract_model_versions(ext_model)
+        prod_base, prod_versions = _extract_model_versions(prod_model)
+
+        if ext_versions and prod_versions and _fuzzy_ratio(ext_base, prod_base) >= 0.8:
+            if ext_versions != prod_versions:
+                details["model_family"] = 0
+                details["disqualified"] = "model_version_mismatch"
+                return 0, details
 
         ratio = _fuzzy_ratio(ext_model, prod_model)
         if ratio >= 0.95:
@@ -930,6 +935,24 @@ def run_matching_job(
         brand = (attrs.get("brand") or "").strip().lower()
         brand_to_entries.setdefault(brand, []).append(entry)
 
+    # Build EAN → set of product IDs from both Product.ean and ProductEanHistory.
+    # Used as a scoring bonus: if a supplier catalog EAN matches a known product EAN,
+    # the score gets a +20 boost (but not an auto-match — name verification still needed).
+    ean_to_product_ids: Dict[str, set] = {}
+    for p in all_products_list:
+        if p.ean:
+            ean_to_product_ids.setdefault(p.ean.strip(), set()).add(p.id)
+    for hist in ProductEanHistory.query.all():
+        if hist.ean:
+            ean_to_product_ids.setdefault(hist.ean.strip(), set()).add(hist.product_id)
+
+    # Build (supplier_id, normalized_label) → set of EANs from SupplierCatalog
+    label_eans: Dict[Tuple[int, str], set] = {}
+    for key, catalogs in label_to_catalogs.items():
+        eans = {c.ean.strip() for c in catalogs if c.ean}
+        if eans:
+            label_eans[key] = eans
+
     mappings = _build_mappings()
 
     for product in products_to_process:
@@ -954,6 +977,21 @@ def run_matching_job(
         for cache_entry in candidates_list:
             attrs = dict(cache_entry.extracted_attributes or {})
             score, details = score_match(attrs, product, mappings)
+
+            # EAN bonus: if the supplier catalog entry has an EAN that is known
+            # to belong to this product, add a +20 bonus. This is a strong signal
+            # but not sufficient alone — attribute scoring still verifies the match.
+            if score > 0:
+                entry_eans = label_eans.get(
+                    (cache_entry.supplier_id, cache_entry.normalized_label), set()
+                )
+                if entry_eans:
+                    for ean in entry_eans:
+                        if product.id in ean_to_product_ids.get(ean, set()):
+                            details["ean_bonus"] = 20
+                            score = min(score + 20, 100)
+                            break
+
             if score > 0:
                 scored.append((score, details, cache_entry))
             elif best_disqualified is None and details.get("disqualified"):
@@ -1096,6 +1134,32 @@ def run_matching_job(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _extract_model_versions(model: str) -> Tuple[str, List[str]]:
+    """Split a model name into (text_base, version_numbers).
+
+    Extracts version-like numbers from model names while ignoring storage
+    suffixes (already stripped upstream) and trivial single-digit sub-variants.
+
+    Examples:
+        "iphone 15 pro max" → ("iphone  pro max", ["15"])
+        "galaxy s24 fe"     → ("galaxy s fe", ["24"])
+        "redmi note 13 pro" → ("redmi note  pro", ["13"])
+        "tab a9"            → ("tab a", ["9"])
+        "pixel 9 pro"       → ("pixel  pro", ["9"])
+    """
+    # Find all digit groups that look like version numbers (not storage)
+    tokens = re.split(r'(\d+)', model)
+    base_parts: list[str] = []
+    versions: list[str] = []
+    for token in tokens:
+        if re.fullmatch(r'\d+', token):
+            versions.append(token)
+        else:
+            base_parts.append(token)
+    base = " ".join("".join(base_parts).split())  # collapse whitespace
+    return base, versions
+
 
 def _make_attr_key(attrs: Dict[str, Any]) -> Optional[str]:
     """Build a canonical key from extracted attributes for cross-supplier deduplication.
