@@ -35,6 +35,8 @@ backend/instance/*
 backend/alembic/versions/__pycache__/
 backend/alembic/versions/*.pyc
 
+docs/API_fournisseurs
+
 **/__pycache__
 **/*.pyc
 
