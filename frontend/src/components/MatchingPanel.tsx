@@ -1,12 +1,10 @@
 import {
-  AlertTriangle,
   BarChart3,
   Check,
   ChevronLeft,
   ChevronRight,
   GitMerge,
   Loader2,
-  Play,
   RefreshCw,
   Search,
   X,
@@ -22,7 +20,6 @@ import {
   MatchingStatsData,
   PendingMatchItem,
   rejectMatch,
-  runMatching,
   validateMatch,
 } from '../api';
 import { useNotification } from './NotificationProvider';
@@ -152,10 +149,6 @@ function MatchingPanel() {
   const [suppliers, setSuppliers] = useState<{ id: number; name: string }[]>([]);
   const [selectedSupplier, setSelectedSupplier] = useState<number | undefined>();
 
-  // Run state
-  const [running, setRunning] = useState(false);
-  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const runStartTimeRef = useRef<number>(0);
 
   // Pending matches
   const [pending, setPending] = useState<PendingMatchItem[]>([]);
@@ -175,9 +168,6 @@ function MatchingPanel() {
   // Rapport — matching runs history
   const [runs, setRuns] = useState<MatchingRunItem[]>([]);
   const [loadingRuns, setLoadingRuns] = useState(false);
-
-  // Error
-  const [error, setError] = useState<string | null>(null);
 
   // Loading
   const [loadingPending, setLoadingPending] = useState(false);
@@ -235,70 +225,6 @@ function MatchingPanel() {
       setModelFilter(value);
       setPendingPage(1);
     }, 400);
-  }
-
-  function stopPolling() {
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
-    }
-    setRunning(false);
-  }
-
-  async function handleRun() {
-    if (running) {
-      stopPolling();
-      return;
-    }
-    setRunning(true);
-    setError(null);
-    try {
-      await runMatching(undefined, undefined);
-      notify('Rapprochement lance en arriere-plan — les stats se mettent a jour automatiquement', 'success');
-      runStartTimeRef.current = Date.now();
-      let elapsed = 0;
-      const MAX_DURATION = 10 * 60 * 1000;
-      const POLL_INTERVAL = 5000;
-      pollIntervalRef.current = setInterval(async () => {
-        elapsed += POLL_INTERVAL;
-        const data = await loadStats();
-        loadPending();
-
-        const lr = data?.last_run;
-        if (lr && (lr.status === 'completed' || lr.status === 'error')) {
-          const ranAt = lr.ran_at ? new Date(lr.ran_at).getTime() : 0;
-          if (ranAt >= runStartTimeRef.current) {
-            stopPolling();
-            if (lr.status === 'error') {
-              notify(`Erreur rapprochement : ${lr.error_message ?? 'Erreur inconnue'}`, 'error');
-            } else if (!lr.total_products) {
-              notify('Aucun nouveau produit a traiter — tout est deja en attente ou apparie', 'info');
-            } else {
-              notify(
-                `Rapprochement termine — ${lr.auto_matched ?? 0} auto, ${lr.pending_review ?? 0} a valider`,
-                'success'
-              );
-            }
-            return;
-          }
-        }
-        if (elapsed >= MAX_DURATION) {
-          stopPolling();
-        }
-      }, POLL_INTERVAL);
-    } catch (err: unknown) {
-      let msg: string;
-      if (err instanceof TypeError && err.message === 'Failed to fetch') {
-        msg = 'Impossible de contacter le serveur. Verifiez votre connexion ou que le backend est demarre.';
-      } else if (err instanceof Error) {
-        msg = err.message;
-      } else {
-        msg = 'Erreur inconnue lors du rapprochement';
-      }
-      setError(msg);
-      notify(msg, 'error');
-      setRunning(false);
-    }
   }
 
   async function handleValidate(pm: PendingMatchItem, candidate: MatchingCandidate) {
@@ -370,24 +296,6 @@ function MatchingPanel() {
             Mise en correspondance automatique des produits fournisseurs au référentiel.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={handleRun}
-          disabled={running}
-          className="btn btn-secondary flex items-center gap-2 shrink-0 mt-1"
-        >
-          {running ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              En cours…
-            </>
-          ) : (
-            <>
-              <Play className="w-4 h-4" />
-              Lancer maintenant
-            </>
-          )}
-        </button>
       </div>
 
       {/* KPI cards */}
@@ -434,27 +342,6 @@ function MatchingPanel() {
 
       {activeTab === 'validation' && (
         <>
-          {/* Bandeau "en cours" */}
-          {running && (
-            <div className="flex items-center gap-2 p-3 rounded-md bg-[var(--color-bg-elevated)] border border-[var(--color-border-subtle)]">
-              <Loader2 className="w-4 h-4 animate-spin text-[#B8860B] shrink-0" />
-              <p className="text-sm text-[var(--color-text-primary)]">
-                Rapprochement en cours — les statistiques se mettent a jour toutes les 5s.
-              </p>
-            </div>
-          )}
-
-          {/* Erreur inline */}
-          {error && !running && (
-            <div className="flex items-start gap-2 p-3 rounded-md bg-[var(--color-bg-elevated)] border border-red-500/30">
-              <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5 shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-red-400">Echec du rapprochement</p>
-                <p className="text-sm text-red-400/80 mt-1">{error}</p>
-              </div>
-            </div>
-          )}
-
           {/* Produits Odoo sans correspondance fournisseur */}
           {stats && stats.total_odoo_unmatched > 0 && (
             <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 space-y-3">
