@@ -863,5 +863,43 @@ class TestModelExtraction:
         assert product is not None
         assert product.model == "iPhone 12"
         assert product.description == "Apple iPhone 12 128Go Purple"
-        # RAM should NOT be assigned (fallback skips numeric "12")
+        # RAM should NOT be assigned (no RAM/Storage pattern, fallback skips numeric "12")
         assert product.RAM_id is None
+
+    def test_ram_extracted_from_ram_storage_pattern(self, app):
+        """RAM is extracted from the X/YGo pattern in product name."""
+        from utils.odoo_sync import _process_single_product
+
+        ram_opt = RAMOption(ram="8 Go")
+        db.session.add(ram_opt)
+        db.session.flush()
+
+        odoo_product = {
+            "id": 504,
+            "name": "Xiaomi Redmi Note 15 5G DS 8/256GB Black",
+            "barcode": "5000000000004",
+            "default_code": "",
+            "list_price": 299.0,
+            "product_brand_id": [1, "Xiaomi"],
+            "categ_id": [5, "All / Smartphones"],
+            "product_template_attribute_value_ids": [],
+        }
+
+        status, _ = _process_single_product(
+            odoo_product,
+            attr_values_cache={},
+            brand_lookup={},
+            color_lookup={},
+            memory_lookup={},
+            ram_lookup={"8 go": ram_opt.id},
+            norme_lookup={},
+            type_lookup={},
+            internal_by_odoo_id={},
+            product_by_ean={},
+            product_by_pn={},
+        )
+        assert status == "created"
+        product = Product.query.filter_by(ean="5000000000004").first()
+        assert product is not None
+        assert product.RAM_id == ram_opt.id
+        assert product.description == "Xiaomi Redmi Note 15 5G DS 8/256Go Black"

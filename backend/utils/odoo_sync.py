@@ -268,7 +268,17 @@ def _parse_name_fallback(
     if memory_id is None:
         result["memory_id"] = _find_in(memory_lookup)
     if ram_id is None:
-        result["ram_id"] = _find_in(ram_lookup)
+        # Try to extract RAM from "RAM/StorageGo" pattern (e.g. "8/256Go", "8/256GB")
+        ram_match = re.search(r"\b(\d+)/\d+\s*(?:go|gb)\b", name_lower)
+        if ram_match:
+            ram_key = f"{ram_match.group(1)} go"
+            if ram_key in ram_lookup:
+                matched_strings.append(ram_key)
+                result["ram_id"] = ram_lookup[ram_key]
+            else:
+                result["ram_id"] = _find_in(ram_lookup)
+        else:
+            result["ram_id"] = _find_in(ram_lookup)
     if norme_id is None:
         result["norme_id"] = _find_in(norme_lookup)
     if type_id is None:
