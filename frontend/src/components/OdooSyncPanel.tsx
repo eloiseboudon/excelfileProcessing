@@ -443,7 +443,7 @@ function OdooSyncPanel() {
                         {formatDate(job.started_at)}
                       </span>
                       <span className="text-xs text-[var(--color-text-muted)] ml-2">
-                        ({job.trigger === 'auto' ? 'auto' : 'manuel'})
+                        ({job.trigger === 'nightly' ? 'nightly' : job.trigger === 'auto' ? 'auto' : 'manuel'})
                       </span>
                     </div>
                   </div>
