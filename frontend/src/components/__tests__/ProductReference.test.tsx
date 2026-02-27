@@ -91,7 +91,7 @@ describe('ProductReference', () => {
     await waitFor(() => {
       expect(screen.getByText('Modèle')).toBeInTheDocument();
     });
-    expect(screen.getByText('Description')).toBeInTheDocument();
+    expect(screen.getByText('Nomenclature')).toBeInTheDocument();
     expect(screen.getByText('Marque')).toBeInTheDocument();
     expect(screen.getByText('EAN')).toBeInTheDocument();
   });
