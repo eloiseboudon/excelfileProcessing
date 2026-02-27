@@ -46,3 +46,5 @@ CLAUDE.md
 
 frontend/build/
 .claude/
+coverage/
+test.db
