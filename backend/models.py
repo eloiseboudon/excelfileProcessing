@@ -586,6 +586,8 @@ class MatchingRun(db.Model):
     cross_supplier_hits = db.Column(db.Integer, nullable=True)
     fuzzy_hits = db.Column(db.Integer, nullable=True)
     attr_share_hits = db.Column(db.Integer, nullable=True)
+    total_odoo_products = db.Column(db.Integer, nullable=True)
+    matched_products = db.Column(db.Integer, nullable=True)
 
 
 class NightlyEmailRecipient(db.Model):

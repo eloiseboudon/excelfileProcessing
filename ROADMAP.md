@@ -361,7 +361,7 @@ Automatisation complete du cycle nocturne : sync Odoo + fournisseurs + re-matchi
   - Seuls les produits non encore resolus sont re-evalues (reduction de ~95% du scoring)
   - **Option A** : re-evaluation automatique des pending/rejected quand de nouveaux labels arrivent pour la meme brand
   - **Option D** : full rescore chaque dimanche — reset des auto-matches et pending, re-evaluation complete du catalogue
-  - **Onglet Rapport** : graphiques d'evolution (cout LLM, taux de cache, repartition resultats, produits traites) + tableau historique des runs
+  - **Onglet Rapport** : graphiques d'evolution (cout LLM, taux de cache, repartition resultats, produits traites, couverture Odoo) + tableau historique des runs avec colonne couverture (produits matches / total referentiel Odoo)
   - **Historique de validation** : les PendingMatch deja valides par un humain sont auto-valides si le meme label repropose le meme produit lors d'un run suivant (reduction du travail de validation matinal)
   - **Classification device types avant matching** : `assign_device_types` est maintenant appele avant chaque matching (nightly ET manuel) pour eviter les faux negatifs sur le hard disqualifier device_type
   - **Detection de version modele amelioree** : tokenisation base+version au lieu du premier nombre — evite les faux positifs (Tab A9 vs Tab S9) et detecte correctement les vrais conflits (Redmi Note 13 vs Note 12)
