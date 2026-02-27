@@ -777,7 +777,7 @@ class TestModelExtraction:
         assert status == "created"
         product = Product.query.filter_by(ean="5000000000001").first()
         assert product is not None
-        assert product.description == "Apple iPhone 15 128GB Black"
+        assert product.description == "Apple iPhone 15 128Go Black"
         assert product.model == "iPhone 15"
 
     def test_extraction_with_fallback(self, app):
@@ -817,7 +817,7 @@ class TestModelExtraction:
         assert status == "created"
         product = Product.query.filter_by(ean="5000000000002").first()
         assert product is not None
-        assert product.description == "Samsung Galaxy S24 256GB Noir"
+        assert product.description == "Samsung Galaxy S24 256Go Noir"
         assert product.model == "Galaxy S24"
 
     def test_numeric_model_number_preserved(self, app):
@@ -862,6 +862,44 @@ class TestModelExtraction:
         product = Product.query.filter_by(ean="5000000000003").first()
         assert product is not None
         assert product.model == "iPhone 12"
-        assert product.description == "Apple iPhone 12 128GB Purple"
-        # RAM should NOT be assigned (fallback skips numeric "12")
+        assert product.description == "Apple iPhone 12 128Go Purple"
+        # RAM should NOT be assigned (no RAM/Storage pattern, fallback skips numeric "12")
         assert product.RAM_id is None
+
+    def test_ram_extracted_from_ram_storage_pattern(self, app):
+        """RAM is extracted from the X/YGo pattern in product name."""
+        from utils.odoo_sync import _process_single_product
+
+        ram_opt = RAMOption(ram="8 Go")
+        db.session.add(ram_opt)
+        db.session.flush()
+
+        odoo_product = {
+            "id": 504,
+            "name": "Xiaomi Redmi Note 15 5G DS 8/256GB Black",
+            "barcode": "5000000000004",
+            "default_code": "",
+            "list_price": 299.0,
+            "product_brand_id": [1, "Xiaomi"],
+            "categ_id": [5, "All / Smartphones"],
+            "product_template_attribute_value_ids": [],
+        }
+
+        status, _ = _process_single_product(
+            odoo_product,
+            attr_values_cache={},
+            brand_lookup={},
+            color_lookup={},
+            memory_lookup={},
+            ram_lookup={"8 go": ram_opt.id},
+            norme_lookup={},
+            type_lookup={},
+            internal_by_odoo_id={},
+            product_by_ean={},
+            product_by_pn={},
+        )
+        assert status == "created"
+        product = Product.query.filter_by(ean="5000000000004").first()
+        assert product is not None
+        assert product.RAM_id == ram_opt.id
+        assert product.description == "Xiaomi Redmi Note 15 5G DS 8/256Go Black"

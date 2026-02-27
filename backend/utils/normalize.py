@@ -62,6 +62,26 @@ def normalize_label(label: str) -> str:
     return text
 
 
+_UNIT_IN_TEXT_RE = re.compile(r"(\d+)\s*(?:GB|Gb|gb)\b")
+_UNIT_TB_IN_TEXT_RE = re.compile(r"(\d+)\s*(?:TB|Tb|tb)\b")
+
+
+def normalize_description_units(text: str) -> str:
+    """Normalize storage units inside a product description.
+
+    Converts GB/Gb/gb → Go and TB/Tb/tb → To while preserving
+    the rest of the text unchanged.
+
+    Examples:
+        "Apple iPhone 15 128GB Black"     -> "Apple iPhone 15 128Go Black"
+        "Xiaomi 8/256Gb Black"            -> "Xiaomi 8/256Go Black"
+        "Samsung 1TB Storage"             -> "Samsung 1To Storage"
+    """
+    text = _UNIT_IN_TEXT_RE.sub(r"\1Go", text)
+    text = _UNIT_TB_IN_TEXT_RE.sub(r"\1To", text)
+    return text
+
+
 def normalize_ram(value: Optional[str]) -> Optional[str]:
     """Normalize a RAM value to the canonical French format.
 

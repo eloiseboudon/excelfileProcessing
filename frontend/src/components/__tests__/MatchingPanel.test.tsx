@@ -7,7 +7,6 @@ vi.mock('../../api', () => ({
   fetchSuppliers: vi.fn(),
   fetchPendingMatches: vi.fn(),
   fetchMatchingStats: vi.fn(),
-  runMatching: vi.fn(),
   validateMatch: vi.fn(),
   rejectMatch: vi.fn(),
 }));
@@ -16,7 +15,6 @@ import {
   fetchSuppliers,
   fetchPendingMatches,
   fetchMatchingStats,
-  runMatching,
   validateMatch,
   rejectMatch,
 } from '../../api';
@@ -24,7 +22,6 @@ import {
 const mockFetchSuppliers = fetchSuppliers as ReturnType<typeof vi.fn>;
 const mockFetchPending = fetchPendingMatches as ReturnType<typeof vi.fn>;
 const mockFetchStats = fetchMatchingStats as ReturnType<typeof vi.fn>;
-const mockRunMatching = runMatching as ReturnType<typeof vi.fn>;
 const mockValidateMatch = validateMatch as ReturnType<typeof vi.fn>;
 const mockRejectMatch = rejectMatch as ReturnType<typeof vi.fn>;
 
@@ -59,12 +56,11 @@ describe('MatchingPanel', () => {
     });
   });
 
-  it('renders the heading and run button', async () => {
+  it('renders the heading', async () => {
     renderPanel();
     await waitFor(() => {
       expect(screen.getByText('Rapprochement LLM')).toBeInTheDocument();
     });
-    expect(screen.getByText('Lancer maintenant')).toBeInTheDocument();
   });
 
   it('loads suppliers on mount', async () => {
@@ -89,51 +85,6 @@ describe('MatchingPanel', () => {
         screen.getByText('Aucun match a afficher.')
       ).toBeInTheDocument();
     });
-  });
-
-  it('run button is enabled and shows correct label before launch', async () => {
-    renderPanel();
-    await waitFor(() => {
-      expect(screen.getByText('Lancer maintenant')).toBeInTheDocument();
-    });
-    const btn = screen.getByRole('button', { name: /Lancer maintenant/ });
-    expect(btn).not.toBeDisabled();
-  });
-
-  it('runs matching and shows in-progress banner', async () => {
-    mockRunMatching.mockResolvedValue(undefined);
-
-    renderPanel();
-    await waitFor(() => {
-      expect(screen.getByText('Lancer maintenant')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByText('Lancer maintenant'));
-
-    await waitFor(() => {
-      expect(mockRunMatching).toHaveBeenCalledWith(undefined, undefined);
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText(/Rapprochement en cours/)).toBeInTheDocument();
-    });
-  });
-
-  it('run button becomes disabled during matching', async () => {
-    mockRunMatching.mockResolvedValue(undefined);
-
-    renderPanel();
-    await waitFor(() => {
-      expect(screen.getByText('Lancer maintenant')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByText('Lancer maintenant'));
-
-    await waitFor(() => {
-      expect(screen.getByText('En cours…')).toBeInTheDocument();
-    });
-    const btn = screen.getByRole('button', { name: /En cours/ });
-    expect(btn).toBeDisabled();
   });
 
   it('renders pending matches with candidates', async () => {
