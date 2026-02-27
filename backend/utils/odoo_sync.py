@@ -8,7 +8,7 @@ import xmlrpc.client
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-from utils.normalize import normalize_ram, normalize_storage
+from utils.normalize import normalize_description_units, normalize_ram, normalize_storage
 from models import (
     Brand,
     Color,
@@ -402,7 +402,7 @@ def _process_single_product(
     # Build product field dict
     product_fields = {
         "model": model_name,
-        "description": name,
+        "description": normalize_description_units(name),
         "ean": barcode or None,
         "part_number": default_code or None,
         "recommended_price": list_price if list_price else None,

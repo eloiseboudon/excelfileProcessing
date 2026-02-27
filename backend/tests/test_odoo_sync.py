@@ -777,7 +777,7 @@ class TestModelExtraction:
         assert status == "created"
         product = Product.query.filter_by(ean="5000000000001").first()
         assert product is not None
-        assert product.description == "Apple iPhone 15 128GB Black"
+        assert product.description == "Apple iPhone 15 128Go Black"
         assert product.model == "iPhone 15"
 
     def test_extraction_with_fallback(self, app):
@@ -817,7 +817,7 @@ class TestModelExtraction:
         assert status == "created"
         product = Product.query.filter_by(ean="5000000000002").first()
         assert product is not None
-        assert product.description == "Samsung Galaxy S24 256GB Noir"
+        assert product.description == "Samsung Galaxy S24 256Go Noir"
         assert product.model == "Galaxy S24"
 
     def test_numeric_model_number_preserved(self, app):
@@ -862,6 +862,6 @@ class TestModelExtraction:
         product = Product.query.filter_by(ean="5000000000003").first()
         assert product is not None
         assert product.model == "iPhone 12"
-        assert product.description == "Apple iPhone 12 128GB Purple"
+        assert product.description == "Apple iPhone 12 128Go Purple"
         # RAM should NOT be assigned (fallback skips numeric "12")
         assert product.RAM_id is None

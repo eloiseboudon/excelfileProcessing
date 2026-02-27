@@ -1,6 +1,6 @@
-"""Tests for utils/normalize.py — storage and RAM value normalization."""
+"""Tests for utils/normalize.py — storage, RAM and description normalization."""
 
-from utils.normalize import normalize_ram, normalize_storage
+from utils.normalize import normalize_description_units, normalize_ram, normalize_storage
 
 
 class TestNormalizeStorage:
@@ -88,3 +88,34 @@ class TestNormalizeRam:
     def test_tb_treated_as_go_for_ram(self):
         """RAM values with TB/To should still normalize to Go."""
         assert normalize_ram("4TB") == "4 Go"
+
+
+class TestNormalizeDescriptionUnits:
+    """Tests for normalize_description_units()."""
+
+    def test_gb_uppercase(self):
+        assert normalize_description_units("Apple iPhone 15 128GB Black") == "Apple iPhone 15 128Go Black"
+
+    def test_gb_mixed_case(self):
+        assert normalize_description_units("Xiaomi 8/256Gb Black") == "Xiaomi 8/256Go Black"
+
+    def test_gb_lowercase(self):
+        assert normalize_description_units("Samsung 128gb Blue") == "Samsung 128Go Blue"
+
+    def test_tb_uppercase(self):
+        assert normalize_description_units("Samsung 1TB Storage") == "Samsung 1To Storage"
+
+    def test_ram_storage_combo(self):
+        assert normalize_description_units("Google Pixel 9a 5G DS 8/128GB Iris") == "Google Pixel 9a 5G DS 8/128Go Iris"
+
+    def test_no_unit_unchanged(self):
+        assert normalize_description_units("Apple iPhone 15 Black") == "Apple iPhone 15 Black"
+
+    def test_go_already_normalized(self):
+        assert normalize_description_units("Apple iPhone 15 128Go Black") == "Apple iPhone 15 128Go Black"
+
+    def test_space_between_number_and_unit(self):
+        assert normalize_description_units("Hotwav 4/128 Gb Grey") == "Hotwav 4/128Go Grey"
+
+    def test_multiple_units(self):
+        assert normalize_description_units("Phone 8GB 256GB") == "Phone 8Go 256Go"
