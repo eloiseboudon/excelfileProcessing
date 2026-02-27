@@ -311,9 +311,41 @@ function handleHighlightKey(e) {
 
 let currentColors = [{ name: 'Black', hex: '#1a1a1a', img: '', url: '' }];
 
+function getExistingColors() {
+  const seen = new Map();
+  products.forEach(p => {
+    (p.colors || []).forEach(c => {
+      if (c.name && c.hex && !seen.has(c.name)) {
+        seen.set(c.name, c.hex);
+      }
+    });
+  });
+  return Array.from(seen.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+}
+
+function selectExistingColor(name, hex) {
+  currentColors.push({ name, hex, img: '', url: '' });
+  renderColorVariants();
+}
+
 function renderColorVariants() {
   const container = document.getElementById('color-variants');
-  container.innerHTML = currentColors.map((c, i) => `
+  const palette = getExistingColors();
+
+  const paletteHtml = palette.length ? `
+    <div class="existing-colors-palette">
+      <div class="palette-label">Couleurs existantes <span>(cliquer pour ajouter)</span></div>
+      <div class="palette-dots">
+        ${palette.map(([name, hex]) =>
+          `<button type="button" class="palette-dot" style="background:${hex}" title="${escapeHtml(name)}" onclick="selectExistingColor('${escapeHtml(name).replace(/'/g, "\\'")}', '${hex}')">
+            <span class="palette-dot-name">${escapeHtml(name)}</span>
+          </button>`
+        ).join('')}
+      </div>
+    </div>
+  ` : '';
+
+  container.innerHTML = paletteHtml + currentColors.map((c, i) => `
     <div class="color-variant-item">
       <div class="form-group">
         <label>Couleur</label>

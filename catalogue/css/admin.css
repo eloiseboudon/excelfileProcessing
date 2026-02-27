@@ -477,6 +477,68 @@ body {
   border-radius: 6px;
 }
 
+/* ========== EXISTING COLORS PALETTE ========== */
+.existing-colors-palette {
+  margin-bottom: 16px;
+  padding: 14px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+}
+.palette-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 10px;
+}
+.palette-label span {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  font-style: italic;
+}
+.palette-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.palette-dot {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.15);
+  cursor: pointer;
+  transition: all .2s;
+  padding: 0;
+}
+.palette-dot:hover {
+  border-color: var(--gold);
+  transform: scale(1.2);
+  box-shadow: 0 0 10px var(--gold-dim);
+}
+.palette-dot-name {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg2);
+  border: 1px solid var(--card-border);
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--text);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+}
+.palette-dot:hover .palette-dot-name {
+  display: block;
+}
+
 /* ========== HIGHLIGHTS TAGS ========== */
 .tags-container {
   display: flex;
