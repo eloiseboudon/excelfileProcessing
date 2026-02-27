@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
   <link rel="stylesheet" href="css/admin.css">
 </head>
-<body>
+<body x-data="adminApp()" @keydown.escape.window="handleEscape()">
 
 <!-- Mobile header -->
 <div class="mobile-header">
@@ -32,16 +32,16 @@
       <button class="sidebar-link active">
         <i class="ti ti-layout-dashboard"></i> Tableau de bord
       </button>
-      <button class="sidebar-link" onclick="document.getElementById('products-section').scrollIntoView({behavior:'smooth'})">
+      <button class="sidebar-link" @click="$refs.productsSection.scrollIntoView({behavior:'smooth'})">
         <i class="ti ti-package"></i> Produits
       </button>
-      <button class="sidebar-link" onclick="exportProductsJS()">
+      <button class="sidebar-link" @click="exportProductsJS()">
         <i class="ti ti-download"></i> Exporter JS
       </button>
-      <button class="sidebar-link" onclick="importProductsJS()">
+      <button class="sidebar-link" @click="importProductsJS()">
         <i class="ti ti-upload"></i> Importer JS
       </button>
-      <button class="sidebar-link" onclick="resetFromOriginal()">
+      <button class="sidebar-link" @click="resetFromOriginal()">
         <i class="ti ti-refresh"></i> Reset original
       </button>
     </nav>
@@ -65,47 +65,47 @@
     <!-- Stats -->
     <div class="stats-grid">
       <div class="stat-card">
-        <div class="stat-value" id="stat-total">0</div>
+        <div class="stat-value" x-text="stats.total">0</div>
         <div class="stat-label">Total produits</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value" id="stat-rugged-phones">0</div>
+        <div class="stat-value" x-text="stats.ruggedPhones">0</div>
         <div class="stat-label">Smartphones Renforcés</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value" id="stat-phones">0</div>
+        <div class="stat-value" x-text="stats.phones">0</div>
         <div class="stat-label">Smartphones</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value" id="stat-rugged-tabs">0</div>
+        <div class="stat-value" x-text="stats.ruggedTabs">0</div>
         <div class="stat-label">Tablettes Renforcées</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value" id="stat-tabs">0</div>
+        <div class="stat-value" x-text="stats.tabs">0</div>
         <div class="stat-label">Tablettes</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value" id="stat-colors">0</div>
+        <div class="stat-value" x-text="stats.colors">0</div>
         <div class="stat-label">Total coloris</div>
       </div>
     </div>
 
     <!-- Products section -->
-    <div id="products-section">
+    <div x-ref="productsSection">
       <!-- Toolbar -->
       <div class="toolbar">
         <div class="toolbar-search">
           <i class="ti ti-search"></i>
-          <input type="text" id="search-input" placeholder="Rechercher par nom ou id...">
+          <input type="text" x-model="searchQuery" placeholder="Rechercher par nom ou id...">
         </div>
-        <select id="cat-filter">
+        <select x-model="catFilter">
           <option value="">Toutes les catégories</option>
           <option value="rugged-phones">Smartphones Renforcés</option>
           <option value="phones">Smartphones</option>
           <option value="rugged-tabs">Tablettes Renforcées</option>
           <option value="tabs">Tablettes</option>
         </select>
-        <button class="btn btn-primary" onclick="openAddModal()">
+        <button class="btn btn-primary" @click="openAddModal()">
           <i class="ti ti-plus"></i> Ajouter
         </button>
       </div>
@@ -123,7 +123,62 @@
               <th style="width:160px">Actions</th>
             </tr>
           </thead>
-          <tbody id="products-tbody">
+          <tbody>
+            <!-- Empty state -->
+            <template x-if="filteredProducts.length === 0">
+              <tr>
+                <td colspan="6">
+                  <div class="empty-state">
+                    <i class="ti ti-package-off"></i>
+                    <p>Aucun produit trouvé</p>
+                  </div>
+                </td>
+              </tr>
+            </template>
+
+            <!-- Product rows -->
+            <template x-for="p in filteredProducts" :key="p.id">
+              <tr draggable="true"
+                  :data-idx="p._idx"
+                  @dragstart="onDragStart($event, p._idx)"
+                  @dragover="onDragOver($event)"
+                  @dragleave="onDragLeave($event)"
+                  @drop="onDrop($event, p._idx)"
+                  @dragend="onDragEnd($event)">
+                <td><span class="drag-handle" title="Réordonner"><i class="ti ti-grip-vertical"></i></span></td>
+                <td>
+                  <div class="product-name-cell">
+                    <template x-if="p.colors && p.colors.length && p.colors[0].img">
+                      <img class="product-thumb" :src="p.colors[0].img" :alt="p.name" onerror="this.style.display='none'">
+                    </template>
+                    <div>
+                      <div class="product-name-text" x-text="p.name"></div>
+                      <div class="product-id" x-text="p.id"></div>
+                    </div>
+                  </div>
+                </td>
+                <td x-text="categoryLabel(p.cat)"></td>
+                <td><span class="badge" :class="badgeClass(p.badge)" x-text="badgeLabel(p.badge)"></span></td>
+                <td>
+                  <div class="color-dots-cell">
+                    <template x-for="c in (p.colors || []).slice(0, 6)" :key="c.hex + c.name">
+                      <span class="color-dot-mini" :style="`background:${c.hex}`" :title="c.name"></span>
+                    </template>
+                    <template x-if="(p.colors || []).length > 6">
+                      <span style="font-size:11px;color:var(--text-dim)" x-text="'+' + ((p.colors || []).length - 6)"></span>
+                    </template>
+                  </div>
+                </td>
+                <td>
+                  <div class="actions-cell">
+                    <button class="btn-icon" title="Prévisualiser" @click="openPreview(p._idx)"><i class="ti ti-eye"></i></button>
+                    <button class="btn-icon" title="Modifier" @click="editProduct(p._idx)"><i class="ti ti-pencil"></i></button>
+                    <button class="btn-icon" title="Dupliquer" @click="duplicateProduct(p._idx)"><i class="ti ti-copy"></i></button>
+                    <button class="btn-icon danger" title="Supprimer" @click="confirmDelete(p._idx)"><i class="ti ti-trash"></i></button>
+                  </div>
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </div>
@@ -133,11 +188,11 @@
 </div>
 
 <!-- Product Modal -->
-<div class="admin-modal-overlay" id="product-modal" onclick="if(event.target===this) closeProductModal()">
+<div class="admin-modal-overlay" :class="{ open: showProductModal }" @click.self="showProductModal = false">
   <div class="admin-modal">
     <div class="admin-modal-header">
-      <h2><i class="ti ti-package"></i> <span id="modal-title-text">Ajouter un produit</span></h2>
-      <button class="btn-icon" onclick="closeProductModal()"><i class="ti ti-x"></i></button>
+      <h2><i class="ti ti-package"></i> <span x-text="editingIndex !== null ? 'Modifier le produit' : 'Ajouter un produit'"></span></h2>
+      <button class="btn-icon" @click="showProductModal = false"><i class="ti ti-x"></i></button>
     </div>
     <div class="admin-modal-body">
 
@@ -147,17 +202,17 @@
         <div class="form-row">
           <div class="form-group">
             <label>ID unique</label>
-            <input type="text" id="f-id" placeholder="hyper7pro">
+            <input type="text" x-model="form.id" placeholder="hyper7pro">
           </div>
           <div class="form-group">
             <label>Nom</label>
-            <input type="text" id="f-name" placeholder="Hyper 7 Pro">
+            <input type="text" x-model="form.name" placeholder="Hyper 7 Pro">
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>Catégorie</label>
-            <select id="f-cat">
+            <select x-model="form.cat">
               <option value="rugged-phones">Smartphones Renforcés</option>
               <option value="phones">Smartphones</option>
               <option value="rugged-tabs">Tablettes Renforcées</option>
@@ -166,9 +221,9 @@
           </div>
           <div class="form-group">
             <label>Badge</label>
-            <select id="f-badge">
+            <select x-model="form.badge">
               <option value="5G">5G</option>
-              <option value="4G" selected>4G</option>
+              <option value="4G">4G</option>
               <option value="LTE">LTE</option>
               <option value="soon">Bientôt</option>
             </select>
@@ -177,7 +232,7 @@
         <div class="form-row full">
           <div class="form-group">
             <label>Specs (résumé affiché sur la carte)</label>
-            <input type="text" id="f-specs" placeholder="16/256 Go · 6,6&quot; FHD+ · 10 800 mAh · 33W · 200MP">
+            <input type="text" x-model="form.specs" placeholder='16/256 Go · 6,6" FHD+ · 10 800 mAh · 33W · 200MP'>
           </div>
         </div>
       </div>
@@ -185,10 +240,17 @@
       <!-- Highlights -->
       <div class="form-section">
         <div class="form-section-title"><i class="ti ti-star"></i> Highlights</div>
-        <div class="tags-container" id="highlights-tags"></div>
+        <div class="tags-container">
+          <template x-for="(h, i) in form.highlights" :key="i">
+            <span class="tag">
+              <span x-text="h"></span>
+              <button @click="removeHighlight(i)">&times;</button>
+            </span>
+          </template>
+        </div>
         <div class="tags-input-row">
-          <input type="text" id="highlight-input" placeholder="Ajouter un tag..." onkeydown="handleHighlightKey(event)">
-          <button class="btn btn-secondary btn-sm" onclick="addHighlight()"><i class="ti ti-plus"></i></button>
+          <input type="text" x-model="highlightInput" placeholder="Ajouter un tag..." @keydown="handleHighlightKey($event)">
+          <button class="btn btn-secondary btn-sm" @click="addHighlight()"><i class="ti ti-plus"></i></button>
         </div>
       </div>
 
@@ -198,31 +260,31 @@
         <div class="form-row">
           <div class="form-group">
             <label>Écran</label>
-            <input type="text" id="f-screen" placeholder="6,6&quot; FHD+">
+            <input type="text" x-model="form.screen" placeholder='6,6" FHD+'>
           </div>
           <div class="form-group">
             <label>RAM</label>
-            <input type="text" id="f-ram" placeholder="16 Go">
+            <input type="text" x-model="form.ram" placeholder="16 Go">
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>Stockage</label>
-            <input type="text" id="f-storage" placeholder="256 Go">
+            <input type="text" x-model="form.storage" placeholder="256 Go">
           </div>
           <div class="form-group">
             <label>Batterie</label>
-            <input type="text" id="f-battery" placeholder="10 800 mAh · 33W">
+            <input type="text" x-model="form.battery" placeholder="10 800 mAh · 33W">
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>Caméra</label>
-            <input type="text" id="f-camera" placeholder="200MP + 24MP">
+            <input type="text" x-model="form.camera" placeholder="200MP + 24MP">
           </div>
           <div class="form-group">
             <label>Protection</label>
-            <input type="text" id="f-protection" placeholder="IP68/IP69K · MIL-STD 810G">
+            <input type="text" x-model="form.protection" placeholder="IP68/IP69K · MIL-STD 810G">
           </div>
         </div>
       </div>
@@ -230,47 +292,125 @@
       <!-- Variantes couleur -->
       <div class="form-section">
         <div class="form-section-title"><i class="ti ti-palette"></i> Variantes couleur</div>
-        <div class="color-variants" id="color-variants"></div>
-        <button class="btn btn-secondary btn-sm" onclick="addColor()" style="margin-top:10px">
+        <div class="color-variants">
+          <!-- Palette existante -->
+          <template x-if="existingColorsPalette.length > 0">
+            <div class="existing-colors-palette">
+              <div class="palette-label">Couleurs existantes <span>(cliquer pour ajouter)</span></div>
+              <div class="palette-dots">
+                <template x-for="[name, hex] in existingColorsPalette" :key="name">
+                  <button type="button" class="palette-dot" :style="`background:${hex}`" :title="name" @click="selectExistingColor(name, hex)">
+                    <span class="palette-dot-name" x-text="name"></span>
+                  </button>
+                </template>
+              </div>
+            </div>
+          </template>
+
+          <!-- Color items -->
+          <template x-for="(c, i) in form.colors" :key="i">
+            <div class="color-variant-item">
+              <div class="form-group">
+                <label>Couleur</label>
+                <input type="color" :value="c.hex" @input="c.hex = $event.target.value">
+              </div>
+              <div class="form-group">
+                <label>Nom</label>
+                <input type="text" x-model="c.name" placeholder="Black">
+              </div>
+              <div class="form-group">
+                <label>Image</label>
+                <input type="text" x-model="c.img" placeholder="imgs/xxx.png">
+              </div>
+              <div class="form-group">
+                <label>URL boutique</label>
+                <div style="display:flex;gap:6px;align-items:center">
+                  <input type="text" x-model="c.url" placeholder="/shop/xxx" style="flex:1">
+                  <template x-if="c.url">
+                    <a :href="'https://shop.ajtpro.com' + c.url" target="_blank" rel="noopener" class="btn-icon" title="Ouvrir dans la boutique" style="color:var(--gold);flex-shrink:0"><i class="ti ti-external-link"></i></a>
+                  </template>
+                </div>
+              </div>
+              <button class="btn-icon danger" title="Supprimer" @click="removeColor(i)" :disabled="form.colors.length <= 1" :style="form.colors.length <= 1 ? 'opacity:0.3' : ''">
+                <i class="ti ti-trash"></i>
+              </button>
+            </div>
+          </template>
+        </div>
+        <button class="btn btn-secondary btn-sm" @click="addColor()" style="margin-top:10px">
           <i class="ti ti-plus"></i> Ajouter une couleur
         </button>
       </div>
 
     </div>
     <div class="admin-modal-footer">
-      <button class="btn btn-secondary" onclick="closeProductModal()">Annuler</button>
-      <button class="btn btn-primary" onclick="saveProduct()"><i class="ti ti-check"></i> Enregistrer</button>
+      <button class="btn btn-secondary" @click="showProductModal = false">Annuler</button>
+      <button class="btn btn-primary" @click="saveProduct()"><i class="ti ti-check"></i> Enregistrer</button>
     </div>
   </div>
 </div>
 
 <!-- Preview overlay -->
-<div class="preview-overlay" id="preview-overlay" onclick="if(event.target===this) closePreview()">
+<div class="preview-overlay" :class="{ open: showPreview }" @click.self="showPreview = false">
   <div class="preview-container">
     <div class="preview-close">
-      <button class="btn btn-secondary btn-sm" onclick="closePreview()"><i class="ti ti-x"></i> Fermer</button>
+      <button class="btn btn-secondary btn-sm" @click="showPreview = false"><i class="ti ti-x"></i> Fermer</button>
     </div>
-    <div id="preview-content"></div>
+    <template x-if="previewProduct">
+      <div class="preview-card">
+        <div class="card-img-wrap">
+          <span class="card-badge" :class="badgeClass(previewProduct.badge)" x-text="badgeLabel(previewProduct.badge)"></span>
+          <template x-if="previewProduct.colors && previewProduct.colors[0] && previewProduct.colors[0].img">
+            <img class="card-img" :src="previewProduct.colors[0].img" :alt="previewProduct.name" onerror="this.style.display='none'">
+          </template>
+        </div>
+        <div class="card-body">
+          <div class="card-name" x-text="previewProduct.name"></div>
+          <div class="card-specs" x-text="previewProduct.specs"></div>
+          <div class="card-highlights">
+            <template x-for="h in (previewProduct.highlights || [])" :key="h">
+              <span class="card-hl" x-text="h"></span>
+            </template>
+          </div>
+          <div class="card-bottom">
+            <div class="color-dots">
+              <template x-for="(c, ci) in (previewProduct.colors || [])" :key="ci">
+                <div class="color-dot" :class="{ active: ci === 0 }" :style="`background:${c.hex}`" :title="c.name"></div>
+              </template>
+            </div>
+            <span class="card-cart"><i class="ti ti-shopping-cart"></i></span>
+          </div>
+        </div>
+      </div>
+    </template>
   </div>
 </div>
 
 <!-- Confirm dialog -->
-<div class="confirm-overlay" id="confirm-dialog" onclick="if(event.target===this) closeConfirm()">
+<div class="confirm-overlay" :class="{ open: showConfirm }" @click.self="showConfirm = false">
   <div class="confirm-box">
     <h3><i class="ti ti-alert-triangle" style="color:var(--gold)"></i> Confirmation</h3>
-    <p id="confirm-text"></p>
+    <p x-text="confirmText"></p>
     <div class="confirm-actions">
-      <button class="btn btn-secondary" onclick="closeConfirm()">Annuler</button>
-      <button class="btn btn-danger" id="confirm-action">Confirmer</button>
+      <button class="btn btn-secondary" @click="showConfirm = false">Annuler</button>
+      <button class="btn btn-danger" @click="executeConfirm()">Confirmer</button>
     </div>
   </div>
 </div>
 
-<!-- Toast -->
-<div class="toast-container" id="toast-container"></div>
+<!-- Toasts -->
+<div class="toast-container">
+  <template x-for="t in toasts" :key="t.id">
+    <div class="toast" :class="t.type" :style="t.fading ? 'opacity:0;transform:translateY(-10px);transition:all .3s' : ''">
+      <i class="ti" :class="toastIcon(t.type)"></i>
+      <span x-text="t.message"></span>
+    </div>
+  </template>
+</div>
 
 <!-- Scripts -->
 <script src="js/products.js"></script>
 <script src="js/admin.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
 </body>
 </html>
