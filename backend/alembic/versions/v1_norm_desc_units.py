@@ -1,6 +1,6 @@
 """Normalize storage units in product descriptions (GB -> Go, TB -> To).
 
-Revision ID: v1_normalize_description_units
+Revision ID: v1_norm_desc_units
 Revises: u1_matching_run_coverage
 Create Date: 2026-02-27
 """
@@ -10,7 +10,7 @@ import re
 from alembic import op
 import sqlalchemy as sa
 
-revision = "v1_normalize_description_units"
+revision = "v1_norm_desc_units"
 down_revision = "u1_matching_run_coverage"
 branch_labels = None
 depends_on = None
@@ -26,6 +26,9 @@ def _normalize(text):
 
 
 def upgrade():
+    # Widen alembic_version column if needed (default 32 is too short)
+    op.execute("ALTER TABLE alembic_version ALTER COLUMN version_num TYPE varchar(128)")
+
     conn = op.get_bind()
     rows = conn.execute(
         sa.text("SELECT id, description FROM products WHERE description ~* '[0-9]+\\s*(GB|TB)'")

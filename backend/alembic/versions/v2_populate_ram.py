@@ -1,15 +1,15 @@
 """Populate RAM_id from description pattern (e.g. 8/256Go -> RAM=8 Go).
 
-Revision ID: v2_populate_ram_from_description
-Revises: v1_normalize_description_units
+Revision ID: v2_populate_ram
+Revises: v1_norm_desc_units
 Create Date: 2026-02-27
 """
 
 from alembic import op
 import sqlalchemy as sa
 
-revision = "v2_populate_ram_from_description"
-down_revision = "v1_normalize_description_units"
+revision = "v2_populate_ram"
+down_revision = "v1_norm_desc_units"
 branch_labels = None
 depends_on = None
 
