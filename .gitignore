@@ -48,3 +48,4 @@ frontend/build/
 .claude/
 coverage/
 test.db
+update_matching_slides.py
