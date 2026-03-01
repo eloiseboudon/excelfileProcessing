@@ -23,6 +23,7 @@ function adminApp() {
     previewProduct: null,
     toasts: [],
     dragSrcIndex: null,
+    uploadingColorIndex: null,
     highlightInput: '',
     form: {
       id: '', name: '', cat: 'rugged-phones', badge: '4G', specs: '',
@@ -248,6 +249,53 @@ function adminApp() {
 
     selectExistingColor(name, hex) {
       this.form.colors.push({ name, hex, img: '', url: '' });
+    },
+
+    // ========== IMAGE UPLOAD ==========
+    uploadImage(colorIndex) {
+      if (this.uploadingColorIndex !== null) return;
+
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/png,image/jpeg,image/webp';
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        this.uploadingColorIndex = colorIndex;
+
+        const uploadUrl = document.body.dataset.uploadUrl || 'http://localhost:8090';
+        const token = document.body.dataset.uploadToken || '';
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('product_id', this.form.id || 'new-product');
+        formData.append('color_name', this.form.colors[colorIndex].name || `color-${colorIndex}`);
+
+        try {
+          const resp = await fetch(`${uploadUrl}/upload`, {
+            method: 'POST',
+            headers: { 'X-Upload-Token': token },
+            body: formData,
+          });
+          const data = await resp.json();
+          if (resp.ok) {
+            this.form.colors[colorIndex].img = data.path;
+            this.showToast('success', 'Image uploadee');
+          } else {
+            this.showToast('error', data.error || 'Erreur upload');
+          }
+        } catch (err) {
+          this.showToast('error', 'Erreur reseau : ' + err.message);
+        } finally {
+          this.uploadingColorIndex = null;
+        }
+      };
+      input.click();
+    },
+
+    isUploadingColor(i) {
+      return this.uploadingColorIndex === i;
     },
 
     // ========== DRAG & DROP ==========

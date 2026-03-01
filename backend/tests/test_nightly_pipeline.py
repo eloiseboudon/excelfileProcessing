@@ -291,12 +291,17 @@ class TestRunMatchingStepNightly:
             supplier_id=None, limit=None
         )
 
+    @patch("utils.nightly_pipeline.datetime")
     @patch("utils.llm_matching.run_matching_job")
-    def test_preserves_existing_matches(self, mock_run):
+    def test_preserves_existing_matches(self, mock_run, mock_dt):
         """Nightly no longer resets LabelCache.product_id — existing matches are preserved."""
         from models import Supplier
         from utils.nightly_pipeline import _run_matching_step
 
+        # Simulate a weekday (not Sunday) to avoid full rescore
+        mock_now = MagicMock()
+        mock_now.weekday.return_value = 2  # Wednesday
+        mock_dt.now.return_value = mock_now
         mock_run.return_value = {"total_products": 0, "llm_calls": 0, "auto_matched": 0, "pending_review": 0}
 
         s = Supplier(name="S2")
