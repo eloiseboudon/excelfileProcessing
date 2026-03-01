@@ -33,6 +33,19 @@ log "Pull du code depuis origin/main..."
 git fetch origin
 git reset --hard origin/main
 
+# 2b. Inject catalogue upload token into admin.html
+if [ -n "${CATALOGUE_UPLOAD_TOKEN:-}" ]; then
+    sed -i 's/data-upload-token="REPLACE_IN_PROD"/data-upload-token="'"$CATALOGUE_UPLOAD_TOKEN"'"/' \
+      "$APP_DIR/catalogue/admin.html"
+    log "Catalogue upload token injecte dans admin.html"
+fi
+
+# 2c. Restart catalogue upload server if running
+if systemctl is-active --quiet catalogue-upload 2>/dev/null; then
+    sudo systemctl restart catalogue-upload || warn "Restart catalogue-upload echoue"
+    log "catalogue-upload redémarre"
+fi
+
 # 3. Sauvegarde et restauration des .env
 log "Verification des fichiers .env..."
 for envfile in .env backend/.env frontend/.env; do
