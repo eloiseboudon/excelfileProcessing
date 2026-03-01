@@ -86,7 +86,7 @@ log "Demarrage des containers..."
 docker compose -f "$COMPOSE_FILE" up -d
 
 # 7b. Fix alembic stamp if legacy revision name exists (one-time fix)
-docker compose -f "$COMPOSE_FILE" exec -T postgres psql -U postgres -d ajtpro -c \
+docker compose -f "$COMPOSE_FILE" exec -T postgres psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -c \
   "UPDATE alembic_version SET version_num = 'v2_populate_ram' WHERE version_num = 'v2_populate_ram_from_description';" 2>/dev/null \
   && log "Alembic stamp corrige (legacy rename)" || true
 
