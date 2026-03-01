@@ -320,15 +320,21 @@
               </div>
               <div class="form-group">
                 <label>Image</label>
-                <div class="img-upload-zone" @click="uploadImage(i)" :class="{ uploading: isUploadingColor(i) }">
+                <div class="img-upload-zone" :class="{ uploading: isUploadingColor(i), 'has-img': c.img }">
                   <template x-if="isUploadingColor(i)">
                     <div class="upload-spinner"><i class="ti ti-loader-2"></i></div>
                   </template>
                   <template x-if="!isUploadingColor(i) && c.img">
-                    <img class="img-thumb" :src="c.img" :alt="c.name">
+                    <div class="img-thumb-wrap" @click="uploadImage(i)">
+                      <img class="img-thumb" :src="c.img" :alt="c.name">
+                      <div class="img-hover-overlay"><i class="ti ti-photo-edit"></i></div>
+                    </div>
                   </template>
                   <template x-if="!isUploadingColor(i) && !c.img">
-                    <div class="upload-placeholder"><i class="ti ti-photo-up"></i><span>Upload</span></div>
+                    <div class="upload-placeholder" @click="uploadImage(i)"><i class="ti ti-photo-up"></i><span>Upload</span></div>
+                  </template>
+                  <template x-if="!isUploadingColor(i) && c.img">
+                    <button type="button" class="img-remove-btn" @click="c.img = ''" title="Supprimer l'image"><i class="ti ti-x"></i></button>
                   </template>
                 </div>
                 <input type="text" x-model="c.img" placeholder="imgs/xxx.png" style="font-size:11px;margin-top:4px">

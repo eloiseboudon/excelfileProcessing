@@ -595,6 +595,7 @@ body {
 
 /* ========== IMAGE UPLOAD ZONE ========== */
 .img-upload-zone {
+  position: relative;
   width: 80px;
   height: 80px;
   border: 2px dashed var(--card-border);
@@ -602,12 +603,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
   transition: all .2s;
-  overflow: hidden;
+  overflow: visible;
   background: rgba(255,255,255,0.02);
 }
-.img-upload-zone:hover {
+.img-upload-zone:not(.has-img):hover {
   border-color: var(--gold);
   background: var(--gold-dim);
 }
@@ -615,10 +615,54 @@ body {
   border-color: var(--gold);
   pointer-events: none;
 }
+.img-thumb-wrap {
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  position: relative;
+}
 .img-thumb {
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+.img-hover-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity .2s;
+  color: var(--gold);
+  font-size: 22px;
+  border-radius: 6px;
+}
+.img-thumb-wrap:hover .img-hover-overlay {
+  opacity: 1;
+}
+.img-remove-btn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--red);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity .2s;
+  z-index: 2;
+}
+.img-upload-zone:hover .img-remove-btn {
+  opacity: 1;
 }
 .upload-placeholder {
   display: flex;
