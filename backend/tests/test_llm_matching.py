@@ -228,11 +228,12 @@ class TestInferRegionFromText:
 
     def test_de_spec(self):
         assert _infer_region_from_text("Laptop (DE)") == "DE"
-        assert _infer_region_from_text("Device deutsch") == "DE"
+        assert _infer_region_from_text("Device Deutsch Spec") == "DE"
+        assert _infer_region_from_text("Device German Version") == "DE"
 
     def test_jp_spec(self):
         assert _infer_region_from_text("Sony Device Japan Spec") == "JP"
-        assert _infer_region_from_text("Product Japanese") == "JP"
+        assert _infer_region_from_text("Product Japanese Version") == "JP"
 
     def test_au_spec(self):
         assert _infer_region_from_text("Device Australia Spec") == "AU"
@@ -255,6 +256,13 @@ class TestInferRegionFromText:
         assert _infer_region_from_text("Standard Product") is None
         assert _infer_region_from_text("") is None
         assert _infer_region_from_text(None) is None
+
+    def test_standalone_adjective_without_spec_does_not_match(self):
+        """Bare nationality adjectives should NOT infer a region (false positive risk)."""
+        assert _infer_region_from_text("iPhone Indian Red") is None
+        assert _infer_region_from_text("American Fridge") is None
+        assert _infer_region_from_text("Japanese style") is None
+        assert _infer_region_from_text("Mexican food app") is None
 
     def test_case_insensitive(self):
         assert _infer_region_from_text("iPhone 15 INDIAN SPEC") == "IN"
@@ -652,7 +660,7 @@ class TestScoreMatch:
             brand_id=brand_apple.id,
             memory_id=memory_128.id,
             color_id=color_noir.id,
-            region=None,  # Region not set, but should be inferred from model
+            region=None,
         )
         db.session.add(product_indian_spec)
         db.session.commit()
@@ -662,11 +670,58 @@ class TestScoreMatch:
             "model_family": "iPhone 15",
             "storage": "128 Go",
             "color": "Noir",
-            "region": "EU",  # EU label should not match Indian Spec product
+            "region": "EU",
         }
         score, details = score_match(extracted, product_indian_spec, {})
-        assert score == 0, f"Expected score 0 for EU label vs Indian Spec product, got {score}"
+        assert score == 0
         assert details.get("disqualified") == "region_mismatch"
+
+    def test_inferred_region_from_description_fallback(self, brand_apple, memory_128, color_noir):
+        """Region is inferred from description when model has no region pattern."""
+        product = Product(
+            model="iPhone 15",
+            description="iPhone 15 128GB Indian Spec reconditionné",
+            brand_id=brand_apple.id,
+            memory_id=memory_128.id,
+            color_id=color_noir.id,
+            region=None,
+        )
+        db.session.add(product)
+        db.session.commit()
+
+        extracted = {
+            "brand": "Apple",
+            "model_family": "iPhone 15",
+            "storage": "128 Go",
+            "color": "Noir",
+            "region": "EU",
+        }
+        score, details = score_match(extracted, product, {})
+        assert score == 0
+        assert details.get("disqualified") == "region_mismatch"
+
+    def test_empty_string_region_treated_as_eu(self, brand_apple, memory_128, color_noir):
+        """Product with region='' (empty string, not NULL) is treated as EU."""
+        product = Product(
+            model="iPhone 16",
+            brand_id=brand_apple.id,
+            memory_id=memory_128.id,
+            color_id=color_noir.id,
+            region="",
+        )
+        db.session.add(product)
+        db.session.commit()
+
+        extracted = {
+            "brand": "Apple",
+            "model_family": "iPhone 16",
+            "storage": "128 Go",
+            "color": "Noir",
+            "region": "EU",
+        }
+        score, details = score_match(extracted, product, {})
+        assert score > 0
+        assert details.get("disqualified") is None
 
     def test_device_type_mismatch_returns_zero(self, brand_apple, memory_128, color_noir, device_type):
         """A Watch should never match a Smartphone regardless of brand/color."""

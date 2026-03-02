@@ -336,27 +336,33 @@ def _infer_region_from_text(text: str) -> Optional[str]:
 
     Returns region code (US, IN, DE, etc.) or None if no region found.
     Used to infer region for products that don't have an explicit region set.
+
+    Uses regex word boundaries to avoid false positives (e.g. "Indian Red"
+    as a color should not infer region=IN).
     """
     if not text:
         return None
 
     text_lower = text.lower()
 
-    # Check for region patterns
-    region_patterns = {
-        "IN": ["indian spec", "india spec", "(in)", "indian"],
-        "US": ["us spec", "usa spec", "(us)", "american", "us version"],
-        "DE": ["(de)", "deutsch", "german spec"],
-        "JP": ["japan spec", "(jp)", "japanese"],
-        "AU": ["australia spec", "(au)", "australian"],
-        "CA": ["canada spec", "(ca)", "canadian"],
-        "BR": ["brasil spec", "brazil spec", "(br)", "brazilian"],
-        "MX": ["mexico spec", "(mx)", "mexican"],
+    # Patterns use regex word boundaries (\b) to match whole words only.
+    # Standalone nationality adjectives require "spec", "version" or "variant"
+    # to avoid false positives like color names ("Indian Red").
+    # Parenthesized codes like (IN) are specific enough as-is.
+    region_patterns: dict[str, list[str]] = {
+        "IN": [r"\(in\)", r"\bindia(?:n)?\s+(?:spec|version|variant)\b"],
+        "US": [r"\(us\)", r"\busa?\s+(?:spec|version|variant)\b", r"\bamerican\s+(?:spec|version|variant)\b"],
+        "DE": [r"\(de\)", r"\b(?:deutsch|german)\s+(?:spec|version|variant)\b"],
+        "JP": [r"\(jp\)", r"\bjapan(?:ese)?\s+(?:spec|version|variant)\b"],
+        "AU": [r"\(au\)", r"\baustralia(?:n)?\s+(?:spec|version|variant)\b"],
+        "CA": [r"\(ca\)", r"\bcanad(?:a|ian)\s+(?:spec|version|variant)\b"],
+        "BR": [r"\(br\)", r"\bbra[sz]il(?:ian)?\s+(?:spec|version|variant)\b"],
+        "MX": [r"\(mx\)", r"\bmexi(?:co|can)\s+(?:spec|version|variant)\b"],
     }
 
     for region_code, patterns in region_patterns.items():
         for pattern in patterns:
-            if pattern in text_lower:
+            if re.search(pattern, text_lower):
                 return region_code
 
     return None
@@ -431,6 +437,9 @@ def score_match(
     # Strip storage/memory patterns from product model name (e.g. "iPhone 15 256GB" → "iPhone 15")
     # so that storage embedded in model names doesn't penalize the fuzzy ratio
     prod_model = re.sub(r'\b\d+\s*(?:go|gb|to|tb)\b', '', prod_model, flags=re.IGNORECASE).strip()
+    # Strip region suffixes (e.g. "iPhone 15 Indian Spec" → "iPhone 15") to avoid fuzzy match penalty
+    prod_model = re.sub(r'\b(?:indian|us|de|jp|au|ca|br|mx)(?:\s+spec)?\b', '', prod_model, flags=re.IGNORECASE).strip()
+    prod_model = re.sub(r'\s+', ' ', prod_model).strip()  # Collapse multiple spaces
 
     if ext_model and prod_model:
         # Hard disqualifier: same model base but different version numbers.

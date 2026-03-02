@@ -389,7 +389,7 @@ Endpoint : `PUT /odoo/auto-sync`
 
 ## 11. Synchro > Rapprochement LLM
 
-**Accès** : Paramètres > Synchro > onglet Rapprochement | Rôles : `admin` uniquement
+**Accès** : Paramètres > Synchro > onglet Rapprochement | Rôles : `admin`, `user`
 
 ### Ce qui est affiché
 
@@ -413,7 +413,7 @@ Interface de matching intelligent des produits Odoo contre le catalogue fourniss
 
 #### Liste des matchs
 
-Paginated, 10 par page, filtrable par statut / fournisseur / modèle.
+Paginated, 20 par page, filtrable par statut / fournisseur / recherche multi-attributs (marque, modèle, stockage, couleur, région).
 
 Pour chaque match :
 - Label source (libellé fournisseur brut)
@@ -433,10 +433,12 @@ Le matching est **product-centric** : on itère sur les produits Odoo non encore
 | Couleur | 15 | Oui (les deux côtés non-null) | `Black` → `Noir` = `Noir` → 15 pts | `Black` → `Noir` ≠ `Bleu` → 0, disqualifié |
 | Stockage | 25 | Oui (les deux côtés ont une valeur identifiable) | `128GB` = `128 Go` → 25 pts | `128GB` ≠ `256 Go` → 0, disqualifié |
 | Famille modèle | 45 | Non (fuzzy matching) | `"iphone 16"` ≈ `"iphone 16"` (ratio 1.0) → 45 pts | `"iphone 16"` vs `"iphone 15"` → 0, disqualifié (version) |
-| Région | multiplicateur ×0 ou ×1 | Oui (les deux côtés, null = EU) | `null`=EU = `null`=EU → ×1 (score inchangé) | `EU` ≠ `US` → ×0, score = 0 |
+| Région | multiplicateur ×0 ou ×1 | Oui (les deux côtés, null = EU) | `null`=EU = `null`=EU → ×1 (score inchangé) | `EU` ≠ `IN` → ×0, score = 0 |
 | Similarité libellé | variable (bonus) | Non | `"apple iphone 16 128gb black"` ≈ `"iphone 16"` → +5 pts | ratio < 0.25 → −10 pts |
 
 **Score max = 100 pts** (15 + 15 + 25 + 45). La formule est `score = région × (marque + couleur + stockage + modèle)`. La région n'est pas additive — elle multiplie le score total. `null` = `"EU"` partout : il n'existe pas de région null, c'est Europe par défaut. Hard disqualify (score → 0) si les deux régions diffèrent. Le LLM renvoie toujours "EU" explicitement.
+
+**Inférence de région** : si un produit Odoo a `region=NULL`, la région est inférée par `_infer_region_from_text()` à partir du nom du modèle puis de la description. Détection par regex avec word boundaries pour éviter les faux positifs (ex: "Indian Red" = couleur, pas région IN). Regions supportées : IN (Indian Spec), US (US/USA Spec), DE (Deutsch/German), JP (Japan/Japanese), AU (Australia), CA (Canada), BR (Brazil/Brasil), MX (Mexico/Mexican). Si aucun pattern détecté → défaut EU.
 
 **Exemple de score partiel (~70 pts → en attente de validation) :**
 

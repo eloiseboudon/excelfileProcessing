@@ -108,10 +108,17 @@ Relations :
 | `model_references`     | Correspondances codes constructeur → nom commercial (ex: SM-S938B → Galaxy S25 Ultra).   |
 | `label_cache`          | Cache des resultats d'extraction LLM par fournisseur et libelle normalise.               |
 | `pending_matches`      | Matchs en attente de validation manuelle (attributs extraits + candidats scores).         |
+| `matching_runs`        | Historique des runs de matching (date, duree, compteurs, couverture).                     |
+| `product_ean_history`  | Trace les associations EAN→produit au fil du temps (auto, validation, creation).          |
 
 Relations :
 - Un `label_cache` reference un `supplier` et optionnellement un `product`.
 - Un `pending_match` reference un `supplier` et optionnellement un `supplier_catalog` et un `product` (resolu).
+
+Colonnes notables :
+- `products.region` : region du produit (EU, IN, US, DE, etc.). NULL = EU par defaut. Quand NULL, la region est **inferee au scoring** par `_infer_region_from_text()` a partir du model/description via regex (ex: "Indian Spec" → IN).
+- `supplier_catalog.region` : region extraite du libelle fournisseur par le LLM.
+- Mismatch de region = hard disqualifier (score × 0). Regions supportees : IN, US, DE, JP, AU, CA, BR, MX.
 
 ### 2.5 Utilisateurs, parametres et Odoo
 

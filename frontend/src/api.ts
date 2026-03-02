@@ -796,20 +796,6 @@ export async function updateOdooAutoSync(data: { enabled?: boolean; interval_min
 // LLM Matching
 // ---------------------------------------------------------------------------
 
-export interface MatchingReport {
-  total_labels: number;
-  from_cache: number;
-  llm_calls: number;
-  auto_matched: number;
-  pending_review: number;
-  auto_created: number;
-  errors: number;
-  error_message?: string;
-  cost_estimate: number;
-  duration_seconds: number;
-  remaining: number;
-}
-
 export interface MatchingCandidate {
   product_id: number;
   score: number;
