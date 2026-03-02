@@ -368,6 +368,32 @@ def _infer_region_from_text(text: str) -> Optional[str]:
     return None
 
 
+def _clean_model_for_scoring(model: str) -> str:
+    """Normalize a model name for fuzzy comparison.
+
+    Applied symmetrically to both extracted model_family and product.model
+    to strip noise that hurts fuzzy ratio without carrying identity info:
+    - Storage units (128GB, 256 Go, 1 To)
+    - Region suffixes (Indian Spec, US Spec, (DE), etc.)
+    - Connectivity modifiers (5G, 4G, LTE, WiFi)
+    - Parentheses and extra whitespace
+    """
+    if not model:
+        return ""
+    m = model.strip().lower()
+    # Storage
+    m = re.sub(r'\b\d+\s*(?:go|gb|to|tb)\b', '', m, flags=re.IGNORECASE)
+    # Region suffixes — parenthesized or bare
+    m = re.sub(r'\(?\b(?:indian|us|de|jp|au|ca|br|mx)(?:\s+(?:spec|version|variant))?\b\)?', '', m, flags=re.IGNORECASE)
+    # Connectivity modifiers — already extracted separately, noise for model comparison
+    m = re.sub(r'\b(?:5g|4g|lte|wifi|wi-fi|cellular)\b', '', m, flags=re.IGNORECASE)
+    # Clean up parentheses: empty ones or containing only whitespace
+    m = re.sub(r'\(\s*\)', '', m)
+    # Collapse whitespace
+    m = re.sub(r'\s+', ' ', m).strip()
+    return m
+
+
 def score_match(
     extracted: Dict[str, Any],
     product: Product,
@@ -434,14 +460,9 @@ def score_match(
     # Remove brand from product model for comparison
     if prod_brand and prod_model.startswith(prod_brand):
         prod_model = prod_model[len(prod_brand):].strip()
-    # Strip storage/memory patterns from product model name (e.g. "iPhone 15 256GB" → "iPhone 15")
-    # so that storage embedded in model names doesn't penalize the fuzzy ratio
-    prod_model = re.sub(r'\b\d+\s*(?:go|gb|to|tb)\b', '', prod_model, flags=re.IGNORECASE).strip()
-    # Strip region suffixes (e.g. "iPhone 15 Indian Spec" → "iPhone 15") to avoid fuzzy match penalty
-    # Also handles parenthesized forms like "(US Spec)"
-    prod_model = re.sub(r'\(?\b(?:indian|us|de|jp|au|ca|br|mx)(?:\s+spec)?\b\)?', '', prod_model, flags=re.IGNORECASE).strip()
-    prod_model = re.sub(r'\(\s*\)', '', prod_model)  # Remove empty parentheses left over
-    prod_model = re.sub(r'\s+', ' ', prod_model).strip()  # Collapse multiple spaces
+    # Clean both sides with the same function for symmetric comparison
+    prod_model = _clean_model_for_scoring(prod_model)
+    ext_model = _clean_model_for_scoring(ext_model)
 
     if ext_model and prod_model:
         # Hard disqualifier: same model base but different version numbers.
