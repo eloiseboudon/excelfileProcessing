@@ -521,7 +521,7 @@ def _product_price_summary_inner():
 
 
 @bp.route("/products", methods=["GET"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def list_products():
     """List all products.
 
