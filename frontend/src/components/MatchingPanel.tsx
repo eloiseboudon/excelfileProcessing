@@ -185,6 +185,9 @@ function MatchingPanel() {
 
   useEffect(() => {
     loadPending();
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
   }, [pendingPage, selectedSupplier, statusFilter, searchFilter]);
 
   function loadPending() {

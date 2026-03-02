@@ -56,7 +56,13 @@ def pending_match(supplier):
     pm = PendingMatch(
         supplier_id=supplier.id,
         source_label="SM-S938B 256 BLK",
-        extracted_attributes={"brand": "Samsung", "model_family": "Galaxy S25 Ultra"},
+        extracted_attributes={
+            "brand": "Samsung",
+            "model_family": "Galaxy S25 Ultra",
+            "storage": "256 Go",
+            "color": "Noir",
+            "region": "EU",
+        },
         candidates=[{"product_id": 1, "score": 75}],
         status="pending",
     )
@@ -89,7 +95,8 @@ class TestMatchingAuth:
         rv = client.post("/matching/run")
         assert rv.status_code == 401
 
-    def test_run_requires_admin(self, client, client_headers):
+    def test_run_rejects_client_role(self, client, client_headers):
+        """Client role (not admin/user) is forbidden from running matching."""
         rv = client.post("/matching/run", headers=client_headers)
         assert rv.status_code == 403
 
@@ -236,6 +243,27 @@ class TestListPending:
         assert data["total"] == 1
 
         rv = client.get("/matching/pending?search=SAMSUNG", headers=admin_headers)
+        assert rv.status_code == 200
+        data = rv.get_json()
+        assert data["total"] == 1
+
+    def test_filter_by_search_storage(self, client, admin_headers, pending_match):
+        """Search parameter filters by storage."""
+        rv = client.get("/matching/pending?search=256", headers=admin_headers)
+        assert rv.status_code == 200
+        data = rv.get_json()
+        assert data["total"] == 1
+
+    def test_filter_by_search_color(self, client, admin_headers, pending_match):
+        """Search parameter filters by color."""
+        rv = client.get("/matching/pending?search=Noir", headers=admin_headers)
+        assert rv.status_code == 200
+        data = rv.get_json()
+        assert data["total"] == 1
+
+    def test_filter_by_search_region(self, client, admin_headers, pending_match):
+        """Search parameter filters by region."""
+        rv = client.get("/matching/pending?search=EU", headers=admin_headers)
         assert rv.status_code == 200
         data = rv.get_json()
         assert data["total"] == 1

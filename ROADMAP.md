@@ -151,7 +151,8 @@ Module de matching intelligent qui utilise Claude Haiku (Anthropic) pour associe
 
 - **Extraction d'attributs par IA** : envoi des libelles fournisseurs par lots de 25 a Claude Haiku, extraction structuree (marque, modele, stockage, couleur, type, region, connectivite, grade, confidence)
 - **Normalisation et cache** : chaque libelle est normalise puis mis en cache par fournisseur. Les syncs suivantes reutilisent le cache sans appel LLM
-- **Scoring multicritere** : score sur 100 base sur 5 axes ponderes (marque 15, modele 40 avec fuzzy matching, stockage 25, couleur 15, region 5). Brand ou stockage mismatch = disqualification immediate
+- **Scoring multicritere** : score sur 100 base sur 5 axes ponderes (marque 15, modele 45 avec fuzzy matching, stockage 25, couleur 15, label similarity ±10). Brand, stockage, couleur, device type ou region mismatch = disqualification immediate (score 0)
+- **Inference de region** : les produits sans region explicite sont inferes a partir du nom/description via regex (Indian Spec → IN, US Spec → US, etc.). Mismatch de region = score ×0 (hard disqualifier). Defaut : EU. Regions supportees : IN, US, DE, JP, AU, CA, BR, MX
 - **3 niveaux d'action** :
   - Score >= 90 : match automatique (creation `SupplierProductRef` + cache)
   - Score 50-89 : validation manuelle (creation `PendingMatch`)
@@ -210,8 +211,8 @@ Infrastructure de tests unitaires et d'integration pour le backend et le fronten
 - **Infrastructure** : SQLite in-memory, fixtures `admin_user`, `client_user`, `admin_headers`
 - **Tests unitaires** : `utils/pricing.py` (seuils, TCP, marges, edge cases), `utils/auth.py` (JWT generation, decodage, expiration, decorator)
 - **Tests d'integration** : routes `POST /login`, CRUD `/users`, CRUD `/products`, operations en masse (`bulk_update`, `bulk_delete`), routes Odoo (config, test connexion, sync, jobs, auto-sync)
-- **Tests LLM matching** : modeles (13 tests), extraction et scoring (33 tests), routes API (24 tests), integration calculs/LabelCache (5 tests)
-- **319 tests** dans 16 fichiers
+- **Tests LLM matching** : modeles (13 tests), extraction et scoring (33 tests), routes API (24 tests), integration calculs/LabelCache (5 tests), inference region (10 tests)
+- **360 tests** dans 16 fichiers
 - **Zero warning applicatif** : `datetime.utcnow()` remplace par `datetime.now(timezone.utc)`, `Query.get()` remplace par `db.session.get()`, secret JWT >= 32 octets
 
 ### Frontend (Vitest + Testing Library)
@@ -219,7 +220,7 @@ Infrastructure de tests unitaires et d'integration pour le backend et le fronten
 - **Tests utils** : `date.ts`, `numbers.ts`, `text.ts`, `processing.ts`, `html.ts` (fonctions pures)
 - **Tests composants** : `LoginPage`, `NotificationProvider`, `App` (rendu, formulaires, navigation conditionnelle)
 - **Tests composants** : `MatchingPanel` (render, run matching avec limit, validation, rejet, remaining, pagination)
-- **186 tests** dans 18 fichiers
+- **183 tests** dans 18 fichiers
 
 ### CI/CD
 
@@ -278,6 +279,20 @@ Serie d'ameliorations du moteur de matching LLM pour augmenter la couverture et 
 - **Coherence stat total_odoo_matched** : le compteur "produits Odoo matches" utilise desormais `COUNT(DISTINCT ProductCalculation.product_id)` — coherent avec ce qu'affiche TCP/Marges (80 produits) plutot que `SupplierProductRef.product_id` (uniquement les validations LLM manuelles)
 
 Fichiers concernes : `backend/utils/llm_matching.py`, `backend/tests/test_llm_matching.py`, `backend/routes/matching.py`, `frontend/src/components/MatchingPanel.tsx`
+
+---
+
+## Inference de region et prevention du cross-region matching (implementee)
+
+Correction d'un bug critique ou des produits "Indian Spec" ou "US Spec" (region=NULL en base Odoo) etaient traites comme EU et matchaient avec des labels EU :
+
+- **Inference de region par regex** : fonction `_infer_region_from_text()` qui detecte les patterns region dans le nom/description du produit avec word boundaries pour eviter les faux positifs (ex: "Indian Red" = couleur, pas region)
+- **Regions supportees** : IN (Indian Spec), US (US/USA Spec), DE (Deutsch/German), JP (Japan/Japanese), AU (Australia), CA (Canada), BR (Brazil/Brasil), MX (Mexico/Mexican)
+- **Fallback sequentiel** : model → description → defaut EU
+- **Migration de donnees** : backfill de 40 produits (29 IN + 11 US), nettoyage de 33 pending_matches cross-region orphelins
+- **Recherche multi-attributs** : remplacement du filtre "modele" par un filtre recherche global (marque, modele, stockage, couleur, region) sur la page de validation
+
+Fichiers concernes : `backend/utils/llm_matching.py`, `backend/tests/test_llm_matching.py`, `backend/tests/test_routes_matching.py`, `backend/routes/matching.py`, `backend/alembic/versions/77ec0002c244_*.py`, `backend/alembic/versions/97e5f0069448_*.py`, `frontend/src/api.ts`, `frontend/src/components/MatchingPanel.tsx`
 
 ---
 
