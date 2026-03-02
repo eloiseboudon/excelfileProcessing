@@ -57,7 +57,7 @@ def decode_refresh_token(token: str):
     return _decode_token(token, "refresh")
 
 
-def token_required(role: str | None = None):
+def token_required(role: str | list[str] | None = None):
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
@@ -74,8 +74,10 @@ def token_required(role: str | None = None):
             user = db.session.get(User, data.get("user_id"))
             if not user:
                 return jsonify({"error": "Utilisateur introuvable"}), 401
-            if role and user.role != role:
-                return jsonify({"error": "Accès refusé"}), 403
+            if role:
+                allowed = role if isinstance(role, list) else [role]
+                if user.role not in allowed:
+                    return jsonify({"error": "Accès refusé"}), 403
             request.user = user
             return f(*args, **kwargs)
 

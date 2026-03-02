@@ -118,9 +118,9 @@ describe('App — user role', () => {
     expect(screen.getAllByText('Statistiques').length).toBeGreaterThan(0);
   });
 
-  it('does not show Rapprochement nav item', () => {
+  it('shows Rapprochement nav item', () => {
     renderApp('/products', 'user', 'fake-jwt');
-    expect(screen.queryByText('Rapprochement')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Rapprochement').length).toBeGreaterThan(0);
   });
 
   it('does not show Paramètres dropdown', () => {
@@ -143,10 +143,9 @@ describe('App — user role', () => {
     expect(screen.getByTestId('statistics-page')).toBeInTheDocument();
   });
 
-  it('redirects /matching to /products', () => {
+  it('renders MatchingPanel on /matching', () => {
     renderApp('/matching', 'user', 'fake-jwt');
-    expect(screen.getByTestId('products-page')).toBeInTheDocument();
-    expect(screen.queryByTestId('matching-panel')).not.toBeInTheDocument();
+    expect(screen.getByTestId('matching-panel')).toBeInTheDocument();
   });
 
   it('redirects /sync to /products', () => {

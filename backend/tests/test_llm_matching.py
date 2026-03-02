@@ -23,6 +23,7 @@ from models import (
 from utils.llm_matching import (
     _find_fuzzy_cache_entry,
     _fuzzy_ratio,
+    _infer_region_from_text,
     _make_attr_key,
     _normalize_storage,
     build_context,
@@ -205,6 +206,60 @@ class TestNormalizeLabel:
 
     def test_underscore_becomes_space(self):
         assert normalize_label("SM_S938B_256GB") == "sm s938b 256go"
+
+
+# ---------------------------------------------------------------------------
+# Tests: _infer_region_from_text
+# ---------------------------------------------------------------------------
+
+
+class TestInferRegionFromText:
+    """Test region inference from product model/description."""
+
+    def test_indian_spec(self):
+        assert _infer_region_from_text("iPhone 15 128GB Indian Spec") == "IN"
+        assert _infer_region_from_text("Samsung Galaxy S25 India Spec") == "IN"
+        assert _infer_region_from_text("Product (IN) variant") == "IN"
+
+    def test_us_spec(self):
+        assert _infer_region_from_text("iPhone 15 US Spec") == "US"
+        assert _infer_region_from_text("Samsung Galaxy S25 USA Spec") == "US"
+        assert _infer_region_from_text("Device (US) variant") == "US"
+
+    def test_de_spec(self):
+        assert _infer_region_from_text("Laptop (DE)") == "DE"
+        assert _infer_region_from_text("Device deutsch") == "DE"
+
+    def test_jp_spec(self):
+        assert _infer_region_from_text("Sony Device Japan Spec") == "JP"
+        assert _infer_region_from_text("Product Japanese") == "JP"
+
+    def test_au_spec(self):
+        assert _infer_region_from_text("Device Australia Spec") == "AU"
+        assert _infer_region_from_text("Australian (AU) variant") == "AU"
+
+    def test_ca_spec(self):
+        assert _infer_region_from_text("Device Canada Spec") == "CA"
+        assert _infer_region_from_text("Canadian (CA) variant") == "CA"
+
+    def test_br_spec(self):
+        assert _infer_region_from_text("Device Brasil Spec") == "BR"
+        assert _infer_region_from_text("Brazilian (BR) variant") == "BR"
+
+    def test_mx_spec(self):
+        assert _infer_region_from_text("Device Mexico Spec") == "MX"
+        assert _infer_region_from_text("Mexican (MX) variant") == "MX"
+
+    def test_no_region(self):
+        assert _infer_region_from_text("iPhone 15 128GB") is None
+        assert _infer_region_from_text("Standard Product") is None
+        assert _infer_region_from_text("") is None
+        assert _infer_region_from_text(None) is None
+
+    def test_case_insensitive(self):
+        assert _infer_region_from_text("iPhone 15 INDIAN SPEC") == "IN"
+        assert _infer_region_from_text("Device us spec") == "US"
+        assert _infer_region_from_text("Laptop (de)") == "DE"
 
 
 # ---------------------------------------------------------------------------
@@ -588,6 +643,29 @@ class TestScoreMatch:
         }
         score, details = score_match(extracted, product_no_region, {})
         assert score == 0
+        assert details.get("disqualified") == "region_mismatch"
+
+    def test_inferred_indian_spec_disqualifies_eu_label(self, brand_apple, memory_128, color_noir):
+        """Product with 'Indian Spec' in model (region=NULL) must be inferred as IN, disqualifying EU label."""
+        product_indian_spec = Product(
+            model="iPhone 15 128GB Indian Spec",
+            brand_id=brand_apple.id,
+            memory_id=memory_128.id,
+            color_id=color_noir.id,
+            region=None,  # Region not set, but should be inferred from model
+        )
+        db.session.add(product_indian_spec)
+        db.session.commit()
+
+        extracted = {
+            "brand": "Apple",
+            "model_family": "iPhone 15",
+            "storage": "128 Go",
+            "color": "Noir",
+            "region": "EU",  # EU label should not match Indian Spec product
+        }
+        score, details = score_match(extracted, product_indian_spec, {})
+        assert score == 0, f"Expected score 0 for EU label vs Indian Spec product, got {score}"
         assert details.get("disqualified") == "region_mismatch"
 
     def test_device_type_mismatch_returns_zero(self, brand_apple, memory_128, color_noir, device_type):

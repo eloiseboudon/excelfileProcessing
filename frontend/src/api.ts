@@ -941,15 +941,17 @@ export async function runMatching(supplierId?: number, limit?: number): Promise<
   }
 }
 
-export async function fetchPendingMatches(params?: { supplier_id?: number; page?: number; per_page?: number; status?: string; model?: string }) {
-  const search = new URLSearchParams();
-  if (params?.supplier_id) search.set('supplier_id', String(params.supplier_id));
-  if (params?.page) search.set('page', String(params.page));
-  if (params?.per_page) search.set('per_page', String(params.per_page));
-  if (params?.status) search.set('status', params.status);
-  if (params?.model) search.set('model', params.model);
-  const qs = search.toString();
-  const res = await fetchWithAuth(`${API_BASE}/matching/pending${qs ? `?${qs}` : ''}`);
+export async function fetchPendingMatches(params?: { supplier_id?: number; page?: number; per_page?: number; status?: string; model?: string; search?: string }) {
+  const qs = new URLSearchParams();
+  if (params?.supplier_id) qs.set('supplier_id', String(params.supplier_id));
+  if (params?.page) qs.set('page', String(params.page));
+  if (params?.per_page) qs.set('per_page', String(params.per_page));
+  if (params?.status) qs.set('status', params.status);
+  // Support both new 'search' and legacy 'model' parameter
+  if (params?.search) qs.set('search', params.search);
+  else if (params?.model) qs.set('model', params.model);
+  const queryString = qs.toString();
+  const res = await fetchWithAuth(`${API_BASE}/matching/pending${queryString ? `?${queryString}` : ''}`);
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }

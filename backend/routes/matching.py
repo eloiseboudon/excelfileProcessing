@@ -61,7 +61,7 @@ def _run_matching_background(app, supplier_id, limit) -> None:
 
 
 @bp.route("/matching/run", methods=["POST"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def run_matching():
     """Launch LLM matching asynchronously — returns 202 immediately."""
     data = request.get_json(silent=True) or {}
@@ -94,7 +94,7 @@ def run_matching():
 
 
 @bp.route("/matching/pending", methods=["GET"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def list_pending():
     """List pending matches awaiting validation."""
     VALID_STATUSES = {"pending", "validated", "rejected", "created"}
@@ -102,6 +102,7 @@ def list_pending():
     supplier_id = request.args.get("supplier_id", type=int)
     status = request.args.get("status", "pending")
     model = request.args.get("model", type=str)
+    search = request.args.get("search", type=str)
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 20, type=int)
     per_page = min(per_page, 100)
@@ -112,12 +113,19 @@ def list_pending():
     query = PendingMatch.query.filter_by(status=status)
     if supplier_id:
         query = query.filter_by(supplier_id=supplier_id)
-    if model:
-        query = query.filter(
-            cast(PendingMatch.extracted_attributes["model_family"], String).ilike(
-                f"%{model}%"
-            )
+
+    # Support both legacy 'model' parameter and new 'search' parameter
+    search_term = search or model
+    if search_term:
+        # Search across brand, model_family, storage, color, and region
+        search_filter = db.or_(
+            cast(PendingMatch.extracted_attributes["brand"], String).ilike(f"%{search_term}%"),
+            cast(PendingMatch.extracted_attributes["model_family"], String).ilike(f"%{search_term}%"),
+            cast(PendingMatch.extracted_attributes["storage"], String).ilike(f"%{search_term}%"),
+            cast(PendingMatch.extracted_attributes["color"], String).ilike(f"%{search_term}%"),
+            cast(PendingMatch.extracted_attributes["region"], String).ilike(f"%{search_term}%"),
         )
+        query = query.filter(search_filter)
 
     query = query.order_by(PendingMatch.created_at.desc())
     total = query.count()
@@ -166,7 +174,7 @@ def list_pending():
 
 
 @bp.route("/matching/validate", methods=["POST"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def validate_match():
     """Validate a proposed match."""
     data = request.get_json(silent=True) or {}
@@ -259,7 +267,7 @@ def validate_match():
 
 
 @bp.route("/matching/reject", methods=["POST"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def reject_match():
     """Reject a match and optionally create a new product."""
     data = request.get_json(silent=True) or {}
@@ -328,7 +336,7 @@ def reject_match():
 
 
 @bp.route("/matching/stats", methods=["GET"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def matching_stats():
     """Aggregated matching statistics."""
     total_cached = LabelCache.query.count()
@@ -566,7 +574,7 @@ def matching_stats():
 
 
 @bp.route("/matching/runs", methods=["GET"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def list_runs():
     """Return the most recent matching runs for the Rapport tab."""
     limit = request.args.get("limit", 30, type=int)
@@ -606,7 +614,7 @@ def list_runs():
 
 
 @bp.route("/matching/cache", methods=["GET"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def list_cache():
     """List label cache entries."""
     supplier_id = request.args.get("supplier_id", type=int)
@@ -644,7 +652,7 @@ def list_cache():
 
 
 @bp.route("/matching/assign-types", methods=["POST"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def assign_device_types():
     """Assign device types to products with null or non-informative type using keyword rules."""
     data = request.get_json(silent=True) or {}
@@ -700,7 +708,7 @@ def assign_device_types():
 
 
 @bp.route("/matching/cache/<int:cache_id>", methods=["DELETE"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def delete_cache_entry(cache_id):
     """Delete a cache entry to force re-matching."""
     cache = db.session.get(LabelCache, cache_id)

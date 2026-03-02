@@ -214,6 +214,39 @@ class TestListPending:
         rv = client.get("/matching/pending?model=Galaxy", headers=admin_headers)
         assert rv.status_code == 200
 
+    def test_filter_by_search_model(self, client, admin_headers, pending_match):
+        """Search parameter filters by model_family."""
+        rv = client.get("/matching/pending?search=Galaxy", headers=admin_headers)
+        assert rv.status_code == 200
+        data = rv.get_json()
+        assert data["total"] == 1
+
+    def test_filter_by_search_brand(self, client, admin_headers, pending_match):
+        """Search parameter filters by brand."""
+        rv = client.get("/matching/pending?search=Samsung", headers=admin_headers)
+        assert rv.status_code == 200
+        data = rv.get_json()
+        assert data["total"] == 1
+
+    def test_filter_by_search_case_insensitive(self, client, admin_headers, pending_match):
+        """Search parameter is case-insensitive."""
+        rv = client.get("/matching/pending?search=samsung", headers=admin_headers)
+        assert rv.status_code == 200
+        data = rv.get_json()
+        assert data["total"] == 1
+
+        rv = client.get("/matching/pending?search=SAMSUNG", headers=admin_headers)
+        assert rv.status_code == 200
+        data = rv.get_json()
+        assert data["total"] == 1
+
+    def test_filter_by_search_no_match(self, client, admin_headers, pending_match):
+        """Search parameter returns empty when no match."""
+        rv = client.get("/matching/pending?search=NonExistent", headers=admin_headers)
+        assert rv.status_code == 200
+        data = rv.get_json()
+        assert data["total"] == 0
+
 
 # ---------------------------------------------------------------------------
 # POST /matching/validate
