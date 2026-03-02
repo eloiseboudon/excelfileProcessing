@@ -19,6 +19,15 @@ fail() { echo -e "${RED}[$(date '+%H:%M:%S')] FATAL: $1${NC}"; exit 1; }
 
 cd "$APP_DIR" || fail "Repertoire $APP_DIR introuvable"
 
+# Load environment variables from .env
+if [ -f ".env" ]; then
+    set -a
+    source .env
+    set +a
+else
+    warn ".env file not found, using environment defaults"
+fi
+
 # 1. Backup DB
 log "Backup de la base de donnees..."
 if [ -f "./save_db.sh" ]; then
