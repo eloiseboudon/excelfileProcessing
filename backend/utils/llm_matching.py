@@ -331,6 +331,37 @@ def _normalize_device_type(value: str) -> str:
     return _DEVICE_TYPE_SYNONYMS.get(normalized, normalized)
 
 
+def _infer_region_from_text(text: str) -> Optional[str]:
+    """Infer region from product model/description text.
+
+    Returns region code (US, IN, DE, etc.) or None if no region found.
+    Used to infer region for products that don't have an explicit region set.
+    """
+    if not text:
+        return None
+
+    text_lower = text.lower()
+
+    # Check for region patterns
+    region_patterns = {
+        "IN": ["indian spec", "india spec", "(in)", "indian"],
+        "US": ["us spec", "usa spec", "(us)", "american", "us version"],
+        "DE": ["(de)", "deutsch", "german spec"],
+        "JP": ["japan spec", "(jp)", "japanese"],
+        "AU": ["australia spec", "(au)", "australian"],
+        "CA": ["canada spec", "(ca)", "canadian"],
+        "BR": ["brasil spec", "brazil spec", "(br)", "brazilian"],
+        "MX": ["mexico spec", "(mx)", "mexican"],
+    }
+
+    for region_code, patterns in region_patterns.items():
+        for pattern in patterns:
+            if pattern in text_lower:
+                return region_code
+
+    return None
+
+
 def score_match(
     extracted: Dict[str, Any],
     product: Product,
@@ -458,7 +489,17 @@ def score_match(
     # Region is not additive — it gates the entire score.
     # Mismatch → score = 0. Match → score passes through unchanged.
     ext_region = (extracted.get("region") or "EU").strip().upper()
-    prod_region = (product.region or "EU").strip().upper()
+
+    # Infer product region from model/description if not explicitly set
+    prod_region = product.region
+    if not prod_region:
+        # Try to infer from model name or description
+        inferred = _infer_region_from_text(product.model or "")
+        if not inferred:
+            inferred = _infer_region_from_text(product.description or "")
+        prod_region = inferred or "EU"
+    prod_region = prod_region.strip().upper()
+
     if ext_region != prod_region:
         details["region"] = 0
         details["disqualified"] = "region_mismatch"

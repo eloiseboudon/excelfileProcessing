@@ -158,9 +158,9 @@ function MatchingPanel() {
 
   // Filters
   const [statusFilter, setStatusFilter] = useState('pending');
-  const [modelFilter, setModelFilter] = useState('');
-  const [modelInput, setModelInput] = useState('');
-  const modelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [searchFilter, setSearchFilter] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Stats
   const [stats, setStats] = useState<MatchingStatsData | null>(null);
@@ -185,7 +185,7 @@ function MatchingPanel() {
 
   useEffect(() => {
     loadPending();
-  }, [pendingPage, selectedSupplier, statusFilter, modelFilter]);
+  }, [pendingPage, selectedSupplier, statusFilter, searchFilter]);
 
   function loadPending() {
     setLoadingPending(true);
@@ -194,7 +194,7 @@ function MatchingPanel() {
       page: pendingPage,
       per_page: perPage,
       status: statusFilter,
-      model: modelFilter || undefined,
+      search: searchFilter || undefined,
     })
       .then((data) => {
         setPending(data.items);
@@ -218,11 +218,11 @@ function MatchingPanel() {
       .finally(() => setLoadingRuns(false));
   }
 
-  function handleModelInputChange(value: string) {
-    setModelInput(value);
-    if (modelTimerRef.current) clearTimeout(modelTimerRef.current);
-    modelTimerRef.current = setTimeout(() => {
-      setModelFilter(value);
+  function handleSearchInputChange(value: string) {
+    setSearchInput(value);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      setSearchFilter(value);
       setPendingPage(1);
     }, 400);
   }
@@ -419,11 +419,11 @@ function MatchingPanel() {
                   <Search className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
                   <input
                     type="text"
-                    value={modelInput}
-                    onChange={(e) => handleModelInputChange(e.target.value)}
-                    placeholder="Filtrer par modèle..."
+                    value={searchInput}
+                    onChange={(e) => handleSearchInputChange(e.target.value)}
+                    placeholder="Rechercher par marque, modèle..."
                     className="rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] pl-7 pr-2 py-1 text-xs w-44"
-                    data-testid="model-filter"
+                    data-testid="search-filter"
                   />
                 </div>
               </div>

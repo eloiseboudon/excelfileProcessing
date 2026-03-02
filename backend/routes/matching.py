@@ -102,6 +102,7 @@ def list_pending():
     supplier_id = request.args.get("supplier_id", type=int)
     status = request.args.get("status", "pending")
     model = request.args.get("model", type=str)
+    search = request.args.get("search", type=str)
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 20, type=int)
     per_page = min(per_page, 100)
@@ -112,12 +113,19 @@ def list_pending():
     query = PendingMatch.query.filter_by(status=status)
     if supplier_id:
         query = query.filter_by(supplier_id=supplier_id)
-    if model:
-        query = query.filter(
-            cast(PendingMatch.extracted_attributes["model_family"], String).ilike(
-                f"%{model}%"
-            )
+
+    # Support both legacy 'model' parameter and new 'search' parameter
+    search_term = search or model
+    if search_term:
+        # Search across brand, model_family, storage, color, and region
+        search_filter = db.or_(
+            cast(PendingMatch.extracted_attributes["brand"], String).ilike(f"%{search_term}%"),
+            cast(PendingMatch.extracted_attributes["model_family"], String).ilike(f"%{search_term}%"),
+            cast(PendingMatch.extracted_attributes["storage"], String).ilike(f"%{search_term}%"),
+            cast(PendingMatch.extracted_attributes["color"], String).ilike(f"%{search_term}%"),
+            cast(PendingMatch.extracted_attributes["region"], String).ilike(f"%{search_term}%"),
         )
+        query = query.filter(search_filter)
 
     query = query.order_by(PendingMatch.created_at.desc())
     total = query.count()

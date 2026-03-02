@@ -251,12 +251,12 @@ describe('MatchingPanel', () => {
     });
   });
 
-  it('renders the model filter input', async () => {
+  it('renders the search filter input', async () => {
     renderPanel();
     await waitFor(() => {
-      expect(screen.getByTestId('model-filter')).toBeInTheDocument();
+      expect(screen.getByTestId('search-filter')).toBeInTheDocument();
     });
-    expect(screen.getByPlaceholderText('Filtrer par modèle...')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Rechercher par marque, modèle...')).toBeInTheDocument();
   });
 
   it('shows bottom pagination when multiple pages', async () => {
