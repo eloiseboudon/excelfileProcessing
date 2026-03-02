@@ -61,7 +61,7 @@ def _run_matching_background(app, supplier_id, limit) -> None:
 
 
 @bp.route("/matching/run", methods=["POST"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def run_matching():
     """Launch LLM matching asynchronously — returns 202 immediately."""
     data = request.get_json(silent=True) or {}
@@ -94,7 +94,7 @@ def run_matching():
 
 
 @bp.route("/matching/pending", methods=["GET"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def list_pending():
     """List pending matches awaiting validation."""
     VALID_STATUSES = {"pending", "validated", "rejected", "created"}
@@ -166,7 +166,7 @@ def list_pending():
 
 
 @bp.route("/matching/validate", methods=["POST"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def validate_match():
     """Validate a proposed match."""
     data = request.get_json(silent=True) or {}
@@ -259,7 +259,7 @@ def validate_match():
 
 
 @bp.route("/matching/reject", methods=["POST"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def reject_match():
     """Reject a match and optionally create a new product."""
     data = request.get_json(silent=True) or {}
@@ -328,7 +328,7 @@ def reject_match():
 
 
 @bp.route("/matching/stats", methods=["GET"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def matching_stats():
     """Aggregated matching statistics."""
     total_cached = LabelCache.query.count()
@@ -566,7 +566,7 @@ def matching_stats():
 
 
 @bp.route("/matching/runs", methods=["GET"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def list_runs():
     """Return the most recent matching runs for the Rapport tab."""
     limit = request.args.get("limit", 30, type=int)
@@ -606,7 +606,7 @@ def list_runs():
 
 
 @bp.route("/matching/cache", methods=["GET"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def list_cache():
     """List label cache entries."""
     supplier_id = request.args.get("supplier_id", type=int)
@@ -644,7 +644,7 @@ def list_cache():
 
 
 @bp.route("/matching/assign-types", methods=["POST"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def assign_device_types():
     """Assign device types to products with null or non-informative type using keyword rules."""
     data = request.get_json(silent=True) or {}
@@ -700,7 +700,7 @@ def assign_device_types():
 
 
 @bp.route("/matching/cache/<int:cache_id>", methods=["DELETE"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def delete_cache_entry(cache_id):
     """Delete a cache entry to force re-matching."""
     cache = db.session.get(LabelCache, cache_id)

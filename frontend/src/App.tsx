@@ -154,7 +154,7 @@ function App() {
                   <span>Statistiques</span>
                 </button>
 
-                {role === 'admin' && (
+                {(role === 'admin' || role === 'user') && (
                   <button
                     onClick={() => {
                       navigate('/matching');
@@ -213,7 +213,7 @@ function App() {
                 >
                   <BarChart3 className="w-5 h-5" />
                 </button>
-                {role === 'admin' && (
+                {(role === 'admin' || role === 'user') && (
                   <button
                     onClick={() => {
                       navigate('/matching');
@@ -310,7 +310,7 @@ function App() {
             <Route path="/statistics"
               element={role !== 'client' ? <StatisticsPage /> : <Navigate to="/products" replace />} />
             <Route path="/matching"
-              element={role === 'admin' ? <MatchingPanel /> : <Navigate to="/products" replace />} />
+              element={role === 'admin' || role === 'user' ? <MatchingPanel /> : <Navigate to="/products" replace />} />
             <Route path="/sync"
               element={role === 'admin' ? <SyncPage /> : <Navigate to="/products" replace />} />
             <Route path="/admin"
