@@ -437,6 +437,9 @@ def score_match(
     # Strip storage/memory patterns from product model name (e.g. "iPhone 15 256GB" → "iPhone 15")
     # so that storage embedded in model names doesn't penalize the fuzzy ratio
     prod_model = re.sub(r'\b\d+\s*(?:go|gb|to|tb)\b', '', prod_model, flags=re.IGNORECASE).strip()
+    # Strip region suffixes (e.g. "iPhone 15 Indian Spec" → "iPhone 15") to avoid fuzzy match penalty
+    prod_model = re.sub(r'\b(?:indian|us|de|jp|au|ca|br|mx)(?:\s+spec)?\b', '', prod_model, flags=re.IGNORECASE).strip()
+    prod_model = re.sub(r'\s+', ' ', prod_model).strip()  # Collapse multiple spaces
 
     if ext_model and prod_model:
         # Hard disqualifier: same model base but different version numbers.
