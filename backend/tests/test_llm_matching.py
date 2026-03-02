@@ -228,11 +228,12 @@ class TestInferRegionFromText:
 
     def test_de_spec(self):
         assert _infer_region_from_text("Laptop (DE)") == "DE"
-        assert _infer_region_from_text("Device deutsch") == "DE"
+        assert _infer_region_from_text("Device Deutsch Spec") == "DE"
+        assert _infer_region_from_text("Device German Version") == "DE"
 
     def test_jp_spec(self):
         assert _infer_region_from_text("Sony Device Japan Spec") == "JP"
-        assert _infer_region_from_text("Product Japanese") == "JP"
+        assert _infer_region_from_text("Product Japanese Version") == "JP"
 
     def test_au_spec(self):
         assert _infer_region_from_text("Device Australia Spec") == "AU"
@@ -255,6 +256,13 @@ class TestInferRegionFromText:
         assert _infer_region_from_text("Standard Product") is None
         assert _infer_region_from_text("") is None
         assert _infer_region_from_text(None) is None
+
+    def test_standalone_adjective_without_spec_does_not_match(self):
+        """Bare nationality adjectives should NOT infer a region (false positive risk)."""
+        assert _infer_region_from_text("iPhone Indian Red") is None
+        assert _infer_region_from_text("American Fridge") is None
+        assert _infer_region_from_text("Japanese style") is None
+        assert _infer_region_from_text("Mexican food app") is None
 
     def test_case_insensitive(self):
         assert _infer_region_from_text("iPhone 15 INDIAN SPEC") == "IN"
