@@ -461,7 +461,7 @@ Le gabarit OpenAPI se trouve dans `backend/swagger_template.yml`.
 
 ### Tests backend
 
-Le framework `pytest` est configure dans le backend (SQLite in-memory, pas besoin de PostgreSQL) — 360 tests dans 16 fichiers :
+Le framework `pytest` est configure dans le backend (SQLite in-memory, pas besoin de PostgreSQL) — 392 tests dans 16 fichiers :
 
 ```bash
 cd backend

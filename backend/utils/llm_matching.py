@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from flask import current_app
 from sqlalchemy import func
 
-from utils.normalize import normalize_label, normalize_storage
+from utils.normalize import normalize_label, normalize_ram, normalize_storage
 from models import (
     Brand,
     Color,
@@ -188,10 +188,14 @@ Si la couleur n est dans aucun synonyme, garde le nom original
 5. device_type : Smartphone, Tablette, Accessoire, Audio, etc.
 6. region : toujours renseigner, jamais null. "EU" par defaut (produit \
 standard Europe). "US" si US Spec, "IN" si Indian Spec, "DE" si (DE), etc.
-7. connectivity : "WiFi" si [W], "Cellular" si mention cellular/LTE, \
-"5G" si mentionne, null sinon
+7. connectivity : "WiFi" si [W] ou suffixe "w" seul, "Cellular" si mention \
+cellular/LTE, "5G" si mentionne, null sinon
 8. grade : A, B, C si mentionne, null sinon
 9. confidence : score entre 0.0 et 1.0
+10. ram : RAM en "Go" si mentionnee separement du stockage. \
+Formats: "6gb ram 128gb" -> ram "6 Go", "12/256gb" -> ram "12 Go". null si absent
+11. dual_sim : true si mention "Dual Sim" ou "DS". false sinon
+12. enterprise_edition : true si mention "Enterprise Edition" ou suffixe "EE". false sinon
 
 Reponds UNIQUEMENT avec un JSON array, sans markdown ni texte autour.
 Un objet par libelle, dans le meme ordre que les entrees."""
@@ -373,16 +377,31 @@ def _clean_model_for_scoring(model: str) -> str:
 
     Applied symmetrically to both extracted model_family and product.model
     to strip noise that hurts fuzzy ratio without carrying identity info:
+    - RAM/Storage combined (12/128GB, 6gb ram 128gb)
     - Storage units (128GB, 256 Go, 1 To)
     - Region suffixes (Indian Spec, US Spec, (DE), etc.)
     - Connectivity modifiers (5G, 4G, LTE, WiFi)
+    - Enterprise Edition / EE
+    - Dual SIM / DS
     - Parentheses and extra whitespace
     """
     if not model:
         return ""
     m = model.strip().lower()
+    # RAM/Storage combined: "12/128gb", "12go/128go", "8/256go"
+    m = re.sub(r'\b\d+\s*(?:go|gb)?\s*/\s*\d+\s*(?:go|gb|to|tb)\b', '', m, flags=re.IGNORECASE)
+    # RAM keyword pattern: "6gb ram", "12go ram" (storage part stripped by next rule)
+    m = re.sub(r'\b\d+\s*(?:go|gb)\s+ram\b', '', m, flags=re.IGNORECASE)
     # Storage
     m = re.sub(r'\b\d+\s*(?:go|gb|to|tb)\b', '', m, flags=re.IGNORECASE)
+    # Enterprise Edition (full text)
+    m = re.sub(r'\benterprise\s+edition\b', '', m, flags=re.IGNORECASE)
+    # EE suffix (standalone, must not match "FE" in "Galaxy Tab S10 FE")
+    m = re.sub(r'(?<![a-z])ee(?![a-z])', '', m)
+    # Dual SIM variants
+    m = re.sub(r'\bdual\s*sim\b', '', m, flags=re.IGNORECASE)
+    # DS standalone (word boundary)
+    m = re.sub(r'\bds\b', '', m)
     # Region suffixes — parenthesized or bare
     m = re.sub(r'\(?\b(?:indian|us|de|jp|au|ca|br|mx)(?:\s+(?:spec|version|variant))?\b\)?', '', m, flags=re.IGNORECASE)
     # Connectivity modifiers — already extracted separately, noise for model comparison
@@ -392,6 +411,64 @@ def _clean_model_for_scoring(model: str) -> str:
     # Collapse whitespace
     m = re.sub(r'\s+', ' ', m).strip()
     return m
+
+
+def _apply_post_processing(
+    extraction: Dict[str, Any], original_label: str
+) -> Dict[str, Any]:
+    """Enrich LLM extraction using deterministic regex patterns.
+
+    Handles supplier-specific abbreviations the LLM may miss:
+    - Enterprise Edition / EE suffix
+    - Dual SIM / DS
+    - RAM from "Xgb ram Ygb" or "X/Ygb" patterns
+    - WiFi from {W} or standalone "w" suffix
+    - Device type from Yuka prefixes (tablet, watch)
+    """
+    label_lower = original_label.lower()
+
+    # --- Enterprise Edition ---
+    if re.search(r'\benterprise\s+edition\b', label_lower):
+        extraction["enterprise_edition"] = True
+    elif re.search(r'(?<![a-z])ee(?![a-z])', label_lower):
+        extraction["enterprise_edition"] = True
+
+    # --- Dual SIM ---
+    if re.search(r'\bdual\s*sim\b', label_lower) or re.search(r'\bds\b', label_lower):
+        extraction["dual_sim"] = True
+
+    # --- RAM from "Xgb ram Ygb" pattern (Yuka) ---
+    ram_storage_match = re.search(
+        r'\b(\d+)\s*(?:gb|go)\s+ram\s+(\d+)\s*(?:gb|go)\b', label_lower
+    )
+    if ram_storage_match:
+        extraction.setdefault("ram", normalize_ram(ram_storage_match.group(1)))
+        if not extraction.get("storage"):
+            extraction["storage"] = normalize_storage(ram_storage_match.group(2))
+
+    # --- RAM from "X/Ygb" slash pattern ---
+    if not extraction.get("ram"):
+        slash_match = re.search(r'\b(\d+)\s*/\s*(\d+)\s*(?:gb|go)\b', label_lower)
+        if slash_match:
+            extraction["ram"] = normalize_ram(slash_match.group(1))
+            if not extraction.get("storage"):
+                extraction["storage"] = normalize_storage(slash_match.group(2))
+
+    # --- WiFi from {W} or standalone "w" suffix (Ensa) ---
+    if not extraction.get("connectivity"):
+        if re.search(r'\{w\}', label_lower) or re.search(r'\bw\b', label_lower):
+            extraction["connectivity"] = "WiFi"
+
+    # --- Device type from Yuka prefixes ---
+    if not extraction.get("device_type"):
+        if label_lower.startswith("tablet "):
+            extraction["device_type"] = "Tablette"
+        elif label_lower.startswith("watch "):
+            extraction["device_type"] = "Montre"
+        elif label_lower.startswith("laptop "):
+            extraction["device_type"] = "Ordinateur portable"
+
+    return extraction
 
 
 def score_match(
@@ -516,6 +593,28 @@ def score_match(
         score += 15
     else:
         details["color"] = 0
+
+    # --- Enterprise Edition (soft discriminator, -20 on mismatch) ---
+    ext_ee = extracted.get("enterprise_edition", False)
+    prod_model_lower = (product.model or "").lower()
+    prod_has_ee = bool(
+        re.search(r'\benterprise\s+edition\b', prod_model_lower)
+        or re.search(r'(?<![a-z])ee(?![a-z])', prod_model_lower)
+    )
+    if ext_ee != prod_has_ee:
+        score = max(score - 20, 0)
+        details["enterprise_edition"] = -20
+    else:
+        details["enterprise_edition"] = 0
+
+    # --- Dual SIM (soft discriminator, -10 on mismatch) ---
+    ext_ds = extracted.get("dual_sim", False)
+    prod_has_ds = bool(re.search(r'\b(?:dual\s*sim|ds)\b', prod_model_lower))
+    if ext_ds != prod_has_ds:
+        score = max(score - 10, 0)
+        details["dual_sim"] = -10
+    else:
+        details["dual_sim"] = 0
 
     # --- Region (multiplier ×0 or ×1; null = EU) ---
     # Region is not additive — it gates the entire score.
@@ -886,6 +985,7 @@ def run_matching_job(
             total_output_tokens += token_info.get("output_tokens", 0) // max(len(batch_labels), 1)
             extraction["raw_label"] = original_label
             extraction["region"] = (extraction.get("region") or "EU").strip().upper()
+            extraction = _apply_post_processing(extraction, original_label)
 
             # Track brand for Option A re-evaluation
             _brand = (extraction.get("brand") or "").strip().lower()

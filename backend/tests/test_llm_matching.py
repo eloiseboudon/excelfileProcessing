@@ -21,6 +21,8 @@ from models import (
     db,
 )
 from utils.llm_matching import (
+    _apply_post_processing,
+    _clean_model_for_scoring,
     _find_fuzzy_cache_entry,
     _fuzzy_ratio,
     _infer_region_from_text,
@@ -1631,3 +1633,337 @@ class TestRunMatchingJob:
         assert cache is not None
         assert cache.product_id == product.id
         assert cache.match_reasoning.get("ean_bonus") == 20
+
+
+# ---------------------------------------------------------------------------
+# Tests: _clean_model_for_scoring
+# ---------------------------------------------------------------------------
+
+
+class TestCleanModelForScoring:
+    def test_strips_ram_storage_slash(self):
+        result = _clean_model_for_scoring("Galaxy S25 S931 5G DS 12/128GB Silver")
+        assert "12" not in result
+        assert "128" not in result
+        assert "silver" in result
+
+    def test_strips_ram_keyword_pattern(self):
+        result = _clean_model_for_scoring("Galaxy A56 6GB RAM 128GB Black")
+        assert "6gb" not in result.lower()
+        assert "ram" not in result.lower()
+        assert "128" not in result
+
+    def test_strips_enterprise_edition(self):
+        result = _clean_model_for_scoring("Galaxy A36 Enterprise Edition Black")
+        assert "enterprise" not in result.lower()
+        assert "edition" not in result.lower()
+        assert "galaxy a36" in result
+        assert "black" in result
+
+    def test_strips_ee_suffix(self):
+        result = _clean_model_for_scoring("Galaxy S25 EE Silver")
+        assert "ee" not in result.split()
+        assert "silver" in result
+
+    def test_preserves_fe(self):
+        """FE in 'Galaxy Tab S10 FE' must NOT be stripped."""
+        result = _clean_model_for_scoring("Galaxy Tab S10 FE")
+        assert "fe" in result.lower()
+
+    def test_strips_dual_sim(self):
+        result = _clean_model_for_scoring("Galaxy A07 A075 Dual SIM 64GB Black")
+        assert "dual" not in result.lower()
+        assert "sim" not in result.lower()
+
+    def test_strips_ds(self):
+        result = _clean_model_for_scoring("Galaxy A07 A075 DS 64GB Black")
+        assert " ds " not in result.lower()
+        # ds should be stripped, but "a075" preserved
+        assert "a075" in result.lower()
+
+    def test_empty_string(self):
+        assert _clean_model_for_scoring("") == ""
+
+    def test_none(self):
+        assert _clean_model_for_scoring(None) == ""
+
+    def test_combined_cleanup(self):
+        """Full Ensa-style label cleaned properly."""
+        result = _clean_model_for_scoring(
+            "Galaxy S25 S931 5G DS 12/128GB EE Indian Spec Silver"
+        )
+        # Should keep: galaxy s25 s931 silver
+        assert "galaxy" in result
+        assert "s931" in result
+        assert "silver" in result
+        assert "128" not in result
+        assert "enterprise" not in result.lower()
+        assert "indian" not in result.lower()
+
+
+# ---------------------------------------------------------------------------
+# Tests: _apply_post_processing
+# ---------------------------------------------------------------------------
+
+
+class TestApplyPostProcessing:
+    def test_enterprise_edition_full_text(self):
+        ext = {"brand": "Samsung"}
+        result = _apply_post_processing(
+            ext, "Samsung Galaxy A36 128GB Enterprise Edition Black"
+        )
+        assert result["enterprise_edition"] is True
+
+    def test_enterprise_edition_ee_suffix(self):
+        ext = {"brand": "Samsung"}
+        result = _apply_post_processing(ext, "Samsung S931B S25 5G 256GB EE Silver")
+        assert result["enterprise_edition"] is True
+
+    def test_no_false_positive_fe(self):
+        """FE should not trigger enterprise_edition."""
+        ext = {"brand": "Samsung"}
+        result = _apply_post_processing(ext, "Samsung Galaxy Tab S10 FE 128GB")
+        assert result.get("enterprise_edition") is not True
+
+    def test_dual_sim_full_text(self):
+        ext = {"brand": "Samsung"}
+        result = _apply_post_processing(
+            ext, "Samsung Galaxy A16 Dual Sim 128GB Black"
+        )
+        assert result["dual_sim"] is True
+
+    def test_dual_sim_ds(self):
+        ext = {"brand": "Samsung"}
+        result = _apply_post_processing(
+            ext, "Samsung Galaxy A07 DS 64GB Black"
+        )
+        assert result["dual_sim"] is True
+
+    def test_ram_yuka_pattern(self):
+        ext = {"brand": "Samsung", "storage": "128 Go"}
+        result = _apply_post_processing(
+            ext, "Samsung Galaxy A56 6GB RAM 128GB Black"
+        )
+        assert result["ram"] == "6 Go"
+        # storage was already set, should not be overridden
+        assert result["storage"] == "128 Go"
+
+    def test_ram_slash_pattern(self):
+        ext = {"brand": "Samsung"}
+        result = _apply_post_processing(
+            ext, "Samsung Galaxy S25 12/256GB Silver"
+        )
+        assert result["ram"] == "12 Go"
+        assert result["storage"] == "256 Go"
+
+    def test_ram_slash_no_override_existing_storage(self):
+        ext = {"brand": "Samsung", "storage": "256 Go"}
+        result = _apply_post_processing(
+            ext, "Samsung Galaxy S25 12/256GB Silver"
+        )
+        assert result["ram"] == "12 Go"
+        assert result["storage"] == "256 Go"  # not overridden
+
+    def test_wifi_ensa_w_suffix(self):
+        ext = {"brand": "Samsung"}
+        result = _apply_post_processing(
+            ext, "Samsung X400N Tab S10 Lite 128Go Silver W EU"
+        )
+        assert result["connectivity"] == "WiFi"
+
+    def test_wifi_curly_bracket(self):
+        ext = {"brand": "Samsung"}
+        result = _apply_post_processing(
+            ext, "Samsung Tab A11 128Go Silver {W} EU"
+        )
+        assert result["connectivity"] == "WiFi"
+
+    def test_no_wifi_override_if_already_set(self):
+        ext = {"brand": "Samsung", "connectivity": "5G"}
+        result = _apply_post_processing(
+            ext, "Samsung Galaxy S25 5G 256GB W EU Silver"
+        )
+        assert result["connectivity"] == "5G"  # not overridden
+
+    def test_device_type_tablet_prefix(self):
+        ext = {"brand": "Samsung"}
+        result = _apply_post_processing(
+            ext, "Tablet Samsung Galaxy Tab S10 128GB Grey"
+        )
+        assert result["device_type"] == "Tablette"
+
+    def test_device_type_watch_prefix(self):
+        ext = {"brand": "Samsung"}
+        result = _apply_post_processing(
+            ext, "Watch Samsung Galaxy Watch 7 40mm BT Cream"
+        )
+        assert result["device_type"] == "Montre"
+
+    def test_device_type_no_override(self):
+        ext = {"brand": "Samsung", "device_type": "Smartphone"}
+        result = _apply_post_processing(
+            ext, "Tablet Samsung Galaxy Tab S10 128GB Grey"
+        )
+        assert result["device_type"] == "Smartphone"  # not overridden
+
+
+# ---------------------------------------------------------------------------
+# Tests: score_match — Enterprise Edition & Dual SIM discriminators
+# ---------------------------------------------------------------------------
+
+
+class TestScoreMatchEEDS:
+    def test_ee_malus_label_has_ee_product_does_not(
+        self, brand_samsung, memory_256, color_noir
+    ):
+        product = Product(
+            model="Galaxy A36 256GB Black",
+            brand_id=brand_samsung.id,
+            memory_id=memory_256.id,
+            color_id=color_noir.id,
+        )
+        db.session.add(product)
+        db.session.commit()
+
+        extracted = {
+            "brand": "Samsung",
+            "model_family": "Galaxy A36",
+            "storage": "256 Go",
+            "color": "Noir",
+            "enterprise_edition": True,
+        }
+        score, details = score_match(extracted, product, {"color_translations": {"black": "Noir"}})
+        assert details["enterprise_edition"] == -20
+        assert score <= 80
+
+    def test_ee_malus_product_has_ee_label_does_not(
+        self, brand_samsung, memory_256, color_noir
+    ):
+        product = Product(
+            model="Galaxy A36 Enterprise Edition 256GB Black",
+            brand_id=brand_samsung.id,
+            memory_id=memory_256.id,
+            color_id=color_noir.id,
+        )
+        db.session.add(product)
+        db.session.commit()
+
+        extracted = {
+            "brand": "Samsung",
+            "model_family": "Galaxy A36",
+            "storage": "256 Go",
+            "color": "Noir",
+        }
+        score, details = score_match(extracted, product, {"color_translations": {"black": "Noir"}})
+        assert details["enterprise_edition"] == -20
+        assert score <= 80
+
+    def test_ee_no_malus_both_match(
+        self, brand_samsung, memory_256, color_noir
+    ):
+        product = Product(
+            model="Galaxy A36 Enterprise Edition 256GB Black",
+            brand_id=brand_samsung.id,
+            memory_id=memory_256.id,
+            color_id=color_noir.id,
+        )
+        db.session.add(product)
+        db.session.commit()
+
+        extracted = {
+            "brand": "Samsung",
+            "model_family": "Galaxy A36",
+            "storage": "256 Go",
+            "color": "Noir",
+            "enterprise_edition": True,
+        }
+        score, details = score_match(extracted, product, {"color_translations": {"black": "Noir"}})
+        assert details["enterprise_edition"] == 0
+
+    def test_ds_malus_when_mismatch(
+        self, brand_samsung, memory_128, color_noir
+    ):
+        product = Product(
+            model="Galaxy A07 128GB Black",
+            brand_id=brand_samsung.id,
+            memory_id=memory_128.id,
+            color_id=color_noir.id,
+        )
+        db.session.add(product)
+        db.session.commit()
+
+        extracted = {
+            "brand": "Samsung",
+            "model_family": "Galaxy A07",
+            "storage": "128 Go",
+            "color": "Noir",
+            "dual_sim": True,
+        }
+        score, details = score_match(extracted, product, {"color_translations": {"black": "Noir"}})
+        assert details["dual_sim"] == -10
+
+    def test_ds_no_malus_both_have_ds(
+        self, brand_samsung, memory_128, color_noir
+    ):
+        product = Product(
+            model="Galaxy A07 DS 128GB Black",
+            brand_id=brand_samsung.id,
+            memory_id=memory_128.id,
+            color_id=color_noir.id,
+        )
+        db.session.add(product)
+        db.session.commit()
+
+        extracted = {
+            "brand": "Samsung",
+            "model_family": "Galaxy A07",
+            "storage": "128 Go",
+            "color": "Noir",
+            "dual_sim": True,
+        }
+        score, details = score_match(extracted, product, {"color_translations": {"black": "Noir"}})
+        assert details["dual_sim"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Tests: build_extraction_prompt — new attributes
+# ---------------------------------------------------------------------------
+
+
+class TestPromptNewAttributes:
+    def test_prompt_contains_ram_rule(self):
+        context = {
+            "brands": ["Samsung"],
+            "colors": {},
+            "storage_options": [],
+            "model_references": {},
+            "device_types": ["Smartphone"],
+            "few_shot_examples": [],
+        }
+        prompt = build_extraction_prompt(context)
+        assert "ram" in prompt.lower()
+        assert "Go" in prompt
+
+    def test_prompt_contains_dual_sim_rule(self):
+        context = {
+            "brands": ["Samsung"],
+            "colors": {},
+            "storage_options": [],
+            "model_references": {},
+            "device_types": ["Smartphone"],
+            "few_shot_examples": [],
+        }
+        prompt = build_extraction_prompt(context)
+        assert "dual_sim" in prompt
+
+    def test_prompt_contains_enterprise_edition_rule(self):
+        context = {
+            "brands": ["Samsung"],
+            "colors": {},
+            "storage_options": [],
+            "model_references": {},
+            "device_types": ["Smartphone"],
+            "few_shot_examples": [],
+        }
+        prompt = build_extraction_prompt(context)
+        assert "enterprise_edition" in prompt
