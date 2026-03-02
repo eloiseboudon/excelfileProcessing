@@ -127,9 +127,19 @@ def list_pending():
         )
         query = query.filter(search_filter)
 
-    query = query.order_by(PendingMatch.created_at.desc())
     total = query.count()
-    items = query.offset((page - 1) * per_page).limit(per_page).all()
+    # Sort by best candidate score descending (candidates[0].score),
+    # falling back to created_at desc. Since candidates is JSONB and
+    # the sort expression varies across DB engines, sort in Python.
+    all_items = query.order_by(PendingMatch.created_at.desc()).all()
+    all_items.sort(
+        key=lambda pm: max(
+            (c.get("score", 0) for c in (pm.candidates or [{}])),
+            default=0,
+        ),
+        reverse=True,
+    )
+    items = all_items[(page - 1) * per_page: page * per_page]
 
     # Enrich candidate product_name with memory + color in a single batch query
     all_product_ids = {

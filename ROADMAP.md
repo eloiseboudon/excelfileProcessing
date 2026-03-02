@@ -149,9 +149,11 @@ Composants concernes : `OdooSyncPanel`, `SyncPage`
 
 Module de matching intelligent qui utilise Claude Haiku (Anthropic) pour associer les produits fournisseurs non matches au referentiel :
 
-- **Extraction d'attributs par IA** : envoi des libelles fournisseurs par lots de 25 a Claude Haiku, extraction structuree (marque, modele, stockage, couleur, type, region, connectivite, grade, confidence)
+- **Extraction d'attributs par IA** : envoi des libelles fournisseurs par lots de 25 a Claude Haiku, extraction structuree de 12 attributs (marque, modele, stockage, couleur, type, region, connectivite, grade, confidence, RAM, dual_sim, enterprise_edition)
+- **Post-traitement regex** : enrichissement deterministe apres extraction LLM — detection Enterprise Edition (EE), Dual SIM (DS), RAM combinee (X/Ygb, Xgb ram Ygb), WiFi (suffixe W), prefixes device type (tablet, watch). Rattrape les patterns que le LLM peut manquer
 - **Normalisation et cache** : chaque libelle est normalise puis mis en cache par fournisseur. Les syncs suivantes reutilisent le cache sans appel LLM
-- **Scoring multicritere** : score sur 100 base sur 5 axes ponderes (marque 15, modele 45 avec fuzzy matching, stockage 25, couleur 15, label similarity ±10). Brand, stockage, couleur, device type ou region mismatch = disqualification immediate (score 0)
+- **Scoring multicritere** : score sur 100 base sur 5 axes ponderes (marque 15, modele 45 avec fuzzy matching, stockage 25, couleur 15, label similarity ±10). Brand, stockage, couleur, device type ou region mismatch = disqualification immediate (score 0). Soft discriminators : Enterprise Edition mismatch -20 pts, Dual SIM mismatch -10 pts
+- **Nettoyage symetrique du modele** : avant le fuzzy matching, les noms de modele sont nettoyes des deux cotes (extraction + produit) : stockage, RAM/stockage combine, Enterprise Edition, EE, Dual SIM, DS, region, connectivite. Empeche les faux negatifs dus au bruit dans les noms
 - **Inference de region** : les produits sans region explicite sont inferes a partir du nom/description via regex (Indian Spec → IN, US Spec → US, etc.). Mismatch de region = score ×0 (hard disqualifier). Defaut : EU. Regions supportees : IN, US, DE, JP, AU, CA, BR, MX
 - **3 niveaux d'action** :
   - Score >= 90 : match automatique (creation `SupplierProductRef` + cache)
