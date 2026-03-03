@@ -75,7 +75,7 @@ function App() {
     return (
       <div className="min-h-screen text-[var(--color-text-primary)] flex flex-col">
         <header className="sticky top-0 z-40 bg-[var(--color-bg-nav)] backdrop-blur-lg border-b border-[#B8860B]/15">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="px-4 sm:px-6">
             <div className="flex items-center justify-between h-14">
               <span className="text-lg font-bold tracking-tight text-[#B8860B] select-none">AJT Pro</span>
               <button
@@ -89,7 +89,7 @@ function App() {
           </div>
         </header>
         <main className="flex-1">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+          <div className="px-4 sm:px-6 py-4">
             <ProductsPage role={role} />
           </div>
         </main>
@@ -101,7 +101,7 @@ function App() {
     <div className="min-h-screen text-[var(--color-text-primary)] flex flex-col">
       {/* Navigation Header */}
       <header className="sticky top-0 z-40 bg-[var(--color-bg-nav)] backdrop-blur-lg border-b border-[#B8860B]/15">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="px-4 sm:px-6">
           <div className="flex items-center justify-between h-14">
 
             {/* Logo + Nav links */}
@@ -301,7 +301,7 @@ function App() {
 
       {/* Page Content */}
       <main className="flex-1">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="px-4 sm:px-6 py-4">
           <Routes>
             <Route path="/" element={<Navigate to="/products" replace />} />
             <Route path="/products" element={<ProductsPage role={role} />} />
