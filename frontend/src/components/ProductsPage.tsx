@@ -749,23 +749,23 @@ td.neg{color:#f87171;font-weight:500}
       {onBack && (
         <button
           onClick={onBack}
-          className="btn btn-secondary mb-6"
+          className="btn btn-secondary mb-3"
         >
           <ArrowLeft className="w-5 h-5" />
           <span>Retour</span>
         </button>
       )}
-      <div className="mb-8">
-        <h1 className="text-3xl font-semibold text-[var(--color-text-heading)] flex items-center gap-3">
-          <Package className="w-8 h-8 text-[#B8860B]" />
+      <div className="mb-3">
+        <h1 className="text-2xl font-semibold text-[var(--color-text-heading)] flex items-center gap-2">
+          <Package className="w-7 h-7 text-[#B8860B]" />
           Produits
         </h1>
-        <p className="text-[var(--color-text-muted)] mt-1">
+        <p className="text-[var(--color-text-muted)] text-sm mt-0.5">
           Gérez les prix, marges et le référentiel produits. Semaine en cours : {getCurrentWeekYear()}
         </p>
       </div>
       {role !== 'client' && (
-        <div className="border-b border-[var(--color-border-subtle)] mb-6">
+        <div className="border-b border-[var(--color-border-subtle)] mb-3">
           <nav className="flex gap-4">
             <button
               type="button"
@@ -794,14 +794,14 @@ td.neg{color:#f87171;font-weight:500}
       )}
       {role === 'client' && (
         <>
-          <div className="card p-4 mb-6">
+          <div className="card p-3 mb-3">
             <div className="flex items-center gap-2">
               <button onClick={handleExportExcelClient} className="btn btn-secondary text-sm">
                 Export XLSX
               </button>
             </div>
           </div>
-          <div className="card overflow-hidden">
+          <div className="card !p-0 overflow-hidden">
             <div className="overflow-auto">
               <ProductTable
                 columns={columns}
@@ -830,7 +830,7 @@ td.neg{color:#f87171;font-weight:500}
       )}
       {role !== 'client' && tab === 'calculations' && (
         <>
-          <div className="card p-4 mb-6 overflow-visible relative z-20">
+          <div className="card p-3 mb-3 overflow-visible relative z-20">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="flex flex-wrap items-center gap-2">
                 <div className="relative">
@@ -898,7 +898,7 @@ td.neg{color:#f87171;font-weight:500}
               </div>
             </div>
           </div>
-          <div className="card overflow-hidden">
+          <div className="card !p-0 overflow-hidden">
             <div className="overflow-auto">
               <ProductTable
                 columns={columns}
