@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Sun, Moon } from 'lucide-react';
 
 type Theme = 'light' | 'dark';
 
@@ -33,13 +32,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
       {children}
-      <button
-        onClick={toggleTheme}
-        className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-gold text-black shadow-lg transition-transform hover:scale-110"
-        aria-label="Toggle theme"
-      >
-        {theme === 'dark' ? <Sun size={22} /> : <Moon size={22} />}
-      </button>
     </ThemeContext.Provider>
   );
 }

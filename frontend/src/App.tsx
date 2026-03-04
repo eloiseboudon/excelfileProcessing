@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { logout as apiLogout, setAuthToken } from './api';
 import AdminPage from './components/AdminPage';
+import Footer from './components/Footer';
 import LoginPage from './components/LoginPage';
 import MatchingPanel from './components/MatchingPanel';
 import ProductsPage from './components/ProductsPage';
@@ -93,6 +94,7 @@ function App() {
             <ProductsPage role={role} />
           </div>
         </main>
+        <Footer />
       </div>
     );
   }
@@ -319,6 +321,7 @@ function App() {
           </Routes>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }
