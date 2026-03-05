@@ -3,6 +3,9 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import App from '../../App';
 import { NotificationProvider } from '../NotificationProvider';
+import { ThemeProvider } from '../ThemeProvider';
+
+vi.stubGlobal('__APP_VERSION__', '1.0.0');
 
 vi.mock('../SearchPage', () => ({
   default: () => <div data-testid="search-page">SearchPage</div>,
@@ -30,9 +33,11 @@ function renderApp(initialRoute = '/products', role = '', token = '') {
   }
   return render(
     <MemoryRouter initialEntries={[initialRoute]}>
-      <NotificationProvider>
-        <App />
-      </NotificationProvider>
+      <ThemeProvider>
+        <NotificationProvider>
+          <App />
+        </NotificationProvider>
+      </ThemeProvider>
     </MemoryRouter>
   );
 }
