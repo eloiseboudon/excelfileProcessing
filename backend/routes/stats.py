@@ -53,7 +53,7 @@ def _build_stats_query(filters):
 
 
 @bp.route("/price_stats", methods=["GET"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def price_stats():
     """Return average prices per week. If a product_id is supplied, results are
     grouped by supplier, otherwise aggregated globally.
@@ -120,7 +120,7 @@ def price_stats():
 
 
 @bp.route("/brand_supplier_average", methods=["GET"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def brand_supplier_average():
     """Average price by brand and supplier.
 
@@ -165,7 +165,7 @@ def brand_supplier_average():
 
 
 @bp.route("/product_supplier_average", methods=["GET"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def product_supplier_average():
     """Average price by product and supplier.
 
@@ -215,7 +215,7 @@ def product_supplier_average():
 
 
 @bp.route("/supplier_avg_price", methods=["GET"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def supplier_avg_price():
     """Average selling price per supplier from the supplier catalog.
     ---
@@ -243,7 +243,7 @@ def supplier_avg_price():
 
 
 @bp.route("/supplier_product_count", methods=["GET"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def supplier_product_count():
     """Number of products per supplier in the supplier catalog.
     ---
@@ -270,7 +270,7 @@ def supplier_product_count():
 
 
 @bp.route("/supplier_price_distribution", methods=["GET"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def supplier_price_distribution():
     """Individual selling prices grouped by supplier for client-side binning.
     ---
@@ -301,7 +301,7 @@ def supplier_price_distribution():
 
 
 @bp.route("/supplier_price_evolution", methods=["GET"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def supplier_price_evolution():
     """Average price per supplier per week from product_calculations.
 
