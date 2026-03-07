@@ -770,15 +770,15 @@ class TestScoreMatch:
         assert score == 0
         assert details.get("disqualified") == "model_version_mismatch"
 
-    def test_model_same_version_different_variant_is_not_disqualified(self, brand_apple, memory_128, color_noir):
-        """iPhone 16 Pro must not be disqualified against iPhone 16 (same version number)."""
-        iphone16 = Product(
+    def test_model_variant_mismatch_disqualifies(self, brand_apple, memory_128, color_noir):
+        """iPhone 16 vs iPhone 16 Pro must be disqualified (variant mismatch)."""
+        iphone16_pro = Product(
             model="iPhone 16 Pro",
             brand_id=brand_apple.id,
             memory_id=memory_128.id,
             color_id=color_noir.id,
         )
-        db.session.add(iphone16)
+        db.session.add(iphone16_pro)
         db.session.commit()
 
         extracted = {
@@ -788,9 +788,53 @@ class TestScoreMatch:
             "color": "Noir",
             "region": None,
         }
-        score, details = score_match(extracted, iphone16, {})
+        score, details = score_match(extracted, iphone16_pro, {})
+        assert score == 0
+        assert details.get("disqualified") == "model_variant_mismatch"
+
+    def test_model_pro_vs_plus_disqualifies(self, brand_apple, memory_128, color_noir):
+        """iPhone 14 Pro vs iPhone 14 Plus must be disqualified."""
+        iphone14_plus = Product(
+            model="iPhone 14 Plus",
+            brand_id=brand_apple.id,
+            memory_id=memory_128.id,
+            color_id=color_noir.id,
+        )
+        db.session.add(iphone14_plus)
+        db.session.commit()
+
+        extracted = {
+            "brand": "Apple",
+            "model_family": "iPhone 14 Pro",
+            "storage": "128 Go",
+            "color": "Noir",
+            "region": None,
+        }
+        score, details = score_match(extracted, iphone14_plus, {})
+        assert score == 0
+        assert details.get("disqualified") == "model_variant_mismatch"
+
+    def test_model_same_variant_not_disqualified(self, brand_apple, memory_128, color_noir):
+        """iPhone 16 Pro vs iPhone 16 Pro must NOT be disqualified."""
+        iphone16_pro = Product(
+            model="iPhone 16 Pro",
+            brand_id=brand_apple.id,
+            memory_id=memory_128.id,
+            color_id=color_noir.id,
+        )
+        db.session.add(iphone16_pro)
+        db.session.commit()
+
+        extracted = {
+            "brand": "Apple",
+            "model_family": "iPhone 16 Pro",
+            "storage": "128 Go",
+            "color": "Noir",
+            "region": None,
+        }
+        score, details = score_match(extracted, iphone16_pro, {})
         assert score > 0
-        assert details.get("disqualified") != "model_version_mismatch"
+        assert "disqualified" not in details
 
     def test_label_similarity_bonus(self, product_s25, color_translations):
         """Exact raw label match gives a +10 bonus, capped at 100."""
@@ -849,7 +893,8 @@ class TestScoreMatch:
         score, details = score_match(extracted, product_s25, mappings)
         assert details["color"] == 15
 
-    def test_partial_model_match(self, product_s25, color_translations):
+    def test_partial_model_variant_mismatch_disqualifies(self, product_s25, color_translations):
+        """Galaxy S25 vs Galaxy S25 Ultra → variant mismatch (missing 'ultra')."""
         extracted = {
             "brand": "Samsung",
             "model_family": "Galaxy S25",
@@ -859,7 +904,8 @@ class TestScoreMatch:
         }
         mappings = {"color_translations": {}}
         score, details = score_match(extracted, product_s25, mappings)
-        assert 0 < details["model_family"] < 45
+        assert score == 0
+        assert details.get("disqualified") == "model_variant_mismatch"
 
 
     def test_model_version_different_base_not_disqualified(self, brand_samsung, memory_256, color_noir):
@@ -904,6 +950,30 @@ class TestScoreMatch:
         assert details.get("disqualified") == "model_version_mismatch"
 
 
+    def test_color_in_model_does_not_penalize_scoring(self, brand_apple, memory_128, color_noir):
+        """Product model containing color name must still match perfectly (color stripped)."""
+        product = Product(
+            model="iPhone 16 Pro Black",
+            brand_id=brand_apple.id,
+            memory_id=memory_128.id,
+            color_id=color_noir.id,
+        )
+        db.session.add(product)
+        db.session.commit()
+
+        extracted = {
+            "brand": "Apple",
+            "model_family": "iPhone 16 Pro",
+            "storage": "128 Go",
+            "color": "Noir",
+            "region": None,
+        }
+        mappings = {"color_translations": {}, "color_words": {"noir", "black", "white"}}
+        score, details = score_match(extracted, product, mappings)
+        assert details["model_family"] == 45
+        assert score > 0
+
+
 class TestExtractModelVersions:
     def test_iphone_15_pro(self):
         from utils.llm_matching import _extract_model_versions
@@ -926,6 +996,80 @@ class TestExtractModelVersions:
         from utils.llm_matching import _extract_model_versions
         base, versions = _extract_model_versions("pixel pro")
         assert versions == []
+
+
+class TestExtractModelVariants:
+    def test_pro(self):
+        from utils.llm_matching import _extract_model_variants
+        assert _extract_model_variants("iphone 14 pro") == frozenset({"pro"})
+
+    def test_plus(self):
+        from utils.llm_matching import _extract_model_variants
+        assert _extract_model_variants("iphone 14 plus") == frozenset({"plus"})
+
+    def test_pro_plus(self):
+        from utils.llm_matching import _extract_model_variants
+        assert _extract_model_variants("redmi note 14 pro plus") == frozenset({"pro+"})
+
+    def test_pro_plus_symbol(self):
+        from utils.llm_matching import _extract_model_variants
+        assert _extract_model_variants("redmi note 14 pro+") == frozenset({"pro+"})
+
+    def test_no_variant(self):
+        from utils.llm_matching import _extract_model_variants
+        assert _extract_model_variants("iphone 15") == frozenset()
+
+    def test_fe_plus(self):
+        from utils.llm_matching import _extract_model_variants
+        assert _extract_model_variants("galaxy tab s9 fe+") == frozenset({"fe+"})
+
+    def test_fe(self):
+        from utils.llm_matching import _extract_model_variants
+        assert _extract_model_variants("galaxy tab s10 fe") == frozenset({"fe"})
+
+    def test_ultra(self):
+        from utils.llm_matching import _extract_model_variants
+        assert _extract_model_variants("galaxy s25 ultra") == frozenset({"ultra"})
+
+    def test_s_suffix(self):
+        from utils.llm_matching import _extract_model_variants
+        assert _extract_model_variants("xiaomi 14s") == frozenset({"s-suffix"})
+
+    def test_s_before_number_not_matched(self):
+        from utils.llm_matching import _extract_model_variants
+        # "galaxy s24" — the S is before the number, not a suffix
+        result = _extract_model_variants("galaxy s24")
+        assert "s-suffix" not in result
+
+    def test_empty(self):
+        from utils.llm_matching import _extract_model_variants
+        assert _extract_model_variants("") == frozenset()
+
+    def test_pro_max(self):
+        from utils.llm_matching import _extract_model_variants
+        assert _extract_model_variants("iphone 16 pro max") == frozenset({"pro", "max"})
+
+
+class TestStripColorWords:
+    def test_strips_trailing_color(self):
+        from utils.llm_matching import _strip_color_words
+        result = _strip_color_words("redmi note 14 pro aurora", {"aurora", "black", "white"})
+        assert result == "redmi note 14 pro"
+
+    def test_strips_multi_word_color(self):
+        from utils.llm_matching import _strip_color_words
+        result = _strip_color_words("galaxy s24 ultra space black", {"space black", "black"})
+        assert result == "galaxy s24 ultra"
+
+    def test_no_color_unchanged(self):
+        from utils.llm_matching import _strip_color_words
+        result = _strip_color_words("iphone 16 pro", {"black", "white"})
+        assert result == "iphone 16 pro"
+
+    def test_empty_color_words(self):
+        from utils.llm_matching import _strip_color_words
+        result = _strip_color_words("iphone 16 pro black", set())
+        assert result == "iphone 16 pro black"
 
 
 class TestNormalizeStorage:

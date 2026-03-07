@@ -701,6 +701,7 @@ function PendingMatchRow({
     attrs.model_family,
     attrs.storage,
     attrs.color,
+    attrs.connectivity,
     attrs.region,
   ].filter(Boolean) as string[];
 

@@ -413,6 +413,55 @@ def _clean_model_for_scoring(model: str) -> str:
     return m
 
 
+def _extract_model_variants(model: str) -> frozenset:
+    """Extract variant keywords from a cleaned model name.
+
+    These suffixes distinguish product lines (e.g. iPhone 14 Pro ≠ iPhone 14 Plus).
+    Used as a hard disqualifier: if variants differ, the match is rejected.
+    """
+    if not model:
+        return frozenset()
+    variants: set[str] = set()
+    # "pro+" or "pro plus" → pro+
+    if re.search(r"\bpro\s*\+", model) or re.search(r"\bpro\s+plus\b", model):
+        variants.add("pro+")
+    elif re.search(r"\bpro\b", model):
+        variants.add("pro")
+    if re.search(r"\bplus\b", model) and "pro+" not in variants:
+        variants.add("plus")
+    if re.search(r"\bultra\b", model):
+        variants.add("ultra")
+    if re.search(r"\bmax\b", model):
+        variants.add("max")
+    if re.search(r"\b(?:lite|light)\b", model):
+        variants.add("lite")
+    if re.search(r"\bmini\b", model):
+        variants.add("mini")
+    if re.search(r"\bfe\s*\+", model):
+        variants.add("fe+")
+    elif re.search(r"\bfe\b", model):
+        variants.add("fe")
+    # "S" suffix attached to a number (e.g. "14s" but not "Galaxy S24")
+    if re.search(r"\d+s\b", model):
+        variants.add("s-suffix")
+    return frozenset(variants)
+
+
+def _strip_color_words(model: str, color_words: set) -> str:
+    """Remove known color words from a model name.
+
+    Product model fields often contain the color name (e.g. 'Redmi Note 14 Pro Aurora').
+    Since color is scored separately, stripping it improves fuzzy model matching.
+    Multi-word colors (e.g. 'space black') are handled by trying longest matches first.
+    """
+    if not model or not color_words:
+        return model
+    # Sort by length descending so multi-word colors are stripped before single words
+    for cw in sorted(color_words, key=len, reverse=True):
+        model = re.sub(r"\b" + re.escape(cw) + r"\b", "", model)
+    return re.sub(r"\s+", " ", model).strip()
+
+
 def _apply_post_processing(
     extraction: Dict[str, Any], original_label: str
 ) -> Dict[str, Any]:
@@ -540,6 +589,11 @@ def score_match(
     # Clean both sides with the same function for symmetric comparison
     prod_model = _clean_model_for_scoring(prod_model)
     ext_model = _clean_model_for_scoring(ext_model)
+    # Strip color words from product model (color often embedded in model field)
+    color_words = mappings.get("color_words", set())
+    if color_words:
+        prod_model = _strip_color_words(prod_model, color_words)
+        ext_model = _strip_color_words(ext_model, color_words)
 
     if ext_model and prod_model:
         # Hard disqualifier: same model base but different version numbers.
@@ -555,6 +609,15 @@ def score_match(
                 details["model_family"] = 0
                 details["disqualified"] = "model_version_mismatch"
                 return 0, details
+
+        # Hard disqualifier: different variant suffixes.
+        # Pro ≠ Plus, Pro ≠ Pro+, FE+ ≠ base, "14S" ≠ "14 Pro", etc.
+        ext_variants = _extract_model_variants(ext_model)
+        prod_variants = _extract_model_variants(prod_model)
+        if ext_variants != prod_variants:
+            details["model_family"] = 0
+            details["disqualified"] = "model_variant_mismatch"
+            return 0, details
 
         ratio = _fuzzy_ratio(ext_model, prod_model)
         if ratio >= 0.95:
@@ -665,7 +728,15 @@ def _build_mappings() -> Dict[str, Any]:
     """Build lookup mappings for scoring."""
     translations = ColorTranslation.query.all()
     color_map = {t.color_source.lower(): t.color_target for t in translations}
-    return {"color_translations": color_map}
+    # Build a set of all known color words for stripping from product model names.
+    # Includes: color table names, translation sources, and translation targets.
+    color_words: set[str] = set()
+    for c in Color.query.all():
+        color_words.add(c.color.lower())
+    for t in translations:
+        color_words.add(t.color_source.lower())
+        color_words.add(t.color_target.lower())
+    return {"color_translations": color_map, "color_words": color_words}
 
 
 def find_best_matches(

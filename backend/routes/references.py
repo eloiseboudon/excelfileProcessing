@@ -63,7 +63,7 @@ def _update_products_for_color_translation(sources, target_color_id):
 
 
 @bp.route("/references/<table>", methods=["GET"])
-@token_required("admin")
+@token_required(["admin", "user"])
 def get_reference_table(table):
     """Retrieve a full reference table.
 

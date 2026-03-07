@@ -32,6 +32,7 @@ Le matching LLM rapproche automatiquement les labels fournisseurs avec les produ
 | Device Type | 0 | Hard disqualifier si mismatch |
 | Storage | 25 | Hard disqualifier si mismatch |
 | Model Family | 0-45 | Fuzzy matching (ratio ≥0.6) |
+| Model Variant | 0 | Hard disqualifier si suffixe diffère (Pro/Plus/Ultra/Max/Lite/FE/FE+/Mini/S) |
 | Color | 15 | Hard disqualifier si mismatch |
 | Enterprise Edition | -20 | Soft malus si mismatch |
 | Dual SIM | -10 | Soft malus si mismatch |
