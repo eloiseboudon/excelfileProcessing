@@ -156,6 +156,8 @@ def list_pending():
                 parts.append(p.memory.memory)
             if p.color:
                 parts.append(p.color.color)
+            if p.norme:
+                parts.append(p.norme.norme)
             product_labels[p.id] = " — ".join(parts)
 
     results = []
