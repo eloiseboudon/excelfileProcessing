@@ -42,11 +42,19 @@ log "Pull du code depuis origin/main..."
 git fetch origin
 git reset --hard origin/main
 
-# 2b. Inject catalogue upload token into admin.html
+# 2b. Inject catalogue upload token into admin.html and systemd service
 if [ -n "${CATALOGUE_UPLOAD_TOKEN:-}" ]; then
     sed -i 's/data-upload-token="REPLACE_IN_PROD"/data-upload-token="'"$CATALOGUE_UPLOAD_TOKEN"'"/' \
       "$APP_DIR/catalogue/admin.html"
     log "Catalogue upload token injecte dans admin.html"
+
+    # Update systemd service with the real token
+    SERVICE_FILE="/etc/systemd/system/catalogue-upload.service"
+    if [ -f "$SERVICE_FILE" ]; then
+        sudo sed -i 's|Environment=UPLOAD_TOKEN=.*|Environment=UPLOAD_TOKEN='"$CATALOGUE_UPLOAD_TOKEN"'|' "$SERVICE_FILE"
+        sudo systemctl daemon-reload
+        log "Catalogue upload token injecte dans systemd service"
+    fi
 fi
 
 # 2c. Restart catalogue upload server if running
@@ -77,22 +85,9 @@ for SECRET_NAME in ODOO_ENCRYPTION_KEY ANTHROPIC_API_KEY; do
     fi
 done
 
-# 5. Build des images Docker (AVANT l'arret pour reduire le downtime)
-log "Build des images Docker..."
-docker compose -f "$COMPOSE_FILE" build
-
-# 6. Arret des containers
-log "Arret des containers..."
-docker compose -f "$COMPOSE_FILE" down --remove-orphans || warn "Erreur lors de l'arret (non critique)"
-
-# Nettoyage des conteneurs nommes et du reseau si le down n'a pas suffi
-log "Nettoyage des conteneurs residuels..."
-docker rm -f postgres_prod ajt_backend_prod ajt_frontend_prod 2>/dev/null || true
-docker network rm ajtpro_default 2>/dev/null || true
-
-# 7. Demarrage des containers
-log "Demarrage des containers..."
-docker compose -f "$COMPOSE_FILE" up -d
+# 5. Build et (re)demarrage des containers
+log "Build et demarrage des containers..."
+docker compose -f "$COMPOSE_FILE" up --build -d --remove-orphans
 
 # 7b. Fix alembic stamp if legacy revision name exists (one-time fix)
 PG_USER="$(grep -m1 '^POSTGRES_USER=' "$APP_DIR/.env" | cut -d= -f2)"
