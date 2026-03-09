@@ -42,11 +42,19 @@ log "Pull du code depuis origin/main..."
 git fetch origin
 git reset --hard origin/main
 
-# 2b. Inject catalogue upload token into admin.html
+# 2b. Inject catalogue upload token into admin.html and systemd service
 if [ -n "${CATALOGUE_UPLOAD_TOKEN:-}" ]; then
     sed -i 's/data-upload-token="REPLACE_IN_PROD"/data-upload-token="'"$CATALOGUE_UPLOAD_TOKEN"'"/' \
       "$APP_DIR/catalogue/admin.html"
     log "Catalogue upload token injecte dans admin.html"
+
+    # Update systemd service with the real token
+    SERVICE_FILE="/etc/systemd/system/catalogue-upload.service"
+    if [ -f "$SERVICE_FILE" ]; then
+        sudo sed -i 's|Environment=UPLOAD_TOKEN=.*|Environment=UPLOAD_TOKEN='"$CATALOGUE_UPLOAD_TOKEN"'|' "$SERVICE_FILE"
+        sudo systemctl daemon-reload
+        log "Catalogue upload token injecte dans systemd service"
+    fi
 fi
 
 # 2c. Restart catalogue upload server if running
