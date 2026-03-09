@@ -42,7 +42,7 @@ log "Pull du code depuis origin/main..."
 git fetch origin
 git reset --hard origin/main
 
-# 2b. Inject catalogue upload token into admin.html and systemd service
+# 3. Inject catalogue upload token into admin.html and systemd service
 if [ -n "${CATALOGUE_UPLOAD_TOKEN:-}" ]; then
     sed -i 's/data-upload-token="REPLACE_IN_PROD"/data-upload-token="'"$CATALOGUE_UPLOAD_TOKEN"'"/' \
       "$APP_DIR/catalogue/admin.html"
@@ -57,13 +57,13 @@ if [ -n "${CATALOGUE_UPLOAD_TOKEN:-}" ]; then
     fi
 fi
 
-# 2c. Restart catalogue upload server if running
+# 3b. Restart catalogue upload server if running
 if systemctl is-active --quiet catalogue-upload 2>/dev/null; then
     sudo systemctl restart catalogue-upload || warn "Restart catalogue-upload echoue"
     log "catalogue-upload redémarre"
 fi
 
-# 3. Sauvegarde et restauration des .env
+# 4. Verification des fichiers .env
 log "Verification des fichiers .env..."
 for envfile in .env backend/.env frontend/.env; do
     if [ -f "$envfile" ]; then
@@ -71,7 +71,7 @@ for envfile in .env backend/.env frontend/.env; do
     fi
 done
 
-# 4. Injection des secrets dans .env
+# 5. Injection des secrets dans .env
 for SECRET_NAME in ODOO_ENCRYPTION_KEY ANTHROPIC_API_KEY; do
     SECRET_VALUE=$(eval echo "\${${SECRET_NAME}:-}")
     if [ -n "$SECRET_VALUE" ]; then
@@ -85,30 +85,33 @@ for SECRET_NAME in ODOO_ENCRYPTION_KEY ANTHROPIC_API_KEY; do
     fi
 done
 
-# 5. Build et (re)demarrage des containers
+# 6. Build et (re)demarrage des containers
 log "Build et demarrage des containers..."
 docker compose -f "$COMPOSE_FILE" up --build -d --remove-orphans
 
-# 7b. Fix alembic stamp if legacy revision name exists (one-time fix)
+# 7. Fix alembic stamp if legacy revision name exists (one-time fix)
 PG_USER="$(grep -m1 '^POSTGRES_USER=' "$APP_DIR/.env" | cut -d= -f2)"
 PG_DB="$(grep -m1 '^POSTGRES_DB=' "$APP_DIR/.env" | cut -d= -f2)"
 docker compose -f "$COMPOSE_FILE" exec -T postgres psql -U "${PG_USER}" -d "${PG_DB}" -c \
   "UPDATE alembic_version SET version_num = 'v2_populate_ram' WHERE version_num = 'v2_populate_ram_from_description';" 2>/dev/null \
   && log "Alembic stamp corrige (legacy rename)" || true
 
-# 8. Attente que le backend soit pret + migrations Alembic
-log "Attente que le backend demarre..."
+# 8. Attente DB + migrations Alembic
+log "Attente que la base de donnees demarre..."
 for i in $(seq 1 30); do
-    if docker compose -f "$COMPOSE_FILE" exec -T backend alembic upgrade head 2>/dev/null; then
-        log "Migrations Alembic appliquees"
+    if docker compose -f "$COMPOSE_FILE" exec -T postgres pg_isready -U "${PG_USER}" 2>/dev/null; then
+        log "Base de donnees prete"
         break
     fi
     if [ "$i" -eq 30 ]; then
-        warn "Backend non pret apres 60s, tentative de migration forcee..."
-        docker compose -f "$COMPOSE_FILE" exec -T backend alembic upgrade head || warn "Migrations echouees"
+        fail "DB non prete apres 60s"
     fi
     sleep 2
 done
+
+# Run migrations once
+log "Application des migrations Alembic..."
+docker compose -f "$COMPOSE_FILE" exec -T backend alembic upgrade head || warn "Migrations echouees"
 
 # 9. Health checks
 log "Health checks..."
@@ -138,7 +141,10 @@ for i in $(seq 1 30); do
     sleep 2
 done
 
-# 10. Resume
+# 10. Nettoyage images Docker
+docker image prune -f > /dev/null 2>&1 || true
+
+# 11. Resume
 echo ""
 log "===== DEPLOIEMENT TERMINE ====="
 log "Commit  : $(git rev-parse --short HEAD)"
