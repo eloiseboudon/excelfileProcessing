@@ -12,6 +12,7 @@ Options (variables d'environnement):
 
 import os
 import re
+import time
 import unicodedata
 from pathlib import Path
 
@@ -96,7 +97,8 @@ def upload():
     IMGS_DIR.mkdir(exist_ok=True)
     img.save(IMGS_DIR / filename, "PNG", optimize=True)
 
-    return jsonify({"path": f"imgs/{filename}"}), 200
+    cache_bust = int(time.time())
+    return jsonify({"path": f"imgs/{filename}?v={cache_bust}"}), 200
 
 
 if __name__ == "__main__":
