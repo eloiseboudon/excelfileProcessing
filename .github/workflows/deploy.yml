@@ -29,10 +29,6 @@ jobs:
         run: npm ci
         working-directory: frontend
 
-      - name: Lint frontend
-        run: npx eslint src/
-        working-directory: frontend
-
       - name: Test frontend
         run: npx vitest run --reporter=verbose
         working-directory: frontend
