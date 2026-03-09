@@ -21,8 +21,9 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
-          envs: ODOO_ENCRYPTION_KEY,ANTHROPIC_API_KEY
+          envs: ODOO_ENCRYPTION_KEY,ANTHROPIC_API_KEY,CATALOGUE_UPLOAD_TOKEN
           script: bash /home/ubuntu/ajtpro/deploy-ci.sh
         env:
           ODOO_ENCRYPTION_KEY: ${{ secrets.ODOO_ENCRYPTION_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CATALOGUE_UPLOAD_TOKEN: ${{ secrets.CATALOGUE_UPLOAD_TOKEN }}
