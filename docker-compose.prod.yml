@@ -17,9 +17,10 @@ services:
       POSTGRES_HOST: postgres_prod
       POSTGRES_PORT: 5432
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_prod:5432/${POSTGRES_DB}
-    command: gunicorn -w 4 --timeout 300 -b 0.0.0.0:5001 app:app
+    command: gunicorn -w 4 --timeout 300 --preload -b 0.0.0.0:5001 app:app
     volumes:
       - ajtpro_backend_logs:/app/logs
+      - ajtpro_backend_data:/app/data
     ports:
       - "8000:5001"
     depends_on:
@@ -38,7 +39,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
 
   frontend:
     build:
@@ -99,6 +100,8 @@ volumes:
   ajtpro_postgres_data:
     driver: local
   ajtpro_backend_logs:
+    driver: local
+  ajtpro_backend_data:
     driver: local
 
 networks:

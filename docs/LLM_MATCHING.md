@@ -7,6 +7,53 @@ Le matching LLM rapproche automatiquement les labels fournisseurs avec les produ
 1. **Phase 1 — Extraction** : Claude Haiku extrait les attributs structurés de chaque label fournisseur
 2. **Phase 2 — Scoring** : Chaque produit Odoo est comparé aux extractions pour trouver le meilleur match
 
+### Pipeline V2 (avancé)
+
+Activable via `MATCHING_V2_ENABLED=true`, le pipeline V2 remplace le scan linéaire de Phase 2 par un retrieval multi-étapes :
+
+```
+Label fournisseur
+    ↓
+[BM25 blocking] → top-50 candidats sparse (TF-IDF)
+    ↓
+[FAISS ANN search] → top-100 candidats dense (embeddings)     ← MATCHING_EMBEDDINGS_ENABLED=true
+    ↓
+[Union + dédup] → ensemble de candidats fusionné
+    ↓
+[score_match()] → scoring déterministe par attributs
+    ↓
+[Cross-encoder] → reranking zone grise (70-90)                ← MATCHING_EMBEDDINGS_ENABLED=true
+    ↓
+Décision : auto-match / pending / not_found
+```
+
+**Modules** (`backend/utils/matching/`) :
+
+| Module | Rôle | Dépendance |
+|--------|------|------------|
+| `bm25_blocker.py` | Pré-sélection top-k candidats par TF-IDF (BM25Plus) | `rank-bm25` |
+| `embedder.py` | Bi-encoder sémantique (`paraphrase-multilingual-mpnet-base-v2`) | `sentence-transformers` |
+| `faiss_index.py` | Index ANN pour recherche sub-milliseconde sur embeddings | `faiss-cpu` |
+| `cross_encoder.py` | Reranking cross-encoder pour la zone grise (scores 70-90) | `sentence-transformers` |
+| `fine_tuner.py` | Fine-tuning du bi-encoder sur l'historique de validations | `sentence-transformers` |
+| `retrieval_pipeline.py` | Orchestrateur qui relie BM25 + FAISS + cross-encoder | — |
+
+**Configuration** :
+
+| Variable d'environnement | Défaut | Description |
+|--------------------------|--------|-------------|
+| `MATCHING_V2_ENABLED` | `false` | Active le pipeline V2 complet (BM25 + FAISS + cross-encoder) |
+| `MATCHING_MODEL_PATH` | `/app/data/models/matching-finetuned` | Chemin du modèle fine-tuné |
+| `FAISS_INDEX_DIR` | `/app/data/faiss` | Répertoire de persistance FAISS |
+
+Un seul flag active tout. Si `sentence-transformers`/`faiss-cpu` ne sont pas installés, FAISS et le cross-encoder sont désactivés automatiquement (fallback gracieux sur BM25 seul).
+
+**Rollback** : désactiver `MATCHING_V2_ENABLED` revient instantanément au scan linéaire V1 sans redéploiement.
+
+### Fine-tuning
+
+Le bi-encoder peut être fine-tuné sur les validations manuelles (PendingMatch validated/rejected) et les auto-matchs haute confiance (score ≥ 95). Minimum 100 paires requis. Le fine-tuning se lance manuellement (pas dans le nightly).
+
 ## Attributs extraits (12)
 
 | # | Attribut | Type | Description |

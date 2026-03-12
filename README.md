@@ -171,6 +171,13 @@ ajtpro/
 │   │   ├── activity.py         # Helper log_activity pour tracabilite metier
 │   │   ├── etl.py             # Pipeline ETL synchronisation fournisseurs
 │   │   ├── llm_matching.py    # Module matching LLM (extraction, scoring, orchestration)
+│   │   ├── matching/          # Pipeline matching avance (V2)
+│   │   │   ├── bm25_blocker.py      # Blocking BM25 (pre-selection candidats)
+│   │   │   ├── embedder.py          # Bi-encoder embeddings (sentence-transformers)
+│   │   │   ├── faiss_index.py       # Index FAISS ANN (recherche rapide)
+│   │   │   ├── cross_encoder.py     # Reranking cross-encoder (zone grise 70-90)
+│   │   │   ├── fine_tuner.py        # Fine-tuning sur historique validations
+│   │   │   └── retrieval_pipeline.py # Orchestrateur multi-etapes
 │   │   ├── logging_config.py  # Configuration logging centralise (fichier JSON + console)
 │   │   ├── nightly_pipeline.py # Orchestrateur pipeline nightly + envoi webhook n8n
 │   │   ├── nightly_scheduler.py # Planificateur pipeline nightly (threading.Timer)
@@ -345,10 +352,12 @@ Variables d'environnement : `NIGHTLY_WEBHOOK_URL` (URL webhook n8n), `ENABLE_NIG
 
 ### CI/CD
 
-Le projet dispose d'un pipeline GitHub Actions complet :
+Le projet dispose de 4 workflows GitHub Actions :
 
-- **CI** (`.github/workflows/ci.yml`) : tests frontend (Vitest) et backend (pytest) executes en parallele sur chaque push et pull request vers `main`. Un recap des resultats (tests passes/echoues) est affiche dans le Job Summary de chaque job. Le secret JWT de test fait 32+ octets pour eviter les warnings `InsecureKeyLengthWarning`. Un groupe de concurrence (`concurrency`) annule automatiquement les runs obsoletes sur la meme branche pour eviter les queues de CI inutiles.
-- **Deploy** (`.github/workflows/deploy.yml`) : deploiement automatique sur le VPS via SSH apres chaque push sur `main`. Le pipeline lance directement le deploy SSH sans job de build intermediaire (le build frontend est fait dans le Dockerfile). Le script `deploy-ci.sh` est optimise pour un deploy en ~1 minute : layer caching Docker, build avant arret des containers (downtime ~5-10s), polling actif au lieu d'attente fixe.
+- **CI** (`.github/workflows/ci.yml`) : declenche sur push `dev` et PR vers `main`. Un job `changes` (dorny/paths-filter) detecte les fichiers modifies et skip les tests non impactes (frontend-only → backend skippe, et vice-versa). Tests frontend (Vitest) et backend (pytest) executes en parallele. Recap des resultats dans le Job Summary. Concurrence par branche (`ci-${{ github.ref }}`) pour annuler les runs obsoletes.
+- **Deploy** (`.github/workflows/deploy.yml`) : deploiement automatique sur le VPS via SSH apres chaque push sur `main`. Relance les tests frontend + backend en serie comme gate de securite, puis deploy via `deploy-ci.sh`. Optimise pour un deploy en ~1 minute : layer caching Docker, build avant arret des containers (downtime ~5-10s), polling actif au lieu d'attente fixe.
+- **Daily Deploy** (`.github/workflows/daily-deploy.yml`) : merge automatique `dev` → `main` du lundi au vendredi a 6h03 (Paris). Verifie d'abord si `dev` a des commits en avance sur `main`, skip sinon. Declenchable manuellement (`workflow_dispatch`) pour les hotfixes.
+- **Security Scan** (`.github/workflows/security-scan.yml`) : audit hebdomadaire (lundi 8h17 Paris). Deux jobs : audit des dependances (`npm audit` + `pip-audit`) et scan de patterns dangereux (eval, innerHTML, shell=True, secrets hardcodes, SQL par concatenation, fichiers `.env` versionnes). Resultats dans le Job Summary.
 
 ### Referentiel produit
 
