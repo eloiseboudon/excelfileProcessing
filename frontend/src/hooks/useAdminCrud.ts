@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Dispatch, SetStateAction } from 'react';
-import { useNotification } from '../components/NotificationProvider';
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
+import { useNotification } from "../components/NotificationProvider";
 
 interface UseAdminCrudOptions<T extends { id: number }> {
   fetchFn: () => Promise<T[]>;
   createFn: (payload: Record<string, unknown>) => Promise<unknown>;
   updateFn: (id: number, payload: Record<string, unknown>) => Promise<unknown>;
   deleteFn: (id: number) => Promise<unknown>;
-  initialItem?: Omit<T, 'id'>;
+  initialItem?: Omit<T, "id">;
   onFieldChange?: (item: T, field: string, value: string) => T;
   confirmDelete?: boolean;
   confirmDeleteMessage?: string;
@@ -25,7 +25,7 @@ interface UseAdminCrudReturn<T extends { id: number }> {
 }
 
 export function useAdminCrud<T extends { id: number }>(
-  options: UseAdminCrudOptions<T>
+  options: UseAdminCrudOptions<T>,
 ): UseAdminCrudReturn<T> {
   const {
     createFn,
@@ -34,7 +34,7 @@ export function useAdminCrud<T extends { id: number }>(
     initialItem,
     onFieldChange,
     confirmDelete = false,
-    confirmDeleteMessage = 'Supprimer cet élément ?',
+    confirmDeleteMessage = "Supprimer cet élément ?",
     enabled = true,
   } = options;
 
@@ -58,7 +58,7 @@ export function useAdminCrud<T extends { id: number }>(
     if (enabled) {
       load();
     }
-  }, [enabled, options.fetchFn, load]);
+  }, [enabled, load]);
 
   const handleChange = useCallback(
     (id: number, field: string, value: string) => {
@@ -67,10 +67,10 @@ export function useAdminCrud<T extends { id: number }>(
           if (item.id !== id) return item;
           const updated = { ...item, [field]: value };
           return onFieldChange ? onFieldChange(updated, field, value) : updated;
-        })
+        }),
       );
     },
-    [onFieldChange]
+    [onFieldChange],
   );
 
   const handleSave = useCallback(
@@ -82,17 +82,20 @@ export function useAdminCrud<T extends { id: number }>(
       try {
         if (id < 0) {
           await createFn(payload);
-          notify('Entrée créée', 'success');
+          notify("Entrée créée", "success");
         } else {
           await updateFn(id, payload);
-          notify('Entrée mise à jour', 'success');
+          notify("Entrée mise à jour", "success");
         }
         await load();
       } catch (err) {
-        notify(err instanceof Error ? err.message : 'Erreur de sauvegarde', 'error');
+        notify(
+          err instanceof Error ? err.message : "Erreur de sauvegarde",
+          "error",
+        );
       }
     },
-    [data, createFn, updateFn, load, notify]
+    [data, createFn, updateFn, load, notify],
   );
 
   const handleDelete = useCallback(
@@ -104,13 +107,16 @@ export function useAdminCrud<T extends { id: number }>(
       if (confirmDelete && !window.confirm(confirmDeleteMessage)) return;
       try {
         await deleteFn(id);
-        notify('Entrée supprimée', 'success');
+        notify("Entrée supprimée", "success");
         await load();
       } catch (err) {
-        notify(err instanceof Error ? err.message : 'Erreur de suppression', 'error');
+        notify(
+          err instanceof Error ? err.message : "Erreur de suppression",
+          "error",
+        );
       }
     },
-    [confirmDelete, confirmDeleteMessage, deleteFn, load, notify]
+    [confirmDelete, confirmDeleteMessage, deleteFn, load, notify],
   );
 
   const handleAdd = useCallback(() => {
@@ -120,13 +126,21 @@ export function useAdminCrud<T extends { id: number }>(
         (data.length > 0
           ? Object.fromEntries(
               Object.keys(data[0])
-                .filter((k) => k !== 'id')
-                .map((k) => [k, ''])
+                .filter((k) => k !== "id")
+                .map((k) => [k, ""]),
             )
           : {})),
     } as T;
     setData((prev) => [...prev, newItem]);
   }, [data, initialItem]);
 
-  return { data, setData, handleChange, handleSave, handleDelete, handleAdd, reload: load };
+  return {
+    data,
+    setData,
+    handleChange,
+    handleSave,
+    handleDelete,
+    handleAdd,
+    reload: load,
+  };
 }
