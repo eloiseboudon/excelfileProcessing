@@ -57,6 +57,18 @@ docker exec -it ajt_backend_prod python scripts/reset_odoo_links.py
 
 ---
 
+## Benchmark matching V2
+
+### Comparer V1 (scan linéaire) vs V2 (BM25 + FAISS) — dry-run
+```bash
+docker exec -it ajt_backend_prod python scripts/benchmark_matching_v2.py
+```
+> Compare les résultats des deux pipelines sur tous les produits non-matchés.
+> Affiche : identiques, améliorations, régressions (avec détails), timing et speedup.
+> Aucune écriture en base — safe à lancer en prod.
+
+---
+
 ## Fixes matching LLM (one-time)
 
 ### Fix auto-matchs avec région incorrecte (null ≠ EU)
