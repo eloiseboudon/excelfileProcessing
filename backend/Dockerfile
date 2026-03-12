@@ -18,10 +18,11 @@ COPY requirements.txt .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Étape 5 : pré-téléchargement des modèles ML (évite le download au premier appel)
+# Étape 5 : pré-téléchargement des modèles ML (optionnel, échoue silencieusement si pas d'accès réseau)
 RUN python -c "from sentence_transformers import SentenceTransformer, CrossEncoder; \
     SentenceTransformer('paraphrase-multilingual-mpnet-base-v2'); \
-    CrossEncoder('cross-encoder/ms-marco-multilingual-MiniLM-L12-v2')"
+    CrossEncoder('cross-encoder/ms-marco-multilingual-MiniLM-L12-v2')" \
+    || echo "WARNING: ML models pre-download failed, will download at first use"
 
 # Étape 6 : création d'un utilisateur non-root
 RUN useradd --create-home --shell /bin/bash appuser
