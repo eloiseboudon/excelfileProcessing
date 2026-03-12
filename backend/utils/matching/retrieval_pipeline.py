@@ -43,8 +43,8 @@ class RetrievalPipeline:
         ean_to_product_ids: Dict,
         threshold_auto: int = 90,
         threshold_review: int = 70,
-        bm25_top_k: int = 50,
-        faiss_top_k: int = 100,
+        bm25_top_k: int = 200,
+        faiss_top_k: int = 200,
     ) -> None:
         self._cache_entries = cache_entries
         self._score_match = score_match_fn
