@@ -1,0 +1,43 @@
+name: Daily Deploy
+
+on:
+  schedule:
+    - cron: '3 4 * * 1-5' # 6h03 Paris (UTC+2), lundi-vendredi
+  workflow_dispatch: # Hotfix : merge immédiat dev → main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-deploy
+  cancel-in-progress: false
+
+jobs:
+  merge-dev-to-main:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Check for new commits on dev
+        id: check
+        run: |
+          git fetch origin dev main
+          AHEAD=$(git rev-list --count origin/main..origin/dev)
+          echo "ahead=$AHEAD" >> "$GITHUB_OUTPUT"
+          if [ "$AHEAD" -eq 0 ]; then
+            echo "✅ dev is up to date with main — nothing to deploy"
+          else
+            echo "🚀 dev is $AHEAD commit(s) ahead of main"
+          fi
+
+      - name: Merge dev → main
+        if: steps.check.outputs.ahead != '0'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout main
+          git merge origin/dev --no-ff -m "chore(deploy): scheduled merge dev → main"
+          git push origin main
