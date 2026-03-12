@@ -32,8 +32,8 @@ def _make_product(id_, brand="Samsung", model="Galaxy S25 Ultra", memory="256Go"
     product.memory.memory = memory
     product.color = MagicMock()
     product.color.color = color
-    product.device_type = MagicMock()
-    product.device_type.name = device_type
+    product.type = MagicMock()
+    product.type.type = device_type
     product.ean = None
     return product
 

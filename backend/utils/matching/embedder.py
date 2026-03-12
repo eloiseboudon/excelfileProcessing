@@ -61,7 +61,7 @@ def product_to_text(product) -> str:
         product.description or "",
         product.memory.memory if product.memory else "",
         product.color.color if product.color else "",
-        product.device_type.name if product.device_type else "",
+        product.type.type if product.type else "",
     ]
     return " ".join(p for p in parts if p).strip()
 
