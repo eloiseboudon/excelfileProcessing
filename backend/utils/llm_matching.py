@@ -1228,8 +1228,7 @@ def run_matching_job(
             if not candidates_list:
                 not_found += 1
                 continue
-            scored = retrieval.score_product(product, candidates_list)
-            best_disqualified = None
+            scored, best_disqualified = retrieval.score_product(product, candidates_list)
         else:
             # --- V1 path: brand-filtered linear scan ---
             prod_brand = (product.brand.brand if product.brand else "").strip().lower()

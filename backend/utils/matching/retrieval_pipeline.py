@@ -147,12 +147,17 @@ class RetrievalPipeline:
 
         return [self._id_to_entry[lid] for lid in merged_ids if lid in self._id_to_entry]
 
-    def score_product(self, product, candidates: List) -> List[Tuple[int, Dict, Any]]:
+    def score_product(
+        self, product, candidates: List
+    ) -> Tuple[List[Tuple[int, Dict, Any]], Optional[Tuple[Dict, Any]]]:
         """Score candidates against a product, with optional cross-encoder reranking.
 
-        Returns list of (score, details, cache_entry) sorted by score desc.
+        Returns (scored, best_disqualified) where:
+        - scored: list of (score, details, cache_entry) sorted by score desc
+        - best_disqualified: (details, cache_entry) for the first disqualified candidate, or None
         """
         scored: List[Tuple[int, Dict, Any]] = []
+        best_disqualified: Optional[Tuple[Dict, Any]] = None
 
         for cache_entry in candidates:
             attrs = dict(cache_entry.extracted_attributes or {})
@@ -172,9 +177,11 @@ class RetrievalPipeline:
 
             if score > 0:
                 scored.append((score, details, cache_entry))
+            elif best_disqualified is None and details.get("disqualified"):
+                best_disqualified = (details, cache_entry)
 
         if not scored:
-            return scored
+            return scored, best_disqualified
 
         scored.sort(key=lambda x: x[0], reverse=True)
 
@@ -182,7 +189,7 @@ class RetrievalPipeline:
         if is_v2_enabled():
             scored = self._apply_cross_encoder(product, scored)
 
-        return scored
+        return scored, best_disqualified
 
     def _apply_cross_encoder(
         self, product, scored: List[Tuple[int, Dict, Any]]
