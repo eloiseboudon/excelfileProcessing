@@ -408,7 +408,7 @@ Pipeline de retrieval multi-etapes pour ameliorer la precision et la performance
 - **FAISS ANN** (`faiss-cpu`) : index flat inner product pour recherche sub-milliseconde sur embeddings. Top-100 candidats dense fusionnes avec le BM25
 - **Cross-encoder reranking** (`ms-marco-multilingual-MiniLM-L12-v2`) : reranking des candidats en zone grise (70-90). Boost +15 si cross-encoder > 0.8, penalite -15 si < 0.3
 - **Fine-tuning** : pipeline pour fine-tuner le bi-encoder sur l'historique PendingMatch (validated/rejected) + auto-matchs haute confiance. Minimum 100 paires requis
-- **Feature flags** : `MATCHING_V2_ENABLED` (BM25), `MATCHING_EMBEDDINGS_ENABLED` (FAISS + cross-encoder). Rollback instantane
+- **Feature flag unique** : `MATCHING_V2_ENABLED` active tout (BM25 + FAISS + cross-encoder). Fallback gracieux si deps lourdes absentes. Rollback instantane
 - **17 tests** : BM25 blocker (4), embedder (3), FAISS index (3), cross-encoder (5), fine-tuner (2)
 
 Fichiers concernes : `backend/utils/matching/` (6 modules), `backend/utils/llm_matching.py`, `backend/requirements.txt`, `backend/tests/test_matching_pipeline.py`, `docs/LLM_MATCHING.md`

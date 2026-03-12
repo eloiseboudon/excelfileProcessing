@@ -38,14 +38,15 @@ Décision : auto-match / pending / not_found
 | `fine_tuner.py` | Fine-tuning du bi-encoder sur l'historique de validations | `sentence-transformers` |
 | `retrieval_pipeline.py` | Orchestrateur qui relie BM25 + FAISS + cross-encoder | — |
 
-**Feature flags** :
+**Configuration** :
 
 | Variable d'environnement | Défaut | Description |
 |--------------------------|--------|-------------|
-| `MATCHING_V2_ENABLED` | `false` | Active le pipeline V2 (BM25 blocking) |
-| `MATCHING_EMBEDDINGS_ENABLED` | `false` | Active FAISS + cross-encoder (nécessite V2) |
+| `MATCHING_V2_ENABLED` | `false` | Active le pipeline V2 complet (BM25 + FAISS + cross-encoder) |
 | `MATCHING_MODEL_PATH` | `/app/data/models/matching-finetuned` | Chemin du modèle fine-tuné |
 | `FAISS_INDEX_DIR` | `/app/data/faiss` | Répertoire de persistance FAISS |
+
+Un seul flag active tout. Si `sentence-transformers`/`faiss-cpu` ne sont pas installés, FAISS et le cross-encoder sont désactivés automatiquement (fallback gracieux sur BM25 seul).
 
 **Rollback** : désactiver `MATCHING_V2_ENABLED` revient instantanément au scan linéaire V1 sans redéploiement.
 

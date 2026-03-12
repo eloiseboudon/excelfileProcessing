@@ -17,19 +17,13 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from flask import current_app
 
-# Feature flag — disable to fall back to linear scan
+# Single feature flag — activates BM25 + FAISS + cross-encoder.
+# FAISS/cross-encoder degrade gracefully if sentence-transformers is not installed.
 MATCHING_V2_ENABLED = os.environ.get("MATCHING_V2_ENABLED", "false").lower() == "true"
-
-# Embedding-based features need heavier dependencies
-EMBEDDINGS_ENABLED = os.environ.get("MATCHING_EMBEDDINGS_ENABLED", "false").lower() == "true"
 
 
 def is_v2_enabled() -> bool:
     return MATCHING_V2_ENABLED
-
-
-def is_embeddings_enabled() -> bool:
-    return EMBEDDINGS_ENABLED
 
 
 class RetrievalPipeline:
@@ -76,7 +70,7 @@ class RetrievalPipeline:
         }
 
         self._init_bm25()
-        if is_embeddings_enabled():
+        if is_v2_enabled():
             self._init_faiss()
 
     def _init_bm25(self) -> None:
@@ -106,7 +100,7 @@ class RetrievalPipeline:
 
     def compute_product_embeddings(self, products: list) -> None:
         """Pre-compute embeddings for all products (call once before scoring)."""
-        if not is_embeddings_enabled():
+        if self._faiss_index is None:
             return
         try:
             from utils.matching.embedder import compute_product_embeddings
@@ -185,7 +179,7 @@ class RetrievalPipeline:
         scored.sort(key=lambda x: x[0], reverse=True)
 
         # Cross-encoder reranking on grey zone
-        if is_embeddings_enabled():
+        if is_v2_enabled():
             scored = self._apply_cross_encoder(product, scored)
 
         return scored
