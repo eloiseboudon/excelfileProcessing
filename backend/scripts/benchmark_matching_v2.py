@@ -179,12 +179,12 @@ def main():
 
             # --- V2: BM25 + FAISS ---
             t0 = time.time()
-            bm25_results = bm25_blocker.get_candidates(product, top_k=50)
+            bm25_results = bm25_blocker.get_candidates(product, top_k=200)
             bm25_ids = {e.id for e in bm25_results}
 
             faiss_ids = set()
             if faiss_index and product.id in product_embeddings:
-                faiss_results = faiss_index.search(product_embeddings[product.id], top_k=100)
+                faiss_results = faiss_index.search(product_embeddings[product.id], top_k=200)
                 faiss_ids = {lid for lid, _ in faiss_results}
 
             v2_candidate_ids = bm25_ids | faiss_ids
