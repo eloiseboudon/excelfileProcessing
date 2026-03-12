@@ -1199,47 +1199,75 @@ def run_matching_job(
 
     mappings = _build_mappings()
 
-    for product in products_to_process:
-        prod_brand = (product.brand.brand if product.brand else "").strip().lower()
+    # --- V2 retrieval pipeline (BM25 + optional FAISS + cross-encoder) ---
+    retrieval = None
+    try:
+        from utils.matching.retrieval_pipeline import RetrievalPipeline, is_v2_enabled
 
-        # Brand-filtered candidates + no-brand entries as fallback
-        if prod_brand:
-            candidates_list = (
-                brand_to_entries.get(prod_brand, [])
-                + brand_to_entries.get("", [])
+        if is_v2_enabled():
+            retrieval = RetrievalPipeline(
+                cache_entries=all_cache_entries,
+                score_match_fn=score_match,
+                mappings=mappings,
+                label_to_catalogs=label_to_catalogs,
+                label_eans=label_eans,
+                ean_to_product_ids=ean_to_product_ids,
+                threshold_auto=threshold_auto,
+                threshold_review=threshold_review,
             )
+            retrieval.compute_product_embeddings(products_to_process)
+            current_app.logger.info("Matching V2 pipeline active")
+    except ImportError:
+        pass
+
+    for product in products_to_process:
+
+        # --- V2 path: multi-stage retrieval ---
+        if retrieval is not None:
+            candidates_list = retrieval.get_candidates(product)
+            if not candidates_list:
+                not_found += 1
+                continue
+            scored = retrieval.score_product(product, candidates_list)
+            best_disqualified = None
         else:
-            candidates_list = all_cache_entries
+            # --- V1 path: brand-filtered linear scan ---
+            prod_brand = (product.brand.brand if product.brand else "").strip().lower()
 
-        if not candidates_list:
-            not_found += 1
-            continue
-
-        scored: List[Tuple[int, Dict, LabelCache]] = []
-        best_disqualified: Optional[Tuple[Dict, LabelCache]] = None
-
-        for cache_entry in candidates_list:
-            attrs = dict(cache_entry.extracted_attributes or {})
-            score, details = score_match(attrs, product, mappings)
-
-            # EAN bonus: if the supplier catalog entry has an EAN that is known
-            # to belong to this product, add a +20 bonus. This is a strong signal
-            # but not sufficient alone — attribute scoring still verifies the match.
-            if score > 0:
-                entry_eans = label_eans.get(
-                    (cache_entry.supplier_id, cache_entry.normalized_label), set()
+            if prod_brand:
+                candidates_list = (
+                    brand_to_entries.get(prod_brand, [])
+                    + brand_to_entries.get("", [])
                 )
-                if entry_eans:
-                    for ean in entry_eans:
-                        if product.id in ean_to_product_ids.get(ean, set()):
-                            details["ean_bonus"] = 20
-                            score = min(score + 20, 100)
-                            break
+            else:
+                candidates_list = all_cache_entries
 
-            if score > 0:
-                scored.append((score, details, cache_entry))
-            elif best_disqualified is None and details.get("disqualified"):
-                best_disqualified = (details, cache_entry)
+            if not candidates_list:
+                not_found += 1
+                continue
+
+            scored: List[Tuple[int, Dict, LabelCache]] = []
+            best_disqualified: Optional[Tuple[Dict, LabelCache]] = None
+
+            for cache_entry in candidates_list:
+                attrs = dict(cache_entry.extracted_attributes or {})
+                score, details = score_match(attrs, product, mappings)
+
+                if score > 0:
+                    entry_eans = label_eans.get(
+                        (cache_entry.supplier_id, cache_entry.normalized_label), set()
+                    )
+                    if entry_eans:
+                        for ean in entry_eans:
+                            if product.id in ean_to_product_ids.get(ean, set()):
+                                details["ean_bonus"] = 20
+                                score = min(score + 20, 100)
+                                break
+
+                if score > 0:
+                    scored.append((score, details, cache_entry))
+                elif best_disqualified is None and details.get("disqualified"):
+                    best_disqualified = (details, cache_entry)
 
         if not scored:
             if best_disqualified is not None:

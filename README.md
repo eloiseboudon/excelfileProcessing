@@ -171,6 +171,13 @@ ajtpro/
 │   │   ├── activity.py         # Helper log_activity pour tracabilite metier
 │   │   ├── etl.py             # Pipeline ETL synchronisation fournisseurs
 │   │   ├── llm_matching.py    # Module matching LLM (extraction, scoring, orchestration)
+│   │   ├── matching/          # Pipeline matching avance (V2)
+│   │   │   ├── bm25_blocker.py      # Blocking BM25 (pre-selection candidats)
+│   │   │   ├── embedder.py          # Bi-encoder embeddings (sentence-transformers)
+│   │   │   ├── faiss_index.py       # Index FAISS ANN (recherche rapide)
+│   │   │   ├── cross_encoder.py     # Reranking cross-encoder (zone grise 70-90)
+│   │   │   ├── fine_tuner.py        # Fine-tuning sur historique validations
+│   │   │   └── retrieval_pipeline.py # Orchestrateur multi-etapes
 │   │   ├── logging_config.py  # Configuration logging centralise (fichier JSON + console)
 │   │   ├── nightly_pipeline.py # Orchestrateur pipeline nightly + envoi webhook n8n
 │   │   ├── nightly_scheduler.py # Planificateur pipeline nightly (threading.Timer)
