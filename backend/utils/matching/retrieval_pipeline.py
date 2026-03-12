@@ -92,9 +92,9 @@ class RetrievalPipeline:
             current_app.logger.info(
                 "FAISS index built with %d entries", self._faiss_index.size
             )
-        except ImportError:
+        except (ImportError, OSError) as exc:
             current_app.logger.warning(
-                "FAISS/sentence-transformers not available, skipping dense retrieval"
+                "FAISS/sentence-transformers not available, skipping dense retrieval: %s", exc
             )
             self._faiss_index = None
 
@@ -109,7 +109,7 @@ class RetrievalPipeline:
             current_app.logger.info(
                 "Computed embeddings for %d products", len(self._product_embeddings)
             )
-        except ImportError:
+        except (ImportError, OSError):
             pass
 
     def get_candidates(self, product) -> List:

@@ -19,23 +19,36 @@ PENALIZE_POINTS = 15
 
 
 def _get_cross_encoder():
-    """Lazy-load the cross-encoder model (singleton)."""
+    """Lazy-load the cross-encoder model (singleton).
+
+    Returns None if the model cannot be loaded (missing deps or network).
+    """
     global _cross_encoder
     if _cross_encoder is not None:
         return _cross_encoder
 
-    from sentence_transformers import CrossEncoder
+    try:
+        from sentence_transformers import CrossEncoder
 
-    _cross_encoder = CrossEncoder(_MODEL_NAME)
-    return _cross_encoder
+        _cross_encoder = CrossEncoder(_MODEL_NAME)
+        return _cross_encoder
+    except (ImportError, OSError) as exc:
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "Cross-encoder unavailable, skipping reranking: %s", exc
+        )
+        return None
 
 
 def rerank_pair(query: str, document: str) -> float:
     """Score a single (query, document) pair with the cross-encoder.
 
-    Returns a relevance score (higher = more relevant).
+    Returns a relevance score (higher = more relevant), or 0.5 if unavailable.
     """
     model = _get_cross_encoder()
+    if model is None:
+        return 0.5
     score = model.predict([(query, document)])[0]
     return float(score)
 
@@ -43,11 +56,13 @@ def rerank_pair(query: str, document: str) -> float:
 def rerank_pairs(pairs: List[Tuple[str, str]]) -> List[float]:
     """Score multiple (query, document) pairs.
 
-    Returns a list of relevance scores in the same order.
+    Returns a list of relevance scores in the same order, or 0.5 if unavailable.
     """
     if not pairs:
         return []
     model = _get_cross_encoder()
+    if model is None:
+        return [0.5] * len(pairs)
     scores = model.predict(pairs)
     return [float(s) for s in scores]
 
