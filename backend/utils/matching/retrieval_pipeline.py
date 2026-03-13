@@ -194,9 +194,14 @@ class RetrievalPipeline:
     def _apply_cross_encoder(
         self, product, scored: List[Tuple[int, Dict, Any]]
     ) -> List[Tuple[int, Dict, Any]]:
-        """Apply cross-encoder to candidates in the grey zone (70-90)."""
+        """Rerank candidates in the grey zone using the cross-encoder.
+
+        The cross-encoder only reorders candidates with the same deterministic
+        score — it does NOT modify scores. This avoids false positives from
+        the passage-ranking model boosting unrelated products.
+        """
         try:
-            from utils.matching.cross_encoder import adjust_score, rerank_pairs
+            from utils.matching.cross_encoder import rerank_pairs
             from utils.matching.embedder import product_to_text
         except ImportError:
             return scored
@@ -221,15 +226,17 @@ class RetrievalPipeline:
         ce_scores = rerank_pairs(pairs)
         self._stats["cross_encoder_calls"] += len(pairs)
 
+        # Annotate details with cross-encoder score (for debugging) but
+        # do NOT modify the deterministic score.
         result = list(scored)
         for (orig_idx, orig_score, details, entry), ce_score in zip(grey_zone, ce_scores):
-            adjusted, reason = adjust_score(orig_score, ce_score)
             new_details = dict(details)
             new_details["cross_encoder_score"] = round(ce_score, 4)
-            new_details["cross_encoder_adjustment"] = reason
-            result[orig_idx] = (adjusted, new_details, entry)
+            result[orig_idx] = (orig_score, new_details, entry)
 
-        result.sort(key=lambda x: x[0], reverse=True)
+        # Stable sort: among candidates with the same deterministic score,
+        # prefer the one the cross-encoder ranks higher.
+        result.sort(key=lambda x: (x[0], x[1].get("cross_encoder_score", 0)), reverse=True)
         return result
 
     def get_stats(self) -> Dict[str, Any]:

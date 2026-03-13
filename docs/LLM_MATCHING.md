@@ -26,7 +26,7 @@ Label fournisseur
     ↓
 [score_match()] → scoring déterministe par attributs (identique à la V1)
     ↓
-[Cross-encoder] → affinage IA pour les cas ambigus (scores 70-90)
+[Cross-encoder] → réordonne les candidats ambigus (même score) par pertinence sémantique
     ↓
 Décision : auto-match / pending / auto-rejeté / non trouvé
 ```
