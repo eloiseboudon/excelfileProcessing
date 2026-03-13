@@ -1088,13 +1088,10 @@ def run_matching_job(
     # -----------------------------------------------------------------------
     # Phase 2: Match Odoo Products against extracted cache entries
     # -----------------------------------------------------------------------
-    reopened_product_ids: set[int] = set()
     if skip_already_matched:
         # Nightly mode: re-evaluate every product against tonight's updated catalog.
-        # Caller is responsible for resetting LabelCache.product_id and PendingMatch
-        # before calling this function.
         matched_product_ids: set[int] = set()
-        pending_product_ids: set[int] = set()
+        existing_pm_by_product: dict[int, PendingMatch] = {}
     else:
         # Normal mode: exclude products already matched — either via ETL
         # (ProductCalculation exists) or via previous LLM auto-match
@@ -1113,49 +1110,21 @@ def run_matching_job(
             .all()
         }
 
-        # Exclude products already queued in a pending or auto-rejected match,
-        # UNLESS their brand received new labels this run (Option A re-evaluation).
-        pending_product_ids = set()
-        pms_to_delete: list[int] = []
+        # Build a map of existing PendingMatches by product_id so we can
+        # re-evaluate them and update if a better score is found.
+        existing_pm_by_product: dict[int, PendingMatch] = {}
         for pm in PendingMatch.query.filter(
             PendingMatch.status.in_(["pending", "rejected"])
         ).all():
             for c in pm.candidates or []:
                 pid = c.get("product_id")
-                if not pid:
-                    continue
-                # Check if this product's brand has new labels → re-evaluate
-                product_obj = db.session.get(Product, pid)
-                if product_obj and brands_with_new_labels:
-                    prod_brand = (product_obj.brand.brand if product_obj.brand else "").strip().lower()
-                    if prod_brand and prod_brand in brands_with_new_labels:
-                        reopened_product_ids.add(pid)
-                        pms_to_delete.append(pm.id)
-                        break
-                pending_product_ids.add(pid)
-
-        # Delete stale PendingMatches for products being re-evaluated
-        if pms_to_delete:
-            PendingMatch.query.filter(PendingMatch.id.in_(pms_to_delete)).delete(
-                synchronize_session=False
-            )
-            db.session.flush()
-            current_app.logger.info(
-                "Option A: %d products re-opened, %d PendingMatches deleted (brands: %s)",
-                len(reopened_product_ids),
-                len(pms_to_delete),
-                ", ".join(sorted(brands_with_new_labels)),
-            )
-
-    # Re-opened products must not be excluded even if they appear in matched/pending sets
-    if reopened_product_ids:
-        matched_product_ids -= reopened_product_ids
-        pending_product_ids -= reopened_product_ids
+                if pid:
+                    existing_pm_by_product[pid] = pm
 
     all_products_list = Product.query.all()
     products_to_process = [
         p for p in all_products_list
-        if p.id not in matched_product_ids and p.id not in pending_product_ids
+        if p.id not in matched_product_ids
     ]
 
     total_unmatched = len(products_to_process)
@@ -1271,6 +1240,13 @@ def run_matching_job(
         if not scored:
             if best_disqualified is not None:
                 # All candidates triggered a hard disqualifier → auto-reject
+                # But don't overwrite an existing pending match with a real score
+                old_pm = existing_pm_by_product.get(product.id)
+                if old_pm and old_pm.status == "pending":
+                    # Keep existing pending — don't downgrade to rejected
+                    auto_rejected += 1
+                    continue
+
                 disq_details, disq_entry = best_disqualified
                 original_label = (
                     (disq_entry.extracted_attributes or {}).get("raw_label")
@@ -1281,20 +1257,34 @@ def run_matching_job(
                     product.memory.memory if product.memory else None,
                     product.color.color if product.color else None,
                 ]))
-                pm = PendingMatch(
-                    supplier_id=disq_entry.supplier_id,
-                    temporary_import_id=None,
-                    source_label=original_label,
-                    extracted_attributes=disq_entry.extracted_attributes or {},
-                    candidates=[{
+
+                if old_pm:
+                    # Update existing rejected match
+                    old_pm.supplier_id = disq_entry.supplier_id
+                    old_pm.source_label = original_label
+                    old_pm.extracted_attributes = disq_entry.extracted_attributes or {}
+                    old_pm.candidates = [{
                         "product_id": product.id,
                         "score": 0,
                         "product_name": product_name,
                         "details": disq_details,
-                    }],
-                    status="rejected",
-                )
-                db.session.add(pm)
+                    }]
+                    old_pm.status = "rejected"
+                else:
+                    pm = PendingMatch(
+                        supplier_id=disq_entry.supplier_id,
+                        temporary_import_id=None,
+                        source_label=original_label,
+                        extracted_attributes=disq_entry.extracted_attributes or {},
+                        candidates=[{
+                            "product_id": product.id,
+                            "score": 0,
+                            "product_name": product_name,
+                            "details": disq_details,
+                        }],
+                        status="rejected",
+                    )
+                    db.session.add(pm)
                 auto_rejected += 1
             else:
                 not_found += 1
@@ -1310,6 +1300,11 @@ def run_matching_job(
             for ti in catalog_entries:
                 _create_supplier_ref(ti.supplier_id, ti, product.id)
                 _log_ean_history(product.id, ti.ean, ti.supplier_id, run_id, "auto_match")
+            # If product had a pending/rejected match, remove it — now auto-matched
+            old_pm = existing_pm_by_product.get(product.id)
+            if old_pm:
+                db.session.delete(old_pm)
+
             top_cache.product_id = product.id
             top_cache.match_score = top_score
             top_cache.match_source = "auto"
@@ -1318,6 +1313,17 @@ def run_matching_job(
             auto_matched += 1
 
         elif top_score >= threshold_review:
+            # Check if there's an existing PendingMatch with a lower score
+            old_pm = existing_pm_by_product.get(product.id)
+            if old_pm:
+                old_score = max(
+                    (c.get("score", 0) for c in old_pm.candidates or []),
+                    default=0,
+                )
+                if top_score <= old_score:
+                    # Existing match is same or better — skip
+                    continue
+
             catalog_entries = label_to_catalogs.get(
                 (top_cache.supplier_id, top_cache.normalized_label), []
             )
@@ -1331,20 +1337,35 @@ def run_matching_job(
                 product.memory.memory if product.memory else None,
                 product.color.color if product.color else None,
             ]))
-            pm = PendingMatch(
-                supplier_id=top_cache.supplier_id,
-                temporary_import_id=first_catalog.id if first_catalog else None,
-                source_label=original_label,
-                extracted_attributes=top_cache.extracted_attributes or {},
-                candidates=[{
+
+            if old_pm:
+                # Update existing PendingMatch with better score
+                old_pm.supplier_id = top_cache.supplier_id
+                old_pm.temporary_import_id = first_catalog.id if first_catalog else None
+                old_pm.source_label = original_label
+                old_pm.extracted_attributes = top_cache.extracted_attributes or {}
+                old_pm.candidates = [{
                     "product_id": product.id,
                     "score": top_score,
                     "product_name": product_name,
                     "details": top_details,
-                }],
-                status="pending",
-            )
-            db.session.add(pm)
+                }]
+                old_pm.status = "pending"
+            else:
+                pm = PendingMatch(
+                    supplier_id=top_cache.supplier_id,
+                    temporary_import_id=first_catalog.id if first_catalog else None,
+                    source_label=original_label,
+                    extracted_attributes=top_cache.extracted_attributes or {},
+                    candidates=[{
+                        "product_id": product.id,
+                        "score": top_score,
+                        "product_name": product_name,
+                        "details": top_details,
+                    }],
+                    status="pending",
+                )
+                db.session.add(pm)
             pending_review += 1
 
         else:
