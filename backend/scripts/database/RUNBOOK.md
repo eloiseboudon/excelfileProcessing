@@ -69,6 +69,28 @@ docker exec -it ajt_backend_prod python scripts/benchmark_matching_v2.py
 
 ---
 
+## Fine-tuning bi-encoder
+
+### Lancement manuel
+```bash
+docker exec ajt_backend_prod python scripts/run_fine_tuning.py
+docker compose -f docker-compose.prod.yml restart backend
+```
+> Entraîne le bi-encoder sur les validations manuelles + auto-matchs haute confiance.
+> Minimum 100 paires requis. Batch_size=4 pour VPS limité en RAM.
+> Le container doit être redémarré après pour charger le nouveau modèle.
+
+### Cron hebdomadaire (conditionnel)
+```bash
+# Ajouté dans crontab VPS — lance le fine-tuning seulement si +100 nouvelles paires
+0 4 * * 0  cd ~/ajtpro && docker exec ajt_backend_prod python scripts/weekly_fine_tuning.py >> /var/log/ajtpro-finetune.log 2>&1
+```
+> Vérifie le delta de paires depuis le dernier entraînement.
+> Si delta < 100 → ne fait rien.
+> Si delta ≥ 100 → tue Gunicorn, lance le fine-tuning, le container redémarre auto.
+
+---
+
 ## Fixes matching LLM (one-time)
 
 ### Fix auto-matchs avec région incorrecte (null ≠ EU)
