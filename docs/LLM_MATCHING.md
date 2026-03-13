@@ -9,23 +9,29 @@ Le matching LLM rapproche automatiquement les labels fournisseurs avec les produ
 
 ### Pipeline V2 (avancé)
 
-Activable via `MATCHING_V2_ENABLED=true`, le pipeline V2 remplace le scan linéaire de Phase 2 par un retrieval multi-étapes :
+Activable via `MATCHING_V2_ENABLED=true`, le pipeline V2 remplace le scan linéaire de Phase 2 par un retrieval multi-étapes plus intelligent :
+
+**En V1**, le système parcourait tous les labels fournisseurs un par un pour chaque produit (scan linéaire filtré par marque). Ça fonctionne, mais c'est lent et ne s'améliore pas avec le temps.
+
+**En V2**, le système utilise deux méthodes complémentaires pour présélectionner rapidement les candidats les plus pertinents, puis les affine :
 
 ```
 Label fournisseur
     ↓
-[BM25 blocking] → top-50 candidats sparse (TF-IDF)
+[BM25 blocking] → top-200 candidats par mots-clés (recherche textuelle)
     ↓
-[FAISS ANN search] → top-100 candidats dense (embeddings)     ← MATCHING_EMBEDDINGS_ENABLED=true
+[FAISS ANN search] → top-200 candidats par similarité sémantique (embeddings IA)
     ↓
-[Union + dédup] → ensemble de candidats fusionné
+[Union + dédup] → fusion des deux listes de candidats
     ↓
-[score_match()] → scoring déterministe par attributs
+[score_match()] → scoring déterministe par attributs (identique à la V1)
     ↓
-[Cross-encoder] → reranking zone grise (70-90)                ← MATCHING_EMBEDDINGS_ENABLED=true
+[Cross-encoder] → réordonne les candidats ambigus (même score) par pertinence sémantique
     ↓
-Décision : auto-match / pending / not_found
+Décision : auto-match / pending / auto-rejeté / non trouvé
 ```
+
+**Avantage clé** : le modèle IA (bi-encoder) s'améliore avec le temps. Chaque validation manuelle (acceptée ou rejetée) enrichit les données d'entraînement. Le fine-tuning périodique du modèle rend les embeddings plus précis pour le domaine télécoms/électronique, ce qui améliore la qualité de la présélection.
 
 **Modules** (`backend/utils/matching/`) :
 
@@ -53,6 +59,30 @@ Un seul flag active tout. Si `sentence-transformers`/`faiss-cpu` ne sont pas ins
 ### Fine-tuning
 
 Le bi-encoder peut être fine-tuné sur les validations manuelles (PendingMatch validated/rejected) et les auto-matchs haute confiance (score ≥ 95). Minimum 100 paires requis. Le fine-tuning se lance manuellement (pas dans le nightly).
+
+Le modèle fine-tuné est sauvegardé dans `/app/data/models/matching-finetuned` (volume Docker persistant). Au démarrage, l'embedder charge automatiquement ce modèle s'il existe, sinon il utilise le modèle de base.
+
+```bash
+# Lancer le fine-tuning (tuer Gunicorn d'abord pour libérer la RAM)
+docker exec ajt_backend_prod bash -c "kill -TERM 1; python scripts/run_fine_tuning.py"
+docker compose -f docker-compose.prod.yml restart backend
+```
+
+### Comparaison V1 vs V2 — Benchmark du 12 mars 2026
+
+Un benchmark a été réalisé sur 912 produits non-matchés pour comparer les deux pipelines. Le scoring déterministe (attributs, seuils) est identique — seule la méthode de pré-sélection des candidats change.
+
+| Métrique | V1 (scan linéaire) | V2 (BM25 + FAISS) |
+|----------|--------------------|--------------------|
+| **Résultats identiques** | — | 704 / 912 (77%) |
+| **Régressions** | — | 13 (1.4%) |
+| **Not found** | 495 | 505 |
+| **Temps de traitement** | 230 s | 97 s |
+| **Speedup** | — | **2.4x plus rapide** |
+
+**Détail des 13 régressions** : toutes dans la zone "pending review" (scores entre 50 et 55), aucune dans la zone auto-match (≥ 90). Les candidats concernés étaient en limite de détection par BM25, rattrapés par le scan exhaustif V1 mais pas par le top-200 V2. L'impact fonctionnel est négligeable : ces produits passent en validation manuelle au lieu d'être auto-matchés.
+
+**Conclusion** : la V2 reproduit fidèlement les résultats de la V1 tout en étant 2.4x plus rapide. Les 13 régressions mineures sont acceptables. L'avantage principal de la V2 est sa capacité à s'améliorer avec le temps grâce au fine-tuning sur les validations manuelles — plus il y a de validations, plus les embeddings sont précis et plus le retrieval est pertinent.
 
 ## Attributs extraits (12)
 

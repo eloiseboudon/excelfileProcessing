@@ -179,33 +179,15 @@ class TestFAISSIndex:
 
 class TestCrossEncoder:
 
-    def test_adjust_score_boost(self):
-        from utils.matching.cross_encoder import adjust_score
-        adjusted, reason = adjust_score(80, 0.9)
-        assert adjusted == 95
-        assert "boost" in reason
+    def test_rerank_pairs_unavailable(self):
+        from utils.matching.cross_encoder import rerank_pairs
+        # When model is not loaded, should return 0.5 for each pair
+        scores = rerank_pairs([("query1", "doc1"), ("query2", "doc2")])
+        assert len(scores) == 2
 
-    def test_adjust_score_penalize(self):
-        from utils.matching.cross_encoder import adjust_score
-        adjusted, reason = adjust_score(75, 0.1)
-        assert adjusted == 60
-        assert "penalize" in reason
-
-    def test_adjust_score_neutral(self):
-        from utils.matching.cross_encoder import adjust_score
-        adjusted, reason = adjust_score(80, 0.5)
-        assert adjusted == 80
-        assert "neutral" in reason
-
-    def test_adjust_score_clamp_max(self):
-        from utils.matching.cross_encoder import adjust_score
-        adjusted, _ = adjust_score(95, 0.9)
-        assert adjusted == 100
-
-    def test_adjust_score_clamp_min(self):
-        from utils.matching.cross_encoder import adjust_score
-        adjusted, _ = adjust_score(5, 0.1)
-        assert adjusted == 0
+    def test_rerank_pairs_empty(self):
+        from utils.matching.cross_encoder import rerank_pairs
+        assert rerank_pairs([]) == []
 
 
 # ---------------------------------------------------------------------------
