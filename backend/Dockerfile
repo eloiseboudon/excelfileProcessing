@@ -16,7 +16,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Étape 4 : copie des dépendances et installation Python
 COPY requirements.txt .
 
-RUN pip install --no-cache-dir -r requirements.txt
+# PyTorch CPU-only (évite ~2 Go de dépendances NVIDIA/CUDA inutiles sur VPS sans GPU)
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir -r requirements.txt
 
 # Étape 5 : pré-téléchargement des modèles ML (optionnel, échoue silencieusement si pas d'accès réseau)
 RUN python -c "from sentence_transformers import SentenceTransformer, CrossEncoder; \

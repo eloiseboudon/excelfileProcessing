@@ -11,6 +11,7 @@ from typing import List, Tuple
 
 _MODEL_NAME = "cross-encoder/ms-marco-multilingual-MiniLM-L12-v2"
 _cross_encoder = None
+_cross_encoder_failed = False
 
 BOOST_THRESHOLD = 0.8
 PENALIZE_THRESHOLD = 0.3
@@ -22,10 +23,13 @@ def _get_cross_encoder():
     """Lazy-load the cross-encoder model (singleton).
 
     Returns None if the model cannot be loaded (missing deps or network).
+    Caches failure to avoid retrying on every call.
     """
-    global _cross_encoder
+    global _cross_encoder, _cross_encoder_failed
     if _cross_encoder is not None:
         return _cross_encoder
+    if _cross_encoder_failed:
+        return None
 
     try:
         from sentence_transformers import CrossEncoder
@@ -38,6 +42,7 @@ def _get_cross_encoder():
         logging.getLogger(__name__).warning(
             "Cross-encoder unavailable, skipping reranking: %s", exc
         )
+        _cross_encoder_failed = True
         return None
 
 
