@@ -23,7 +23,7 @@ RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/wh
 # Étape 5 : pré-téléchargement des modèles ML (optionnel, échoue silencieusement si pas d'accès réseau)
 RUN python -c "from sentence_transformers import SentenceTransformer, CrossEncoder; \
     SentenceTransformer('paraphrase-multilingual-mpnet-base-v2'); \
-    CrossEncoder('cross-encoder/ms-marco-multilingual-MiniLM-L12-v2')" \
+    CrossEncoder('cross-encoder/mmarco-mMiniLMv2-L12-H384-v1')" \
     || echo "WARNING: ML models pre-download failed, will download at first use"
 
 # Étape 6 : création d'un utilisateur non-root

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import List, Tuple
 
-_MODEL_NAME = "cross-encoder/ms-marco-multilingual-MiniLM-L12-v2"
+_MODEL_NAME = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
 _cross_encoder = None
 _cross_encoder_failed = False
 
