@@ -185,9 +185,10 @@ class RetrievalPipeline:
 
         scored.sort(key=lambda x: x[0], reverse=True)
 
-        # Cross-encoder reranking on grey zone
-        if is_v2_enabled():
-            scored = self._apply_cross_encoder(product, scored)
+        # Cross-encoder disabled — passage-ranking model not suited for
+        # product matching (see project_cross_encoder.md in memory).
+        # if is_v2_enabled():
+        #     scored = self._apply_cross_encoder(product, scored)
 
         return scored, best_disqualified
 
