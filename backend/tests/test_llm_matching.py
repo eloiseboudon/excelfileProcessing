@@ -1021,15 +1021,21 @@ class TestExtractModelVariants:
 
     def test_fe_plus(self):
         from utils.llm_matching import _extract_model_variants
-        assert _extract_model_variants("galaxy tab s9 fe+") == frozenset({"fe+"})
+        result = _extract_model_variants("galaxy tab s9 fe+")
+        assert "fe+" in result
+        assert "tab-s" in result
 
     def test_fe(self):
         from utils.llm_matching import _extract_model_variants
-        assert _extract_model_variants("galaxy tab s10 fe") == frozenset({"fe"})
+        result = _extract_model_variants("galaxy tab s10 fe")
+        assert "fe" in result
+        assert "tab-s" in result
 
     def test_ultra(self):
         from utils.llm_matching import _extract_model_variants
-        assert _extract_model_variants("galaxy s25 ultra") == frozenset({"ultra"})
+        result = _extract_model_variants("galaxy s25 ultra")
+        assert "ultra" in result
+        assert "galaxy-s" in result
 
     def test_s_suffix(self):
         from utils.llm_matching import _extract_model_variants
@@ -1822,8 +1828,9 @@ class TestCleanModelForScoring:
     def test_strips_ds(self):
         result = _clean_model_for_scoring("Galaxy A07 A075 DS 64GB Black")
         assert " ds " not in result.lower()
-        # ds should be stripped, but "a075" preserved
-        assert "a075" in result.lower()
+        # a075 is a reference code (1 letter + 3 digits) — now stripped too
+        assert "a075" not in result.lower()
+        assert "galaxy a07" in result.lower()
 
     def test_empty_string(self):
         assert _clean_model_for_scoring("") == ""
@@ -1836,9 +1843,10 @@ class TestCleanModelForScoring:
         result = _clean_model_for_scoring(
             "Galaxy S25 S931 5G DS 12/128GB EE Indian Spec Silver"
         )
-        # Should keep: galaxy s25 s931 silver
+        # s931 is a reference code (1 letter + 3 digits) — now stripped
         assert "galaxy" in result
-        assert "s931" in result
+        assert "s931" not in result
+        assert "s25" in result
         assert "silver" in result
         assert "128" not in result
         assert "enterprise" not in result.lower()
