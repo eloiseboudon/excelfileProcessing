@@ -21,7 +21,8 @@ def _make_cache_entry(id_, supplier_id, normalized_label, attrs):
 
 
 def _make_product(id_, brand="Samsung", model="Galaxy S25 Ultra", memory="256Go",
-                  color="Noir", description=None, device_type="smartphone"):
+                  color="Noir", description=None, device_type="smartphone",
+                  region="EU"):
     product = MagicMock()
     product.id = id_
     product.model = model
@@ -34,6 +35,7 @@ def _make_product(id_, brand="Samsung", model="Galaxy S25 Ultra", memory="256Go"
     product.color.color = color
     product.type = MagicMock()
     product.type.type = device_type
+    product.region = region
     product.ean = None
     return product
 
@@ -206,3 +208,138 @@ class TestFineTuner:
         pairs = [("a", "b", True)] * 10
         with pytest.raises(ValueError, match="Need at least"):
             run_fine_tuning(pairs)
+
+
+# ---------------------------------------------------------------------------
+# Model cleaning & variant extraction — prevent false cross-matches
+# ---------------------------------------------------------------------------
+
+class TestCleanModelForScoring:
+
+    def test_strips_reference_codes(self):
+        from utils.llm_matching import _clean_model_for_scoring
+        # SM-prefixed codes (Samsung)
+        assert "sm-" not in _clean_model_for_scoring("Galaxy Tab A9+ SM-X216R")
+        assert "sm-" not in _clean_model_for_scoring("Galaxy Watch 3 SM-R840N")
+        # Short alpha+digits codes (X216R, GA09958, L505)
+        cleaned = _clean_model_for_scoring("Galaxy Tab A9+ X216R 11.0 8/256GB")
+        assert "x216r" not in cleaned
+        assert "11.0" not in cleaned
+
+    def test_strips_screen_sizes(self):
+        from utils.llm_matching import _clean_model_for_scoring
+        assert "12.4" not in _clean_model_for_scoring("Galaxy Tab S10+ 12.4")
+        assert "11.0" not in _clean_model_for_scoring("Tab A9+ 11.0")
+
+    def test_preserves_model_identity(self):
+        from utils.llm_matching import _clean_model_for_scoring
+        # Core model names must survive cleaning
+        assert "galaxy tab s10" in _clean_model_for_scoring("Galaxy Tab S10+")
+        assert "galaxy tab a9" in _clean_model_for_scoring("Galaxy Tab A9+")
+        assert "iphone 16" in _clean_model_for_scoring("iPhone 16 Pro Max 256GB")
+        assert "redmi note 13" in _clean_model_for_scoring("Redmi Note 13 Pro 5G DS 8/256GB")
+
+
+class TestExtractModelVariants:
+
+    def test_galaxy_tab_series_differ(self):
+        """Galaxy Tab A ≠ Galaxy Tab S — must be disqualified."""
+        from utils.llm_matching import _extract_model_variants
+        v_a = _extract_model_variants("galaxy tab a9")
+        v_s = _extract_model_variants("galaxy tab s10")
+        assert v_a != v_s
+        assert "tab-a" in v_a
+        assert "tab-s" in v_s
+
+    def test_galaxy_phone_series_differ(self):
+        """Galaxy A15 ≠ Galaxy S24."""
+        from utils.llm_matching import _extract_model_variants
+        v_a = _extract_model_variants("galaxy a15")
+        v_s = _extract_model_variants("galaxy s24")
+        assert v_a != v_s
+
+    def test_watch_standard_vs_classic(self):
+        """Galaxy Watch 3 ≠ Galaxy Watch 8 Classic."""
+        from utils.llm_matching import _extract_model_variants
+        v_std = _extract_model_variants("galaxy watch 3")
+        v_cls = _extract_model_variants("galaxy watch 8 classic")
+        assert v_std != v_cls
+        assert "watch-standard" in v_std
+        assert "watch-classic" in v_cls
+
+    def test_same_series_same_variants(self):
+        """Galaxy Tab A9+ and Galaxy Tab A11+ should have same series variant."""
+        from utils.llm_matching import _extract_model_variants
+        v1 = _extract_model_variants("galaxy tab a9+")
+        v2 = _extract_model_variants("galaxy tab a11+")
+        # Both have tab-a and plus — series match (version check handles 9 vs 11)
+        assert "tab-a" in v1
+        assert "tab-a" in v2
+
+    def test_existing_variants_preserved(self):
+        """Pro, Ultra, FE etc. still work."""
+        from utils.llm_matching import _extract_model_variants
+        assert "pro" in _extract_model_variants("iphone 16 pro")
+        assert "ultra" in _extract_model_variants("galaxy s25 ultra")
+        assert "fe" in _extract_model_variants("galaxy s24 fe")
+        assert "lite" in _extract_model_variants("redmi note 13 lite")
+
+
+class TestModelScoringDisqualification:
+    """End-to-end tests: wrong model cross-matches must be disqualified."""
+
+    def _score(self, ext_model, prod_model, brand="Samsung"):
+        """Helper: score only the model component."""
+        from utils.llm_matching import score_match
+        extracted = {
+            "brand": brand,
+            "model_family": ext_model,
+            "storage": "256 Go",
+            "device_type": "Tablette" if "tab" in ext_model.lower() else "Smartphone",
+            "region": "EU",
+        }
+        product = _make_product(
+            1, brand=brand, model=prod_model, memory="256Go",
+            device_type="tablette" if "tab" in prod_model.lower() else "smartphone",
+            region="EU",
+        )
+        return score_match(extracted, product, {"color_translations": {}, "color_words": set()})
+
+    def test_tab_a11_vs_tab_s9_disqualified(self):
+        """Galaxy Tab A11+ must NOT match Galaxy Tab S9."""
+        score, details = self._score("Galaxy Tab A11+", "Galaxy Tab S9 X716B 11.0 12/256GB")
+        assert score == 0, f"Should be disqualified, got score={score}, details={details}"
+        assert "disqualified" in details
+
+    def test_tab_s10_vs_tab_a9_disqualified(self):
+        """Galaxy Tab S10+ must NOT match Galaxy Tab A9+."""
+        score, details = self._score("Galaxy Tab S10+", "Galaxy Tab A9+ X216R 11.0 8/256GB")
+        assert score == 0, f"Should be disqualified, got score={score}, details={details}"
+        assert "disqualified" in details
+
+    def test_watch3_vs_watch8_classic_disqualified(self):
+        """Galaxy Watch 3 must NOT match Galaxy Watch 8 Classic."""
+        score, details = self._score("Galaxy Watch 3 45mm", "Galaxy Watch 8 Classic L505 46mm LTE")
+        assert score == 0, f"Should be disqualified, got score={score}, details={details}"
+        assert "disqualified" in details
+
+    def test_galaxy_a15_vs_galaxy_s24_disqualified(self):
+        """Galaxy A15 must NOT match Galaxy S24."""
+        score, details = self._score("Galaxy A15", "Galaxy S24")
+        assert score == 0, f"Should be disqualified, got score={score}, details={details}"
+        assert "disqualified" in details
+
+    def test_same_model_still_matches(self):
+        """Galaxy Tab S10+ must still match Galaxy Tab S10+ (different ref code)."""
+        score, details = self._score("Galaxy Tab S10+", "Galaxy Tab S10+ SM-X820N 12.4 12/256GB")
+        assert score > 70, f"Should match, got score={score}, details={details}"
+
+    def test_iphone_16_vs_17_disqualified(self):
+        """iPhone 16 must NOT match iPhone 17e."""
+        score, details = self._score("iPhone 16", "iPhone 17e", brand="Apple")
+        assert score == 0, f"Should be disqualified, got score={score}, details={details}"
+
+    def test_redmi_15_matches_redmi_15(self):
+        """Redmi 15 5G must still match Redmi 15 DS."""
+        score, details = self._score("Redmi 15", "Redmi 15 DS 8/256GB", brand="Xiaomi")
+        assert score > 70, f"Should match, got score={score}, details={details}"

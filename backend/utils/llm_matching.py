@@ -377,17 +377,24 @@ def _clean_model_for_scoring(model: str) -> str:
 
     Applied symmetrically to both extracted model_family and product.model
     to strip noise that hurts fuzzy ratio without carrying identity info:
+    - Alphanumeric reference codes (X216R, SM-R840N, SM-X820N, GA09958)
     - RAM/Storage combined (12/128GB, 6gb ram 128gb)
     - Storage units (128GB, 256 Go, 1 To)
     - Region suffixes (Indian Spec, US Spec, (DE), etc.)
     - Connectivity modifiers (5G, 4G, LTE, WiFi)
     - Enterprise Edition / EE
     - Dual SIM / DS
+    - Screen sizes (11.0, 12.4)
     - Parentheses and extra whitespace
     """
     if not model:
         return ""
     m = model.strip().lower()
+    # Manufacturer reference codes: SM-X820N, SM-R840N, X216R, GA09958, L505, etc.
+    # Must not strip real model identifiers like "S24", "A15" (1-2 digits).
+    # Safe: 1-2 letters + 3+ digits + optional letter = reference code, not a model name.
+    m = re.sub(r'\bsm-[a-z]\d{3,}[a-z]?\b', '', m)  # SM-X820N, SM-R840N
+    m = re.sub(r'\b[a-z]{1,2}\d{3,}[a-z]?\b', '', m)  # X216R, X820N, GA09958, L505B
     # RAM/Storage combined: "12/128gb", "12go/128go", "8/256go"
     m = re.sub(r'\b\d+\s*(?:go|gb)?\s*/\s*\d+\s*(?:go|gb|to|tb)\b', '', m, flags=re.IGNORECASE)
     # RAM keyword pattern: "6gb ram", "12go ram" (storage part stripped by next rule)
@@ -406,6 +413,8 @@ def _clean_model_for_scoring(model: str) -> str:
     m = re.sub(r'\(?\b(?:indian|us|de|jp|au|ca|br|mx)(?:\s+(?:spec|version|variant))?\b\)?', '', m, flags=re.IGNORECASE)
     # Connectivity modifiers — already extracted separately, noise for model comparison
     m = re.sub(r'\b(?:5g|4g|lte|wifi|wi-fi|cellular)\b', '', m, flags=re.IGNORECASE)
+    # Screen sizes: standalone decimal numbers like 11.0, 12.4, 6.7
+    m = re.sub(r'\b\d+\.\d+\b', '', m)
     # Clean up parentheses: empty ones or containing only whitespace
     m = re.sub(r'\(\s*\)', '', m)
     # Collapse whitespace
@@ -444,6 +453,24 @@ def _extract_model_variants(model: str) -> frozenset:
     # "S" suffix attached to a number (e.g. "14s" but not "Galaxy S24")
     if re.search(r"\d+s\b", model):
         variants.add("s-suffix")
+
+    # Galaxy product line series: Tab A ≠ Tab S, Galaxy A ≠ Galaxy S ≠ Galaxy M
+    # e.g. "galaxy tab a9" → series "tab-a", "galaxy tab s10" → series "tab-s"
+    # "galaxy a15" → series "galaxy-a", "galaxy s24" → series "galaxy-s"
+    tab_series = re.search(r"\btab\s+([a-z])\d", model)
+    if tab_series:
+        variants.add(f"tab-{tab_series.group(1)}")
+    elif re.search(r"\bgalaxy\s+([a-z])\d", model):
+        galaxy_series = re.search(r"\bgalaxy\s+([a-z])\d", model)
+        variants.add(f"galaxy-{galaxy_series.group(1)}")
+
+    # Watch series: "watch 3" ≠ "watch 8 classic"
+    if re.search(r"\bwatch\b", model):
+        if re.search(r"\bclassic\b", model):
+            variants.add("watch-classic")
+        else:
+            variants.add("watch-standard")
+
     return frozenset(variants)
 
 

@@ -46,7 +46,8 @@ with app.app_context():
     last_count = 0
     if os.path.exists(marker_path):
         try:
-            last_count = int(open(marker_path).read().strip())
+            with open(marker_path) as f:
+                last_count = int(f.read().strip())
         except (ValueError, OSError):
             pass
 

@@ -133,12 +133,11 @@ def run_fine_tuning(
 
 
 def _product_to_text(product) -> str:
-    """Build text representation for a Product."""
-    parts = [
-        product.brand.brand if product.brand else "",
-        product.model or "",
-        product.description or "",
-        product.memory.memory if product.memory else "",
-        product.color.color if product.color else "",
-    ]
-    return " ".join(p for p in parts if p).strip()
+    """Build text representation for a Product.
+
+    Must match embedder.product_to_text() to ensure fine-tuning trains
+    on the same representation used at inference time.
+    """
+    from utils.matching.embedder import product_to_text
+
+    return product_to_text(product)

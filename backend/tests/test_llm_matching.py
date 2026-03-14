@@ -218,58 +218,56 @@ class TestNormalizeLabel:
 class TestInferRegionFromText:
     """Test region inference from product model/description."""
 
-    def test_indian_spec(self):
-        assert _infer_region_from_text("iPhone 15 128GB Indian Spec") == "IN"
-        assert _infer_region_from_text("Samsung Galaxy S25 India Spec") == "IN"
-        assert _infer_region_from_text("Product (IN) variant") == "IN"
+    @pytest.mark.parametrize("text,expected", [
+        ("iPhone 15 128GB Indian Spec", "IN"),
+        ("Samsung Galaxy S25 India Spec", "IN"),
+        ("Product (IN) variant", "IN"),
+        ("iPhone 15 US Spec", "US"),
+        ("Samsung Galaxy S25 USA Spec", "US"),
+        ("Device (US) variant", "US"),
+        ("Laptop (DE)", "DE"),
+        ("Device Deutsch Spec", "DE"),
+        ("Device German Version", "DE"),
+        ("Sony Device Japan Spec", "JP"),
+        ("Product Japanese Version", "JP"),
+        ("Device Australia Spec", "AU"),
+        ("Australian (AU) variant", "AU"),
+        ("Device Canada Spec", "CA"),
+        ("Canadian (CA) variant", "CA"),
+        ("Device Brasil Spec", "BR"),
+        ("Brazilian (BR) variant", "BR"),
+        ("Device Mexico Spec", "MX"),
+        ("Mexican (MX) variant", "MX"),
+    ])
+    def test_region_detected(self, text, expected):
+        assert _infer_region_from_text(text) == expected
 
-    def test_us_spec(self):
-        assert _infer_region_from_text("iPhone 15 US Spec") == "US"
-        assert _infer_region_from_text("Samsung Galaxy S25 USA Spec") == "US"
-        assert _infer_region_from_text("Device (US) variant") == "US"
+    @pytest.mark.parametrize("text", [
+        "iPhone 15 128GB",
+        "Standard Product",
+        "",
+        None,
+    ])
+    def test_no_region(self, text):
+        assert _infer_region_from_text(text) is None
 
-    def test_de_spec(self):
-        assert _infer_region_from_text("Laptop (DE)") == "DE"
-        assert _infer_region_from_text("Device Deutsch Spec") == "DE"
-        assert _infer_region_from_text("Device German Version") == "DE"
-
-    def test_jp_spec(self):
-        assert _infer_region_from_text("Sony Device Japan Spec") == "JP"
-        assert _infer_region_from_text("Product Japanese Version") == "JP"
-
-    def test_au_spec(self):
-        assert _infer_region_from_text("Device Australia Spec") == "AU"
-        assert _infer_region_from_text("Australian (AU) variant") == "AU"
-
-    def test_ca_spec(self):
-        assert _infer_region_from_text("Device Canada Spec") == "CA"
-        assert _infer_region_from_text("Canadian (CA) variant") == "CA"
-
-    def test_br_spec(self):
-        assert _infer_region_from_text("Device Brasil Spec") == "BR"
-        assert _infer_region_from_text("Brazilian (BR) variant") == "BR"
-
-    def test_mx_spec(self):
-        assert _infer_region_from_text("Device Mexico Spec") == "MX"
-        assert _infer_region_from_text("Mexican (MX) variant") == "MX"
-
-    def test_no_region(self):
-        assert _infer_region_from_text("iPhone 15 128GB") is None
-        assert _infer_region_from_text("Standard Product") is None
-        assert _infer_region_from_text("") is None
-        assert _infer_region_from_text(None) is None
-
-    def test_standalone_adjective_without_spec_does_not_match(self):
+    @pytest.mark.parametrize("text", [
+        "iPhone Indian Red",
+        "American Fridge",
+        "Japanese style",
+        "Mexican food app",
+    ])
+    def test_standalone_adjective_without_spec_does_not_match(self, text):
         """Bare nationality adjectives should NOT infer a region (false positive risk)."""
-        assert _infer_region_from_text("iPhone Indian Red") is None
-        assert _infer_region_from_text("American Fridge") is None
-        assert _infer_region_from_text("Japanese style") is None
-        assert _infer_region_from_text("Mexican food app") is None
+        assert _infer_region_from_text(text) is None
 
-    def test_case_insensitive(self):
-        assert _infer_region_from_text("iPhone 15 INDIAN SPEC") == "IN"
-        assert _infer_region_from_text("Device us spec") == "US"
-        assert _infer_region_from_text("Laptop (de)") == "DE"
+    @pytest.mark.parametrize("text,expected", [
+        ("iPhone 15 INDIAN SPEC", "IN"),
+        ("Device us spec", "US"),
+        ("Laptop (de)", "DE"),
+    ])
+    def test_case_insensitive(self, text, expected):
+        assert _infer_region_from_text(text) == expected
 
 
 # ---------------------------------------------------------------------------
@@ -1021,15 +1019,21 @@ class TestExtractModelVariants:
 
     def test_fe_plus(self):
         from utils.llm_matching import _extract_model_variants
-        assert _extract_model_variants("galaxy tab s9 fe+") == frozenset({"fe+"})
+        result = _extract_model_variants("galaxy tab s9 fe+")
+        assert "fe+" in result
+        assert "tab-s" in result
 
     def test_fe(self):
         from utils.llm_matching import _extract_model_variants
-        assert _extract_model_variants("galaxy tab s10 fe") == frozenset({"fe"})
+        result = _extract_model_variants("galaxy tab s10 fe")
+        assert "fe" in result
+        assert "tab-s" in result
 
     def test_ultra(self):
         from utils.llm_matching import _extract_model_variants
-        assert _extract_model_variants("galaxy s25 ultra") == frozenset({"ultra"})
+        result = _extract_model_variants("galaxy s25 ultra")
+        assert "ultra" in result
+        assert "galaxy-s" in result
 
     def test_s_suffix(self):
         from utils.llm_matching import _extract_model_variants
@@ -1822,8 +1826,9 @@ class TestCleanModelForScoring:
     def test_strips_ds(self):
         result = _clean_model_for_scoring("Galaxy A07 A075 DS 64GB Black")
         assert " ds " not in result.lower()
-        # ds should be stripped, but "a075" preserved
-        assert "a075" in result.lower()
+        # a075 is a reference code (1 letter + 3 digits) — now stripped too
+        assert "a075" not in result.lower()
+        assert "galaxy a07" in result.lower()
 
     def test_empty_string(self):
         assert _clean_model_for_scoring("") == ""
@@ -1836,9 +1841,10 @@ class TestCleanModelForScoring:
         result = _clean_model_for_scoring(
             "Galaxy S25 S931 5G DS 12/128GB EE Indian Spec Silver"
         )
-        # Should keep: galaxy s25 s931 silver
+        # s931 is a reference code (1 letter + 3 digits) — now stripped
         assert "galaxy" in result
-        assert "s931" in result
+        assert "s931" not in result
+        assert "s25" in result
         assert "silver" in result
         assert "128" not in result
         assert "enterprise" not in result.lower()
