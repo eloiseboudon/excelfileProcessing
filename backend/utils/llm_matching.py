@@ -1591,6 +1591,10 @@ def _cleanup_orphaned_labels(run_id: int, supplier_id: int | None) -> None:
 
     A label is "orphaned" when it was not seen during this run's Phase 1
     (last_seen_run_id != run_id), meaning the supplier no longer carries it.
+
+    Uses bulk SQL UPDATE instead of ORM attribute modification to avoid
+    StaleDataError when the identity map contains stale references to
+    LabelCache rows loaded earlier in the same session (Phase 1 preloads).
     """
     from utils.normalize import normalize_label as _normalize
 
@@ -1601,19 +1605,30 @@ def _cleanup_orphaned_labels(run_id: int, supplier_id: int | None) -> None:
     if supplier_id:
         orphan_filter.append(LabelCache.supplier_id == supplier_id)
 
-    orphaned = LabelCache.query.filter(*orphan_filter).all()
+    # Read-only query: fetch orphan keys without modifying ORM objects
+    orphaned = db.session.query(
+        LabelCache.supplier_id, LabelCache.normalized_label
+    ).filter(*orphan_filter).all()
     if not orphaned:
         return
 
-    # Build lookup for fast PendingMatch matching
-    orphan_keys: set[tuple[int, str]] = set()
-    for entry in orphaned:
-        if entry.product_id is not None:
-            entry.product_id = None
-            entry.match_source = "extracted"
-            entry.match_score = None
-            entry.match_reasoning = None
-        orphan_keys.add((entry.supplier_id, entry.normalized_label))
+    orphan_keys: set[tuple[int, str]] = {
+        (row.supplier_id, row.normalized_label) for row in orphaned
+    }
+
+    # Bulk UPDATE to reset matched orphans — avoids StaleDataError
+    reset_count = LabelCache.query.filter(
+        *orphan_filter,
+        LabelCache.product_id.isnot(None),
+    ).update(
+        {
+            "product_id": None,
+            "match_source": "extracted",
+            "match_score": None,
+            "match_reasoning": None,
+        },
+        synchronize_session="fetch",
+    )
 
     # Delete stale PendingMatches whose label is orphaned
     pending_deleted = 0
@@ -1631,8 +1646,9 @@ def _cleanup_orphaned_labels(run_id: int, supplier_id: int | None) -> None:
         pending_deleted = len(pending_to_delete)
 
     current_app.logger.info(
-        "Cleanup: %d orphaned labels reset, %d stale PendingMatches deleted",
+        "Cleanup: %d orphaned labels reset (%d had product_id), %d stale PendingMatches deleted",
         len(orphaned),
+        reset_count,
         pending_deleted,
     )
 
