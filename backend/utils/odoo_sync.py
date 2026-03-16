@@ -22,6 +22,7 @@ from models import (
     PendingMatch,
     Product,
     ProductCalculation,
+    ProductEanHistory,
     RAMOption,
     SupplierProductRef,
     db,
@@ -515,6 +516,8 @@ def _delete_orphaned_products(
             PendingMatch.query.filter_by(resolved_product_id=product_id).update(
                 {"resolved_product_id": None}, synchronize_session=False
             )
+            # Delete EAN history
+            ProductEanHistory.query.filter_by(product_id=product_id).delete()
             # Delete product calculations
             ProductCalculation.query.filter_by(product_id=product_id).delete()
             # Delete internal product link
