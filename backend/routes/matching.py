@@ -151,14 +151,7 @@ def list_pending():
     product_labels: dict[int, str] = {}
     if all_product_ids:
         for p in Product.query.filter(Product.id.in_(all_product_ids)).all():
-            parts = [p.model or p.description or f"#{p.id}"]
-            if p.memory:
-                parts.append(p.memory.memory)
-            if p.color:
-                parts.append(p.color.color)
-            if p.norme:
-                parts.append(p.norme.norme)
-            product_labels[p.id] = " — ".join(parts)
+            product_labels[p.id] = p.description or p.model or f"#{p.id}"
 
     results = []
     for pm in items:
