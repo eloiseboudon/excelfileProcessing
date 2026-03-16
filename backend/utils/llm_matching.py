@@ -689,7 +689,12 @@ def score_match(
         details["color"] = 0
 
     # --- Enterprise Edition (soft discriminator, -20 on mismatch) ---
-    ext_ee = extracted.get("enterprise_edition", False)
+    # Fallback to raw_label inference if LLM extraction predates EE field.
+    ext_ee = extracted.get("enterprise_edition")
+    if ext_ee is None:
+        raw = (extracted.get("raw_label") or "").lower()
+        ext_ee = bool(re.search(r'\benterprise\s+edition\b', raw)
+                       or re.search(r'(?<![a-z])ee(?![a-z])', raw))
     prod_model_lower = (product.model or "").lower()
     prod_has_ee = bool(
         re.search(r'\benterprise\s+edition\b', prod_model_lower)
@@ -702,7 +707,11 @@ def score_match(
         details["enterprise_edition"] = 0
 
     # --- Dual SIM (soft discriminator, -10 on mismatch) ---
-    ext_ds = extracted.get("dual_sim", False)
+    # Fallback to raw_label inference if LLM extraction predates dual_sim field.
+    ext_ds = extracted.get("dual_sim")
+    if ext_ds is None:
+        raw = (extracted.get("raw_label") or "").lower()
+        ext_ds = bool(re.search(r'\b(?:dual\s*sim|ds)\b', raw))
     prod_has_ds = bool(re.search(r'\b(?:dual\s*sim|ds)\b', prod_model_lower))
     if ext_ds != prod_has_ds:
         score = max(score - 10, 0)
