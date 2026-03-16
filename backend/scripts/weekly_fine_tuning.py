@@ -4,16 +4,15 @@ Checks if enough new validation pairs have accumulated since the last
 fine-tuning. Only trains if the delta exceeds the threshold (default: 100).
 
 Designed to be called via cron on the VPS:
-    0 4 * * 0  cd ~/ajtpro && docker exec ajt_backend_prod python scripts/weekly_fine_tuning.py >> /var/log/ajtpro-finetune.log 2>&1
+    0 4 * * 0  cd ~/ajtpro && docker exec -d ajt_backend_prod python scripts/weekly_fine_tuning.py
 
-The script kills Gunicorn to free RAM, runs training, then exits.
-Docker restart policy will restart the container automatically.
+Runs alongside Gunicorn (no restart needed). Logs to /tmp/finetune.log
+inside the container.
 """
 
 from __future__ import annotations
 
 import os
-import signal
 import sys
 
 NEW_PAIRS_THRESHOLD = 100
@@ -60,13 +59,6 @@ with app.app_context():
 
     print(f"[fine-tuning] Lancement du fine-tuning ({total} paires, batch_size=4)...")
 
-    # Kill Gunicorn master to free RAM (PID 1 in Docker)
-    try:
-        os.kill(1, signal.SIGTERM)
-        print("[fine-tuning] Gunicorn arrete pour liberer la RAM.")
-    except ProcessLookupError:
-        pass
-
     path = run_fine_tuning(pairs, batch_size=4)
     print(f"[fine-tuning] Modele sauvegarde: {path}")
 
@@ -76,4 +68,3 @@ with app.app_context():
         f.write(str(total))
 
     print(f"[fine-tuning] Marqueur mis a jour: {total} paires.")
-    print("[fine-tuning] Le container va redemarrer automatiquement (restart policy).")
