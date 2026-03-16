@@ -564,8 +564,8 @@ def run_odoo_sync(job_id: int) -> None:
         client = OdooClient(config.url, config.database, config.login, config.password)
         client.authenticate()
 
-        # Count active products
-        domain = [["active", "=", True]]
+        # Count active stockable products only (exclude services, consumables)
+        domain = [["active", "=", True], ["detailed_type", "=", "product"]]
         total_count = client.search_count("product.product", domain)
         job.total_odoo_products = total_count
 
