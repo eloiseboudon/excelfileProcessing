@@ -814,15 +814,10 @@ def find_best_matches(
 
     results = []
     for match_score, details, product in scored[:top_n]:
-        parts = [product.model or product.description or f"Product #{product.id}"]
-        if product.memory:
-            parts.append(product.memory.memory)
-        if product.color:
-            parts.append(product.color.color)
         results.append({
             "product_id": product.id,
             "score": match_score,
-            "product_name": " — ".join(parts),
+            "product_name": product.description or product.model or f"Product #{product.id}",
             "details": details,
         })
 
@@ -1328,11 +1323,7 @@ def _run_matching_job_inner(
                     (disq_entry.extracted_attributes or {}).get("raw_label")
                     or disq_entry.normalized_label
                 )
-                product_name = " — ".join(filter(None, [
-                    product.model or product.description,
-                    product.memory.memory if product.memory else None,
-                    product.color.color if product.color else None,
-                ]))
+                product_name = product.description or product.model or f"Product #{product.id}"
 
                 if old_pm:
                     # Update existing rejected match
