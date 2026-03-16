@@ -438,6 +438,10 @@ def _extract_model_variants(model: str) -> frozenset:
         variants.add("pro")
     if re.search(r"\bplus\b", model) and "pro+" not in variants:
         variants.add("plus")
+    # "+" suffix on model number (e.g. "s25+", "a9+", "a11+") → Plus variant
+    # Excludes "pro+" and "fe+" which are handled separately above/below
+    if re.search(r"\d\+", model) and "pro+" not in variants:
+        variants.add("plus")
     if re.search(r"\bultra\b", model):
         variants.add("ultra")
     if re.search(r"\bmax\b", model):
