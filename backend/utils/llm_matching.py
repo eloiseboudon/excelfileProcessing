@@ -730,14 +730,28 @@ def score_match(
         details["disqualified"] = "region_mismatch"
         return 0, details
 
-    # --- Label similarity bonus/malus (up to ±10 pts) ---
+    # --- Label similarity bonus/malus (up to 15 pts) ---
+    # Compares raw supplier label against Odoo model name after stripping
+    # already-scored attributes (brand, 5G, RAM) to avoid double-counting.
+    # Key role: distinguish near-identical models (iPhone 15 vs iPhone 15 Plus).
     raw_label = (extracted.get("raw_label") or "").strip()
     if raw_label and product.model:
-        ratio = _fuzzy_ratio(normalize_label(raw_label), normalize_label(product.model))
-        if ratio >= 0.80:
+        label_norm = normalize_label(raw_label)
+        brand = (extracted.get("brand") or "").strip().lower()
+        if brand:
+            label_norm = re.sub(r"\b" + re.escape(brand) + r"\b", "", label_norm)
+        label_norm = re.sub(r"\b5g\b", "", label_norm)
+        label_norm = re.sub(r"\b\d+go\s*ram\b", "", label_norm)
+        label_norm = re.sub(r"\bram\b", "", label_norm)
+        label_norm = re.sub(r"\s+", " ", label_norm).strip()
+        ratio = _fuzzy_ratio(label_norm, normalize_label(product.model))
+        if ratio >= 0.85:
+            details["label_similarity"] = 15
+            score += 15
+        elif ratio >= 0.70:
             details["label_similarity"] = 10
             score += 10
-        elif ratio >= 0.60:
+        elif ratio >= 0.55:
             details["label_similarity"] = 5
             score += 5
         elif ratio < 0.25:

@@ -53,6 +53,8 @@ def normalize_label(label: str) -> str:
     text = label.lower().strip()
     text = re.sub(r"[^\w\s]", " ", text)  # removes -, (, ), [, ], /
     text = re.sub(r"_", " ", text)         # underscores to spaces
+    # Normalize "dual sim" / "dual-sim" → "ds"
+    text = re.sub(r"\bdual\s+sim\b", "ds", text)
     # Normalize storage units: 256GB/256 GB → 256go, 1TB/1 TB → 1to
     text = re.sub(r"(\d+)\s*gb\b", r"\1go", text)
     text = re.sub(r"(\d+)\s*tb\b", r"\1to", text)
