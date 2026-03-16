@@ -276,6 +276,25 @@ class TestExtractModelVariants:
         assert "tab-a" in v1
         assert "tab-a" in v2
 
+    def test_plus_symbol_detected(self):
+        """S25+ and A9+ must detect 'plus' variant from '+' suffix."""
+        from utils.llm_matching import _extract_model_variants
+        assert "plus" in _extract_model_variants("galaxy s25+")
+        assert "plus" in _extract_model_variants("galaxy tab a9+")
+        # Without "+" → no plus variant
+        assert "plus" not in _extract_model_variants("galaxy s25")
+        assert "plus" not in _extract_model_variants("galaxy tab a9")
+
+    def test_plus_symbol_not_confused_with_fe_or_pro(self):
+        """fe+ and pro+ must NOT trigger generic 'plus' variant."""
+        from utils.llm_matching import _extract_model_variants
+        v_fe = _extract_model_variants("galaxy s24 fe+")
+        assert "fe+" in v_fe
+        assert "plus" not in v_fe
+        v_pro = _extract_model_variants("redmi note 14 pro+")
+        assert "pro+" in v_pro
+        assert "plus" not in v_pro
+
     def test_existing_variants_preserved(self):
         """Pro, Ultra, FE etc. still work."""
         from utils.llm_matching import _extract_model_variants
@@ -342,4 +361,27 @@ class TestModelScoringDisqualification:
     def test_redmi_15_matches_redmi_15(self):
         """Redmi 15 5G must still match Redmi 15 DS."""
         score, details = self._score("Redmi 15", "Redmi 15 DS 8/256GB", brand="Xiaomi")
+        assert score > 70, f"Should match, got score={score}, details={details}"
+
+    def test_s25_vs_s25_plus_disqualified(self):
+        """Galaxy S25 must NOT match Galaxy S25+."""
+        score, details = self._score("Galaxy S25", "Galaxy S25+ S936 DS 12/256GB")
+        assert score == 0, f"Should be disqualified, got score={score}, details={details}"
+        assert "disqualified" in details
+
+    def test_tab_a9_vs_tab_a9_plus_disqualified(self):
+        """Galaxy Tab A9 must NOT match Galaxy Tab A9+."""
+        score, details = self._score("Galaxy Tab A9", "Galaxy Tab A9+ X216 11.0 6/128GB")
+        assert score == 0, f"Should be disqualified, got score={score}, details={details}"
+        assert "disqualified" in details
+
+    def test_buds4_vs_buds3_disqualified(self):
+        """Galaxy Buds4 must NOT match Galaxy Buds3."""
+        score, details = self._score("Galaxy Buds4 R540", "Galaxy Buds3 R530")
+        assert score == 0, f"Should be disqualified, got score={score}, details={details}"
+        assert "disqualified" in details
+
+    def test_s25_plus_matches_s25_plus(self):
+        """Galaxy S25+ must still match Galaxy S25+ (same plus variant)."""
+        score, details = self._score("Galaxy S25+", "Galaxy S25+ S936 DS 12/256GB")
         assert score > 70, f"Should match, got score={score}, details={details}"

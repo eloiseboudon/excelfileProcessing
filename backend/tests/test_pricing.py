@@ -89,3 +89,70 @@ def test_all_thresholds_produce_correct_multiplier():
         assert pmarg == round(threshold * PRICE_MULTIPLIERS[i], 2), (
             f"Threshold {threshold} should use multiplier {PRICE_MULTIPLIERS[i]}"
         )
+
+
+# ---------------------------------------------------------------------------
+# TCP tariff rules
+# ---------------------------------------------------------------------------
+
+# Official TCP tariff tiers for new phones
+TCP_TARIFFS = {
+    # ≤ 8 Go → 5.60€
+    "1 Go": 5.60,
+    # 8-16 Go → 8.00€
+    "10 Go": 8.00,
+    "16 Go": 8.00,
+    # 16-32 Go → 9.90€
+    "20 Go": 9.90,
+    "32 Go": 9.90,
+    # 32-64 Go → 12.00€
+    "50 Go": 12.00,
+    "64 Go": 12.00,
+    # > 64 Go → 14.00€ (plafond)
+    "100 Go": 14.00,
+    "128 Go": 14.00,
+    "256 Go": 14.00,
+    "320 Go": 14.00,
+    "512 Go": 14.00,
+    "825 Go": 14.00,
+    "1 To": 14.00,
+    "2 To": 14.00,
+}
+
+
+def test_tcp_accepts_decimal_values():
+    """TCP can be a decimal like 5.60 or 9.90."""
+    _, ptcp, _, maxp, _, _ = compute_margin_prices(100.0, 5.60)
+    assert ptcp == round(100 + 5.60 + 100 * 0.045, 2)
+
+
+def test_tcp_accepts_python_decimal():
+    """TCP from SQLAlchemy Numeric column arrives as decimal.Decimal."""
+    from decimal import Decimal
+    _, ptcp, _, _, _, _ = compute_margin_prices(100.0, Decimal("14.00"))
+    assert ptcp == round(100 + 14 + 100 * 0.045, 2)
+
+
+def test_tcp_ipad_128go_example():
+    """Real case: iPad 128Go at 295€ with TCP=14€."""
+    _, ptcp, pmarg, maxp, marge, mpct = compute_margin_prices(295.0, 14.0)
+    # 295 is in range 209-299 → multiplier 1.08
+    assert pmarg == round(295 * 1.08, 2)
+    assert ptcp == round(295 + 14 + 295 * 0.045, 2)
+    assert maxp == math.ceil(max(ptcp, pmarg))
+    assert marge == round(maxp - 14 - 295, 2)
+
+
+import pytest
+
+
+@pytest.mark.parametrize("memory,expected_tcp", list(TCP_TARIFFS.items()))
+def test_tcp_tariff_values(memory, expected_tcp, app):
+    """Verify TCP values in database match official tariff grid."""
+    from models import MemoryOption
+    with app.app_context():
+        option = MemoryOption.query.filter_by(memory=memory).first()
+        if option:
+            assert float(option.tcp_value) == expected_tcp, (
+                f"{memory}: expected TCP={expected_tcp}, got {option.tcp_value}"
+            )

@@ -835,7 +835,7 @@ class TestScoreMatch:
         assert "disqualified" not in details
 
     def test_label_similarity_bonus(self, product_s25, color_translations):
-        """Exact raw label match gives a +10 bonus, capped at 100."""
+        """High raw label similarity gives a +15 bonus, capped at 100."""
         extracted = {
             "brand": "Samsung",
             "model_family": "Galaxy S25 Ultra",
@@ -846,7 +846,7 @@ class TestScoreMatch:
         }
         mappings = {"color_translations": {}}
         score, details = score_match(extracted, product_s25, mappings)
-        assert details["label_similarity"] == 10
+        assert details["label_similarity"] == 15
         assert score == 100  # capped at 100
 
     def test_label_similarity_malus(self, brand_apple, memory_128, color_noir):

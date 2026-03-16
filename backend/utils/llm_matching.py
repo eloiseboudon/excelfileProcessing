@@ -438,6 +438,10 @@ def _extract_model_variants(model: str) -> frozenset:
         variants.add("pro")
     if re.search(r"\bplus\b", model) and "pro+" not in variants:
         variants.add("plus")
+    # "+" suffix on model number (e.g. "s25+", "a9+", "a11+") → Plus variant
+    # Excludes "pro+" and "fe+" which are handled separately above/below
+    if re.search(r"\d\+", model) and "pro+" not in variants:
+        variants.add("plus")
     if re.search(r"\bultra\b", model):
         variants.add("ultra")
     if re.search(r"\bmax\b", model):
@@ -726,14 +730,28 @@ def score_match(
         details["disqualified"] = "region_mismatch"
         return 0, details
 
-    # --- Label similarity bonus/malus (up to ±10 pts) ---
+    # --- Label similarity bonus/malus (up to 15 pts) ---
+    # Compares raw supplier label against Odoo model name after stripping
+    # already-scored attributes (brand, 5G, RAM) to avoid double-counting.
+    # Key role: distinguish near-identical models (iPhone 15 vs iPhone 15 Plus).
     raw_label = (extracted.get("raw_label") or "").strip()
     if raw_label and product.model:
-        ratio = _fuzzy_ratio(normalize_label(raw_label), normalize_label(product.model))
-        if ratio >= 0.80:
+        label_norm = normalize_label(raw_label)
+        brand = (extracted.get("brand") or "").strip().lower()
+        if brand:
+            label_norm = re.sub(r"\b" + re.escape(brand) + r"\b", "", label_norm)
+        label_norm = re.sub(r"\b5g\b", "", label_norm)
+        label_norm = re.sub(r"\b\d+go\s*ram\b", "", label_norm)
+        label_norm = re.sub(r"\bram\b", "", label_norm)
+        label_norm = re.sub(r"\s+", " ", label_norm).strip()
+        ratio = _fuzzy_ratio(label_norm, normalize_label(product.model))
+        if ratio >= 0.85:
+            details["label_similarity"] = 15
+            score += 15
+        elif ratio >= 0.70:
             details["label_similarity"] = 10
             score += 10
-        elif ratio >= 0.60:
+        elif ratio >= 0.55:
             details["label_similarity"] = 5
             score += 5
         elif ratio < 0.25:
@@ -932,7 +950,42 @@ def run_matching_job(
     db.session.commit()
     run_id = matching_run.id
 
-    # Initialize all counters with defaults (used in finally block)
+    threshold_auto = _get_env_int("MATCH_THRESHOLD_AUTO", 90)
+    threshold_review = _get_env_int("MATCH_THRESHOLD_REVIEW", 50)
+    batch_size = _get_env_int("LLM_BATCH_SIZE", 25)
+
+    try:
+        return _run_matching_job_inner(
+            run_id, matching_run, supplier_id, limit, skip_already_matched,
+            start_time, threshold_auto, threshold_review, batch_size,
+        )
+    except Exception as exc:
+        # Ensure MatchingRun is marked failed on any unhandled exception
+        try:
+            db.session.rollback()
+            mr = db.session.get(MatchingRun, run_id)
+            if mr and mr.status == "running":
+                mr.status = "failed"
+                mr.error_message = str(exc)[:500]
+                mr.duration_seconds = round(time.time() - start_time, 2)
+                db.session.commit()
+        except Exception:
+            current_app.logger.exception("Failed to mark MatchingRun #%d as failed", run_id)
+        raise
+
+
+def _run_matching_job_inner(
+    run_id: int,
+    matching_run: "MatchingRun",
+    supplier_id: Optional[int],
+    limit: Optional[int],
+    skip_already_matched: bool,
+    start_time: float,
+    threshold_auto: int,
+    threshold_review: int,
+    batch_size: int,
+) -> Dict[str, Any]:
+    """Core matching logic, wrapped by run_matching_job for error safety."""
     from_cache = 0
     llm_calls = 0
     errors = 0
@@ -951,10 +1004,6 @@ def run_matching_job(
     remaining = 0
     cost_estimate = 0.0
     duration = 0.0
-
-    threshold_auto = _get_env_int("MATCH_THRESHOLD_AUTO", 90)
-    threshold_review = _get_env_int("MATCH_THRESHOLD_REVIEW", 50)
-    batch_size = _get_env_int("LLM_BATCH_SIZE", 25)
 
     # -----------------------------------------------------------------------
     # Phase 1: Extract unextracted SupplierCatalog labels → LabelCache

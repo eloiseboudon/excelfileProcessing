@@ -34,6 +34,8 @@ def compute_margin_prices(
     Returns a tuple of:
         (margin45, price_with_tcp, price_with_margin, max_price, marge, marge_percent)
     """
+    price = float(price)
+    tcp = float(tcp)
     margin45 = price * COMMISSION_RATE
     price_with_tcp = price + tcp + margin45
 

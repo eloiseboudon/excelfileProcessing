@@ -137,13 +137,12 @@ def recalculate_product_calculations():
                 continue
 
             price = temp.selling_price or 0
-            memory = (product.memory.memory or "").upper() if product.memory else ""
 
-            memory_option = MemoryOption.query.filter_by(memory=memory).first()
-            if not memory_option:
-                tcp = 0
+            if product.memory_id:
+                memory_option = db.session.get(MemoryOption, product.memory_id)
             else:
-                tcp = memory_option.tcp_value
+                memory_option = None
+            tcp = memory_option.tcp_value if memory_option else 0
 
             (
                 margin45,
