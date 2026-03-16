@@ -143,7 +143,7 @@ class OdooClient:
         limit: int = 0,
         offset: int = 0,
     ) -> list:
-        kwargs: dict = {"fields": fields}
+        kwargs: dict = {"fields": fields, "context": {"lang": "fr_FR"}}
         if limit:
             kwargs["limit"] = limit
         if offset:
