@@ -1269,6 +1269,9 @@ def _run_matching_job_inner(
     except ImportError:
         pass
 
+    batch_counter = 0
+    BATCH_SIZE = 50
+
     for product in products_to_process:
 
         # --- V2 path: multi-stage retrieval ---
@@ -1408,11 +1411,7 @@ def _run_matching_job_inner(
                 (top_cache.extracted_attributes or {}).get("raw_label")
                 or top_cache.normalized_label
             )
-            product_name = " — ".join(filter(None, [
-                product.model or product.description,
-                product.memory.memory if product.memory else None,
-                product.color.color if product.color else None,
-            ]))
+            product_name = product.description or product.model or f"Product #{product.id}"
 
             if old_pm:
                 # Update existing PendingMatch with better score
@@ -1446,6 +1445,10 @@ def _run_matching_job_inner(
 
         else:
             not_found += 1
+
+        batch_counter += 1
+        if batch_counter % BATCH_SIZE == 0:
+            db.session.commit()
 
     db.session.commit()
 

@@ -10,12 +10,15 @@ from models import (
     ColorTranslation,
     DeviceType,
     InternalProduct,
+    MatchingRun,
     MemoryOption,
     NormeOption,
     OdooConfig,
     OdooSyncJob,
+    PendingMatch,
     Product,
     ProductCalculation,
+    ProductEanHistory,
     RAMOption,
     Supplier,
     SupplierProductRef,
@@ -453,6 +456,89 @@ class TestOrphanDeletion:
         ref = db.session.get(SupplierProductRef, ref_id)
         assert ref is not None
         assert ref.product_id is None
+
+    def test_orphan_deletes_ean_history(self, app):
+        """EAN history entries are deleted before product removal (FK constraint)."""
+        from utils.odoo_sync import _delete_orphaned_products
+
+        supplier = Supplier(name="EAN Supplier")
+        db.session.add(supplier)
+        db.session.flush()
+
+        product = Product(model="Phone With EAN History", ean="0000000000010")
+        db.session.add(product)
+        db.session.flush()
+        link = InternalProduct(product_id=product.id, odoo_id="666")
+        db.session.add(link)
+
+        mr = MatchingRun(status="completed")
+        db.session.add(mr)
+        db.session.flush()
+
+        ean_hist = ProductEanHistory(
+            product_id=product.id,
+            ean="0000000000010",
+            supplier_id=supplier.id,
+            matching_run_id=mr.id,
+            source="auto_match",
+        )
+        db.session.add(ean_hist)
+        db.session.commit()
+        product_id = product.id
+
+        internal_by_odoo_id = {"666": link}
+        seen_odoo_ids = set()
+        counters = {"deleted": 0, "error": 0}
+        reports = {"deleted": [], "errors": []}
+
+        _delete_orphaned_products(internal_by_odoo_id, seen_odoo_ids, counters, reports)
+        db.session.commit()
+
+        assert counters["deleted"] == 1
+        assert counters["error"] == 0
+        assert db.session.get(Product, product_id) is None
+        assert ProductEanHistory.query.filter_by(product_id=product_id).first() is None
+
+    def test_orphan_detaches_pending_matches(self, app):
+        """PendingMatch.resolved_product_id is set to NULL when product is orphaned."""
+        from utils.odoo_sync import _delete_orphaned_products
+
+        supplier = Supplier(name="PM Supplier")
+        db.session.add(supplier)
+        db.session.flush()
+
+        product = Product(model="Phone With PM", ean="0000000000011")
+        db.session.add(product)
+        db.session.flush()
+        link = InternalProduct(product_id=product.id, odoo_id="555")
+        db.session.add(link)
+
+        pm = PendingMatch(
+            supplier_id=supplier.id,
+            source_label="Test label",
+            extracted_attributes={},
+            candidates=[],
+            status="validated",
+            resolved_product_id=product.id,
+        )
+        db.session.add(pm)
+        db.session.commit()
+        pm_id = pm.id
+        product_id = product.id
+
+        internal_by_odoo_id = {"555": link}
+        seen_odoo_ids = set()
+        counters = {"deleted": 0, "error": 0}
+        reports = {"deleted": [], "errors": []}
+
+        _delete_orphaned_products(internal_by_odoo_id, seen_odoo_ids, counters, reports)
+        db.session.commit()
+
+        assert counters["deleted"] == 1
+        assert db.session.get(Product, product_id) is None
+        pm_after = db.session.get(PendingMatch, pm_id)
+        assert pm_after is not None
+        assert pm_after.resolved_product_id is None
 
     def test_non_odoo_products_not_deleted(self, app):
         """Products without InternalProduct link are not deleted."""
