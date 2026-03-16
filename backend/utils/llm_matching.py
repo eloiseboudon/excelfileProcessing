@@ -950,7 +950,42 @@ def run_matching_job(
     db.session.commit()
     run_id = matching_run.id
 
-    # Initialize all counters with defaults (used in finally block)
+    threshold_auto = _get_env_int("MATCH_THRESHOLD_AUTO", 90)
+    threshold_review = _get_env_int("MATCH_THRESHOLD_REVIEW", 50)
+    batch_size = _get_env_int("LLM_BATCH_SIZE", 25)
+
+    try:
+        return _run_matching_job_inner(
+            run_id, matching_run, supplier_id, limit, skip_already_matched,
+            start_time, threshold_auto, threshold_review, batch_size,
+        )
+    except Exception as exc:
+        # Ensure MatchingRun is marked failed on any unhandled exception
+        try:
+            db.session.rollback()
+            mr = db.session.get(MatchingRun, run_id)
+            if mr and mr.status == "running":
+                mr.status = "failed"
+                mr.error_message = str(exc)[:500]
+                mr.duration_seconds = round(time.time() - start_time, 2)
+                db.session.commit()
+        except Exception:
+            current_app.logger.exception("Failed to mark MatchingRun #%d as failed", run_id)
+        raise
+
+
+def _run_matching_job_inner(
+    run_id: int,
+    matching_run: "MatchingRun",
+    supplier_id: Optional[int],
+    limit: Optional[int],
+    skip_already_matched: bool,
+    start_time: float,
+    threshold_auto: int,
+    threshold_review: int,
+    batch_size: int,
+) -> Dict[str, Any]:
+    """Core matching logic, wrapped by run_matching_job for error safety."""
     from_cache = 0
     llm_calls = 0
     errors = 0
@@ -969,10 +1004,6 @@ def run_matching_job(
     remaining = 0
     cost_estimate = 0.0
     duration = 0.0
-
-    threshold_auto = _get_env_int("MATCH_THRESHOLD_AUTO", 90)
-    threshold_review = _get_env_int("MATCH_THRESHOLD_REVIEW", 50)
-    batch_size = _get_env_int("LLM_BATCH_SIZE", 25)
 
     # -----------------------------------------------------------------------
     # Phase 1: Extract unextracted SupplierCatalog labels → LabelCache
