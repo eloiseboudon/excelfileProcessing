@@ -61,8 +61,11 @@ def create_app():
             "connect_args": {"cached_statements": 512},
         }
     else:
+        # pool_recycle prevents stale connections after deploy/restart.
+        # Do NOT use pool_pre_ping with Gunicorn --preload: the pre-fork
+        # model shares the pool across workers, causing "concurrent
+        # operations are not permitted" errors.
         app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-            "pool_pre_ping": True,
             "pool_recycle": 300,
         }
     db.init_app(app)
