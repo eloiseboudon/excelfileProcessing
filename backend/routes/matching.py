@@ -198,7 +198,7 @@ def validate_match():
 
     product = db.session.get(Product, product_id)
     if not product:
-        return jsonify({"error": "Produit introuvable"}), 404
+        return jsonify({"error": "Produit supprime du referentiel depuis le dernier matching. Relancez le rapprochement."}), 404
 
     pm.status = "validated"
     pm.resolved_product_id = product_id

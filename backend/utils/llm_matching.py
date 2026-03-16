@@ -415,6 +415,8 @@ def _clean_model_for_scoring(model: str) -> str:
     m = re.sub(r'\b(?:5g|4g|lte|wifi|wi-fi|cellular)\b', '', m, flags=re.IGNORECASE)
     # Screen sizes: standalone decimal numbers like 11.0, 12.4, 6.7
     m = re.sub(r'\b\d+\.\d+\b', '', m)
+    # Odoo duplication artefact
+    m = re.sub(r'\(copie\)', '', m)
     # Clean up parentheses: empty ones or containing only whitespace
     m = re.sub(r'\(\s*\)', '', m)
     # Collapse whitespace
