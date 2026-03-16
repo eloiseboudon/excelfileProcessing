@@ -60,6 +60,11 @@ def create_app():
         app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
             "connect_args": {"cached_statements": 512},
         }
+    else:
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+            "pool_pre_ping": True,
+            "pool_recycle": 300,
+        }
     db.init_app(app)
     configure_logging(app)
 
