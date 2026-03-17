@@ -305,6 +305,9 @@ def _extract_model_name(name: str, parts_to_remove: List[str]) -> str:
 
     Parts are removed longest-first to avoid partial matches (e.g. "128GB" before "128").
     Word boundaries prevent matching inside compound words (e.g. "black" won't match "BlackBerry").
+
+    After removing known parts, also strips technical noise (5G, DS, storage specs,
+    manufacturer reference codes) to keep only the commercial model name.
     """
     result = name
     for part in sorted((p for p in parts_to_remove if p), key=len, reverse=True):
@@ -315,7 +318,30 @@ def _extract_model_name(name: str, parts_to_remove: List[str]) -> str:
             r"\b" + re.escape(part) + r"\b", "", result, count=1, flags=re.IGNORECASE,
         )
     result = " ".join(result.split()).strip()
-    return result if result else name
+    if not result:
+        return name
+
+    # Strip technical noise to keep only commercial model name
+    m = result
+    # Manufacturer reference codes: SM-X820N, S721, F766B, X216R, etc.
+    m = re.sub(r'\bSM-[A-Za-z]\d{3,}[A-Za-z]?\b', '', m)
+    m = re.sub(r'\b[A-Z]{1,2}\d{3,}[A-Za-z]?\b', '', m)
+    # RAM/Storage combined: "12/128GB", "8/256Go"
+    m = re.sub(r'\b\d+\s*(?:Go|GB)?\s*/\s*\d+\s*(?:Go|GB|To|TB)\b', '', m, flags=re.IGNORECASE)
+    # Storage standalone: "128GB", "256 Go"
+    m = re.sub(r'\b\d+\s*(?:Go|GB|To|TB)\b', '', m, flags=re.IGNORECASE)
+    # Connectivity: 5G, 4G, LTE, WiFi
+    m = re.sub(r'\b(?:5G|4G|LTE|WiFi|Wi-Fi|Cellular)\b', '', m, flags=re.IGNORECASE)
+    # Dual SIM variants
+    m = re.sub(r'\b(?:Dual\s*Sim|DS)\b', '', m, flags=re.IGNORECASE)
+    # Odoo duplication artefact
+    m = re.sub(r'\(copie\)', '', m, flags=re.IGNORECASE)
+    # Screen sizes: 11.0, 12.4
+    m = re.sub(r'\b\d+\.\d+\b', '', m)
+    # Clean up empty parentheses and extra whitespace
+    m = re.sub(r'\(\s*\)', '', m)
+    m = " ".join(m.split()).strip()
+    return m if m else result
 
 
 # ---------------------------------------------------------------------------
