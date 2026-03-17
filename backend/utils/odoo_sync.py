@@ -323,21 +323,35 @@ def _extract_model_name(name: str, parts_to_remove: List[str]) -> str:
 
     # Strip technical noise to keep only commercial model name
     m = result
-    # Manufacturer reference codes: SM-X820N, S721, F766B, X216R, etc.
-    m = re.sub(r'\bSM-[A-Za-z]\d{3,}[A-Za-z]?\b', '', m)
-    m = re.sub(r'\b[A-Z]{1,2}\d{3,}[A-Za-z]?\b', '', m)
-    # RAM/Storage combined: "12/128GB", "8/256Go"
+    # Manufacturer reference codes: SM-X820N, S721, F766B, A165, A266, etc.
+    m = re.sub(r'\bSM-[a-z]\d{3,}[a-z]?\b', '', m, flags=re.IGNORECASE)
+    m = re.sub(r'\b[a-z]{1,2}\d{3,}[a-z]?\b', '', m, flags=re.IGNORECASE)
+    # RAM/Storage combined: "12/128GB", "8/256Go", "4/128Gb"
     m = re.sub(r'\b\d+\s*(?:Go|GB)?\s*/\s*\d+\s*(?:Go|GB|To|TB)\b', '', m, flags=re.IGNORECASE)
-    # Storage standalone: "128GB", "256 Go"
+    # Storage standalone: "128GB", "256 Go", "512Gb"
     m = re.sub(r'\b\d+\s*(?:Go|GB|To|TB)\b', '', m, flags=re.IGNORECASE)
     # Connectivity: 5G, 4G, LTE, WiFi
     m = re.sub(r'\b(?:5G|4G|LTE|WiFi|Wi-Fi|Cellular)\b', '', m, flags=re.IGNORECASE)
     # Dual SIM variants
     m = re.sub(r'\b(?:Dual\s*Sim|DS)\b', '', m, flags=re.IGNORECASE)
+    # Enterprise Edition
+    m = re.sub(r'\bEnterprise\s+Edition\b', '', m, flags=re.IGNORECASE)
+    # Pack quantities: "1 Pack", "4 Pack"
+    m = re.sub(r'\b\d+\s*Pack\b', '', m, flags=re.IGNORECASE)
     # Odoo duplication artefact
     m = re.sub(r'\(copie\)', '', m, flags=re.IGNORECASE)
     # Screen sizes: 11.0, 12.4
     m = re.sub(r'\b\d+\.\d+\b', '', m)
+    # Common color words left over after attribute removal
+    m = re.sub(
+        r'\b(?:Midnight|Phantom|Icy|Frost|Onyx|Marble|Aurora|Coral|'
+        r'Cream|Sapphire|Emerald|Pewter|Charcoal|Cobalt|Burgundy|'
+        r'Mystic|Arctic|Sunset|Nebula|Moonlight|Neon|Space|Titanium|'
+        r'Jetblack|Silverblue|Whitesilver|Teal|Berry|Fog|Lavender)\b',
+        '', m, flags=re.IGNORECASE,
+    )
+    # Non EU / Indian Spec / region suffixes
+    m = re.sub(r'\(?\bNon\s+EU\b\)?', '', m, flags=re.IGNORECASE)
     # Clean up empty parentheses and extra whitespace
     m = re.sub(r'\(\s*\)', '', m)
     m = " ".join(m.split()).strip()
