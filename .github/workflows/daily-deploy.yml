@@ -42,3 +42,18 @@ jobs:
           git checkout main
           git merge origin/dev --no-ff -m "chore(deploy): scheduled merge dev → main"
           git push origin main
+
+      - name: Deploy to VPS
+        if: steps.check.outputs.ahead != '0'
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          envs: ODOO_ENCRYPTION_KEY,ANTHROPIC_API_KEY,CATALOGUE_UPLOAD_TOKEN
+          script: bash /home/ubuntu/ajtpro/deploy-ci.sh
+        env:
+          ODOO_ENCRYPTION_KEY: ${{ secrets.ODOO_ENCRYPTION_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CATALOGUE_UPLOAD_TOKEN: ${{ secrets.CATALOGUE_UPLOAD_TOKEN }}
