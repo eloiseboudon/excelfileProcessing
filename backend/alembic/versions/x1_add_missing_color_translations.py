@@ -1,4 +1,4 @@
-"""Add missing color translations (onyx, silverblue, whitesilver, marble, aurora).
+"""Add missing color translations (onyx, silverblue, whitesilver, marble, aurora, mint green).
 
 Revision ID: x1_color_trans
 Revises: 4776d4b65e85
@@ -18,6 +18,7 @@ TRANSLATIONS = [
     ("whitesilver", "Blanc", 1),
     ("marble", "Blanc", 1),
     ("aurora", "Violet", 7),
+    ("mint green", "Vert", 5),
 ]
 
 
