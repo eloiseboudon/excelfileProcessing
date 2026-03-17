@@ -17,7 +17,7 @@ services:
       POSTGRES_HOST: postgres_prod
       POSTGRES_PORT: 5432
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_prod:5432/${POSTGRES_DB}
-    command: gunicorn -w 4 --timeout 300 --preload -b 0.0.0.0:5001 app:app
+    command: gunicorn -w 4 --timeout 300 -b 0.0.0.0:5001 app:app
     volumes:
       - ajtpro_backend_logs:/app/logs
       - ajtpro_backend_data:/app/data
