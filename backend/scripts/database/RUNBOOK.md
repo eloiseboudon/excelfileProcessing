@@ -23,6 +23,17 @@ docker exec -it ajt_backend_prod python scripts/database/users.py
 
 ---
 
+## Synchronisation prod → local
+
+### Copier la base prod en local
+```bash
+bash backend/scripts/database/sync_prod_to_local.sh
+```
+> Dump la base prod via SSH, drop/recreate la base locale, restaure le dump.
+> Nécessite : accès SSH au VPS, container `postgres_dev` en cours, `.env` configuré.
+
+---
+
 ## Import de données
 
 ### Importer les produits de référence (Odoo 24/10/2025)
