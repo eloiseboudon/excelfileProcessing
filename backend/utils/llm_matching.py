@@ -1105,12 +1105,18 @@ def _run_matching_job_inner(
     # Build attr → product_id index from already-matched LabelCache entries.
     # After LLM extraction, if the new label's attributes match an existing validated
     # entry (any supplier), we assign product_id directly and skip Phase 2 scoring.
+    # Color translations normalize colors so "black"/"noir" produce the same key.
+    _color_trans = {
+        t.color_source.lower(): t.color_target
+        for t in ColorTranslation.query.all()
+        if t.color_source
+    }
     attr_product_index: Dict[str, int] = {}
     for entry in LabelCache.query.filter(
         LabelCache.product_id.isnot(None),
         LabelCache.extracted_attributes.isnot(None),
     ).all():
-        key = _make_attr_key(entry.extracted_attributes)
+        key = _make_attr_key(entry.extracted_attributes, _color_trans)
         if key:
             attr_product_index[key] = entry.product_id
 
@@ -1148,7 +1154,7 @@ def _run_matching_job_inner(
             # Attribute-based cross-supplier sharing: if the same (brand, model, storage,
             # color, region) tuple is already matched in another supplier's cache, assign
             # product_id directly without going through Phase 2 scoring.
-            attr_key = _make_attr_key(extraction)
+            attr_key = _make_attr_key(extraction, _color_trans)
             if attr_key and attr_key in attr_product_index:
                 matched_product_id = attr_product_index[attr_key]
                 _save_attr_share_cache(sid, normalized, matched_product_id, extraction, run_id=run_id)
@@ -1538,7 +1544,10 @@ def _extract_model_versions(model: str) -> Tuple[str, List[str]]:
     return base, versions
 
 
-def _make_attr_key(attrs: Dict[str, Any]) -> Optional[str]:
+def _make_attr_key(
+    attrs: Dict[str, Any],
+    color_translations: Optional[Dict[str, str]] = None,
+) -> Optional[str]:
     """Build a canonical key from extracted attributes for cross-supplier deduplication.
 
     Normalizes brand, model_family, storage, color, and region into a stable key so
@@ -1553,6 +1562,9 @@ def _make_attr_key(attrs: Dict[str, Any]) -> Optional[str]:
         return None
     storage = _normalize_storage(attrs.get("storage")) or ""
     color = (attrs.get("color") or "").lower().strip()
+    # Normalize color via translations so "black" and "noir" produce the same key
+    if color and color_translations:
+        color = color_translations.get(color, color).lower()
     region = (attrs.get("region") or "EU").upper()
     return f"{brand}|{model}|{storage}|{color}|{region}"
 
