@@ -456,9 +456,15 @@ def _extract_model_variants(model: str) -> frozenset:
         variants.add("fe+")
     elif re.search(r"\bfe\b", model):
         variants.add("fe")
+    # "a" suffix on model number (e.g. "Pixel 10a", "Phone 3a")
+    if re.search(r"\d+a\b", model):
+        variants.add("a-suffix")
     # "S" suffix attached to a number (e.g. "14s" but not "Galaxy S24")
     if re.search(r"\d+s\b", model):
         variants.add("s-suffix")
+    # XL variant (e.g. "Pixel 9 Pro XL")
+    if re.search(r"\bxl\b", model):
+        variants.add("xl")
 
     # Galaxy product line series: Tab A ≠ Tab S, Galaxy A ≠ Galaxy S ≠ Galaxy M
     # e.g. "galaxy tab a9" → series "tab-a", "galaxy tab s10" → series "tab-s"
@@ -614,14 +620,20 @@ def score_match(
         score += 25
 
     # --- Model family (45 pts) ---
-    ext_model = (extracted.get("model_family") or "").strip().lower()
-    prod_model = (product.model or "").strip().lower()
+    ext_model_raw = (extracted.get("model_family") or "").strip().lower()
+    prod_model_raw = (product.model or "").strip().lower()
     # Remove brand from product model for comparison
-    if prod_brand and prod_model.startswith(prod_brand):
-        prod_model = prod_model[len(prod_brand):].strip()
+    if prod_brand and prod_model_raw.startswith(prod_brand):
+        prod_model_raw = prod_model_raw[len(prod_brand):].strip()
+
+    # Extract variants BEFORE cleaning — _clean_model_for_scoring strips "+"
+    # which is needed to distinguish S26 from S26+, FE from FE+, etc.
+    ext_variants = _extract_model_variants(ext_model_raw)
+    prod_variants = _extract_model_variants(prod_model_raw)
+
     # Clean both sides with the same function for symmetric comparison
-    prod_model = _clean_model_for_scoring(prod_model)
-    ext_model = _clean_model_for_scoring(ext_model)
+    ext_model = _clean_model_for_scoring(ext_model_raw)
+    prod_model = _clean_model_for_scoring(prod_model_raw)
     # Strip color words from product model (color often embedded in model field)
     color_words = mappings.get("color_words", set())
     if color_words:
@@ -644,9 +656,6 @@ def score_match(
                 return 0, details
 
         # Hard disqualifier: different variant suffixes.
-        # Pro ≠ Plus, Pro ≠ Pro+, FE+ ≠ base, "14S" ≠ "14 Pro", etc.
-        ext_variants = _extract_model_variants(ext_model)
-        prod_variants = _extract_model_variants(prod_model)
         if ext_variants != prod_variants:
             details["model_family"] = 0
             details["disqualified"] = "model_variant_mismatch"
@@ -720,6 +729,25 @@ def score_match(
         details["dual_sim"] = -10
     else:
         details["dual_sim"] = 0
+
+    # --- Connectivity 4G/5G (soft discriminator, -15 on mismatch) ---
+    ext_connectivity = (extracted.get("connectivity") or "").strip().upper()
+    if not ext_connectivity:
+        raw = (extracted.get("raw_label") or "").upper()
+        if re.search(r'\b5G\b', raw):
+            ext_connectivity = "5G"
+        elif re.search(r'\b4G\b', raw):
+            ext_connectivity = "4G"
+    prod_connectivity = ""
+    if re.search(r'\b5G\b', (product.model or "").upper()):
+        prod_connectivity = "5G"
+    elif re.search(r'\b4G\b', (product.model or "").upper()):
+        prod_connectivity = "4G"
+    if ext_connectivity and prod_connectivity and ext_connectivity != prod_connectivity:
+        score = max(score - 15, 0)
+        details["connectivity"] = -15
+    else:
+        details["connectivity"] = 0
 
     # --- Region (multiplier ×0 or ×1; null = EU) ---
     # Region is not additive — it gates the entire score.
