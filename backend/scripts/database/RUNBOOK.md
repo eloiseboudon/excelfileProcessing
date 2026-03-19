@@ -7,6 +7,17 @@ docker exec -it ajt_backend_prod python scripts/database/<script>.py [args]
 
 ---
 
+## Audit de cohérence
+
+### Vérifier l'intégrité des données
+```bash
+docker exec -it ajt_backend_prod python scripts/database/audit_data.py
+```
+> Vérifie toutes les tables : orphelins, doublons, couleurs incohérentes, jobs bloqués, refs invalides.
+> À lancer régulièrement ou après un incident.
+
+---
+
 ## Comptes utilisateurs
 
 ### Modifier l'email d'un utilisateur
