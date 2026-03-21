@@ -887,6 +887,7 @@ function RapportTab({
                       "Durée",
                       "Coût",
                       "Couverture",
+                      "Nouveaux",
                       "Produits",
                       "Cache",
                       "Auto",
@@ -935,6 +936,22 @@ function RapportTab({
                         r.matched_products != null
                           ? `${r.matched_products}/${r.total_odoo_products} (${((r.matched_products / r.total_odoo_products) * 100).toFixed(1)}%)`
                           : "—"}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap font-medium">
+                        {r.new_matched != null ? (
+                          <span
+                            className={
+                              r.new_matched > 0
+                                ? "text-emerald-400"
+                                : "text-[var(--color-text-muted)]"
+                            }
+                          >
+                            {r.new_matched > 0 ? "+" : ""}
+                            {r.new_matched}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap font-medium text-[var(--color-text-primary)]">
                         {r.total_products ?? "—"}

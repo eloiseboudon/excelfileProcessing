@@ -592,8 +592,19 @@ def list_runs():
         .all()
     )
 
-    return jsonify([
-        {
+    result = []
+    for i, r in enumerate(runs):
+        prev_matched = None
+        for j in range(i + 1, len(runs)):
+            if runs[j].matched_products is not None:
+                prev_matched = runs[j].matched_products
+                break
+        new_matched = (
+            (r.matched_products - prev_matched)
+            if r.matched_products is not None and prev_matched is not None
+            else None
+        )
+        result.append({
             "id": r.id,
             "ran_at": r.ran_at.isoformat() if r.ran_at else None,
             "status": r.status,
@@ -612,10 +623,11 @@ def list_runs():
             "attr_share_hits": r.attr_share_hits,
             "total_odoo_products": r.total_odoo_products,
             "matched_products": r.matched_products,
+            "new_matched": new_matched,
             "nightly_job_id": r.nightly_job_id,
-        }
-        for r in runs
-    ]), 200
+        })
+
+    return jsonify(result), 200
 
 
 @bp.route("/matching/cache", methods=["GET"])

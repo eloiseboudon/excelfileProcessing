@@ -176,6 +176,19 @@ def _job_to_dict(job: NightlyJob) -> dict:
     }
     mr = MatchingRun.query.filter_by(nightly_job_id=job.id).first()
     if mr:
+        prev_run = (
+            MatchingRun.query
+            .filter(MatchingRun.id < mr.id, MatchingRun.matched_products.isnot(None))
+            .order_by(MatchingRun.id.desc())
+            .first()
+        )
+        new_matched = (
+            (mr.matched_products - prev_run.matched_products)
+            if mr.matched_products is not None
+            and prev_run is not None
+            and prev_run.matched_products is not None
+            else None
+        )
         d["matching_detail"] = {
             "total_products": mr.total_products,
             "from_cache": mr.from_cache,
@@ -187,6 +200,7 @@ def _job_to_dict(job: NightlyJob) -> dict:
             "errors": mr.errors,
             "cost_estimate": mr.cost_estimate,
             "duration_seconds": mr.duration_seconds,
+            "new_matched": new_matched,
         }
     return d
 

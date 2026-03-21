@@ -1,18 +1,18 @@
-import { getCurrentTimestamp } from './utils/date';
+import { getCurrentTimestamp } from "./utils/date";
 
-export const API_BASE = import.meta.env.VITE_API_BASE || '/api';
+export const API_BASE = import.meta.env.VITE_API_BASE || "/api";
 
-export let authToken: string | null = localStorage.getItem('token');
+export let authToken: string | null = localStorage.getItem("token");
 
 export function setAuthToken(token: string | null) {
   authToken = token;
-  if (token) localStorage.setItem('token', token);
-  else localStorage.removeItem('token');
+  if (token) localStorage.setItem("token", token);
+  else localStorage.removeItem("token");
 }
 
 function authHeaders(headers: Record<string, string> = {}) {
   if (authToken) {
-    headers['Authorization'] = `Bearer ${authToken}`;
+    headers["Authorization"] = `Bearer ${authToken}`;
   }
   return headers;
 }
@@ -30,7 +30,7 @@ function notifySubscribers(token: string | null) {
 }
 
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  const opts: RequestInit = { ...options, credentials: 'include' };
+  const opts: RequestInit = { ...options, credentials: "include" };
   opts.headers = authHeaders(options.headers as Record<string, string>);
   let res = await fetch(url, opts);
 
@@ -48,8 +48,8 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
 
     isRefreshing = true;
     const refreshRes = await fetch(`${API_BASE}/refresh`, {
-      method: 'POST',
-      credentials: 'include',
+      method: "POST",
+      credentials: "include",
     });
 
     if (refreshRes.ok) {
@@ -63,7 +63,7 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
       setAuthToken(null);
       isRefreshing = false;
       notifySubscribers(null);
-      window.dispatchEvent(new Event('auth:logout'));
+      window.dispatchEvent(new Event("auth:logout"));
     }
   }
   return res;
@@ -71,10 +71,10 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
 
 export async function login(email: string, password: string) {
   const res = await fetch(`${API_BASE}/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
-    credentials: 'include',
+    credentials: "include",
   });
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
@@ -83,26 +83,28 @@ export async function login(email: string, password: string) {
 }
 
 export async function logout() {
-  await fetch(`${API_BASE}/logout`, { method: 'POST', credentials: 'include' }).catch(() => {});
+  await fetch(`${API_BASE}/logout`, {
+    method: "POST",
+    credentials: "include",
+  }).catch(() => {});
 }
-
 
 async function extractErrorMessage(res: Response): Promise<string> {
   const data = await res.json().catch(() => ({}));
-  return data.message || data.error || 'Une erreur est survenue';
+  return data.message || data.error || "Une erreur est survenue";
 }
 
 async function crudRequest(method: string, url: string, body?: unknown) {
   const options: RequestInit = { method };
   if (body !== undefined) {
-    options.headers = { 'Content-Type': 'application/json' };
+    options.headers = { "Content-Type": "application/json" };
     options.body = JSON.stringify(body);
   }
   const res = await fetchWithAuth(url, options);
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
-  if (method === 'DELETE' && res.status === 204) return;
+  if (method === "DELETE" && res.status === 204) return;
   return res.json();
 }
 
@@ -116,13 +118,13 @@ interface StatsFilterParams {
 
 function _buildStatsParams(params?: StatsFilterParams): string {
   const search = new URLSearchParams();
-  if (params?.supplierId) search.set('supplier_id', String(params.supplierId));
-  if (params?.brandId) search.set('brand_id', String(params.brandId));
-  if (params?.productId) search.set('product_id', String(params.productId));
-  if (params?.startWeek) search.set('start_week', params.startWeek);
-  if (params?.endWeek) search.set('end_week', params.endWeek);
+  if (params?.supplierId) search.set("supplier_id", String(params.supplierId));
+  if (params?.brandId) search.set("brand_id", String(params.brandId));
+  if (params?.productId) search.set("product_id", String(params.productId));
+  if (params?.startWeek) search.set("start_week", params.startWeek);
+  if (params?.endWeek) search.set("end_week", params.endWeek);
   const query = search.toString();
-  return query ? `?${query}` : '';
+  return query ? `?${query}` : "";
 }
 
 export async function fetchApitest() {
@@ -133,17 +135,16 @@ export async function fetchApitest() {
   return res.json();
 }
 
-
 export async function createImport(file: File, supplierId?: number) {
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append("file", file);
   if (supplierId !== undefined) {
-    formData.append('supplier_id', String(supplierId));
+    formData.append("supplier_id", String(supplierId));
   }
 
   const res = await fetchWithAuth(`${API_BASE}/import`, {
-    method: 'POST',
-    body: formData
+    method: "POST",
+    body: formData,
   });
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
@@ -153,14 +154,14 @@ export async function createImport(file: File, supplierId?: number) {
 
 export async function fetchImportPreview(file: File, supplierId?: number) {
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append("file", file);
   if (supplierId !== undefined) {
-    formData.append('supplier_id', String(supplierId));
+    formData.append("supplier_id", String(supplierId));
   }
 
   const res = await fetchWithAuth(`${API_BASE}/import_preview`, {
-    method: 'POST',
-    body: formData
+    method: "POST",
+    body: formData,
   });
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
@@ -304,12 +305,12 @@ export interface SupplierApiRefreshPayload {
 
 export async function refreshSupplierCatalog(
   supplierId: number,
-  payload: SupplierApiRefreshPayload = {}
+  payload: SupplierApiRefreshPayload = {},
 ) {
   const res = await fetchWithAuth(`${API_BASE}/supplier_api/${supplierId}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
   });
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
@@ -319,7 +320,9 @@ export async function refreshSupplierCatalog(
 
 export async function fetchSupplierApiReports(limit = 20) {
   const params = new URLSearchParams({ limit: String(limit) });
-  const res = await fetchWithAuth(`${API_BASE}/supplier_api/reports?${params.toString()}`);
+  const res = await fetchWithAuth(
+    `${API_BASE}/supplier_api/reports?${params.toString()}`,
+  );
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
@@ -327,7 +330,7 @@ export async function fetchSupplierApiReports(limit = 20) {
 }
 
 export async function createProduct(data: Record<string, unknown>) {
-  return crudRequest('POST', `${API_BASE}/products`, data);
+  return crudRequest("POST", `${API_BASE}/products`, data);
 }
 
 export async function fetchSupplierApiConfigs() {
@@ -338,64 +341,114 @@ export async function fetchSupplierApiConfigs() {
   return res.json() as Promise<SupplierApiConfigSupplier[]>;
 }
 
-export async function createSupplierApi(supplierId: number, payload: SupplierApiPayload) {
-  return crudRequest('POST', `${API_BASE}/supplier_api/${supplierId}/apis`, payload);
+export async function createSupplierApi(
+  supplierId: number,
+  payload: SupplierApiPayload,
+) {
+  return crudRequest(
+    "POST",
+    `${API_BASE}/supplier_api/${supplierId}/apis`,
+    payload,
+  );
 }
 
-export async function updateSupplierApi(apiId: number, payload: Partial<SupplierApiPayload>) {
-  return crudRequest('PATCH', `${API_BASE}/supplier_api/apis/${apiId}`, payload);
+export async function updateSupplierApi(
+  apiId: number,
+  payload: Partial<SupplierApiPayload>,
+) {
+  return crudRequest(
+    "PATCH",
+    `${API_BASE}/supplier_api/apis/${apiId}`,
+    payload,
+  );
 }
 
 export async function deleteSupplierApi(apiId: number) {
-  return crudRequest('DELETE', `${API_BASE}/supplier_api/apis/${apiId}`);
+  return crudRequest("DELETE", `${API_BASE}/supplier_api/apis/${apiId}`);
 }
 
-export async function createSupplierApiEndpoint(apiId: number, payload: SupplierApiEndpointPayload) {
-  return crudRequest('POST', `${API_BASE}/supplier_api/apis/${apiId}/endpoints`, payload);
+export async function createSupplierApiEndpoint(
+  apiId: number,
+  payload: SupplierApiEndpointPayload,
+) {
+  return crudRequest(
+    "POST",
+    `${API_BASE}/supplier_api/apis/${apiId}/endpoints`,
+    payload,
+  );
 }
 
-export async function updateSupplierApiEndpoint(endpointId: number, payload: Partial<SupplierApiEndpointPayload>) {
-  return crudRequest('PATCH', `${API_BASE}/supplier_api/endpoints/${endpointId}`, payload);
+export async function updateSupplierApiEndpoint(
+  endpointId: number,
+  payload: Partial<SupplierApiEndpointPayload>,
+) {
+  return crudRequest(
+    "PATCH",
+    `${API_BASE}/supplier_api/endpoints/${endpointId}`,
+    payload,
+  );
 }
 
 export async function deleteSupplierApiEndpoint(endpointId: number) {
-  return crudRequest('DELETE', `${API_BASE}/supplier_api/endpoints/${endpointId}`);
+  return crudRequest(
+    "DELETE",
+    `${API_BASE}/supplier_api/endpoints/${endpointId}`,
+  );
 }
 
 export async function createSupplierApiMapping(apiId: number) {
-  return crudRequest('POST', `${API_BASE}/supplier_api/apis/${apiId}/mapping`, {});
+  return crudRequest(
+    "POST",
+    `${API_BASE}/supplier_api/apis/${apiId}/mapping`,
+    {},
+  );
 }
 
-export async function createSupplierApiField(mappingId: number, payload: SupplierApiFieldPayload) {
-  return crudRequest('POST', `${API_BASE}/supplier_api/mappings/${mappingId}/fields`, payload);
+export async function createSupplierApiField(
+  mappingId: number,
+  payload: SupplierApiFieldPayload,
+) {
+  return crudRequest(
+    "POST",
+    `${API_BASE}/supplier_api/mappings/${mappingId}/fields`,
+    payload,
+  );
 }
 
-export async function updateSupplierApiField(fieldId: number, payload: Partial<SupplierApiFieldPayload>) {
-  return crudRequest('PATCH', `${API_BASE}/supplier_api/fields/${fieldId}`, payload);
+export async function updateSupplierApiField(
+  fieldId: number,
+  payload: Partial<SupplierApiFieldPayload>,
+) {
+  return crudRequest(
+    "PATCH",
+    `${API_BASE}/supplier_api/fields/${fieldId}`,
+    payload,
+  );
 }
 
 export async function deleteSupplierApiField(fieldId: number) {
-  return crudRequest('DELETE', `${API_BASE}/supplier_api/fields/${fieldId}`);
+  return crudRequest("DELETE", `${API_BASE}/supplier_api/fields/${fieldId}`);
 }
 
 export async function updateProduct(id: number, data: Record<string, unknown>) {
-  return crudRequest('PUT', `${API_BASE}/products/${id}`, data);
+  return crudRequest("PUT", `${API_BASE}/products/${id}`, data);
 }
 
 export async function bulkUpdateProducts(data: Record<string, unknown>[]) {
-  return crudRequest('PUT', `${API_BASE}/products/bulk_update`, data);
+  return crudRequest("PUT", `${API_BASE}/products/bulk_update`, data);
 }
 
 export async function deleteProduct(id: number) {
-  return crudRequest('DELETE', `${API_BASE}/products/${id}`);
+  return crudRequest("DELETE", `${API_BASE}/products/${id}`);
 }
 
 export async function bulkDeleteProducts(ids: number[]) {
-  return crudRequest('POST', `${API_BASE}/products/bulk_delete`, { ids });
+  return crudRequest("POST", `${API_BASE}/products/bulk_delete`, { ids });
 }
 
-
-export async function fetchLastImport(id: number): Promise<{ import_date: string | null } | {}> {
+export async function fetchLastImport(
+  id: number,
+): Promise<{ import_date: string | null } | {}> {
   const res = await fetchWithAuth(`${API_BASE}/last_import/${id}`);
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
@@ -411,11 +464,10 @@ export async function verifyImport(id: number) {
   return res.json();
 }
 
-
 export async function calculateProducts() {
   const res = await fetchWithAuth(`${API_BASE}/calculate_products`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
   });
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
@@ -426,11 +478,11 @@ export async function calculateProducts() {
 export async function exportCalculations() {
   const res = await fetchWithAuth(`${API_BASE}/export_calculates`);
   if (!res.ok) {
-    throw new Error('La génération du fichier a échoué.');
+    throw new Error("La génération du fichier a échoué.");
   }
   const blob = await res.blob();
   let filename = `product_calculates_${getCurrentTimestamp()}.xlsx`;
-  const disposition = res.headers.get('Content-Disposition');
+  const disposition = res.headers.get("Content-Disposition");
   if (disposition) {
     const match = disposition.match(/filename="?([^";]+)"?/);
     if (match) {
@@ -442,8 +494,8 @@ export async function exportCalculations() {
 
 export async function refreshProduction() {
   const res = await fetchWithAuth(`${API_BASE}/reset_calculations`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
   });
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
@@ -451,12 +503,13 @@ export async function refreshProduction() {
   return res.json();
 }
 
-
 export async function refreshProductionByWeek(array_date: Array<Date>) {
   const res = await fetchWithAuth(`${API_BASE}/refresh_week`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ dates: array_date.map(date => date.toISOString()) })
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      dates: array_date.map((date) => date.toISOString()),
+    }),
   });
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
@@ -495,7 +548,7 @@ export async function refreshAllSupplierCatalogs(): Promise<{
   duration_seconds: number;
 }> {
   const res = await fetchWithAuth(`${API_BASE}/supplier_catalog/refresh`, {
-    method: 'POST',
+    method: "POST",
   });
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
@@ -519,16 +572,23 @@ export async function fetchReferenceTable(table: string) {
   return res.json();
 }
 
-export async function updateReferenceItem(table: string, id: number, data: Record<string, unknown>) {
-  return crudRequest('PUT', `${API_BASE}/references/${table}/${id}`, data);
+export async function updateReferenceItem(
+  table: string,
+  id: number,
+  data: Record<string, unknown>,
+) {
+  return crudRequest("PUT", `${API_BASE}/references/${table}/${id}`, data);
 }
 
-export async function createReferenceItem(table: string, data: Record<string, unknown>) {
-  return crudRequest('POST', `${API_BASE}/references/${table}`, data);
+export async function createReferenceItem(
+  table: string,
+  data: Record<string, unknown>,
+) {
+  return crudRequest("POST", `${API_BASE}/references/${table}`, data);
 }
 
 export async function deleteReferenceItem(table: string, id: number) {
-  return crudRequest('DELETE', `${API_BASE}/references/${table}/${id}`);
+  return crudRequest("DELETE", `${API_BASE}/references/${table}/${id}`);
 }
 
 export async function fetchUsers() {
@@ -540,15 +600,15 @@ export async function fetchUsers() {
 }
 
 export async function updateUser(id: number, data: Record<string, unknown>) {
-  return crudRequest('PUT', `${API_BASE}/users/${id}`, data);
+  return crudRequest("PUT", `${API_BASE}/users/${id}`, data);
 }
 
 export async function createUser(data: Record<string, unknown>) {
-  return crudRequest('POST', `${API_BASE}/users`, data);
+  return crudRequest("POST", `${API_BASE}/users`, data);
 }
 
 export async function deleteUser(id: number) {
-  return crudRequest('DELETE', `${API_BASE}/users/${id}`);
+  return crudRequest("DELETE", `${API_BASE}/users/${id}`);
 }
 
 export async function fetchBrands() {
@@ -558,7 +618,6 @@ export async function fetchBrands() {
   }
   return res.json();
 }
-
 
 export async function fetchColors() {
   const res = await fetchWithAuth(`${API_BASE}/references/colors`);
@@ -636,7 +695,7 @@ export async function fetchGraphSettings() {
 }
 
 export async function updateGraphSetting(name: string, visible: boolean) {
-  return crudRequest('PUT', `${API_BASE}/graph_settings/${name}`, { visible });
+  return crudRequest("PUT", `${API_BASE}/graph_settings/${name}`, { visible });
 }
 
 // ---------------------------------------------------------------------------
@@ -674,16 +733,20 @@ export async function fetchSupplierPriceEvolution(params?: {
   endWeek?: string;
 }) {
   const search = new URLSearchParams();
-  if (params?.supplierId) search.set('supplier_id', String(params.supplierId));
-  if (params?.model) search.set('model', params.model);
-  if (params?.startWeek) search.set('start_week', params.startWeek);
-  if (params?.endWeek) search.set('end_week', params.endWeek);
+  if (params?.supplierId) search.set("supplier_id", String(params.supplierId));
+  if (params?.model) search.set("model", params.model);
+  if (params?.startWeek) search.set("start_week", params.startWeek);
+  if (params?.endWeek) search.set("end_week", params.endWeek);
   const qs = search.toString();
-  const res = await fetchWithAuth(`${API_BASE}/supplier_price_evolution${qs ? `?${qs}` : ''}`);
+  const res = await fetchWithAuth(
+    `${API_BASE}/supplier_price_evolution${qs ? `?${qs}` : ""}`,
+  );
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
-  return res.json() as Promise<{ supplier: string; week: string; avg_price: number }[]>;
+  return res.json() as Promise<
+    { supplier: string; week: string; avg_price: number }[]
+  >;
 }
 
 // ---------------------------------------------------------------------------
@@ -751,12 +814,17 @@ export async function fetchOdooConfig() {
   return res.json() as Promise<OdooConfigData>;
 }
 
-export async function updateOdooConfig(data: { url: string; database: string; login: string; password: string }) {
-  return crudRequest('PUT', `${API_BASE}/odoo/config`, data);
+export async function updateOdooConfig(data: {
+  url: string;
+  database: string;
+  login: string;
+  password: string;
+}) {
+  return crudRequest("PUT", `${API_BASE}/odoo/config`, data);
 }
 
 export async function testOdooConnection() {
-  const res = await fetchWithAuth(`${API_BASE}/odoo/test`, { method: 'POST' });
+  const res = await fetchWithAuth(`${API_BASE}/odoo/test`, { method: "POST" });
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
@@ -764,7 +832,7 @@ export async function testOdooConnection() {
 }
 
 export async function triggerOdooSync() {
-  const res = await fetchWithAuth(`${API_BASE}/odoo/sync`, { method: 'POST' });
+  const res = await fetchWithAuth(`${API_BASE}/odoo/sync`, { method: "POST" });
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
@@ -788,8 +856,11 @@ export async function fetchOdooSyncJob(jobId: number) {
   return res.json() as Promise<OdooSyncJobResponse>;
 }
 
-export async function updateOdooAutoSync(data: { enabled?: boolean; interval_minutes?: number }) {
-  return crudRequest('PUT', `${API_BASE}/odoo/auto-sync`, data);
+export async function updateOdooAutoSync(data: {
+  enabled?: boolean;
+  interval_minutes?: number;
+}) {
+  return crudRequest("PUT", `${API_BASE}/odoo/auto-sync`, data);
 }
 
 // ---------------------------------------------------------------------------
@@ -851,7 +922,7 @@ export interface MatchingStatsData {
     manual: number;
   }[];
   last_run?: {
-    status: 'running' | 'completed' | 'error';
+    status: "running" | "completed" | "error";
     ran_at: string;
     total_products?: number;
     from_cache?: number;
@@ -904,22 +975,28 @@ export interface MatchingRunItem {
   attr_share_hits: number | null;
   total_odoo_products: number | null;
   matched_products: number | null;
+  new_matched: number | null;
   nightly_job_id: number | null;
 }
 
-export async function fetchMatchingRuns(limit = 30): Promise<MatchingRunItem[]> {
+export async function fetchMatchingRuns(
+  limit = 30,
+): Promise<MatchingRunItem[]> {
   const res = await fetchWithAuth(`${API_BASE}/matching/runs?limit=${limit}`);
   if (!res.ok) throw new Error(await extractErrorMessage(res));
   return res.json();
 }
 
-export async function runMatching(supplierId?: number, limit?: number): Promise<void> {
+export async function runMatching(
+  supplierId?: number,
+  limit?: number,
+): Promise<void> {
   const body: Record<string, unknown> = {};
   if (supplierId) body.supplier_id = supplierId;
   if (limit) body.limit = limit;
   const res = await fetchWithAuth(`${API_BASE}/matching/run`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   if (!res.ok) {
@@ -927,17 +1004,26 @@ export async function runMatching(supplierId?: number, limit?: number): Promise<
   }
 }
 
-export async function fetchPendingMatches(params?: { supplier_id?: number; page?: number; per_page?: number; status?: string; model?: string; search?: string }) {
+export async function fetchPendingMatches(params?: {
+  supplier_id?: number;
+  page?: number;
+  per_page?: number;
+  status?: string;
+  model?: string;
+  search?: string;
+}) {
   const qs = new URLSearchParams();
-  if (params?.supplier_id) qs.set('supplier_id', String(params.supplier_id));
-  if (params?.page) qs.set('page', String(params.page));
-  if (params?.per_page) qs.set('per_page', String(params.per_page));
-  if (params?.status) qs.set('status', params.status);
+  if (params?.supplier_id) qs.set("supplier_id", String(params.supplier_id));
+  if (params?.page) qs.set("page", String(params.page));
+  if (params?.per_page) qs.set("per_page", String(params.per_page));
+  if (params?.status) qs.set("status", params.status);
   // Support both new 'search' and legacy 'model' parameter
-  if (params?.search) qs.set('search', params.search);
-  else if (params?.model) qs.set('model', params.model);
+  if (params?.search) qs.set("search", params.search);
+  else if (params?.model) qs.set("model", params.model);
   const queryString = qs.toString();
-  const res = await fetchWithAuth(`${API_BASE}/matching/pending${queryString ? `?${queryString}` : ''}`);
+  const res = await fetchWithAuth(
+    `${API_BASE}/matching/pending${queryString ? `?${queryString}` : ""}`,
+  );
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
@@ -945,14 +1031,17 @@ export async function fetchPendingMatches(params?: { supplier_id?: number; page?
 }
 
 export async function validateMatch(pendingMatchId: number, productId: number) {
-  return crudRequest('POST', `${API_BASE}/matching/validate`, {
+  return crudRequest("POST", `${API_BASE}/matching/validate`, {
     pending_match_id: pendingMatchId,
     product_id: productId,
   });
 }
 
-export async function rejectMatch(pendingMatchId: number, createProduct = false) {
-  return crudRequest('POST', `${API_BASE}/matching/reject`, {
+export async function rejectMatch(
+  pendingMatchId: number,
+  createProduct = false,
+) {
+  return crudRequest("POST", `${API_BASE}/matching/reject`, {
     pending_match_id: pendingMatchId,
     create_product: createProduct,
   });
@@ -966,12 +1055,18 @@ export async function fetchMatchingStats() {
   return res.json() as Promise<MatchingStatsData>;
 }
 
-export async function fetchMatchingCache(params?: { supplier_id?: number; page?: number }) {
+export async function fetchMatchingCache(params?: {
+  supplier_id?: number;
+  page?: number;
+}) {
   const search = new URLSearchParams();
-  if (params?.supplier_id) search.set('supplier_id', String(params.supplier_id));
-  if (params?.page) search.set('page', String(params.page));
+  if (params?.supplier_id)
+    search.set("supplier_id", String(params.supplier_id));
+  if (params?.page) search.set("page", String(params.page));
   const qs = search.toString();
-  const res = await fetchWithAuth(`${API_BASE}/matching/cache${qs ? `?${qs}` : ''}`);
+  const res = await fetchWithAuth(
+    `${API_BASE}/matching/cache${qs ? `?${qs}` : ""}`,
+  );
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
@@ -979,7 +1074,7 @@ export async function fetchMatchingCache(params?: { supplier_id?: number; page?:
 }
 
 export async function deleteMatchingCache(cacheId: number) {
-  return crudRequest('DELETE', `${API_BASE}/matching/cache/${cacheId}`);
+  return crudRequest("DELETE", `${API_BASE}/matching/cache/${cacheId}`);
 }
 
 export interface AssignTypesResult {
@@ -989,8 +1084,12 @@ export interface AssignTypesResult {
   dry_run: boolean;
 }
 
-export async function assignDeviceTypes(dryRun = false): Promise<AssignTypesResult> {
-  return crudRequest('POST', `${API_BASE}/matching/assign-types`, { dry_run: dryRun });
+export async function assignDeviceTypes(
+  dryRun = false,
+): Promise<AssignTypesResult> {
+  return crudRequest("POST", `${API_BASE}/matching/assign-types`, {
+    dry_run: dryRun,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -1022,12 +1121,14 @@ export async function fetchActivityLogs(params?: {
   action?: string;
 }) {
   const search = new URLSearchParams();
-  if (params?.page) search.set('page', String(params.page));
-  if (params?.per_page) search.set('per_page', String(params.per_page));
-  if (params?.category) search.set('category', params.category);
-  if (params?.action) search.set('action', params.action);
+  if (params?.page) search.set("page", String(params.page));
+  if (params?.per_page) search.set("per_page", String(params.per_page));
+  if (params?.category) search.set("category", params.category);
+  if (params?.action) search.set("action", params.action);
   const qs = search.toString();
-  const res = await fetchWithAuth(`${API_BASE}/logs/activity${qs ? `?${qs}` : ''}`);
+  const res = await fetchWithAuth(
+    `${API_BASE}/logs/activity${qs ? `?${qs}` : ""}`,
+  );
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res));
   }
@@ -1070,6 +1171,7 @@ export interface NightlyMatchingDetail {
   errors: number | null;
   cost_estimate: number | null;
   duration_seconds: number | null;
+  new_matched: number | null;
 }
 
 export interface NightlyJob {
@@ -1098,12 +1200,20 @@ export async function fetchNightlyConfig() {
   return res.json() as Promise<NightlyConfig>;
 }
 
-export async function updateNightlyConfig(data: Partial<Pick<NightlyConfig, 'enabled' | 'run_hour' | 'run_minute'>>) {
-  return crudRequest('PUT', `${API_BASE}/nightly/config`, data) as Promise<NightlyConfig>;
+export async function updateNightlyConfig(
+  data: Partial<Pick<NightlyConfig, "enabled" | "run_hour" | "run_minute">>,
+) {
+  return crudRequest(
+    "PUT",
+    `${API_BASE}/nightly/config`,
+    data,
+  ) as Promise<NightlyConfig>;
 }
 
 export async function triggerNightly() {
-  const res = await fetchWithAuth(`${API_BASE}/nightly/trigger`, { method: 'POST' });
+  const res = await fetchWithAuth(`${API_BASE}/nightly/trigger`, {
+    method: "POST",
+  });
   if (!res.ok) throw new Error(await extractErrorMessage(res));
   return res.json() as Promise<{ status: string }>;
 }
@@ -1126,10 +1236,17 @@ export async function fetchNightlyRecipients() {
   return res.json() as Promise<NightlyRecipient[]>;
 }
 
-export async function addNightlyRecipient(data: { email: string; name?: string }) {
-  return crudRequest('POST', `${API_BASE}/nightly/recipients`, data) as Promise<NightlyRecipient>;
+export async function addNightlyRecipient(data: {
+  email: string;
+  name?: string;
+}) {
+  return crudRequest(
+    "POST",
+    `${API_BASE}/nightly/recipients`,
+    data,
+  ) as Promise<NightlyRecipient>;
 }
 
 export async function deleteNightlyRecipient(id: number) {
-  return crudRequest('DELETE', `${API_BASE}/nightly/recipients/${id}`);
+  return crudRequest("DELETE", `${API_BASE}/nightly/recipients/${id}`);
 }
